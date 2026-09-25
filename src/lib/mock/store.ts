@@ -682,8 +682,15 @@ export function getDemoOwnedWebsite(userId: string, websiteId: string): DemoWebs
 export function getDemoWebsiteLimit(userId: string): { ok: boolean; count: number; max: number } {
   const u = getDemoUser(userId);
   const count = getDemoWebsites(userId).length;
-  const max = u?.tier === "starter" ? 3 : u?.tier === "growth" ? 10 : 1;
+  const max = u?.tier === "starter" ? 3 : u?.tier === "growth" ? 10 : u?.tier === "enterprise" ? 999 : 1;
   return { ok: count < max, count, max };
+}
+
+export function setDemoUserTier(userId: string, tier: "free" | "starter" | "growth" | "enterprise"): boolean {
+  const u = getDemoUser(userId);
+  if (!u) return false;
+  u.tier = tier;
+  return true;
 }
 
 export function createDemoWebsite(

@@ -1,0 +1,5 @@
+{
+  "name": "UMKM SaaS",
+  "description": "Website Toko Online Cepat untuk UMKM Indonesia",
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

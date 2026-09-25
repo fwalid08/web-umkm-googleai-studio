@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getTenantSite } from "@/lib/builder/public";
 import { PublicWebsite } from "@/components/website/renderer";
 import { rootHost, tenantDisplay } from "@/lib/urls";
+import { LandingPricing } from "@/components/pricing/landing-pricing";
 import {
   Store,
   Sparkles,
@@ -247,132 +248,8 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-16 sm:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-xl mx-auto mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
-              Paket Harga Jujur dan Terjangkau
-            </h2>
-            <p className="text-sm text-gray-600 mt-2">
-              Mulai gratis 14 hari. Tanpa potongan komisi penjualan.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Free */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-              <div>
-                <p className="text-sm font-bold text-gray-900">Paket Gratis</p>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-gray-900">Rp 0</span>
-                  <span className="text-xs text-gray-500">/ bulan</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Cocok untuk toko baru yang baru mulai online</p>
-
-                <ul className="mt-6 space-y-2.5 text-xs text-gray-600">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>1 Website Toko Online</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Subdomain gratis (tenant-nama.id)</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Integrasi WhatsApp Checkout</span>
-                  </li>
-                </ul>
-              </div>
-
-              <Link
-                href="/signin"
-                className="mt-8 block text-center py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl transition-colors"
-              >
-                Coba di Akun Demo
-              </Link>
-            </div>
-
-            {/* Starter */}
-            <div className="bg-white p-6 rounded-2xl border-2 border-emerald-600 shadow-md relative flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-emerald-700">Paket Starter</p>
-                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                    Paling Favorit
-                  </span>
-                </div>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-gray-900">Rp 49.000</span>
-                  <span className="text-xs text-gray-500">/ bulan</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Untuk toko yang ingin berkembang pesat</p>
-
-                <ul className="mt-6 space-y-2.5 text-xs text-gray-700 font-medium">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Hingga 3 Website Toko Online</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Dukungan Custom Domain (.com / .id)</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Katalog Produk Tanpa Batas</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Dashboard Pesanan Lengkap</span>
-                  </li>
-                </ul>
-              </div>
-
-              <Link
-                href="/signup"
-                className="mt-8 block text-center py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-              >
-                Mulai 14 Hari Gratis
-              </Link>
-            </div>
-
-            {/* Growth */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-              <div>
-                <p className="text-sm font-bold text-gray-900">Paket Growth</p>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-gray-900">Rp 149.000</span>
-                  <span className="text-xs text-gray-500">/ bulan</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Untuk bisnis multi-cabang & brand besar</p>
-
-                <ul className="mt-6 space-y-2.5 text-xs text-gray-600">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Hingga 10 Website Toko Online</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Analitik Penjualan & Pelanggan</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Prioritas Bantuan CS WhatsApp</span>
-                  </li>
-                </ul>
-              </div>
-
-              <Link
-                href="/signup"
-                className="mt-8 block text-center py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl transition-colors"
-              >
-                Pilih Growth
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Interactive Pricing Plans Section */}
+      <LandingPricing />
 
       {/* Footer */}
       <footer className="border-t border-gray-200/80 bg-gray-50 py-10">
