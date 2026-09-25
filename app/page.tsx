@@ -4,16 +4,30 @@ import { notFound } from "next/navigation";
 import { getTenantSite } from "@/lib/builder/public";
 import { PublicWebsite } from "@/components/website/renderer";
 import { rootHost, tenantDisplay } from "@/lib/urls";
-import { Store, Sparkles, ShoppingBag, BarChart3, Clock, Shield, ArrowRight, CheckCircle2, Star } from "lucide-react";
+import {
+  Store,
+  Sparkles,
+  ShoppingBag,
+  BarChart3,
+  Clock,
+  Shield,
+  ArrowRight,
+  Check,
+  Star,
+  Globe,
+  Palette,
+  MessageCircle,
+} from "lucide-react";
 
-// Sprint 01 US-04: root "/" ganda — request tenant (subdomain/custom domain)
-// render website toko, request root render landing. SEO ikut tenant.
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getTenantSite();
   if (tenant.site) {
     return { title: tenant.site.seo.title, description: tenant.site.seo.description };
   }
-  return { title: "UMKM SaaS — Website Toko Online dalam Menit", description: "5 template siap pakai untuk UMKM Indonesia. Gratis 14 hari." };
+  return {
+    title: "UMKM SaaS — Website Toko Online Cepat untuk UMKM Indonesia",
+    description: "Template siap pakai untuk kuliner, fashion, kerajinan & jasa. Pesanan WhatsApp otomatis, katalog produk, dan domain toko.",
+  };
 }
 
 export default async function Home() {
@@ -25,133 +39,351 @@ export default async function Home() {
 
 function LandingPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white text-gray-900 selection:bg-emerald-100 selection:text-emerald-900">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
               <Store className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg">UMKM SaaS</span>
-            <span className="hidden sm:inline text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full ml-2">Beta</span>
+            <div>
+              <span className="font-bold text-lg text-gray-900 tracking-tight">UMKM SaaS</span>
+              <span className="hidden sm:inline-block ml-2 text-xs text-gray-500 font-medium">
+                · Solusi Toko Digital
+              </span>
+            </div>
           </div>
-          <nav className="flex items-center gap-3">
-            <Link href="/signin" className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2">Masuk</Link>
-            <Link href="/signup" className="text-sm bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700">Mulai Gratis</Link>
+
+          <nav className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/signin"
+              className="text-xs sm:text-sm font-semibold text-gray-700 hover:text-emerald-700 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Masuk
+            </Link>
+            <Link
+              href="/signin"
+              className="text-xs sm:text-sm font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300/80 px-3.5 py-2 rounded-xl transition-all shadow-sm"
+            >
+              🚀 Coba Demo
+            </Link>
+            <Link
+              href="/signup"
+              className="hidden sm:inline-flex text-xs sm:text-sm font-semibold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 shadow-sm transition-all"
+            >
+              Daftar Gratis
+            </Link>
           </nav>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm mb-4">
-              <Sparkles className="w-4 h-4" /> Gratis 14 hari, tanpa kartu kredit
+      {/* Hero Section */}
+      <section className="relative overflow-hidden pt-12 pb-16 sm:py-20 lg:py-24 border-b border-gray-100 bg-gradient-to-b from-emerald-50/40 via-white to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-12 gap-12 items-center">
+            <div className="lg:col-span-7 space-y-6">
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 tracking-wide">
+                <span>Solusi Praktis UMKM Indonesia</span>
+                <span aria-hidden="true">·</span>
+                <span>Gratis 14 Hari</span>
+                <span aria-hidden="true">·</span>
+                <span>Tanpa Kartu Kredit</span>
+              </div>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-gray-900 leading-[1.12]">
+                Website Toko Online UMKM,{" "}
+                <span className="text-emerald-600 underline decoration-emerald-300 underline-offset-8">
+                  Siap Jual dalam Menit
+                </span>
+              </h1>
+
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed max-w-2xl">
+                Bikin toko online tidak perlu pusing koding. Template siap pakai untuk warung kopi, kuliner,
+                fashion hijab, kerajinan, dan ritel. Pesanan langsung masuk ke WhatsApp dan dashboard otomatis.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/signin"
+                  className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base hover:bg-emerald-700 shadow-md hover:shadow-lg transition-all"
+                >
+                  <span>Coba Akun Demo Instan</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center gap-2 bg-white border border-gray-300 px-7 py-3.5 rounded-xl font-semibold text-sm sm:text-base text-gray-800 hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm"
+                >
+                  <span>Daftar Toko Baru</span>
+                </Link>
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="pt-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-gray-600">
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Langsung terhubung ke WhatsApp</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Subdomain gratis otomatis</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Desain responsive HP & laptop</span>
+                </div>
+              </div>
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
-              Website toko online UMKM <span className="text-green-600">dalam menit</span>
-            </h1>
-            <p className="mt-4 text-lg text-gray-600">
-              5 template siap pakai untuk makanan, fashion, kerajinan, retail & jasa. Order 24/7, dashboard pesanan, subdomain otomatis.
+
+            {/* Interactive Preview Card */}
+            <div className="lg:col-span-5">
+              <div className="bg-white border border-gray-200/90 rounded-2xl shadow-xl overflow-hidden">
+                {/* Browser bar */}
+                <div className="bg-gray-900 px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                    <span className="w-2.5 h-2.5 bg-amber-500 rounded-full" />
+                    <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
+                  </div>
+                  <div className="text-[11px] text-gray-300 font-mono tracking-tight bg-gray-800 px-3 py-1 rounded-md">
+                    {tenantDisplay("tenant-kopibutoni")}
+                  </div>
+                  <div className="w-8" />
+                </div>
+
+                {/* Mock store body */}
+                <div className="p-5 space-y-4 bg-orange-50/30">
+                  <div className="bg-gradient-to-r from-orange-600 to-amber-600 text-white p-5 rounded-xl">
+                    <p className="text-xs uppercase tracking-wider font-semibold opacity-80">Warung Kopi & Kuliner</p>
+                    <h3 className="text-xl font-bold mt-1">Warung Kopi Bu Toni</h3>
+                    <p className="text-xs opacity-90 mt-1">Biji kopi robusta lokal seduh istimewa sejak 2018</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+                      <span>Menu Terlaris</span>
+                      <span className="text-emerald-700">Buka Hari Ini</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-white p-3 rounded-lg border border-gray-200 text-left">
+                        <p className="text-xs font-bold text-gray-900 truncate">Kopi Susu Aren</p>
+                        <p className="text-xs text-emerald-700 font-semibold mt-1">Rp 18.000</p>
+                        <span className="inline-block mt-2 text-[10px] text-gray-500">Pesan WA →</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-lg border border-gray-200 text-left">
+                        <p className="text-xs font-bold text-gray-900 truncate">Roti Bakar Keju</p>
+                        <p className="text-xs text-emerald-700 font-semibold mt-1">Rp 15.000</p>
+                        <span className="inline-block mt-2 text-[10px] text-gray-500">Pesan WA →</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-gray-200/80 flex items-center justify-between text-xs text-gray-600">
+                    <span>Ongkir COD Tersedia</span>
+                    <span className="text-emerald-700 font-medium">Buka 08:00 - 21:00</span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 text-center border-t border-gray-100">
+                  <Link
+                    href="/signin"
+                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                  >
+                    👉 Klik di sini untuk mencoba mengedit toko ini di Demo
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3 Pillars Section */}
+      <section className="py-16 bg-gray-50/60 border-b border-gray-200/70">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+              Dibuat Khusus Mengatasi Keluhan Pedagang UMKM
+            </h2>
+            <p className="text-sm text-gray-600 mt-2">
+              Tidak perlu membalas chat harga berulang kali, tidak ada komisi per transaksi marketplace yang tinggi.
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-3">
-              <Link href="/signup" className="inline-flex items-center justify-center gap-2 bg-green-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-green-700">
-                Mulai Gratis <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link href="#templates" className="inline-flex items-center justify-center gap-2 border border-gray-300 px-8 py-3 rounded-xl font-medium hover:bg-gray-50">
-                Lihat Template
-              </Link>
-            </div>
-            <div className="mt-6 flex items-center gap-6 text-sm text-gray-500">
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-green-600" /> 5 produk max di Free</span>
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-green-600" /> Upgrade Rp99rb</span>
-            </div>
           </div>
-          <div className="bg-gray-50 rounded-2xl p-6 border">
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <div className="h-10 bg-gray-900 flex items-center gap-1.5 px-3">
-                <span className="w-3 h-3 bg-red-400 rounded-full" /><span className="w-3 h-3 bg-yellow-400 rounded-full" /><span className="w-3 h-3 bg-green-400 rounded-full" />
-                <span className="ml-3 text-xs text-gray-400">{tenantDisplay("tenant-warung-ibu")}</span>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm space-y-3">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+                <Store className="w-5 h-5" />
               </div>
-              <div className="p-6 space-y-4">
-                <div className="h-32 bg-gradient-to-br from-orange-100 to-amber-50 rounded-xl flex items-center justify-center">
-                  <span className="text-3xl">🍽️</span>
-                </div>
-                <div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2" />
-                  <div className="h-3 bg-gray-100 rounded w-3/4 mt-2" />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[1,2,3].map(i=> <div key={i} className="h-20 bg-gray-100 rounded-lg" />)}
-                </div>
-                <div className="flex gap-2">
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">COD Tersedia</span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Buka 08:00-21:00</span>
-                </div>
-              </div>
+              <h3 className="text-lg font-bold text-gray-900">Katalog & Menu Selalu Online</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Pelanggan bisa melihat daftar menu, foto, harga, dan ketersediaan stok 24 jam tanpa harus tanya satu per satu.
+              </p>
             </div>
-            <p className="text-center text-xs text-gray-500 mt-3">Pratinjau template Makanan • Responsive mobile & desktop</p>
+
+            <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm space-y-3">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+                <MessageCircle className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Checkout Terhubung ke WhatsApp</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Begitu pembeli memilih produk, rincian pesanan dan total harga langsung tersusun rapi di pesan WhatsApp penjual.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm space-y-3">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+                <Globe className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Kelola Multi-Toko dengan Mudah</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Punya usaha kuliner sekaligus jualan hijab? Kelola semua website tokomu dalam satu akun tanpa ribet gonta-ganti login.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Social proof */}
-      <section className="border-y bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-wrap items-center justify-center gap-8 text-sm text-gray-500">
-          <span>Dipercaya UMKM</span><span className="flex items-center gap-1"><Star className="w-4 h-4 fill-amber-400 text-amber-400" /> 4.8/5</span><span>50+ website dibuat (beta)</span>
-        </div>
-      </section>
+      {/* Pricing Section */}
+      <section id="pricing" className="py-16 sm:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-xl mx-auto mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+              Paket Harga Jujur dan Terjangkau
+            </h2>
+            <p className="text-sm text-gray-600 mt-2">
+              Mulai gratis 14 hari. Tanpa potongan komisi penjualan.
+            </p>
+          </div>
 
-      {/* Features */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h2 className="text-2xl font-bold text-center">Selesaikan 7 masalah UMKM langsung</h2>
-        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            {icon: Store, title: "5 Template Profesional", desc: "Makanan, Fashion, Kerajinan, Retail, Layanan — tinggal isi konten"},
-            {icon: ShoppingBag, title: "Order Dashboard", desc: "Kurangi 8 langkah manual (DM→WA→catat) jadi 2 langkah"},
-            {icon: Clock, title: "Order 24/7 + Auto-response", desc: "Tidak kehilangan pelanggan saat Anda tidur/masak"},
-            {icon: BarChart3, title: "Info Otomatis", desc: "Harga, lokasi, jam, COD tampil otomatis kurangi FAQ berulang"},
-            {icon: Shield, title: "Subdomain Otomatis", desc: `${tenantDisplay("tenant-xxx")} + opsi custom domain tokoku.com`},
-            {icon: Sparkles, title: "Gratis 14 Hari", desc: "Coba penuh, 3 produk di Free, upgrade Rp99rb saat butuh"},
-          ].map(f=> (
-            <div key={f.title} className="border rounded-xl p-6 bg-white">
-              <f.icon className="w-8 h-8 text-green-600" />
-              <h3 className="mt-3 font-semibold">{f.title}</h3>
-              <p className="mt-1 text-sm text-gray-600">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Free */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Paket Gratis</p>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-gray-900">Rp 0</span>
+                  <span className="text-xs text-gray-500">/ bulan</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Cocok untuk toko baru yang baru mulai online</p>
 
-      {/* Pricing */}
-      <section id="pricing" className="bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <h2 className="text-2xl font-bold text-center">Harga jujur untuk UMKM</h2>
-          <div className="mt-10 grid md:grid-cols-4 gap-6">
-            {[
-              {name:"Free", price:"Rp0", feats:["3 template","5 produk","Subdomain","Trial 14 hari"]},
-              {name:"Starter", price:"Rp99rb", popular:true, feats:["5 template","Produk unlimited","Order dashboard","Auto-info badge"]},
-              {name:"Growth", price:"Rp299rb", feats:["Analytics","Auto follow-up","Customer list","2 payment gateway"]},
-              {name:"Enterprise", price:"Custom", feats:["Repeat order","API & integrasi","Custom template","Multi-store"]},
-            ].map(t=> (
-              <div key={t.name} className={`rounded-2xl p-6 ${t.popular ? "bg-white text-gray-900" : "bg-white/5 border border-white/10"}`}>
-                {t.popular && <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full">Paling Populer</span>}
-                <h3 className="mt-3 font-bold text-lg">{t.name}</h3>
-                <p className="text-2xl font-bold mt-1">{t.price}<span className="text-sm font-normal opacity-60">/bulan</span></p>
-                <ul className="mt-4 space-y-2 text-sm">
-                  {t.feats.map(f=> <li key={f} className="flex gap-2"><CheckCircle2 className={`w-4 h-4 ${t.popular ? "text-green-600" : "text-green-400"}`} />{f}</li>)}
+                <ul className="mt-6 space-y-2.5 text-xs text-gray-600">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>1 Website Toko Online</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Subdomain gratis (tenant-nama.id)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Integrasi WhatsApp Checkout</span>
+                  </li>
                 </ul>
-                <Link href="/signup" className={`mt-6 block text-center py-2 rounded-lg text-sm font-medium ${t.popular ? "bg-green-600 text-white" : "bg-white text-gray-900"}`}>Mulai</Link>
               </div>
-            ))}
+
+              <Link
+                href="/signin"
+                className="mt-8 block text-center py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl transition-colors"
+              >
+                Coba di Akun Demo
+              </Link>
+            </div>
+
+            {/* Starter */}
+            <div className="bg-white p-6 rounded-2xl border-2 border-emerald-600 shadow-md relative flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-emerald-700">Paket Starter</p>
+                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                    Paling Favorit
+                  </span>
+                </div>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-gray-900">Rp 49.000</span>
+                  <span className="text-xs text-gray-500">/ bulan</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Untuk toko yang ingin berkembang pesat</p>
+
+                <ul className="mt-6 space-y-2.5 text-xs text-gray-700 font-medium">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Hingga 3 Website Toko Online</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Dukungan Custom Domain (.com / .id)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Katalog Produk Tanpa Batas</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Dashboard Pesanan Lengkap</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link
+                href="/signup"
+                className="mt-8 block text-center py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+              >
+                Mulai 14 Hari Gratis
+              </Link>
+            </div>
+
+            {/* Growth */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Paket Growth</p>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-gray-900">Rp 149.000</span>
+                  <span className="text-xs text-gray-500">/ bulan</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Untuk bisnis multi-cabang & brand besar</p>
+
+                <ul className="mt-6 space-y-2.5 text-xs text-gray-600">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Hingga 10 Website Toko Online</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Analitik Penjualan & Pelanggan</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Prioritas Bantuan CS WhatsApp</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link
+                href="/signup"
+                className="mt-8 block text-center py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl transition-colors"
+              >
+                Pilih Growth
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      <footer className="border-t py-8 text-center text-sm text-gray-500">
-        UMKM SaaS • {rootHost()} • Dibuat untuk UMKM Indonesia • Next.js + Tailwind + Supabase
+      {/* Footer */}
+      <footer className="border-t border-gray-200/80 bg-gray-50 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
+          <p>© 2026 UMKM SaaS Indonesia · Platform Toko Digital Ramah UMKM</p>
+          <div className="flex items-center gap-4">
+            <Link href="/signin" className="hover:text-gray-900">Akun Demo</Link>
+            <Link href="/websites" className="hover:text-gray-900">Website Saya</Link>
+            <Link href="/dashboard" className="hover:text-gray-900">Dashboard</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );

@@ -897,3 +897,74 @@ export function getDemoPublicSite(subdomain: string) {
     whatsapp,
   };
 }
+
+export function getDemoProducts(websiteId: string) {
+  const cfg = websiteConfigs.get(websiteId);
+  if (!cfg?.sections) return [];
+  const prodSec = cfg.sections.find((s: any) => s.type === "product_grid" || s.id === "menu" || s.id === "products");
+  if (!prodSec?.content?.items) return [];
+  return prodSec.content.items.map((item: any, idx: number) => ({
+    id: `prod-${idx}`,
+    index: idx,
+    name: item.name || "Produk",
+    price: Number(item.price) || 0,
+    description: item.description || "",
+    category: item.category || "Umum",
+    available: item.available !== false,
+  }));
+}
+
+export function addDemoProduct(
+  websiteId: string,
+  product: { name: string; price: number; description?: string; category?: string }
+) {
+  const cfg = websiteConfigs.get(websiteId);
+  if (!cfg?.sections) return false;
+  let prodSec = cfg.sections.find((s: any) => s.type === "product_grid" || s.id === "menu" || s.id === "products");
+  if (!prodSec) {
+    prodSec = {
+      id: "products",
+      type: "product_grid",
+      label: "Daftar Produk",
+      required: true,
+      order: 2,
+      enabled: true,
+      content: { items: [] },
+    };
+    cfg.sections.push(prodSec);
+  }
+  if (!prodSec.content) prodSec.content = {};
+  if (!Array.isArray(prodSec.content.items)) prodSec.content.items = [];
+
+  prodSec.content.items.push({
+    name: product.name,
+    price: Number(product.price),
+    description: product.description || "",
+    category: product.category || "Umum",
+    available: true,
+  });
+  return true;
+}
+
+export function updateDemoProduct(
+  websiteId: string,
+  index: number,
+  patch: { name?: string; price?: number; description?: string; category?: string; available?: boolean }
+) {
+  const cfg = websiteConfigs.get(websiteId);
+  if (!cfg?.sections) return false;
+  const prodSec = cfg.sections.find((s: any) => s.type === "product_grid" || s.id === "menu" || s.id === "products");
+  if (!prodSec?.content?.items?.[index]) return false;
+  Object.assign(prodSec.content.items[index], patch);
+  return true;
+}
+
+export function deleteDemoProduct(websiteId: string, index: number) {
+  const cfg = websiteConfigs.get(websiteId);
+  if (!cfg?.sections) return false;
+  const prodSec = cfg.sections.find((s: any) => s.type === "product_grid" || s.id === "menu" || s.id === "products");
+  if (!prodSec?.content?.items?.[index]) return false;
+  prodSec.content.items.splice(index, 1);
+  return true;
+}
+

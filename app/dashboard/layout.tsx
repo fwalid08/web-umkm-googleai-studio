@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { useLang, type Lang } from "@/lib/i18n";
 import { tenantDisplay, tenantUrl } from "@/lib/urls";
 
@@ -236,8 +237,11 @@ export default function DashboardLayout({
         </header>
 
         {/* Main content */}
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">{children}</main>
       </div>
+
+      {/* Floating mobile bottom navigation */}
+      <MobileBottomNav />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { WebsitePanelMenu } from "@/components/websites/panel-menu";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { useLang } from "@/lib/i18n";
 
 export default function WebsitesLayout({ children }: { children: React.ReactNode }) {
@@ -158,8 +159,11 @@ export default function WebsitesLayout({ children }: { children: React.ReactNode
             </div>
           </div>
         </header>
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">{children}</main>
       </div>
+
+      {/* Floating mobile bottom navigation */}
+      <MobileBottomNav />
     </div>
   );
 }
