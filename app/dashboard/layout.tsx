@@ -22,7 +22,6 @@ import {
   CreditCard,
   Layers,
   Users,
-  LayoutTemplate,
   FileText,
   Megaphone,
   Compass,
@@ -111,7 +110,6 @@ export default function DashboardLayout({
       header: t("nav.groupWebsite"),
       items: [
         { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
-        { name: t("nav.themes"), href: "/dashboard/themes", icon: LayoutTemplate },
         { name: t("nav.pages"), href: "/dashboard/pages", icon: FileText },
         { name: t("nav.announcement"), href: "/dashboard/announcement", icon: Megaphone },
         { name: t("nav.navigation"), href: "/dashboard/navigation", icon: Compass },
