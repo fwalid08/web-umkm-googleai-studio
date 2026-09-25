@@ -22,6 +22,10 @@ import {
   CreditCard,
   Layers,
   Users,
+  LayoutTemplate,
+  FileText,
+  Megaphone,
+  Compass,
 } from "lucide-react";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
@@ -91,7 +95,7 @@ export default function DashboardLayout({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  // Grouped Menu Navigation with Headers
+  // Grouped Menu Navigation with Headers (Focused on Daily Store Operations & Appearance)
   const menuGroups: MenuGroup[] = [
     {
       header: t("nav.groupStore"),
@@ -107,15 +111,11 @@ export default function DashboardLayout({
       header: t("nav.groupWebsite"),
       items: [
         { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
+        { name: t("nav.themes"), href: "/dashboard/themes", icon: LayoutTemplate },
+        { name: t("nav.pages"), href: "/dashboard/pages", icon: FileText },
+        { name: t("nav.announcement"), href: "/dashboard/announcement", icon: Megaphone },
+        { name: t("nav.navigation"), href: "/dashboard/navigation", icon: Compass },
         { name: t("nav.domain"), href: "/dashboard/domain", icon: Globe },
-        { name: t("nav.stores"), href: "/dashboard/stores", icon: Layers },
-      ],
-    },
-    {
-      header: t("nav.groupAccount"),
-      items: [
-        { name: t("nav.billing"), href: "/dashboard/settings/billing", icon: CreditCard },
-        { name: t("nav.settings"), href: "/dashboard/settings", icon: Settings, exact: true },
       ],
     },
   ];
@@ -262,42 +262,79 @@ export default function DashboardLayout({
             {userMenuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                <div className="absolute bottom-full left-3 right-3 mb-2 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1">
-                  <div className="px-3.5 py-2 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-gray-900">{(user as any)?.name}</p>
+                <div className="absolute bottom-full left-3 right-3 mb-2 z-20 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden py-1">
+                  <div className="px-3.5 py-2.5 border-b border-gray-100 bg-gray-50/70">
+                    <p className="text-xs font-bold text-gray-900 truncate">
+                      {(user as any)?.name || "Pengguna Toko"}
+                    </p>
                     <p className="text-[11px] text-gray-500 truncate">{(user as any)?.email}</p>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${tierBadgeStyle(
+                          tier
+                        )}`}
+                      >
+                        Paket {tierLabel}
+                      </span>
+                      {isFree && (
+                        <Link
+                          href="/dashboard/settings/billing"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                        >
+                          Upgrade →
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                  <Link
-                    href="/dashboard/stores"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Layers className="h-4 w-4 text-gray-400" />
-                    <span>Kelola Toko & Cabang</span>
-                  </Link>
-                  <Link
-                    href="/dashboard/settings/billing"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <CreditCard className="h-4 w-4 text-gray-400" />
-                    <span>Langganan & Paket</span>
-                  </Link>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={async () => {
-                      try {
-                        localStorage.removeItem("umkm_demo_id");
-                        localStorage.removeItem("umkm_demo_user");
-                        await fetch("/api/auth/demo-logout", { method: "POST" }).catch(() => {});
-                      } catch {}
-                      signOut({ callbackUrl: "/signin" });
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left"
-                  >
-                    <LogOut className="h-4 w-4 text-red-500" />
-                    <span>{t("nav.logout")}</span>
-                  </button>
+
+                  <div className="py-1">
+                    <div className="px-3.5 pt-1.5 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 select-none">
+                      Akun & Pengaturan
+                    </div>
+                    <Link
+                      href="/dashboard/stores"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
+                    >
+                      <Layers className="h-4 w-4 text-gray-500" />
+                      <span>{t("nav.stores")}</span>
+                    </Link>
+                    <Link
+                      href="/dashboard/settings/billing"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
+                    >
+                      <CreditCard className="h-4 w-4 text-gray-500" />
+                      <span>{t("nav.billing")}</span>
+                    </Link>
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
+                    >
+                      <Settings className="h-4 w-4 text-gray-500" />
+                      <span>{t("nav.settings")}</span>
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-gray-100 my-0.5" />
+                  <div className="py-0.5">
+                    <button
+                      onClick={async () => {
+                        try {
+                          localStorage.removeItem("umkm_demo_id");
+                          localStorage.removeItem("umkm_demo_user");
+                          await fetch("/api/auth/demo-logout", { method: "POST" }).catch(() => {});
+                        } catch {}
+                        signOut({ callbackUrl: "/signin" });
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left transition-colors"
+                    >
+                      <LogOut className="h-4 w-4 text-red-500" />
+                      <span>{t("nav.logout")}</span>
+                    </button>
+                  </div>
                 </div>
               </>
             )}
