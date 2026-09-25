@@ -257,7 +257,7 @@ function LandingPage() {
           <p>© 2026 UMKM SaaS Indonesia · Platform Toko Digital Ramah UMKM</p>
           <div className="flex items-center gap-4">
             <Link href="/signin" className="hover:text-gray-900">Akun Demo</Link>
-            <Link href="/websites" className="hover:text-gray-900">Website Saya</Link>
+            <Link href="/dashboard/stores" className="hover:text-gray-900">Kelola Toko</Link>
             <Link href="/dashboard" className="hover:text-gray-900">Dashboard</Link>
           </div>
         </div>

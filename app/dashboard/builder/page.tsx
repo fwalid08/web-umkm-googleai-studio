@@ -15,10 +15,10 @@ export default function DashboardBuilderRedirect() {
           const activeId = json.data.active_website_id || json.data.websites[0].id;
           router.replace(`/dashboard/${activeId}/builder`);
         } else {
-          router.replace("/websites");
+          router.replace("/dashboard/stores");
         }
       } catch {
-        router.replace("/websites");
+        router.replace("/dashboard/stores");
       }
     })();
   }, [router]);

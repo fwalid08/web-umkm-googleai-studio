@@ -416,7 +416,7 @@ export default function DashboardPage() {
 
           {/* Action 4: My Websites / Domain */}
           <Link
-            href="/websites"
+            href="/dashboard/domain"
             className="p-4 bg-white border border-gray-200/90 hover:border-emerald-500 rounded-2xl hover:shadow-md transition-all group flex items-start gap-3.5"
           >
             <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 shrink-0 group-hover:scale-105 transition-transform">

@@ -202,7 +202,7 @@ export default function OnboardingPage() {
               <code className="inline-block bg-gray-100 px-3 py-1 rounded">{tenantDisplay(subdomain)}</code>
               <div className="flex flex-col sm:flex-row gap-2">
                 <a
-                  href={tenantUrl(subdomain) ?? "/websites"}
+                  href={tenantUrl(subdomain) ?? "/dashboard"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-3 rounded-xl text-white font-medium bg-green-600 hover:bg-green-700 text-center"
@@ -210,7 +210,7 @@ export default function OnboardingPage() {
                   {t("onboarding.viewSite")}
                 </a>
                 <button
-                  onClick={() => router.push(websiteId ? `/websites/${websiteId}` : "/websites")}
+                  onClick={() => router.push(websiteId ? `/dashboard/${websiteId}/builder` : "/dashboard")}
                   className="flex-1 py-3 rounded-xl border font-medium hover:bg-gray-50"
                 >
                   {t("onboarding.toWorkspace")}

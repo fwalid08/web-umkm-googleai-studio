@@ -35,6 +35,11 @@ export const id = {
     websitePanel: "Panel Website",
     logout: "Keluar",
     lang: "Bahasa",
+    groupStore: "Toko & Penjualan",
+    groupWebsite: "Website & Tampilan",
+    groupAccount: "Pengaturan & Akun",
+    stores: "Kelola Toko & Cabang",
+    domain: "Domain & Alamat Toko",
   },
   auth: {
     signinTitle: "Masuk ke Akun",

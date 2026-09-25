@@ -45,13 +45,13 @@ export function WebsitePanelMenu() {
   const items = [
     {
       name: t("workspace.overview"),
-      href: `/websites/${site.id}`,
+      href: `/dashboard/stores`,
       icon: LayoutGrid,
       desc: t("workspace.contextNote", { url: tenantDisplay(site.subdomain) }),
     },
     {
       name: t("domain.subTitle"),
-      href: `/websites/${site.id}/domain`,
+      href: `/dashboard/domain`,
       icon: Globe,
       desc: t("workspace.mDomainDesc"),
     },

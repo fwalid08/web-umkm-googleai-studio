@@ -2,25 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Globe, LayoutDashboard, ShoppingBag, Store, Palette } from "lucide-react";
-
-interface NavTab {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  exact?: boolean;
-}
-
-const TABS: NavTab[] = [
-  { name: "Toko Saya", href: "/websites", icon: Globe },
-  { name: "Ringkasan", href: "/dashboard", icon: LayoutDashboard, exact: true },
-  { name: "Pesanan", href: "/dashboard/orders", icon: ShoppingBag },
-  { name: "Produk", href: "/dashboard/products", icon: Store },
-  { name: "Desain Web", href: "/dashboard/builder", icon: Palette },
-];
+import { LayoutDashboard, ShoppingBag, Store, Palette, Layers } from "lucide-react";
+import { useLang } from "@/lib/i18n";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { t } = useLang();
+
+  const tabs = [
+    { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard, exact: true },
+    { name: t("nav.products"), href: "/dashboard/products", icon: Store },
+    { name: t("nav.orders"), href: "/dashboard/orders", icon: ShoppingBag },
+    { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
+    { name: t("nav.stores"), href: "/dashboard/stores", icon: Layers },
+  ];
 
   return (
     <nav
@@ -28,10 +23,12 @@ export function MobileBottomNav() {
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] px-2 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
     >
       <div className="flex items-center justify-around max-w-md mx-auto">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = tab.exact
             ? pathname === tab.href
-            : pathname === tab.href || pathname.startsWith(tab.href + "/");
+            : pathname === tab.href ||
+              (pathname.startsWith(tab.href + "/") && tab.href !== "/dashboard/settings") ||
+              (tab.href === "/dashboard/builder" && pathname.includes("/builder"));
 
           const Icon = tab.icon;
 
@@ -51,7 +48,7 @@ export function MobileBottomNav() {
                   <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-emerald-600 rounded-full" />
                 )}
               </div>
-              <span className="text-[11px] mt-1 tracking-tight leading-none truncate max-w-[64px]">
+              <span className="text-[10px] mt-1 tracking-tight leading-none truncate max-w-[62px]">
                 {tab.name}
               </span>
             </Link>

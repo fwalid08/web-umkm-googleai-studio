@@ -51,7 +51,7 @@ export function ActivationChecklist() {
           {
             key: "iDomain",
             done: !!sub && !sub.startsWith("tenant-"),
-            href: "/websites",
+            href: "/dashboard/domain",
           },
           { key: "iOrder", done: (o?.data?.total_orders ?? 0) > 0, href: "/dashboard/orders" },
           { key: "iShare", done: localStorage.getItem("umkm-shared") === "1", href: "#" },

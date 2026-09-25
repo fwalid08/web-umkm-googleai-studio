@@ -36,6 +36,11 @@ export const en: Dict = {
     websitePanel: "Website Panel",
     logout: "Log out",
     lang: "Language",
+    groupStore: "Store & Sales",
+    groupWebsite: "Website & Branding",
+    groupAccount: "Settings & Account",
+    stores: "Manage Stores & Branches",
+    domain: "Domain & Store Address",
   },
   auth: {
     signinTitle: "Sign in to your account",

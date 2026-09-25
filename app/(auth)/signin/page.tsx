@@ -11,7 +11,7 @@ function SignInForm() {
   const router = useRouter();
   const { t } = useLang();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/websites";
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,8 +41,8 @@ function SignInForm() {
         // Sinkronisasi NextAuth session di background
         signIn("credentials", { email, password: pass, redirect: false }).catch(() => {});
 
-        // Navigasi instan ke halaman websites / callbackUrl
-        window.location.href = callbackUrl || "/websites";
+        // Navigasi instan ke halaman dashboard / callbackUrl
+        window.location.href = callbackUrl || "/dashboard";
         return;
       }
 
@@ -52,7 +52,7 @@ function SignInForm() {
         setErr(t("auth.badCreds"));
         setIsLoading(false);
       } else {
-        window.location.href = callbackUrl || "/websites";
+        window.location.href = callbackUrl || "/dashboard";
       }
     } catch {
       setErr(t("common.networkError"));

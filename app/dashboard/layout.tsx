@@ -20,6 +20,8 @@ import {
   Copy,
   Check,
   CreditCard,
+  Layers,
+  Users,
 } from "lucide-react";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
@@ -33,6 +35,11 @@ type NavigationItem = {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
 };
+
+interface MenuGroup {
+  header: string;
+  items: NavigationItem[];
+}
 
 function tierBadgeStyle(tier: string | undefined): string {
   switch (tier) {
@@ -84,14 +91,33 @@ export default function DashboardLayout({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const navigation: NavigationItem[] = [
-    { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard, exact: true },
-    { name: t("nav.products"), href: "/dashboard/products", icon: Store },
-    { name: t("nav.orders"), href: "/dashboard/orders", icon: ShoppingBag },
-    { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
-    { name: t("nav.myWebsites"), href: "/websites", icon: Globe },
-    ...(isFree ? [] : [{ name: t("nav.analytics"), href: "/dashboard/analytics", icon: BarChart3 }]),
-    { name: t("nav.settings"), href: "/dashboard/settings", icon: Settings },
+  // Grouped Menu Navigation with Headers
+  const menuGroups: MenuGroup[] = [
+    {
+      header: t("nav.groupStore"),
+      items: [
+        { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard, exact: true },
+        { name: t("nav.products"), href: "/dashboard/products", icon: Store },
+        { name: t("nav.orders"), href: "/dashboard/orders", icon: ShoppingBag },
+        { name: t("nav.customers"), href: "/dashboard/customers", icon: Users },
+        ...(isFree ? [] : [{ name: t("nav.analytics"), href: "/dashboard/analytics", icon: BarChart3 }]),
+      ],
+    },
+    {
+      header: t("nav.groupWebsite"),
+      items: [
+        { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
+        { name: t("nav.domain"), href: "/dashboard/domain", icon: Globe },
+        { name: t("nav.stores"), href: "/dashboard/stores", icon: Layers },
+      ],
+    },
+    {
+      header: t("nav.groupAccount"),
+      items: [
+        { name: t("nav.billing"), href: "/dashboard/settings/billing", icon: CreditCard },
+        { name: t("nav.settings"), href: "/dashboard/settings", icon: Settings, exact: true },
+      ],
+    },
   ];
 
   return (
@@ -141,13 +167,13 @@ export default function DashboardLayout({
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-emerald-900 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Toko Sedang Aktif</span>
+                  <span>Toko Aktif</span>
                 </span>
                 <Link
-                  href="/websites"
+                  href="/dashboard/stores"
                   className="text-[11px] text-emerald-700 hover:text-emerald-900 font-medium hover:underline"
                 >
-                  Ganti Toko
+                  Kelola Cabang →
                 </Link>
               </div>
 
@@ -181,37 +207,54 @@ export default function DashboardLayout({
             </div>
           )}
 
-          {/* Navigation Links */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
-              const isActive = item.exact
-                ? pathname === item.href
-                : pathname === item.href ||
-                  pathname.startsWith(item.href + "/") ||
-                  (item.href === "/dashboard/builder" && pathname.includes("/builder"));
+          {/* Grouped Navigation Links with Section Headers */}
+          <nav className="flex-1 px-3 py-3.5 space-y-4 overflow-y-auto">
+            {menuGroups.map((group, groupIdx) => (
+              <div
+                key={groupIdx}
+                className={groupIdx > 0 ? "pt-3.5 border-t border-gray-100/90" : ""}
+              >
+                {/* Menu Group Section Header */}
+                <div className="px-3 pb-1.5 flex items-center justify-between">
+                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-gray-400 select-none">
+                    {group.header}
+                  </span>
+                </div>
 
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    isActive
-                      ? "bg-emerald-50 text-emerald-900 font-semibold shadow-2xs border border-emerald-200/60"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon
-                    className={`h-5 w-5 shrink-0 ${
-                      isActive ? "text-emerald-700" : "text-gray-400 group-hover:text-gray-600"
-                    }`}
-                  />
-                  <span className="flex-1 truncate">{item.name}</span>
-                  {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
-                  )}
-                </Link>
-              );
-            })}
+                {/* Menu Items */}
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const isActive = item.exact
+                      ? pathname === item.href
+                      : pathname === item.href ||
+                        (pathname.startsWith(item.href + "/") && item.href !== "/dashboard/settings") ||
+                        (item.href === "/dashboard/builder" && pathname.includes("/builder"));
+
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                          isActive
+                            ? "bg-emerald-50 text-emerald-950 font-bold shadow-2xs border border-emerald-200/80"
+                            : "text-gray-600 hover:bg-gray-100/80 hover:text-gray-900"
+                        }`}
+                      >
+                        <item.icon
+                          className={`h-4 w-4 shrink-0 transition-colors ${
+                            isActive ? "text-emerald-700" : "text-gray-400 group-hover:text-gray-600"
+                          }`}
+                        />
+                        <span className="flex-1 truncate">{item.name}</span>
+                        {isActive && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           {/* User Account / Footer */}
@@ -225,12 +268,12 @@ export default function DashboardLayout({
                     <p className="text-[11px] text-gray-500 truncate">{(user as any)?.email}</p>
                   </div>
                   <Link
-                    href="/websites"
+                    href="/dashboard/stores"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <Globe className="h-4 w-4 text-gray-400" />
-                    <span>{t("nav.myWebsites")}</span>
+                    <Layers className="h-4 w-4 text-gray-400" />
+                    <span>Kelola Toko & Cabang</span>
                   </Link>
                   <Link
                     href="/dashboard/settings/billing"

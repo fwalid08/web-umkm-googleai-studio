@@ -350,10 +350,10 @@ export function BillingPanel() {
 
             <div className="flex items-center gap-2">
               <Link
-                href="/websites"
+                href="/dashboard/stores"
                 className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 underline underline-offset-4"
               >
-                Kelola Website Saya →
+                Kelola Website & Toko Saya →
               </Link>
             </div>
           </CardContent>
