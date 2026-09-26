@@ -55,3 +55,6 @@ Desktop.ini
 
 # Supabase
 supabase/.temp
+
+# nested agent/tool dirs - never commit
+.opencode/
