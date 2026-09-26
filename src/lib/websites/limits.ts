@@ -15,6 +15,28 @@ export function resolveMaxWebsites(
   return TIER_WEBSITE_FALLBACK[tier ?? "free"] ?? 1;
 }
 
+/**
+ * P0-2 Trial enforcement — expired jika tier free + trial_ends_at terisi + sudah lewat.
+ * Tier berbayar tidak pernah expired; trial_ends_at null = free murni (bukan expired).
+ */
+export function isTrialExpired(
+  trialEndsAt: string | null | undefined,
+  tier: string | null | undefined
+): boolean {
+  if (tier !== "free") return false;
+  if (trialEndsAt == null) return false;
+  const ends = new Date(trialEndsAt).getTime();
+  if (Number.isNaN(ends)) return false;
+  return Date.now() > ends;
+}
+
+/** Satu sumber kebenaran pesan blokir trial (dipakai trial-response.ts → NextResponse 402). */
+export function trialBlockMessage(reason: "edit" | "create"): string {
+  return reason === "edit"
+    ? "Masa trial habis. Upgrade untuk melanjutkan mengedit website."
+    : "Masa trial habis. Upgrade untuk membuat website baru.";
+}
+
 export async function checkWebsiteLimit(userId: string): Promise<{
   ok: boolean;
   count: number;
@@ -40,6 +62,7 @@ export async function checkWebsiteLimit(userId: string): Promise<{
     const n = count ?? 0;
     return { ok: n < max, count: n, max };
   } catch {
-    return { ok: true, count: 1, max: 1 };
+    // Fail-closed: saat DB error, tolak pembuatan baru agar tidak over-limit
+    return { ok: false, count: 0, max: 1 };
   }
 }

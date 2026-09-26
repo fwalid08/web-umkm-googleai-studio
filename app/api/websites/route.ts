@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { createWebsiteSchema } from "@/types";
-import { checkWebsiteLimit } from "@/lib/websites/limits";
+import { checkWebsiteLimit, isTrialExpired } from "@/lib/websites/limits";
+import { trialBlockResponse } from "@/lib/websites/trial-response";
+import { ensureUniqueSubdomain, generateSubdomain, isValidSubdomain } from "@/lib/tenant/index";
 import {
   createDemoWebsite,
   getDemoActiveWebsite,
@@ -16,8 +18,7 @@ function getSessionUserId(session: unknown): string | null {
 }
 
 function autoSubdomain(): string {
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `toko-${rand}`;
+  return generateSubdomain().toLowerCase();
 }
 
 // GET /api/websites — daftar website milik sendiri (+ active, count, max)
@@ -91,6 +92,29 @@ export async function POST(request: NextRequest) {
     }
 
     const limit = await checkWebsiteLimit(userId);
+    // P0-2 Trial enforcement: trial expired → kunci buat website baru (GET tetap boleh).
+    // Demo user dilewati; DB error fail-open (lanjut ke limit check).
+    if (!isDemoUserId(userId)) {
+      try {
+        const supabaseTrial = createServiceSupabaseClient();
+        const { data: trialUser } = await supabaseTrial
+          .from("users")
+          .select("tier, trial_ends_at")
+          .eq("id", userId)
+          .maybeSingle();
+        if (
+          trialUser &&
+          isTrialExpired(
+            (trialUser as { trial_ends_at?: string | null }).trial_ends_at ?? null,
+            (trialUser as { tier?: string | null }).tier ?? "free"
+          )
+        ) {
+          return trialBlockResponse("create");
+        }
+      } catch {
+        // fail-open: lanjut ke limit check
+      }
+    }
     if (!limit.ok) {
       return NextResponse.json(
         {
@@ -119,13 +143,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceSupabaseClient();
-    let subdomain = (parsed.data.subdomain || "").trim().toLowerCase() || autoSubdomain();
-    const { data: clash } = await supabase
-      .from("websites")
-      .select("id")
-      .eq("subdomain", subdomain)
-      .maybeSingle();
-    if (clash) subdomain = `${subdomain}-${Math.random().toString(36).slice(2, 6)}`;
+    let base = (parsed.data.subdomain || "").trim().toLowerCase() || autoSubdomain();
+    base = base.toLowerCase();
+    if (!isValidSubdomain(base)) base = autoSubdomain();
+    // Clash retry 3x loop via helper testable (attempt 0 = base, 1-2 = base-xxxx)
+    const subdomain = await ensureUniqueSubdomain(base, async (s) => {
+      const { data: clash } = await supabase
+        .from("websites")
+        .select("id")
+        .eq("subdomain", s)
+        .maybeSingle();
+      return !!clash;
+    });
 
     const { data: site, error } = await supabase
       .from("websites")

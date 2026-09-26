@@ -12,6 +12,8 @@ import {
   mergeAndValidateSections,
   type MergedSection,
 } from "@/lib/builder/validation";
+import { isTrialExpired } from "@/lib/websites/limits";
+import { trialBlockResponse } from "@/lib/websites/trial-response";
 import { getActiveWebsite } from "@/lib/websites/active";
 import { tenantUrl } from "@/lib/urls";
 
@@ -86,11 +88,13 @@ export async function GET() {
       list.map((t) => t.name as string)
     );
 
-    // Config tersimpan: prioritaskan current_template website, fallback baris terbaru
+    // Config tersimpan: prioritaskan current_template website, fallback baris terbaru.
+    // Defense-in-depth: filter ganda website_id (via active check) + user_id.
     const { data: rows } = await supabase
       .from("user_templates")
       .select("template_id, custom_config, updated_at")
       .eq("website_id", site.id)
+      .eq("user_id", sessionUser.id)
       .order("updated_at", { ascending: false });
 
     let template = site.current_template_id
@@ -186,6 +190,11 @@ export async function PUT(request: NextRequest) {
 
     if (userError || !user) {
       return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
+    }
+
+    // P0-2 Trial enforcement: trial expired → kunci edit (GET tetap boleh).
+    if (isTrialExpired(user.trial_ends_at, user.tier)) {
+      return trialBlockResponse("edit");
     }
 
     const site = await getActiveWebsite(sessionUser.id);

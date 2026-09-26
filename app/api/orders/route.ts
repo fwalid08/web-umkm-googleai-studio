@@ -20,11 +20,18 @@ function getSessionUserId(session: unknown): string | null {
 }
 
 function clientIp(request: NextRequest): string {
-  return (
+  // Best-effort: X-Forwarded-For mudah dipalsukan client, jadi sanitasi ketat
+  // dan hanya dipakai sebagai key rate-limit (bukan auth). Prod → ganti Redis.
+  const raw =
+    request.headers.get("x-real-ip")?.trim() ||
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+    "unknown";
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(raw) || /^[0-9a-fA-F:]{3,45}$/.test(raw)) return raw.slice(0, 45);
+  return "unknown";
+}
+
+function escapePostgrestSearch(value: string): string {
+  return value.slice(0, 100).replace(/[%_(),\\]/g, "").replace(/[*"']/g, "").trim();
 }
 
 // POST /api/orders — guest checkout PUBLIK (tanpa auth).
@@ -156,7 +163,8 @@ export async function GET(request: NextRequest) {
       .eq("website_id", site.id);
 
     if (status) query = query.eq("status", status);
-    if (search) query = query.or(`customer_name.ilike.%${search}%,product_name.ilike.%${search}%`);
+    const safeSearch = search ? escapePostgrestSearch(search) : "";
+    if (safeSearch) query = query.or(`customer_name.ilike.%${safeSearch}%,product_name.ilike.%${safeSearch}%`);
     if (dateFrom) query = query.gte("order_date", dateFrom);
     if (dateTo) query = query.lte("order_date", dateTo);
 

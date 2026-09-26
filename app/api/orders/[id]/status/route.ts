@@ -4,7 +4,7 @@ import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { updateOrderStatusSchema, type OrderStatus } from "@/types";
 import { canTransition } from "@/lib/orders/validation";
 import { getActiveWebsite } from "@/lib/websites/active";
-import { isDemoUserId, updateDemoOrderStatus } from "@/lib/mock/store";
+import { getDemoActiveWebsite, isDemoUserId, updateDemoOrderStatus } from "@/lib/mock/store";
 
 interface SessionUser {
   id: string;
@@ -39,7 +39,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (isDemoUserId(userId)) {
-      updateDemoOrderStatus(id, parsed.data.status);
+      const demoSite = getDemoActiveWebsite(userId);
+      if (!demoSite) {
+        return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
+      }
+      const ok = updateDemoOrderStatus(userId, demoSite.id, id, parsed.data.status);
+      if (!ok) {
+        return NextResponse.json({ success: false, error: "Order tidak ditemukan" }, { status: 404 });
+      }
       return NextResponse.json({ success: true, data: { order: { id, status: parsed.data.status } } });
     }
 
