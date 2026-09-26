@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth/auth";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { createOrderSchema } from "@/types";
 import { calcTotal, isRateLimited } from "@/lib/orders/validation";
+import { notifyNewOrder } from "@/lib/notify/notify";
 import { resolveTenantId } from "@/lib/orders/tenant";
 import { getActiveWebsite } from "@/lib/websites/active";
 import { getDemoOrders, isDemoUserId } from "@/lib/mock/store";
@@ -93,8 +94,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Gagal membuat order" }, { status: 500 });
     }
 
-    // Notifikasi owner Sprint 02 = log server (email/Telegram → Sprint 03 jika env ada)
-    console.log(`[new-order] tenant=${tenant.subdomain} order=${order.id} total=${total}`);
+    // N2: notifikasi owner best-effort (mock log bila provider belum diset).
+    // JANGAN gagalkan order jika notify gagal. N3: decrement stok dilewati
+    // dengan aman — lihat docs/STOCK.md (produk masih di user_templates JSON).
+    try {
+      await notifyNewOrder({
+        subdomain: tenant.subdomain,
+        orderId: order.id,
+        total,
+        customerName: input.customer_name,
+      });
+    } catch (err) {
+      console.error("[new-order] notify gagal:", err);
+    }
 
     return NextResponse.json(
       {
