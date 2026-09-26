@@ -14,7 +14,7 @@ import {
   Menu,
   X,
   Globe,
-  ChevronUp,
+  ChevronDown,
   Palette,
   CreditCard,
   Layers,
@@ -22,6 +22,10 @@ import {
   FileText,
   Megaphone,
   Compass,
+  ExternalLink,
+  Copy,
+  Check,
+  Sparkles,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
@@ -37,8 +41,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 type NavigationItem = {
   name: string;
@@ -55,13 +64,13 @@ interface MenuGroup {
 function tierBadgeStyle(tier: string | undefined): string {
   switch (tier) {
     case "starter":
-      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      return "bg-emerald-50 text-emerald-800 border-emerald-300 font-bold";
     case "growth":
-      return "bg-purple-100 text-purple-800 border-purple-200";
+      return "bg-purple-50 text-purple-800 border-purple-300 font-bold";
     case "enterprise":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "bg-blue-50 text-blue-800 border-blue-300 font-bold";
     default:
-      return "bg-gray-100 text-gray-700 border-gray-200";
+      return "bg-gray-100 text-gray-700 border-gray-200 font-medium";
   }
 }
 
@@ -80,9 +89,9 @@ export default function DashboardLayout({
   const { t, lang } = useLang();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [sites, setSites] = useState<Array<{ id: string; name: string; subdomain: string | null }>>([]);
   const [activeSiteId, setActiveSiteId] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Load websites for selector
   useEffect(() => {
@@ -127,7 +136,14 @@ export default function DashboardLayout({
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Grouped Menu Navigation with Headers (Focused on Daily Store Operations & Appearance)
+  const handleCopySubdomain = () => {
+    if (!websiteUrl) return;
+    navigator.clipboard?.writeText(websiteUrl).catch(() => {});
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  // Grouped Menu Navigation with Headers
   const menuGroups: MenuGroup[] = [
     {
       header: t("nav.groupStore"),
@@ -151,12 +167,31 @@ export default function DashboardLayout({
     },
   ];
 
-  const initials = (user as any)?.name?.charAt(0).toUpperCase() ||
+  const initials =
+    (user as any)?.name?.charAt(0).toUpperCase() ||
     (user as any)?.email?.charAt(0).toUpperCase() ||
     "U";
 
+  // Derive current page title for breadcrumb/topbar
+  const getCurrentPageTitle = () => {
+    if (pathname === "/dashboard") return t("nav.dashboard");
+    if (pathname.includes("/products")) return t("nav.products");
+    if (pathname.includes("/orders")) return t("nav.orders");
+    if (pathname.includes("/customers")) return t("nav.customers");
+    if (pathname.includes("/analytics")) return t("nav.analytics");
+    if (pathname.includes("/builder")) return t("nav.builder");
+    if (pathname.includes("/pages")) return t("nav.pages");
+    if (pathname.includes("/announcement")) return t("nav.announcement");
+    if (pathname.includes("/navigation")) return t("nav.navigation");
+    if (pathname.includes("/domain")) return t("nav.domain");
+    if (pathname.includes("/stores")) return t("nav.stores");
+    if (pathname.includes("/billing")) return t("nav.billing");
+    if (pathname.includes("/settings")) return t("nav.settings");
+    return "Dashboard";
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="min-h-screen bg-slate-50/60 text-gray-900 selection:bg-emerald-100 selection:text-emerald-900">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -173,39 +208,42 @@ export default function DashboardLayout({
       >
         <div className="flex flex-col h-full">
           {/* Logo / Header */}
-          <div className="flex items-center justify-between h-16 px-5 border-b border-gray-100">
-            <Link href="/dashboard" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center shadow-xs">
+          <div className="flex items-center justify-between h-16 sm:h-20 px-5 border-b border-gray-100">
+            <Link href="/dashboard" className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-md shadow-emerald-600/20">
                 <Store className="w-5 h-5 text-white" />
               </div>
               <div>
                 <span className="font-extrabold text-base text-gray-900 tracking-tight block">
                   UMKM SaaS
                 </span>
-                <span className="text-[11px] font-medium text-emerald-700 block -mt-0.5">
+                <span className="text-[11px] font-semibold text-emerald-700 block -mt-0.5">
                   Panel Toko Digital
                 </span>
               </div>
             </Link>
             <button
               aria-label="Tutup menu"
-              className="lg:hidden p-2 -mr-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+              className="lg:hidden p-2 -mr-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition-colors"
               onClick={() => setSidebarOpen(false)}
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Website Selector */}
+          {/* Website Selector (if multi-site) */}
           {sites.length > 1 && (
-            <div className="px-3 mt-3">
+            <div className="px-4 mt-3">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-1 mb-1">
+                Pilih Toko Aktif
+              </div>
               <Select value={activeSiteId} onValueChange={switchWebsite}>
-                <SelectTrigger className="w-full h-9 text-xs bg-gray-50 border-gray-200">
+                <SelectTrigger className="w-full h-10 text-xs bg-gray-50 border-gray-200/90 rounded-xl font-medium">
                   <SelectValue placeholder="Pilih Website Toko" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   {sites.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
+                    <SelectItem key={s.id} value={s.id} className="text-xs">
                       {s.name}
                     </SelectItem>
                   ))}
@@ -216,23 +254,44 @@ export default function DashboardLayout({
 
           {/* Active Store Fast-Access Card */}
           {websiteUrl && (
-            <div className="p-3.5 mx-3 mt-3 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 border border-emerald-200/70 rounded-xl space-y-2">
+            <div className="p-3.5 mx-4 mt-3 bg-gradient-to-br from-emerald-50/80 via-teal-50/40 to-white border border-emerald-200/80 rounded-2xl space-y-2.5 shadow-2xs">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-emerald-900 flex items-center gap-1.5">
+                <span className="font-bold text-emerald-950 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Toko Aktif</span>
+                  <span>Toko Online Aktif</span>
                 </span>
                 <Link
                   href="/dashboard/stores"
-                  className="text-[11px] text-emerald-700 hover:text-emerald-900 font-medium hover:underline"
+                  className="text-[11px] text-emerald-700 hover:text-emerald-900 font-bold hover:underline"
                 >
-                  Website saya
+                  Kelola Toko
                 </Link>
               </div>
 
-              <p className="text-xs text-gray-600 font-mono truncate bg-white/80 px-2 py-1 rounded border border-emerald-100">
-                {tenantDisplay(subdomain)}
-              </p>
+              <div className="flex items-center justify-between gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-emerald-100 shadow-2xs">
+                <p className="text-xs text-gray-700 font-mono font-medium truncate flex-1">
+                  {tenantDisplay(subdomain)}
+                </p>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleCopySubdomain}
+                    className="p-1 text-gray-400 hover:text-emerald-700 rounded-md hover:bg-emerald-50 transition-colors"
+                    title="Salin alamat link toko"
+                  >
+                    {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                  <a
+                    href={websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 text-gray-400 hover:text-emerald-700 rounded-md hover:bg-emerald-50 transition-colors"
+                    title="Buka website toko di tab baru"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
             </div>
           )}
 
@@ -241,17 +300,17 @@ export default function DashboardLayout({
             {menuGroups.map((group, groupIdx) => (
               <div
                 key={groupIdx}
-                className={groupIdx > 0 ? "pt-3.5 border-t border-gray-100/90" : ""}
+                className={groupIdx > 0 ? "pt-3.5 border-t border-gray-100" : ""}
               >
                 {/* Menu Group Section Header */}
                 <div className="px-3 pb-1.5 flex items-center justify-between">
-                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-gray-400 select-none">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 select-none">
                     {group.header}
                   </span>
                 </div>
 
                 {/* Menu Items */}
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {group.items.map((item) => {
                     const isActive = item.exact
                       ? pathname === item.href
@@ -263,20 +322,20 @@ export default function DashboardLayout({
                       <Link
                         key={item.name}
                         href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                           isActive
-                            ? "bg-emerald-50 text-emerald-950 font-bold shadow-2xs border border-emerald-200/80"
-                            : "text-gray-600 hover:bg-gray-100/80 hover:text-gray-900"
+                            ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20"
+                            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                         }`}
                       >
                         <item.icon
                           className={`h-4 w-4 shrink-0 transition-colors ${
-                            isActive ? "text-emerald-700" : "text-gray-400 group-hover:text-gray-600"
+                            isActive ? "text-white" : "text-gray-400 group-hover:text-gray-600"
                           }`}
                         />
                         <span className="flex-1 truncate">{item.name}</span>
                         {isActive && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
                         )}
                       </Link>
                     );
@@ -287,15 +346,13 @@ export default function DashboardLayout({
           </nav>
 
           {/* User Account / Footer */}
-          <div className="p-3 border-t border-gray-100 relative bg-gray-50/50">
+          <div className="p-3 border-t border-gray-100 bg-gray-50/70">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
-                  className="w-full flex items-center gap-3 p-1.5 rounded-xl hover:bg-white border border-transparent hover:border-gray-200 transition-all text-left"
-                >
-                  <Avatar className="w-9 h-9">
+                <button className="w-full flex items-center gap-3 p-2 rounded-2xl hover:bg-white border border-transparent hover:border-gray-200 transition-all text-left shadow-2xs">
+                  <Avatar className="w-9 h-9 border border-gray-200">
                     <AvatarImage src={(user as any)?.image || ""} alt={user?.name || ""} />
-                    <AvatarFallback className="bg-emerald-100 text-emerald-800 font-bold text-sm">
+                    <AvatarFallback className="bg-emerald-100 text-emerald-800 font-bold text-xs">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
@@ -304,37 +361,30 @@ export default function DashboardLayout({
                       {(user as any)?.name || "Pengguna"}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <Badge variant="outline" className={`text-[10px] ${tierBadgeStyle(tier)}`}>
+                      <Badge variant="outline" className={`text-[10px] py-0 px-1.5 ${tierBadgeStyle(tier)}`}>
                         {tierLabel}
                       </Badge>
                     </div>
                   </div>
-                  <ChevronUp
-                    className={`h-4 w-4 text-gray-400 transition-transform ${
-                      userMenuOpen ? "rotate-180" : ""
-                    }`}
-                  />
+                  <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                 </button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-64" align="end" sideOffset={8}>
+              <DropdownMenuContent className="w-64 rounded-2xl shadow-xl p-1.5" align="end" sideOffset={8}>
                 <div className="px-3 py-2 border-b border-gray-100">
                   <p className="text-xs font-bold text-gray-900 truncate">
                     {(user as any)?.name || "Pengguna Toko"}
                   </p>
-                  <p className="text-[11px] text-gray-500 truncate">
+                  <p className="text-[11px] text-gray-500 truncate mt-0.5">
                     {(user as any)?.email}
                   </p>
                 </div>
 
                 <div className="py-1">
-                  <div className="px-3 pt-1.5 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 select-none">
-                    Akun & Pengaturan
-                  </div>
                   <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/stores"
-                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                     >
                       <Layers className="h-4 w-4 text-gray-500" />
                       <span>{t("nav.stores")}</span>
@@ -343,7 +393,7 @@ export default function DashboardLayout({
                   <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/settings/billing"
-                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                     >
                       <CreditCard className="h-4 w-4 text-gray-500" />
                       <span>{t("nav.billing")}</span>
@@ -352,7 +402,7 @@ export default function DashboardLayout({
                   <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/settings"
-                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                     >
                       <Settings className="h-4 w-4 text-gray-500" />
                       <span>{t("nav.settings")}</span>
@@ -372,7 +422,7 @@ export default function DashboardLayout({
                       } catch {}
                       signOut({ callbackUrl: "/signin" });
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg text-left transition-colors cursor-pointer"
                   >
                     <LogOut className="h-4 w-4 text-red-500" />
                     <span>{t("nav.logout")}</span>
@@ -387,27 +437,33 @@ export default function DashboardLayout({
       {/* Main Content Viewport */}
       <div className="lg:pl-72 flex flex-col min-h-screen">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200/80">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8 gap-3">
-            {/* Left: Mobile Menu toggle */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200/80">
+          <div className="flex items-center justify-between h-16 sm:h-20 px-4 sm:px-6 lg:px-8 gap-4">
+            {/* Left: Mobile Menu toggle + Breadcrumb Title */}
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 aria-label="Buka menu navigasi"
-                className="lg:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 shrink-0"
+                className="lg:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 shrink-0 transition-colors"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </button>
+
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+                  {getCurrentPageTitle()}
+                </h1>
+              </div>
             </div>
 
-            {/* Right: Quick actions, language, tier */}
+            {/* Right: Quick actions, language, tier, and live store */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <LanguageSwitcher />
 
               {/* Tier pill */}
               <Link
                 href="/dashboard/settings/billing"
-                className={`hidden sm:inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${tierBadgeStyle(
+                className={`hidden sm:inline-flex items-center px-3 py-1.5 text-xs rounded-xl border transition-all shadow-2xs ${tierBadgeStyle(
                   tier
                 )}`}
               >
@@ -420,10 +476,10 @@ export default function DashboardLayout({
                   href={websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-all shadow-2xs"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3.5 py-2 rounded-xl transition-all shadow-2xs"
                 >
-                  <span className="hidden sm:inline">Lihat Toko</span>
-                  <Globe className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Lihat Toko Online</span>
+                  <Globe className="h-3.5 w-3.5 text-emerald-600" />
                 </a>
               )}
             </div>
