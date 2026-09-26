@@ -227,7 +227,42 @@ export function BillingPanel() {
     setIsUpgrading(true);
     setUpgradeMsg(null);
     try {
-      const res = await fetch("/api/user/plan", {
+      // Downgrade ke Gratis tetap via /api/user/plan (tanpa pembayaran).
+      if (modalPlan.id === "free") {
+        const res = await fetch("/api/user/plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tier: modalPlan.id,
+            billing_cycle: billingCycle,
+          }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          setActiveTier(modalPlan.id);
+          setUpgradeMsg({
+            success: true,
+            text: `Paket berhasil diubah ke ${modalPlan.name}.`,
+          });
+          // Refresh slot limit
+          const wRes = await fetch("/api/websites");
+          const wJson = await wRes.json();
+          if (wJson.success) setSlot({ count: wJson.data.count, max: wJson.data.max });
+          setTimeout(() => {
+            setModalPlan(null);
+            setUpgradeMsg(null);
+          }, 1800);
+        } else {
+          setUpgradeMsg({
+            success: false,
+            text: json.error || "Gagal memperbarui paket",
+          });
+        }
+        return;
+      }
+
+      // Paket berbayar via Midtrans checkout.
+      const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -237,23 +272,38 @@ export function BillingPanel() {
       });
       const json = await res.json();
       if (json.success) {
-        setActiveTier(modalPlan.id);
-        setUpgradeMsg({
-          success: true,
-          text: `Selamat! Toko Anda kini aktif di Paket ${modalPlan.name}.`,
-        });
-        // Refresh slot limit
-        const wRes = await fetch("/api/websites");
-        const wJson = await wRes.json();
-        if (wJson.success) setSlot({ count: wJson.data.count, max: wJson.data.max });
-        setTimeout(() => {
-          setModalPlan(null);
-          setUpgradeMsg(null);
-        }, 1800);
+        const redirectUrl = json.data?.redirect_url as string | undefined;
+        const isMock = json.data?.mock === true;
+        if (isMock) {
+          setActiveTier(modalPlan.id);
+          setUpgradeMsg({
+            success: true,
+            text: `Selamat! Toko Anda kini aktif di Paket ${modalPlan.name}.`,
+          });
+          // Refresh slot limit
+          const wRes = await fetch("/api/websites");
+          const wJson = await wRes.json();
+          if (wJson.success) setSlot({ count: wJson.data.count, max: wJson.data.max });
+          setTimeout(() => {
+            setModalPlan(null);
+            setUpgradeMsg(null);
+          }, 1800);
+        } else if (redirectUrl) {
+          setUpgradeMsg({
+            success: true,
+            text: "Membuka halaman pembayaran Midtrans...",
+          });
+          window.open(redirectUrl, "_blank", "noopener,noreferrer");
+        } else {
+          setUpgradeMsg({
+            success: false,
+            text: "Gagal mendapatkan link pembayaran",
+          });
+        }
       } else {
         setUpgradeMsg({
           success: false,
-          text: json.error || "Gagal memperbarui paket",
+          text: json.error || "Gagal membuat pembayaran",
         });
       }
     } catch {
