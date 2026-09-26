@@ -11,6 +11,58 @@ env:
   PNPM_VERSION: '10.x'
 
 jobs:
+  validate-migrations:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check migrations sequential & non-empty
+        run: |
+          set -euo pipefail
+          DIR="supabase/migrations"
+          echo "→ Listing $DIR:"
+          ls -1 "$DIR"
+          # Ambil prefix nomor (NNN_) terurut
+          nums=$(ls -1 "$DIR" | grep -E '^[0-9]{3}_.*\.sql$' | cut -c1-3 | sort -n)
+          if [ -z "$nums" ]; then
+            echo "❌ Tidak ada file migrasi NNN_*.sql di $DIR"
+            exit 1
+          fi
+          prev=0
+          first=1
+          for n in $nums; do
+            # hilangkan leading zero untuk aritmetika (10# prefix)
+            cur=$((10#$n))
+            if [ "$first" -eq 1 ]; then
+              if [ "$cur" -ne 1 ]; then
+                echo "❌ Migrasi harus mulai dari 001 (ketemu $n)"
+                exit 1
+              fi
+              first=0
+            else
+              expected=$((prev + 1))
+              if [ "$cur" -ne "$expected" ]; then
+                printf '❌ Nomor migrasi lompat: setelah %03d, ketemu %03d (harusnya %03d)\n' "$prev" "$cur" "$expected"
+                exit 1
+              fi
+            fi
+            prev=$cur
+          done
+          # Pastikan tidak ada file .sql kosong
+          empty=0
+          for f in "$DIR"/*.sql; do
+            if [ ! -s "$f" ]; then
+              echo "❌ File migrasi kosong: $f"
+              empty=1
+            fi
+          done
+          if [ "$empty" -eq 1 ]; then exit 1; fi
+          count=$(echo "$nums" | wc -l | tr -d ' ')
+          last=$(echo "$nums" | tail -1)
+          echo "✅ Migrations OK: $count file, berurutan 001..$last, tidak ada yang kosong."
+
   lint-and-typecheck:
     name: Lint & TypeCheck
     runs-on: ubuntu-latest
@@ -92,6 +144,12 @@ jobs:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
           NEXT_PUBLIC_ROOT_DOMAIN: ${{ secrets.NEXT_PUBLIC_ROOT_DOMAIN }}
+          # Dummy agar build CI tidak fail saat secrets belum di-set
+          # (route billing/status hanya butuh string non-empty saat build;
+          # nilai asli dari secrets tetap dipakai saat tersedia).
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' }}
+          MIDTRANS_SERVER_KEY: dummy
+          NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: dummy
 
   deploy-preview:
     name: Deploy Preview (Develop)

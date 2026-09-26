@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findDemoUser, getDemoActiveWebsite, getDemoUser } from "@/lib/mock/store";
+import { findDemoUser, getDemoActiveWebsite } from "@/lib/mock/store";
+import { isDemoAuthEnabled } from "@/lib/auth/utils";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { email, password, id } = body;
-
-    let user = null;
-    if (id) {
-      user = getDemoUser(id);
-    } else if (email && password) {
-      user = findDemoUser(email, password);
-    } else if (email) {
-      user = findDemoUser(email, "Password123!");
+    if (!isDemoAuthEnabled()) {
+      return NextResponse.json({ success: false, error: "Demo login nonaktif" }, { status: 403 });
     }
+    const body = await req.json().catch(() => ({}));
+    const { email, password } = body;
+
+    // Wajib email+password — tidak ada login by-id / default password
+    if (!email || !password) {
+      return NextResponse.json({ success: false, error: "Email dan password wajib diisi" }, { status: 400 });
+    }
+    const user = findDemoUser(email, password);
 
     if (!user) {
       return NextResponse.json({ success: false, error: "Akun demo tidak ditemukan" }, { status: 404 });
@@ -36,12 +37,14 @@ export async function POST(req: NextRequest) {
       message: "Login demo berhasil",
     });
 
-    // Set cookies with SameSite=None; Secure for iframe preview compatibility
+    // httpOnly agar tidak bisa dibaca XSS; Lax default, Secure hanya di prod
+    const isProd = process.env.NODE_ENV === "production";
     const cookieOptions = {
       path: "/",
       maxAge: 30 * 24 * 60 * 60,
-      sameSite: "none" as const,
-      secure: true,
+      sameSite: "lax" as const,
+      secure: isProd,
+      httpOnly: true,
     };
 
     res.cookies.set("umkm_demo_user", user.id, cookieOptions);

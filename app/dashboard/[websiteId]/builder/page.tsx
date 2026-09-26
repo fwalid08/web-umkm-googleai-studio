@@ -42,16 +42,24 @@ export default function BuilderGalleryPage() {
           fetch("/api/templates"),
           fetch(`/api/websites/${websiteId}/website`).catch(() => null),
         ]);
-        const tJson = await tRes.json();
-        if (tJson.success) {
-          setTemplates(tJson.data.templates);
-          setTier(tJson.data.tier ?? "free");
+        const tType = tRes.headers.get("content-type") || "";
+        if (!tRes.ok || !tType.includes("application/json")) {
+          setError(t("common.networkError"));
         } else {
-          setError(tJson.error ?? t("common.networkError"));
+          const tJson = await tRes.json();
+          if (tJson.success) {
+            setTemplates(tJson.data.templates);
+            setTier(tJson.data.tier ?? "free");
+          } else {
+            setError(tJson.error ?? t("common.networkError"));
+          }
         }
         if (wRes && wRes.ok) {
-          const wJson = await wRes.json();
-          if (wJson.success && !wJson.data.is_default) setCurrentId(wJson.data.template_id);
+          const wType = wRes.headers.get("content-type") || "";
+          if (wType.includes("application/json")) {
+            const wJson = await wRes.json();
+            if (wJson.success && !wJson.data.is_default) setCurrentId(wJson.data.template_id);
+          }
         }
       } catch {
         setError(t("common.networkError"));
@@ -75,6 +83,11 @@ export default function BuilderGalleryPage() {
           custom_config: { sections: template.sections_config.map((s) => ({ id: s.id })) },
         }),
       });
+      const cType = res.headers.get("content-type") || "";
+      if (!res.ok || !cType.includes("application/json")) {
+        setError(t("common.networkError"));
+        return;
+      }
       const json = await res.json();
       if (!json.success) {
         setError(json.error ?? t("common.networkError"));

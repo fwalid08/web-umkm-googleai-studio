@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServiceSupabaseClient } from "@/lib/supabase/service";
 
-// POST /api/domains/verify - Verify custom domain (admin/cron job)
+// POST /api/domains/verify - Verify custom domain (cron/admin only)
+// Auth: header x-cron-secret === CRON_SECRET. Tanpa itu → 401.
+// Fallback: query ?secret=CRON_SECRET — karena Vercel Cron tidak mendukung
+// custom headers (lihat vercel.json + docs/CRON_DOMAIN.md).
 export async function POST(request: NextRequest) {
   try {
-    // This endpoint should be called by a cron job or admin
-    // In production, add authentication/authorization check here
-    
-    const supabase = await createServerSupabaseClient();
+    const cronSecret = process.env.CRON_SECRET;
+    const provided =
+      request.headers.get("x-cron-secret") ??
+      new URL(request.url).searchParams.get("secret");
+    if (!cronSecret || provided !== cronSecret) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const supabase = createServiceSupabaseClient();
 
     // Sprint 03: custom domain tinggal di websites (bukan users)
-    // Get all websites with unverified custom domains
+    // Get all websites with unverified custom domains (+ token eksak)
     const { data: users, error } = await supabase
       .from("websites")
-      .select("id, custom_domain")
+      .select("id, custom_domain, custom_domain_verification_token")
       .not("custom_domain", "is", null)
       .eq("custom_domain_verified", false);
 
@@ -36,12 +44,13 @@ export async function POST(request: NextRequest) {
     let verifiedCount = 0;
     const results = [];
 
-    for (const user of users) {
+    for (const user of users as Array<{ id: string; custom_domain: string | null; custom_domain_verification_token?: string | null }>) {
       if (!user.custom_domain) continue;
 
       try {
-        // Check DNS TXT record
-        const verified = await checkDNSTXTRecord(user.custom_domain);
+        // Check DNS TXT record — cocokkan token eksak bila ada, fallback prefix legacy
+        const expected = user.custom_domain_verification_token || null;
+        const verified = await checkDNSTXTRecord(user.custom_domain, expected);
         
         if (verified) {
           // Update website as verified
@@ -87,28 +96,28 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to check DNS TXT record
-async function checkDNSTXTRecord(domain: string): Promise<boolean> {
+async function checkDNSTXTRecord(domain: string, expectedToken: string | null): Promise<boolean> {
   try {
-    // In production, use a proper DNS library like 'dns2' or cloudflare DNS API
-    // This is a simplified example using a public DNS over HTTPS
     const response = await fetch(
       `https://cloudflare-dns.com/dns-query?name=_saas-verify.${domain}&type=TXT`,
       {
         headers: { accept: "application/dns-json" },
       }
     );
-    
+
     const data = await response.json();
-    
+
     if (data.Answer && data.Answer.length > 0) {
-      // Check if any TXT record contains our verification prefix
       for (const answer of data.Answer) {
-        if (answer.data && answer.data.includes("saas-verify-")) {
+        const txt: string = String(answer.data ?? "");
+        if (expectedToken) {
+          if (txt.includes(expectedToken)) return true;
+        } else if (txt.includes("saas-verify-")) {
           return true;
         }
       }
     }
-    
+
     return false;
   } catch (error) {
     console.error(`DNS check failed for ${domain}:`, error);

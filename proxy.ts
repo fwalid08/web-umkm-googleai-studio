@@ -5,12 +5,30 @@ import type { NextRequest } from "next/server";
  * Ekstrak subdomain tenant dari hostname → header x-tenant-subdomain.
  * Env-driven: ROOT=localhost:3000 (dev, sub.localhost) atau saas-saya.com (prod).
  * Host lain (custom domain) diteruskan; getTenantSite() resolve via DB.
+ * Validasi terpusat di src/lib/tenant (isValidSubdomain, stripPort).
  */
 
-const ROOT = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com")
-  .split(":")[0]
-  .toLowerCase();
+function stripPortLocal(host: string): string {
+  const h = (host || "").trim().toLowerCase();
+  if (h.startsWith("[")) {
+    const end = h.indexOf("]");
+    if (end !== -1) return h.slice(1, end);
+    return h;
+  }
+  const parts = h.split(":");
+  if (parts.length === 2) return parts[0];
+  return h;
+}
+
+const ROOT = stripPortLocal(process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com");
+const RESERVED = new Set([
+  "admin", "api", "www", "root", "app", "dashboard", "auth",
+  "login", "signin", "signup", "support", "help",
+]);
 const SUB_RE = /^[a-z0-9-]{3,50}$/;
+function isValidSub(sub: string): boolean {
+  return SUB_RE.test(sub) && !RESERVED.has(sub);
+}
 
 function tenantHeaders(sub: string) {
   const res = NextResponse.next();
@@ -21,11 +39,13 @@ function tenantHeaders(sub: string) {
 
 export default function proxy(request: NextRequest) {
   const { hostname, pathname } = request.nextUrl;
+  // Static/API dilewati (matcher sudah kecualikan); JANGAN pakai includes(".")
+  // karena route valid bisa mengandung titik.
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_static") ||
-    pathname.includes(".")
+    pathname === "/favicon.ico"
   ) {
     return NextResponse.next();
   }
@@ -57,7 +77,7 @@ export default function proxy(request: NextRequest) {
   // Dev: sub.localhost → tenant
   if (host.endsWith(".localhost")) {
     const sub = host.replace(/\.localhost$/, "");
-    if (SUB_RE.test(sub)) {
+    if (isValidSub(sub)) {
       const res = tenantHeaders(sub);
       if (pathname.startsWith("/dashboard")) {
         res.headers.set("x-scoped-tenant", sub);
@@ -69,7 +89,7 @@ export default function proxy(request: NextRequest) {
   // sub.ROOT → tenant (prod: toko.saas-saya.com)
   if (host.endsWith(`.${ROOT}`)) {
     const sub = host.slice(0, -(ROOT.length + 1));
-    if (SUB_RE.test(sub)) {
+    if (isValidSub(sub)) {
       const res = tenantHeaders(sub);
       if (pathname.startsWith("/dashboard")) {
         res.headers.set("x-scoped-tenant", sub);

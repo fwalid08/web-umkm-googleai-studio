@@ -30,6 +30,11 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# secrets / session artifacts - never commit
+cookies.txt
+*.har
+.authjs*
+
 # vercel
 .vercel
 

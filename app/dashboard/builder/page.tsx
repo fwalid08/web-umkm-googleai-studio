@@ -10,6 +10,11 @@ export default function DashboardBuilderRedirect() {
     (async () => {
       try {
         const res = await fetch("/api/websites");
+        const contentType = res.headers.get("content-type") || "";
+        if (!res.ok || !contentType.includes("application/json")) {
+          router.replace("/dashboard/stores");
+          return;
+        }
         const json = await res.json();
         if (json.success && json.data.websites && json.data.websites.length > 0) {
           const activeId = json.data.active_website_id || json.data.websites[0].id;

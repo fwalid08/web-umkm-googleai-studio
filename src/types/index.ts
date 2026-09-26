@@ -229,12 +229,20 @@ export const signInSchema = z.object({
   password: z.string().min(1, "Password wajib diisi"),
 });
 
+const RESERVED_SUBDOMAINS = [
+  "admin", "api", "www", "root", "app", "dashboard", "auth",
+  "login", "signin", "signup", "support", "help",
+];
+
 export const subdomainSchema = z.object({
   subdomain: z
     .string()
     .min(3, "Subdomain minimal 3 karakter")
     .max(50, "Subdomain maksimal 50 karakter")
-    .regex(/^[a-z0-9-]+$/, "Subdomain hanya boleh huruf kecil, angka, dan strip"),
+    .regex(/^[a-z0-9-]+$/, "Subdomain hanya boleh huruf kecil, angka, dan strip")
+    .refine((s) => !RESERVED_SUBDOMAINS.includes(s.toLowerCase()), {
+      message: "Subdomain ini dicadangkan sistem",
+    }),
 });
 
 export const customDomainSchema = z.object({
@@ -248,9 +256,10 @@ export const customDomainSchema = z.object({
 });
 
 export const productSchema = z.object({
-  name: z.string().min(1, "Nama produk wajib diisi"),
-  price: z.number().min(0, "Harga tidak boleh negatif"),
-  description: z.string().optional(),
+  name: z.string().min(1, "Nama produk wajib diisi").max(100, "Nama maksimal 100 karakter"),
+  price: z.number().finite().int().min(0, "Harga tidak boleh negatif").max(1_000_000_000, "Harga terlalu besar"),
+  description: z.string().max(1000, "Deskripsi maksimal 1000 karakter").optional(),
+  category: z.string().max(50).optional(),
   image_url: z.string().url().optional().or(z.literal("")),
   stock: z.number().int().min(0).default(0),
   is_active: z.boolean().default(true),
@@ -339,7 +348,9 @@ export interface Plan {
   is_active: boolean;
 }
 
-// Fallback jika plan_id null (sinkron dengan seed 006 + revisi 007: Starter 3)
+// Fallback jika plan_id null — sinkron dengan 012_pricing_unify.sql
+// (kebenaran bisnis terbaru = billing-panel.tsx PLANS):
+// free 1, starter 3, growth 10, enterprise 999 (unlimited → 999 di DB).
 export const TIER_WEBSITE_FALLBACK: Record<string, number> = {
   free: 1,
   starter: 3,
@@ -354,6 +365,9 @@ export const createWebsiteSchema = z.object({
     .min(3, "Subdomain minimal 3 karakter")
     .max(50)
     .regex(/^[a-z0-9-]+$/, "Subdomain hanya huruf kecil, angka, strip")
+    .refine((s) => s === "" || !RESERVED_SUBDOMAINS.includes(s.toLowerCase()), {
+      message: "Subdomain ini dicadangkan sistem",
+    })
     .optional()
     .or(z.literal("")),
   business_type: z.enum(["food", "fashion", "handicraft", "retail", "services"]).optional(),

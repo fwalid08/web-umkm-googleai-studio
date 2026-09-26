@@ -808,8 +808,15 @@ export function getDemoOrders(
   };
 }
 
-export function updateDemoOrderStatus(orderId: string, nextStatus: string): boolean {
-  const ord = demoOrders.find((o) => o.id === orderId);
+export function updateDemoOrderStatus(
+  userId: string,
+  websiteId: string,
+  orderId: string,
+  nextStatus: string
+): boolean {
+  const site = getDemoOwnedWebsite(userId, websiteId);
+  if (!site) return false;
+  const ord = demoOrders.find((o) => o.id === orderId && o.website_id === websiteId);
   if (ord) {
     ord.status = nextStatus as any;
     return true;

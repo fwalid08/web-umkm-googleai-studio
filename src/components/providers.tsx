@@ -3,12 +3,13 @@
 import { SessionProvider } from "next-auth/react";
 import { ReactNode, useEffect } from "react";
 import { LanguageProvider } from "@/lib/i18n";
+import { isDemoAuthEnabledClient } from "@/lib/auth/utils";
 
 export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
-    // Intercept fetch requests to attach x-demo-user-id if present in localStorage
-    // This guarantees auth works even if third-party cookies are blocked in iframes (Google AI Studio preview)
-    if (typeof window !== "undefined") {
+    // Demo header/cookie sync HANYA jika demo auth diizinkan (dev/preview).
+    // Prod default mati → tidak ada spoof x-demo-user-id via localStorage.
+    if (typeof window !== "undefined" && isDemoAuthEnabledClient()) {
       const originalFetch = window.fetch;
       window.fetch = async (...args) => {
         const [resource, rawConfig] = args;
@@ -27,12 +28,11 @@ export function Providers({ children }: { children: ReactNode }) {
         return originalFetch(resource, config);
       };
 
-      // Also ensure cookie is synced from localStorage if missing
       try {
         const demoId = localStorage.getItem("umkm_demo_id");
         if (demoId && !document.cookie.includes("umkm_demo_user=")) {
-          document.cookie = `umkm_demo_user=${demoId}; path=/; max-age=2592000; SameSite=None; Secure`;
-          document.cookie = `umkm_demo_id=${demoId}; path=/; max-age=2592000; SameSite=None; Secure`;
+          document.cookie = `umkm_demo_user=${demoId}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `umkm_demo_id=${demoId}; path=/; max-age=2592000; SameSite=Lax`;
         }
       } catch {}
     }
