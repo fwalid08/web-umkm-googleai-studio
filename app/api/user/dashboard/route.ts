@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth/auth";
 // (tanpa Supabase Auth session) → "User tidak ditemukan".
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { getActiveWebsite } from "@/lib/websites/active";
+import { buildDailyTrend, buildTopProducts, type AnalyticsOrderRow } from "@/lib/analytics/aggregate";
 import { getDemoDashboardStats, isDemoUserId } from "@/lib/mock/store";
 
 interface SessionUser {
@@ -29,7 +30,19 @@ export async function GET() {
     const site = await getActiveWebsite(userId);
     if (!site) {
       return NextResponse.json(
-        { success: true, data: { website_id: null, total_orders: 0, today_orders: 0, pending_orders: 0, month_revenue: 0, recent_orders: [] } }
+        {
+          success: true,
+          data: {
+            website_id: null,
+            total_orders: 0,
+            today_orders: 0,
+            pending_orders: 0,
+            month_revenue: 0,
+            recent_orders: [],
+            top_products: [],
+            daily_trend: [],
+          },
+        }
       );
     }
 
@@ -45,7 +58,7 @@ export async function GET() {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const [{ count: total }, { count: today }, { count: pending }, { data: monthRows }, { data: recent }] =
+    const [{ count: total }, { count: today }, { count: pending }, { data: monthRows }, { data: recent }, { data: analyticsRows }] =
       await Promise.all([
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("website_id", site.id),
         supabase
@@ -73,12 +86,22 @@ export async function GET() {
           .eq("website_id", site.id)
           .order("order_date", { ascending: false })
           .limit(5),
+        // N9: agregasi analytics (top produk + tren harian) dari max 2000 order terbaru.
+        supabase
+          .from("orders")
+          .select("product_name, quantity, total_amount, order_date")
+          .eq("user_id", userId)
+          .eq("website_id", site.id)
+          .order("order_date", { ascending: false })
+          .limit(2000),
       ]);
 
     const monthRevenue = (monthRows ?? []).reduce(
       (sum: number, r: { total_amount: number }) => sum + (Number(r.total_amount) || 0),
       0
     );
+
+    const aggRows = (analyticsRows ?? []) as AnalyticsOrderRow[];
 
     return NextResponse.json({
       success: true,
@@ -90,6 +113,8 @@ export async function GET() {
         pending_orders: pending ?? 0,
         month_revenue: monthRevenue,
         recent_orders: recent ?? [],
+        top_products: buildTopProducts(aggRows, 5),
+        daily_trend: buildDailyTrend(aggRows, 14),
       },
     });
   } catch (error) {

@@ -4,6 +4,7 @@
  * 1. Demo 1: 1 Website (Tier Free) - Warung Kopi Bu Toni
  * 2. Demo 2: 2 Websites (Tier Starter) - Hijab Cantik Official & Aksesoris Cantik
  */
+import { buildCustomers, buildDailyTrend, buildTopProducts } from "@/lib/analytics/aggregate";
 
 export interface DemoUser {
   id: string;
@@ -835,6 +836,8 @@ export function getDemoDashboardStats(websiteId: string) {
       pending_orders: 0,
       month_revenue: 0,
       recent_orders: [],
+      top_products: [],
+      daily_trend: [],
     };
   }
 
@@ -863,6 +866,37 @@ export function getDemoDashboardStats(websiteId: string) {
     pending_orders: pending,
     month_revenue: totalRevenue,
     recent_orders: recent,
+    top_products: buildTopProducts(list, 5),
+    daily_trend: buildDailyTrend(list, 14),
+  };
+}
+
+/** N10: agregat customer demo per website + search + pagination. */
+export function getDemoCustomers(
+  websiteId: string,
+  filters?: { search?: string; page?: number; limit?: number }
+) {
+  const list = demoOrders.filter((o) => o.website_id === websiteId);
+  let customers = buildCustomers(list);
+  const q = (filters?.search ?? "").trim().toLowerCase();
+  if (q) {
+    customers = customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.phone.includes(q) ||
+        c.email.toLowerCase().includes(q)
+    );
+  }
+  const total = customers.length;
+  const page = Math.max(1, filters?.page || 1);
+  const limit = Math.min(100, Math.max(1, filters?.limit || 20));
+  const from = (page - 1) * limit;
+  return {
+    customers: customers.slice(from, from + limit),
+    total,
+    page,
+    limit,
+    total_pages: Math.max(1, Math.ceil(total / limit)),
   };
 }
 

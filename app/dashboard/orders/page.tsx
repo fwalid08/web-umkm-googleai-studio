@@ -39,16 +39,6 @@ function badge(status: string): string {
   }
 }
 
-function toCsv(rows: Order[]): string {
-  const head = "id,customer,product,qty,total,status,date,phone";
-  const lines = rows.map((o) =>
-    [o.id, o.customer_name, o.product_name, o.quantity, o.total_amount, o.status, o.order_date, o.customer_phone]
-      .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
-      .join(",")
-  );
-  return [head, ...lines].join("\n");
-}
-
 function waUrl(phone: string, customer: string, product: string, total: number): string {
   let cleaned = (phone || "").replace(/[^0-9]/g, "");
   if (cleaned.startsWith("0")) cleaned = "62" + cleaned.slice(1);
@@ -71,6 +61,7 @@ export default function OrdersPage() {
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const stLabel = (s: string): string => {
     const m = tr("orders.st") as Record<string, string>;
@@ -135,15 +126,33 @@ export default function OrdersPage() {
     }
   }
 
-  function exportCsv() {
-    const blob = new Blob([toCsv(orders)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    a.href = url;
-    a.download = `orders-${d}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // N8: export CSV server-side (seluruh data terfilter, bukan cuma halaman aktif).
+  async function exportCsv() {
+    setExporting(true);
+    setError("");
+    try {
+      const sp = new URLSearchParams();
+      if (status) sp.set("status", status);
+      if (search.trim()) sp.set("search", search.trim());
+      const res = await fetch(`/api/orders/export?${sp.toString()}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setError(json?.error ?? t("common.networkError"));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      a.href = url;
+      a.download = `orders-${d}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError(t("common.networkError"));
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -157,10 +166,10 @@ export default function OrdersPage() {
         </div>
         <button
           onClick={exportCsv}
-          disabled={orders.length === 0}
+          disabled={orders.length === 0 || exporting}
           className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
         >
-          {t("orders.export")}
+          {exporting ? t("common.loading") : t("orders.export")}
         </button>
       </div>
 
