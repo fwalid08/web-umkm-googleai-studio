@@ -75,8 +75,11 @@ Estimasi range untuk tim 1-2 dev, belum termasuk QA prod + CS.
 
 ## G. Next Action (berurutan, masing-masing <4 jam)
 
-- [ ] N1a: run `009..012` di Supabase prod — 30 mnt
-- [ ] N1b: isi `MIDTRANS_SERVER_KEY`, `CRON_SECRET`, SMTP di Vercel — 30 mnt
+- [x] N1a: run `009..012` di Supabase prod — 30 mnt (DONE 2026-09-26, SMTP ditunda)
+- [ ] N1b: isi `MIDTRANS_SERVER_KEY`, `CRON_SECRET` di Vercel — 30 mnt
 - [ ] N1c: 1 transaksi sandbox → screenshot bukti — 1-2 jam
 - [ ] N2a: daftar Fonnte/Wablas, isi `NOTIF_*` — 2 jam
 - [ ] N2b: implement notify hook di `POST /orders` — 2-3 hari
+
+> Catatan 2026-09-26: SMTP Supabase ditunda → email recovery `/forgot` belum terkirim beneran
+> (API tetap return sukses generik). Jangan uji inbox sampai SMTP di-set.
