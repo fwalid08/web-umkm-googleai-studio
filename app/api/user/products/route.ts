@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { getSessionUserId } from "@/lib/auth/utils";
+import { productSchema } from "@/types";
 import {
   isDemoUserId,
   getDemoActiveWebsite,
@@ -57,21 +58,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { name, price, description, category } = body;
-    if (!name || price == null) {
-      return NextResponse.json({ success: false, error: "Nama dan harga produk wajib diisi" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    const parsed = productSchema.pick({ name: true, price: true, description: true, category: true }).safeParse({
+      name: body?.name,
+      price: typeof body?.price === "string" ? Number(body.price) : body?.price,
+      description: body?.description,
+      category: body?.category,
+    });
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: parsed.error.issues[0].message }, { status: 400 });
     }
+    const { name, price, description, category } = parsed.data;
 
     if (isDemoUserId(userId)) {
       const active = getDemoActiveWebsite(userId);
       if (!active) return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
 
       addDemoProduct(active.id, {
-        name: String(name),
-        price: Number(price),
-        description: description ? String(description) : "",
-        category: category ? String(category) : "Umum",
+        name,
+        price,
+        description: description ?? "",
+        category: category ?? "Umum",
       });
 
       return NextResponse.json({
@@ -81,7 +88,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, message: "Produk berhasil ditambahkan" });
+    // Non-demo belum ada storage produk → jangan return sukses palsu
+    return NextResponse.json({ success: false, error: "Manajemen produk non-demo belum tersedia" }, { status: 501 });
   } catch (error) {
     console.error("POST product error", error);
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
@@ -96,23 +104,33 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { index, name, price, description, category, available } = body;
-    if (index == null) {
+    const body = await req.json().catch(() => null);
+    const idx = Number(body?.index);
+    if (!Number.isInteger(idx) || idx < 0) {
       return NextResponse.json({ success: false, error: "Index produk diperlukan" }, { status: 400 });
     }
+    const patch: Record<string, unknown> = {};
+    if (body?.name != null) {
+      const v = String(body.name).slice(0, 100);
+      if (!v.trim()) return NextResponse.json({ success: false, error: "Nama produk tidak valid" }, { status: 400 });
+      patch.name = v;
+    }
+    if (body?.price != null) {
+      const p = Number(body.price);
+      if (!Number.isFinite(p) || p < 0 || p > 1_000_000_000) {
+        return NextResponse.json({ success: false, error: "Harga tidak valid" }, { status: 400 });
+      }
+      patch.price = Math.floor(p);
+    }
+    if (body?.description != null) patch.description = String(body.description).slice(0, 1000);
+    if (body?.category != null) patch.category = String(body.category).slice(0, 50);
+    if (body?.available != null) patch.available = Boolean(body.available);
 
     if (isDemoUserId(userId)) {
       const active = getDemoActiveWebsite(userId);
       if (!active) return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
 
-      updateDemoProduct(active.id, Number(index), {
-        ...(name != null && { name: String(name) }),
-        ...(price != null && { price: Number(price) }),
-        ...(description != null && { description: String(description) }),
-        ...(category != null && { category: String(category) }),
-        ...(available != null && { available: Boolean(available) }),
-      });
+      updateDemoProduct(active.id, idx, patch as never);
 
       return NextResponse.json({
         success: true,
@@ -121,7 +139,7 @@ export async function PUT(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, message: "Produk diperbarui" });
+    return NextResponse.json({ success: false, error: "Manajemen produk non-demo belum tersedia" }, { status: 501 });
   } catch (error) {
     console.error("PUT product error", error);
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
@@ -154,7 +172,7 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, message: "Produk dihapus" });
+    return NextResponse.json({ success: false, error: "Manajemen produk non-demo belum tersedia" }, { status: 501 });
   } catch (error) {
     console.error("DELETE product error", error);
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });

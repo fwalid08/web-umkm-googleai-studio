@@ -79,6 +79,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Kunci self-upgrade: tier berbayar hanya via webhook pembayaran / admin.
+    // Dev bisa bypass dengan ALLOW_MANUAL_PLAN_UPGRADE=true. Demo tetap boleh (mock).
+    if (tier !== "free" && !isDemoUserId(userId) && process.env.ALLOW_MANUAL_PLAN_UPGRADE !== "true") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Upgrade paket hanya via pembayaran resmi",
+          upgrade_url: "/dashboard/settings/billing",
+        },
+        { status: 403 }
+      );
+    }
+
     if (isDemoUserId(userId)) {
       setDemoUserTier(userId, tier);
       return NextResponse.json({

@@ -10,6 +10,8 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Circle } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { tenantUrl } from "@/lib/urls";
+import { countProductItems, type MergedSection } from "@/lib/builder/validation";
 
 interface Item {
   key: string;
@@ -22,6 +24,7 @@ export function ActivationChecklist() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [shared, setShared] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [subdomain, setSubdomain] = useState<string | null>(null);
 
   useEffect(() => {
     if (localStorage.getItem("umkm-shared") === "1") setShared(true);
@@ -37,20 +40,38 @@ export function ActivationChecklist() {
         const d = dRes && dRes.ok ? await dRes.json() : null;
         const o = oRes && oRes.ok ? await oRes.json() : null;
         const sections = (w?.data?.custom_config?.sections ?? []) as {
+          id?: string;
           type?: string;
           enabled?: boolean;
           content?: { items?: unknown[] };
         }[];
-        const hasProduct = sections.some(
-          (s) => s.type === "product_grid" && s.enabled && Array.isArray(s.content?.items) && s.content.items.length > 0
-        );
+        // Satu sumber kebenaran via countProductItems (builder/validation).
+        // Normalisasi bentuk mentah {id} → MergedSection minimal:
+        // type fallback ke id (agar {id:"product_grid"} terhitung),
+        // enabled default true (agar {id} tanpa flag tidak ke-skip).
+        const normalized: MergedSection[] = sections.map((s, i) => ({
+          id: s.id ?? `section-${i}`,
+          type: s.type ?? s.id ?? "",
+          label: s.id ?? `section-${i}`,
+          enabled: s.enabled !== false,
+          required: false,
+          order: i,
+          style: {},
+          content: ((s.content ?? {}) as Record<string, unknown>) ?? {},
+        }));
+        const hasProduct = countProductItems(normalized) > 0;
         const sub: string | null = d?.data?.subdomain ?? null;
+        setSubdomain(sub);
+        // Domain custom = status custom_verified / flag verified (bukan prefix subdomain,
+        // agar prefix lama toko-* tidak salah dihitung sebagai belum/custom).
+        const domainDone =
+          d?.data?.status === "custom_verified" || d?.data?.custom_domain_verified === true;
         setItems([
           { key: "iPublish", done: w?.success === true && w?.data?.is_default === false, href: "/dashboard/builder" },
           { key: "iProducts", done: hasProduct, href: "/dashboard/builder" },
           {
             key: "iDomain",
-            done: !!sub && !sub.startsWith("tenant-"),
+            done: domainDone,
             href: "/dashboard/domain",
           },
           { key: "iOrder", done: (o?.data?.total_orders ?? 0) > 0, href: "/dashboard/orders" },
@@ -89,7 +110,7 @@ export function ActivationChecklist() {
   }
 
   function share() {
-    const url = window.location.origin;
+    const url = tenantUrl(subdomain) ?? window.location.origin;
     navigator.clipboard?.writeText(url).catch(() => {});
     localStorage.setItem("umkm-shared", "1");
     setShared(true);

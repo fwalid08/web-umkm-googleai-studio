@@ -34,8 +34,12 @@ export function calcTotal(price: number, qty: number): number {
   return p * q;
 }
 
-/** Rate-limit sederhana: max N submit per window per key (IP). Memory-only (MVP). */
+/**
+ * Rate-limit sederhana: max N submit per window per key (IP). Memory-only (MVP).
+ * PROD: ganti dengan Redis/Upstash agar sinkron antar instance + persisten restart.
+ */
 const hits = new Map<string, number[]>();
+const MAX_KEYS = 5000;
 
 export function isRateLimited(key: string, max = 10, windowMs = 60_000, now = Date.now()): boolean {
   const list = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
@@ -45,5 +49,10 @@ export function isRateLimited(key: string, max = 10, windowMs = 60_000, now = Da
   }
   list.push(now);
   hits.set(key, list);
+  // Evict tertua agar Map tidak tumbuh tanpa batas (DoS memori)
+  if (hits.size > MAX_KEYS) {
+    const oldest = hits.keys().next().value;
+    if (oldest) hits.delete(oldest);
+  }
   return false;
 }

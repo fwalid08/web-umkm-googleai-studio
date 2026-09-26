@@ -57,18 +57,32 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Generate verification token
+    // Generate verification token (disimpan untuk dicocokkan saat verify)
     const verificationCode = `saas-verify-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-    const { error } = await supabase
+    // Coba simpan token (kolom 009); fallback jika migrasi belum jalan
+    let { error } = await supabase
       .from("websites")
       .update({
         custom_domain: normalizedDomain,
         custom_domain_verified: false,
+        custom_domain_verification_token: verificationCode,
         updated_at: new Date().toISOString(),
-      })
+      } as never)
       .eq("id", site.id)
       .eq("user_id", userId);
+    if (error && /verification_token|column/i.test(error.message)) {
+      const retry = await supabase
+        .from("websites")
+        .update({
+          custom_domain: normalizedDomain,
+          custom_domain_verified: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", site.id)
+        .eq("user_id", userId);
+      error = retry.error;
+    }
 
     if (error) {
       console.error("Error updating custom domain:", error);

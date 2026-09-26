@@ -14,7 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { rootHost, tenantDisplay } from "@/lib/urls";
+import { dnsTarget, rootHost, tenantDisplay } from "@/lib/urls";
 
 interface DomainState {
   website_id: string;
@@ -55,6 +55,7 @@ interface DomainOrder {
 
 export default function DashboardDomainPage() {
   const { t } = useLang();
+  const cnameTarget = dnsTarget();
   const [tab, setTab] = useState<"own" | "buy">("own");
   const [domain, setDomain] = useState<DomainState | null>(null);
   const [subInput, setSubInput] = useState("");
@@ -160,7 +161,7 @@ export default function DashboardDomainPage() {
           {
             type: "CNAME",
             name: "@ atau www",
-            value: "cname.umkm.id",
+            value: cnameTarget,
             description: "Arahkan domain ke server UMKM SaaS",
           },
         ],
@@ -405,26 +406,44 @@ export default function DashboardDomainPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 font-mono">
-                      <tr>
-                        <td className="py-2.5 px-3 font-bold text-emerald-800">CNAME</td>
-                        <td className="py-2.5 px-3">www</td>
-                        <td className="py-2.5 px-3 text-gray-700">cname.umkm.id</td>
-                        <td className="py-2.5 px-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleCopy("cname.umkm.id")}
-                            className="text-xs font-sans text-emerald-700 hover:underline"
-                          >
-                            {copiedValue === "cname.umkm.id" ? "Tersalin!" : "Salin"}
-                          </button>
-                        </td>
-                      </tr>
+                      {(dns?.instructions && dns.instructions.length > 0
+                        ? dns.instructions
+                        : [{ type: "CNAME", name: "www", value: cnameTarget, description: "" }]
+                      ).map((row, i) => (
+                        <tr key={`${row.type}-${row.name}-${i}`}>
+                          <td className="py-2.5 px-3 font-bold text-emerald-800">{row.type}</td>
+                          <td className="py-2.5 px-3">{row.name}</td>
+                          <td className="py-2.5 px-3 text-gray-700 break-all">{row.value}</td>
+                          <td className="py-2.5 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(row.value)}
+                              className="text-xs font-sans text-emerald-700 hover:underline"
+                            >
+                              {copiedValue === row.value ? "Tersalin!" : "Salin"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
                 <p className="text-[11px] text-gray-500">
                   Verifikasi otomatis berjalan di sistem. Begitu DNS terpasang, status akan berubah menjadi aktif otomatis.
                 </p>
+                {dns?.code && (
+                  <p className="text-[11px] text-gray-600">
+                    Kode verifikasi TXT Anda:{" "}
+                    <code className="font-mono font-bold text-gray-900 break-all">{dns.code}</code>{" "}
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(dns.code)}
+                      className="text-emerald-700 font-semibold hover:underline"
+                    >
+                      {copiedValue === dns.code ? "Tersalin!" : "Salin"}
+                    </button>
+                  </p>
+                )}
               </div>
             )}
           </div>

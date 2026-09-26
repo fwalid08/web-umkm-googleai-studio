@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { signUpSchema } from "@/types";
+import { ensureUniqueSubdomain, generateSubdomain, isValidSubdomain } from "@/lib/tenant/index";
 
 // POST /api/auth/register - Register new user
 export async function POST(request: NextRequest) {
@@ -46,14 +47,31 @@ export async function POST(request: NextRequest) {
 
     if (authError || !authData.user) {
       console.error("Auth error:", authError);
+      // Samakan respons jika email sudah ada di auth.users tapi belum di public.users
+      const msg = String(authError?.message || "").toLowerCase();
+      if (msg.includes("already") || msg.includes("exists") || msg.includes("duplicate")) {
+        return NextResponse.json(
+          { success: false, error: "Email sudah terdaftar" },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { success: false, error: "Gagal membuat akun" },
         { status: 500 }
       );
     }
 
-    // Generate unique subdomain
-    const subdomain = `tenant-${authData.user.id.slice(0, 8)}`;
+    // Generate unique subdomain (random, lowercase, clash retry 3x via helper)
+    let base = generateSubdomain().toLowerCase();
+    if (!isValidSubdomain(base)) base = generateSubdomain().toLowerCase();
+    const subdomain = await ensureUniqueSubdomain(base, async (s) => {
+      const { data: subClash } = await supabase
+        .from("websites")
+        .select("id")
+        .eq("subdomain", s)
+        .maybeSingle();
+      return !!subClash;
+    });
 
     // Calculate trial end date (14 days from now)
     const trialEndsAt = new Date();

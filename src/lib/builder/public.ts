@@ -4,6 +4,7 @@ import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { mergeAndValidateSections, type MergedSection } from "@/lib/builder/validation";
 import type { ColorPalette, TypographyConfig } from "@/types";
 import { getDemoPublicSite } from "@/lib/mock/store";
+import { isValidSubdomain, normalizeHost, rootHost, isRootHost } from "@/lib/tenant";
 
 /**
  * Sprint 01 US-04 — Public tenant lookup + merge.
@@ -96,9 +97,14 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     sections = merged.ok ? merged.sections : [];
   }
 
+  const rawPalette = theme.palette;
+  const palettePatch =
+    rawPalette && typeof rawPalette === "object" && !Array.isArray(rawPalette)
+      ? (rawPalette as Partial<ColorPalette>)
+      : {};
   const palette = {
     ...(template.color_palette as ColorPalette),
-    ...((theme.palette ?? theme) as Partial<ColorPalette>),
+    ...palettePatch,
   } as ColorPalette;
   const typography = {
     ...(template.typography_config as TypographyConfig),
@@ -122,7 +128,7 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
 }
 
 export async function getPublicSiteBySubdomain(subdomain: string): Promise<PublicSiteData | null> {
-  if (!/^[a-z0-9-]{3,50}$/.test(subdomain)) return null;
+  if (!isValidSubdomain(subdomain)) return null;
 
   const demoSite = getDemoPublicSite(subdomain);
   if (demoSite) {
@@ -144,27 +150,19 @@ export async function getPublicSiteBySubdomain(subdomain: string): Promise<Publi
 }
 
 export async function getPublicSiteByCustomDomain(domain: string): Promise<PublicSiteData | null> {
-  const supabase = createServiceSupabaseClient();
-  const { data: site } = await supabase
-    .from("websites")
-    .select("id, user_id, name, business_type, subdomain, current_template_id")
-    .eq("custom_domain", domain.toLowerCase())
-    .eq("custom_domain_verified", true)
-    .maybeSingle();
-  if (!site) return null;
-  return buildSite(site as PublicUserRow);
-}
-
-function isRootHost(host: string, root: string): boolean {
-  const r = root.split(":")[0].toLowerCase();
-  if (!host) return true;
-  return (
-    host === r ||
-    host === `www.${r}` ||
-    host === "localhost" ||
-    host.startsWith("admin.") ||
-    host.endsWith(".vercel.app")
-  );
+  try {
+    const supabase = createServiceSupabaseClient();
+    const { data: site, error } = await supabase
+      .from("websites")
+      .select("id, user_id, name, business_type, subdomain, current_template_id")
+      .eq("custom_domain", domain.toLowerCase())
+      .eq("custom_domain_verified", true)
+      .maybeSingle();
+    if (error || !site) return null;
+    return buildSite(site as PublicUserRow);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -175,14 +173,21 @@ export const getTenantSite = cache(
   async (): Promise<{ isTenant: boolean; site: PublicSiteData | null }> => {
     const h = await headers();
     let sub = h.get("x-tenant-subdomain") || "";
-    const host = (h.get("host") || "").split(":")[0].toLowerCase();
-    const root = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com").toLowerCase();
+    const host = normalizeHost(h.get("host") || "");
+    const root = rootHost();
+
+    // admin.* = central, bukan toko (selaras dengan proxy x-is-tenant=admin)
+    if (host.startsWith("admin.")) return { isTenant: false, site: null };
 
     // Fallback dev: warung.localhost (jika proxy belum set header)
     if (!sub && host.endsWith(".localhost") && host !== "localhost") {
-      sub = host.replace(/\.localhost$/, "");
+      const cand = host.replace(/\.localhost$/, "");
+      if (isValidSubdomain(cand)) sub = cand;
     }
-    if (sub) return { isTenant: true, site: await getPublicSiteBySubdomain(sub) };
+    if (sub) {
+      if (!isValidSubdomain(sub)) return { isTenant: false, site: null };
+      return { isTenant: true, site: await getPublicSiteBySubdomain(sub) };
+    }
     if (!isRootHost(host, root) && host) {
       return { isTenant: true, site: await getPublicSiteByCustomDomain(host) };
     }

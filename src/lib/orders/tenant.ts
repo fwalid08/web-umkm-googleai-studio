@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
+import { isValidSubdomain } from "@/lib/tenant";
 
 /**
  * Sprint 02 Sesi A — Resolve tenant untuk guest checkout.
@@ -23,37 +24,41 @@ function normalizeDomain(input: string): string {
 export async function resolveTenantId(subdomainOrDomain: string): Promise<TenantRef | null> {
   const key = normalizeDomain(subdomainOrDomain);
   if (!key || key.length > 255) return null;
-  const supabase = createServiceSupabaseClient();
+  try {
+    const supabase = createServiceSupabaseClient();
 
-  // 1. Coba sebagai subdomain (format ketat seperti public.ts)
-  if (/^[a-z0-9-]{3,50}$/.test(key)) {
-    const { data } = await supabase
-      .from("websites")
-      .select("id, user_id, subdomain")
-      .eq("subdomain", key)
-      .maybeSingle();
-    if (data)
-      return {
-        userId: data.user_id as string,
-        websiteId: data.id as string,
-        subdomain: data.subdomain as string,
-      };
-  }
+    // 1. Coba sebagai subdomain (format ketat + reserved, selaras public.ts)
+    if (isValidSubdomain(key)) {
+      const { data } = await supabase
+        .from("websites")
+        .select("id, user_id, subdomain")
+        .eq("subdomain", key)
+        .maybeSingle();
+      if (data)
+        return {
+          userId: data.user_id as string,
+          websiteId: data.id as string,
+          subdomain: data.subdomain as string,
+        };
+    }
 
-  // 2. Coba sebagai custom domain (harus verified)
-  if (key.includes(".")) {
-    const { data } = await supabase
-      .from("websites")
-      .select("id, user_id, subdomain")
-      .eq("custom_domain", key)
-      .eq("custom_domain_verified", true)
-      .maybeSingle();
-    if (data)
-      return {
-        userId: data.user_id as string,
-        websiteId: data.id as string,
-        subdomain: data.subdomain as string,
-      };
+    // 2. Coba sebagai custom domain (harus verified)
+    if (key.includes(".")) {
+      const { data } = await supabase
+        .from("websites")
+        .select("id, user_id, subdomain")
+        .eq("custom_domain", key)
+        .eq("custom_domain_verified", true)
+        .maybeSingle();
+      if (data)
+        return {
+          userId: data.user_id as string,
+          websiteId: data.id as string,
+          subdomain: data.subdomain as string,
+        };
+    }
+  } catch {
+    return null;
   }
 
   return null;

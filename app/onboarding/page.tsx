@@ -79,10 +79,17 @@ export default function OnboardingPage() {
   }
 
   async function pickTemplate(tpl: Template) {
+    if (!websiteId) {
+      setError(t("common.networkError"));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/user/website", {
+      // Pastikan website target jadi aktif dulu agar konteks konsisten,
+      // lalu simpan template via route eksplisit per-website.
+      await fetch(`/api/websites/${websiteId}/activate`, { method: "POST" }).catch(() => null);
+      const res = await fetch(`/api/websites/${websiteId}/website`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
