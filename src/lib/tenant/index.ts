@@ -80,7 +80,110 @@ export async function ensureUniqueSubdomain(
   return candidate;
 }
 
-/** Strip port dari host/env (aman IPv6 [::1]:3000). */
+/**
+ * Payload insert website (kolom yang ditulis helper retry).
+ */
+export type WebsiteInsertPayload = {
+  user_id: string;
+  name: string;
+  business_type: string | null;
+  subdomain: string;
+};
+
+type WebsiteInsertResult = { data: any; error: any };
+
+/**
+ * Insert website dengan retry anti-TOCTOU race subdomain.
+ *
+ * Masalah: pola check-then-insert (cek clash via SELECT lalu INSERT) punya
+ * jeda race — dua request konkuren bisa lolos cek dengan subdomain sama,
+ * lalu satu gagal di DB unique constraint (Postgres 23505).
+ *
+ * Strategi: langsung INSERT dengan subdomain base (tanpa pre-check, hemat
+ * 1 query). Jika DB menolak dengan code 23505, generate kandidat baru via
+ * {@link ensureUniqueSubdomain} (tidak pernah mengulang subdomain yang sudah
+ * gagal) dan coba lagi, maksimal `maxAttempts` kali. Error selain 23505
+ * langsung dilempar tanpa retry.
+ *
+ * @param supabase service-role client (`any` agar kompatibel — konsisten dengan repo).
+ * @param payload kolom website; `subdomain` = base attempt-0.
+ * @param maxAttempts default 3.
+ * @param deps injeksi untuk test: `insertFn(subdomain)` dan `isTaken(s)`.
+ *   Jika `insertFn` diisi tanpa `isTaken`, cek clash default return false
+ *   (supabase tidak disentuh — aman dilepas `null` di test).
+ * @returns `{ data, attempts }` — data row website, attempts = jumlah insert dicoba.
+ * @throws error Supabase terakhir (23505 setelah habis retry, atau error non-23505).
+ */
+export async function insertWebsiteWithRetry(
+  supabase: any,
+  payload: WebsiteInsertPayload,
+  maxAttempts = 3,
+  deps?: {
+    insertFn?: (subdomain: string) => Promise<WebsiteInsertResult>;
+    isTaken?: (s: string) => Promise<boolean>;
+  }
+): Promise<{ data: any; attempts: number }> {
+  const cleanBase =
+    (payload.subdomain || "").trim().toLowerCase() || generateSubdomain().toLowerCase();
+
+  const doInsert: (subdomain: string) => Promise<WebsiteInsertResult> =
+    deps?.insertFn ??
+    ((subdomain: string) =>
+      supabase
+        .from("websites")
+        .insert({
+          user_id: payload.user_id,
+          name: payload.name,
+          business_type: payload.business_type ?? null,
+          subdomain,
+        })
+        .select("id, name, subdomain")
+        .single());
+
+  // Default cek clash via DB; tapi jika test menginjeksi insertFn saja,
+  // jangan sentuh supabase (boleh null) → anggap tersedia.
+  const isTaken: (s: string) => Promise<boolean> =
+    deps?.isTaken ??
+    (deps?.insertFn
+      ? async () => false
+      : async (s: string) => {
+          try {
+            const { data: clash } = await supabase
+              .from("websites")
+              .select("id")
+              .eq("subdomain", s)
+              .maybeSingle();
+            return !!clash;
+          } catch {
+            return false;
+          }
+        });
+
+  // Subdomain yang sudah dicoba & gagal — kandidat baru tidak boleh mengulang ini,
+  // terlepas dari hasil isTaken (penting saat isTaken fail-open / di-mock false).
+  const tried = new Set<string>();
+  let candidate = cleanBase;
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      candidate = await ensureUniqueSubdomain(
+        cleanBase,
+        async (s) => tried.has(s) || (await isTaken(s)),
+        maxAttempts
+      );
+    }
+    tried.add(candidate);
+
+    const { data, error } = await doInsert(candidate);
+    if (!error) return { data, attempts: attempt + 1 };
+    lastError = error;
+    if ((error as any)?.code !== "23505") throw error;
+    if (attempt === maxAttempts - 1) throw error;
+    // 23505 + sisa attempt → loop lagi dengan kandidat baru
+  }
+  throw lastError;
+}
 export function stripPort(host: string): string {
   const h = (host || "").trim().toLowerCase();
   if (h.startsWith("[")) {

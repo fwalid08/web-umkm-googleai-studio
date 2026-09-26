@@ -5,7 +5,8 @@ import { auth } from "@/lib/auth/auth";
 // (tanpa Supabase Auth session) → "User tidak ditemukan".
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { createOrderSchema } from "@/types";
-import { calcTotal, isRateLimited } from "@/lib/orders/validation";
+import { calcTotal } from "@/lib/orders/validation";
+import { checkRateLimit } from "@/lib/rate/limit";
 import { notifyNewOrder } from "@/lib/notify/notify";
 import { resolveTenantId } from "@/lib/orders/tenant";
 import { getActiveWebsite } from "@/lib/websites/active";

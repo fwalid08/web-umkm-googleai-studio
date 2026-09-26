@@ -1,29 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
+import { checkRateLimit } from "@/lib/rate/limit";
 
 const forgotSchema = z.object({
   email: z.string().email("Email tidak valid"),
 });
 
-// Rate-limit sederhana in-memory (best-effort, reset saat restart/scale).
-// Prod → ganti Redis/Upstash. Key dipisah per email & per IP.
+// Rate-limit via lib terpusat (Upstash bila env ada, fallback memori).
+// Key dipisah per email & per IP.
 const WINDOW_MS = 60 * 60 * 1000; // 1 jam
 const MAX_PER_EMAIL = 5;
 const MAX_PER_IP = 20;
-const buckets = new Map<string, { count: number; resetAt: number }>();
-
-function hitRateLimit(key: string, max: number): boolean {
-  const now = Date.now();
-  const entry = buckets.get(key);
-  if (!entry || now > entry.resetAt) {
-    buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count += 1;
-  buckets.set(key, entry);
-  return entry.count > max;
-}
 
 function clientIp(request: NextRequest): string {
   // Best-effort: X-Forwarded-For mudah dipalsukan client, jadi sanitasi ketat
@@ -56,13 +44,15 @@ export async function POST(request: NextRequest) {
 
     // Rate-limit: 20/jam per IP + 5/jam per email. Return 429 jika over.
     // (429 boleh eksplisit — tidak membocorkan status akun.)
-    if (hitRateLimit(`forgot:ip:${clientIp(request)}`, MAX_PER_IP)) {
+    const ipLimit = await checkRateLimit(`forgot:ip:${clientIp(request)}`, MAX_PER_IP, WINDOW_MS);
+    if (!ipLimit.ok) {
       return NextResponse.json(
         { success: false, error: "Terlalu banyak permintaan. Coba lagi nanti." },
         { status: 429 }
       );
     }
-    if (hitRateLimit(`forgot:email:${normalizedEmail}`, MAX_PER_EMAIL)) {
+    const emailLimit = await checkRateLimit(`forgot:email:${normalizedEmail}`, MAX_PER_EMAIL, WINDOW_MS);
+    if (!emailLimit.ok) {
       return NextResponse.json(
         { success: false, error: "Terlalu banyak permintaan. Coba lagi nanti." },
         { status: 429 }
