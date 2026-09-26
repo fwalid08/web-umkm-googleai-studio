@@ -33,3 +33,12 @@ export const TIER_WEBSITE_LIMIT: Record<BillingTier, number> = {
   growth: 10,
   enterprise: 999,
 };
+
+/**
+ * N6: satu-satunya sumber batas website per tier.
+ * Nilai sinkron dengan 012_pricing_unify.sql (free 1, starter 3, growth 10, enterprise 999).
+ * TIER_WEBSITE_LIMIT di atas dipertahankan sebagai alias typed (BillingTier);
+ * TIER_WEBSITE_FALLBACK adalah alias longgar (Record<string, number>) untuk
+ * kompatibilitas import lama dari "@/types" (yang kini re-export dari sini).
+ */
+export const TIER_WEBSITE_FALLBACK: Record<string, number> = TIER_WEBSITE_LIMIT;

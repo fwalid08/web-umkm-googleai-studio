@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth/auth";
 import { getSessionUserId } from "@/lib/auth/utils";
 import { getDemoUser, isDemoUserId } from "@/lib/mock/store";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
-import { TIER_WEBSITE_FALLBACK, Tier } from "@/types";
+import { Tier } from "@/types";
+import { TIER_WEBSITE_FALLBACK } from "@/lib/billing/pricing";
 
 export async function GET() {
   try {

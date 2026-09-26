@@ -351,12 +351,9 @@ export interface Plan {
 // Fallback jika plan_id null — sinkron dengan 012_pricing_unify.sql
 // (kebenaran bisnis terbaru = billing-panel.tsx PLANS):
 // free 1, starter 3, growth 10, enterprise 999 (unlimited → 999 di DB).
-export const TIER_WEBSITE_FALLBACK: Record<string, number> = {
-  free: 1,
-  starter: 3,
-  growth: 10,
-  enterprise: 999,
-};
+// N6: single source = src/lib/billing/pricing.ts. Re-export agar import lama
+// dari "@/types" tetap kompatibel tanpa refactor massal.
+export { TIER_WEBSITE_FALLBACK } from "@/lib/billing/pricing";
 
 export const createWebsiteSchema = z.object({
   name: z.string().min(2, "Nama website minimal 2 karakter").max(100),

@@ -1,5 +1,5 @@
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
-import { TIER_WEBSITE_FALLBACK } from "@/types";
+import { TIER_WEBSITE_FALLBACK } from "@/lib/billing/pricing";
 import { getDemoWebsiteLimit, isDemoUserId } from "@/lib/mock/store";
 
 /**

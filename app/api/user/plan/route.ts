@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth/auth";
 import { getSessionUserId } from "@/lib/auth/utils";
 import { isDemoUserId, setDemoUserTier, getDemoUser } from "@/lib/mock/store";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
-import { TIER_WEBSITE_FALLBACK, Tier } from "@/types";
+import { Tier } from "@/types";
+import { TIER_WEBSITE_FALLBACK } from "@/lib/billing/pricing";
 
 const VALID_TIERS: Tier[] = ["free", "starter", "growth", "enterprise"];
 

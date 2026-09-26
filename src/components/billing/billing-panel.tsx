@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/i18n";
 import { Tier } from "@/types";
 
@@ -161,6 +162,7 @@ const FAQS = [
 
 export function BillingPanel() {
   const { data: session } = useSession();
+  const router = useRouter();
   const { t } = useLang();
   const user = session?.user as unknown as {
     tier?: Tier;
@@ -280,14 +282,18 @@ export function BillingPanel() {
             success: true,
             text: `Selamat! Toko Anda kini aktif di Paket ${modalPlan.name}.`,
           });
-          // Refresh slot limit
-          const wRes = await fetch("/api/websites");
-          const wJson = await wRes.json();
-          if (wJson.success) setSlot({ count: wJson.data.count, max: wJson.data.max });
-          setTimeout(() => {
-            setModalPlan(null);
-            setUpgradeMsg(null);
-          }, 1800);
+          // Refresh slot limit (fallback dipertahankan bila fetch gagal)
+          try {
+            const wRes = await fetch("/api/websites");
+            const wJson = await wRes.json();
+            if (wJson.success) setSlot({ count: wJson.data.count, max: wJson.data.max });
+          } catch {
+            // ignore — halaman success fetch ulang via /api/billing/status
+          }
+          // N4: mock sukses → halaman ringkasan statis (tanpa Snap/payment baru).
+          router.push(
+            `/billing/success?tier=${encodeURIComponent(modalPlan.id)}&cycle=${encodeURIComponent(billingCycle)}`
+          );
         } else if (redirectUrl) {
           setUpgradeMsg({
             success: true,
