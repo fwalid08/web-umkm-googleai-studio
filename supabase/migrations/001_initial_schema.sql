@@ -98,33 +98,41 @@ ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_templates ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
+-- RLS Policies (idempotent: DROP + CREATE, pola 011 — aman di-run ulang)
 -- Users can view/update their own data
+DROP POLICY IF EXISTS "Users can view own data" ON users;
 CREATE POLICY "Users can view own data" ON users
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own data" ON users;
 CREATE POLICY "Users can update own data" ON users
   FOR UPDATE USING (auth.uid() = id);
 
 -- Orders - users can only access their own orders
+DROP POLICY IF EXISTS "Users can view own orders" ON orders;
 CREATE POLICY "Users can view own orders" ON orders
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own orders" ON orders;
 CREATE POLICY "Users can insert own orders" ON orders
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own orders" ON orders;
 CREATE POLICY "Users can update own orders" ON orders
   FOR UPDATE USING (auth.uid() = user_id);
 
 -- Templates - anyone can view active templates
+DROP POLICY IF EXISTS "Anyone can view active templates" ON templates;
 CREATE POLICY "Anyone can view active templates" ON templates
   FOR SELECT USING (is_active = TRUE);
 
 -- Subscriptions - users can view own subscriptions
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON subscriptions;
 CREATE POLICY "Users can view own subscriptions" ON subscriptions
   FOR SELECT USING (auth.uid() = user_id);
 
 -- User templates - users can manage their own template configs
+DROP POLICY IF EXISTS "Users can manage own template configs" ON user_templates;
 CREATE POLICY "Users can manage own template configs" ON user_templates
   FOR ALL USING (auth.uid() = user_id);
 
@@ -137,8 +145,16 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at') THEN
+    CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
 
-CREATE TRIGGER update_user_templates_updated_at BEFORE UPDATE ON user_templates
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_templates_updated_at') THEN
+    CREATE TRIGGER update_user_templates_updated_at BEFORE UPDATE ON user_templates
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;

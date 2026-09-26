@@ -86,6 +86,7 @@ MIDTRANS_IS_PRODUCTION=false
    - `supabase/migrations/002_seed_templates.sql` — seed 5 template (food, fashion, handicraft, retail, services)
    - `supabase/migrations/003_google_auth.sql` — kolom `auth_provider`, `google_id`, `avatar_url`
    - `supabase/migrations/004_fix_rls_insert_policies.sql` — **wajib**: policy INSERT users/subscriptions + DELETE orders + trigger `update_orders_updated_at`
+   - `005`..`018` — wajib berurutan juga (`005` orders hardening, `006` multi-website, `007`/`012` pricing, `008`/`009` domain, `010` billing gateway, `011`/`014` RLS hardening, `013` product limits, `015` hapus trial, `016` produk+stok+RLS, `017` seed demo user, `018` storage bucket). Detail produk/stok: `docs/STOCK.md`.
 4. Copy URL & anon key + service-role key ke `.env.local`
 5. Verifikasi: `SELECT * FROM templates;` harus 5 baris. Cek `pg_policies` untuk `Users can insert own data`.
 
@@ -110,7 +111,7 @@ pnpm lint
 
 # Database (Sprint 00: manual via Supabase SQL Editor — lihat # Database Setup)
 pnpm db:check    # List file migrasi supabase/migrations/
-pnpm db:push     # Print panduan jalankan 001..004 berurutan
+pnpm db:push     # Print panduan jalankan 001..018 berurutan (atau `supabase db push` via CLI)
 pnpm db:reset    # Print panduan reset DEV ONLY (TRUNCATE, jangan di prod!)
 pnpm db:new      # Print panduan bikin file migrasi 00X baru
 ```

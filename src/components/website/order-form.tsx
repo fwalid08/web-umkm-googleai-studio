@@ -11,10 +11,12 @@ import { MessageCircle } from "lucide-react";
 
 interface Props {
   subdomain: string;
+  productId?: string;
   productName: string;
   productPrice: number;
   primary: string;
   sellerPhone?: string;
+  disabled?: boolean;
 }
 
 function formatWaUrl(phone: string, text: string): string {
@@ -23,13 +25,26 @@ function formatWaUrl(phone: string, text: string): string {
   return `https://wa.me/${cleaned}?text=${encodeURIComponent(text)}`;
 }
 
-export function OrderForm({ subdomain, productName, productPrice, primary, sellerPhone }: Props) {
+export function OrderForm({ subdomain, productId, productName, productPrice, primary, sellerPhone, disabled = false }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState("");
   const [orderId, setOrderId] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", phone: "", qty: "1", address: "", notes: "" });
+
+  if (disabled) {
+    return (
+      <div className="mt-2">
+        <button
+          className="w-full py-2 rounded-lg text-sm font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
+          disabled
+        >
+          Stok Habis
+        </button>
+      </div>
+    );
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,6 +56,7 @@ export function OrderForm({ subdomain, productName, productPrice, primary, selle
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subdomain,
+          product_id: productId,
           product_name: productName,
           product_price: productPrice,
           quantity: Number(form.qty) || 1,

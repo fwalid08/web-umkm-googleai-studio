@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Clock, MapPin, MessageCircle, Phone, Tag, Truck } from "lucide-react";
+import { Clock, MapPin, MessageCircle, Phone, Tag, Truck, Package, XCircle } from "lucide-react";
 import type { PublicSiteData } from "@/lib/builder/public";
 import type { MergedSection } from "@/lib/builder/validation";
 import { OrderForm } from "@/components/website/order-form";
@@ -90,6 +90,17 @@ function ProductGridSection({
     const v = typeof p.price === "number" ? p.price : Number(p.price ?? 0);
     return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
   }
+  function getStock(p: Record<string, unknown>): number {
+    const v = typeof p.stock === "number" ? p.stock : Number(p.stock ?? -1);
+    return Number.isFinite(v) ? Math.floor(v) : -1;
+  }
+  function getLowThreshold(p: Record<string, unknown>): number {
+    const v = typeof p.low_stock_threshold === "number" ? p.low_stock_threshold : Number(p.low_stock_threshold ?? 5);
+    return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 5;
+  }
+  function isActive(p: Record<string, unknown>): boolean {
+    return p.is_active !== false;
+  }
   return (
     <section id={s.id} className="px-4 sm:px-6 py-12 max-w-6xl mx-auto">
       {c.title ? <h2 className="text-2xl font-bold text-center">{str(c.title)}</h2> : null}
@@ -101,36 +112,66 @@ function ProductGridSection({
           className="mt-8 grid gap-4"
           style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
         >
-          {items.map((p, i) => (
-            <div key={i} className="border rounded-xl overflow-hidden bg-white">
-              {typeof p.image === "string" && p.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.image} alt={str(p.name, "Produk")} className="w-full h-40 object-cover" />
-              ) : (
-                <div className="w-full h-40 flex items-center justify-center text-4xl bg-black/5">🛍️</div>
-              )}
-              <div className="p-3">
-                <p className="font-semibold text-sm">{str(p.name, "Produk")}</p>
-                {"price" in p && p.price !== "" ? (
-                  <p className="mt-1 font-bold" style={{ color: primary }}>
-                    {rp(p.price)}
-                  </p>
-                ) : null}
-                {typeof p.description === "string" && p.description ? (
-                  <p className="mt-1 text-xs opacity-60 line-clamp-2">{p.description}</p>
-                ) : null}
-                {subdomain ? (
-                  <OrderForm
-                    subdomain={subdomain}
-                    productName={str(p.name, "Produk")}
-                    productPrice={priceNum(p)}
-                    primary={primary}
-                    sellerPhone={sellerPhone}
-                  />
-                ) : null}
+          {items.map((p, i) => {
+            const stock = getStock(p);
+            const active = isActive(p);
+            const isOutOfStock = stock === 0;
+            const isLowStock = stock > 0 && stock <= getLowThreshold(p);
+            const disabled = !active || isOutOfStock;
+
+            return (
+              <div key={i} className="border rounded-xl overflow-hidden bg-white relative">
+                {typeof p.image === "string" && p.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image} alt={str(p.name, "Produk")} className="w-full h-40 object-cover" />
+                ) : (
+                  <div className="w-full h-40 flex items-center justify-center text-4xl bg-black/5">🛍️</div>
+                )}
+                {/* Stock Badge */}
+                {(!active || isOutOfStock || isLowStock) && (
+                  <div className="absolute top-2 right-2 z-10 flex gap-1">
+                    {!active && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Nonaktif
+                      </span>
+                    )}
+                    {isOutOfStock && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
+                        <Package className="h-3 w-3" /> Habis
+                      </span>
+                    )}
+                    {isLowStock && active && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                        <Package className="h-3 w-3" /> Sisa {stock}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="p-3">
+                  <p className="font-semibold text-sm">{str(p.name, "Produk")}</p>
+                  {"price" in p && p.price !== "" ? (
+                    <p className="mt-1 font-bold" style={{ color: primary }}>
+                      {rp(p.price)}
+                    </p>
+                  ) : null}
+                  {typeof p.description === "string" && p.description ? (
+                    <p className="mt-1 text-xs opacity-60 line-clamp-2">{p.description}</p>
+                  ) : null}
+                  {subdomain ? (
+                    <OrderForm
+                      subdomain={subdomain}
+                      productId={typeof p.id === "string" ? p.id : undefined}
+                      productName={str(p.name, "Produk")}
+                      productPrice={priceNum(p)}
+                      primary={primary}
+                      sellerPhone={sellerPhone}
+                      disabled={disabled}
+                    />
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

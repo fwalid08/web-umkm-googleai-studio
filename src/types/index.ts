@@ -304,8 +304,11 @@ export const FREE_PRODUCT_MAX = 5;
 
 // Order Schemas (Sprint 02 Sesi A — guest checkout + status workflow)
 // total_amount SELALU dihitung server (calcTotal), client tidak mengirimnya.
+// F2-1: product_id (UUID produk DB) diutamakan; product_name/price jadi fallback
+// untuk item JSON legacy tanpa id (harga tetap divalidasi server).
 export const createOrderSchema = z.object({
   subdomain: z.string().min(3, "Subdomain/domain wajib diisi").max(255),
+  product_id: z.string().uuid("Product ID tidak valid").optional(),
   product_name: z.string().min(1, "Nama produk wajib diisi").max(255),
   product_price: z.number().int().min(0, "Harga tidak valid"),
   quantity: z.number().int().min(1, "Minimal 1").max(99, "Maksimal 99"),

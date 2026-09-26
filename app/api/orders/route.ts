@@ -41,7 +41,8 @@ function escapePostgrestSearch(value: string): string {
 // Response pesan auto F5: "Terima kasih order! Kami akan konfirmasi dalam 24 jam".
 export async function POST(request: NextRequest) {
   try {
-    if (isRateLimited(`order:${clientIp(request)}`)) {
+    const rateLimitResult = await checkRateLimit(`order:${clientIp(request)}`, 10, 60000);
+    if (!rateLimitResult.ok) {
       return NextResponse.json(
         { success: false, error: "Terlalu banyak order. Coba lagi 1 menit." },
         { status: 429 }
@@ -63,19 +64,63 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Toko tidak ditemukan" }, { status: 404 });
     }
 
-    const total = calcTotal(input.product_price, input.quantity);
+    const supabase = createServiceSupabaseClient();
+
+    // F2-1: resolve produk by product_id bila ada (anti spoof harga + nama duplikat).
+    // Fallback ke lookup by name untuk item JSON legacy tanpa id.
+    let product: { id: string; name: string; price: number; stock: number; is_active: boolean } | null = null;
+    if (input.product_id) {
+      const { data } = await supabase
+        .from("products")
+        .select("id, name, price, stock, is_active")
+        .eq("website_id", tenant.websiteId)
+        .eq("id", input.product_id)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (!data) {
+        return NextResponse.json({ success: false, error: "Produk tidak ditemukan" }, { status: 404 });
+      }
+      product = data;
+    } else {
+      const { data } = await supabase
+        .from("products")
+        .select("id, name, price, stock, is_active")
+        .eq("website_id", tenant.websiteId)
+        .eq("name", input.product_name)
+        .eq("is_active", true)
+        .maybeSingle();
+      product = data;
+    }
+
+    // Harga dari DB bila produk dikenal (cegah spoof product_price dari client).
+    const unitPrice = product ? product.price : input.product_price;
+    const resolvedName = product ? product.name : input.product_name;
+    const total = calcTotal(unitPrice, input.quantity);
     if (total < 0) {
       return NextResponse.json({ success: false, error: "Harga/jumlah tidak valid" }, { status: 400 });
     }
 
-    const supabase = createServiceSupabaseClient();
+    // If product exists in DB and tracks stock, decrement atomically via RPC.
+    // F2-2: single log_stock_movement AFTER successful order insert (no orphan pre-log).
+    let stockDecremented = false;
+    if (product && product.stock !== -1) {
+      const { data: decremented, error: stockError } = await supabase
+        .rpc("decrement_product_stock", { p_product_id: product.id, p_quantity: input.quantity });
+
+      if (stockError || !decremented) {
+        if (stockError) console.error("Stock decrement error:", stockError);
+        return NextResponse.json({ success: false, error: "Stok tidak mencukupi" }, { status: 409 });
+      }
+      stockDecremented = true;
+    }
+
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
         user_id: tenant.userId,
         website_id: tenant.websiteId,
-        product_name: input.product_name,
-        product_price: input.product_price,
+        product_name: resolvedName,
+        product_price: unitPrice,
         quantity: input.quantity,
         total_amount: total,
         status: "baru",
@@ -92,12 +137,27 @@ export async function POST(request: NextRequest) {
 
     if (error || !order) {
       console.error("Create order error:", error);
+      // If order failed but stock was decremented, we should increment back
+      if (stockDecremented && product) {
+        await supabase.rpc("increment_product_stock", { p_product_id: product.id, p_quantity: input.quantity });
+      }
       return NextResponse.json({ success: false, error: "Gagal membuat order" }, { status: 500 });
     }
 
+    // Single stock movement log with order reference (F2-2)
+    if (stockDecremented && product) {
+      await supabase.rpc("log_stock_movement", {
+        p_product_id: product.id,
+        p_type: "out",
+        p_quantity: input.quantity,
+        p_reference_id: order.id,
+        p_reference_type: "order",
+        p_note: `Order #${order.id} dari ${input.customer_name}`,
+      });
+    }
+
     // N2: notifikasi owner best-effort (mock log bila provider belum diset).
-    // JANGAN gagalkan order jika notify gagal. N3: decrement stok dilewati
-    // dengan aman — lihat docs/STOCK.md (produk masih di user_templates JSON).
+    // JANGAN gagalkan order jika notify gagal.
     try {
       await notifyNewOrder({
         subdomain: tenant.subdomain,

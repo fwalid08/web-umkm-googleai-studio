@@ -1,13 +1,27 @@
 "use client";
 
-/**
- * Sprint 02 US-02/US-03/US-06 — Order list + filter + status + CSV.
- * Mobile: card list. Desktop: tabel. Export CSV dari data terfilter.
- */
-
 import { useCallback, useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLang } from "@/lib/i18n";
 
 interface Order {
@@ -24,19 +38,24 @@ interface Order {
 
 const STATUSES = ["", "baru", "konfirmasi", "dikirim", "selesai"];
 
-function badge(status: string): string {
-  switch (status) {
-    case "baru":
-      return "bg-blue-100 text-blue-700";
-    case "konfirmasi":
-      return "bg-yellow-100 text-yellow-700";
-    case "dikirim":
-      return "bg-purple-100 text-purple-700";
-    case "selesai":
-      return "bg-green-100 text-green-700";
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
+function statusBadge(status: string): React.ReactNode {
+  const variant: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"> = {
+    baru: "info",
+    konfirmasi: "warning",
+    dikirim: "default",
+    selesai: "success",
+  };
+  const labels: Record<string, string> = {
+    baru: "Baru",
+    konfirmasi: "Konfirmasi",
+    dikirim: "Dikirim",
+    selesai: "Selesai",
+  };
+  return (
+    <Badge variant={variant[status] || "default"}>
+      {labels[status] || status}
+    </Badge>
+  );
 }
 
 function waUrl(phone: string, customer: string, product: string, total: number): string {
@@ -62,11 +81,6 @@ export default function OrdersPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-
-  const stLabel = (s: string): string => {
-    const m = tr("orders.st") as Record<string, string>;
-    return m[s] ?? s;
-  };
 
   const load = useCallback(async (p: number, st: string, q: string) => {
     setLoading(true);
@@ -126,7 +140,6 @@ export default function OrdersPage() {
     }
   }
 
-  // N8: export CSV server-side (seluruh data terfilter, bukan cuma halaman aktif).
   async function exportCsv() {
     setExporting(true);
     setError("");
@@ -161,193 +174,203 @@ export default function OrdersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("orders.title")}</h1>
           <p className="text-gray-500">
-            {status ? t("orders.countFilter", { total, status: stLabel(status) }) : t("orders.countIn", { total })}
+            {status ? t("orders.countFilter", { total, status: status || "Semua" }) : t("orders.countIn", { total })}
           </p>
         </div>
-        <button
-          onClick={exportCsv}
-          disabled={orders.length === 0 || exporting}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
-        >
-          {exporting ? t("common.loading") : t("orders.export")}
-        </button>
+        <Button variant="outline" onClick={exportCsv} disabled={orders.length === 0 || exporting} className="gap-2">
+          <span>{exporting ? t("common.loading") : t("orders.export")}</span>
+        </Button>
       </div>
 
       <Card>
-        <CardContent className="pt-4 flex flex-col sm:flex-row gap-2">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm"
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s ? stLabel(s) : t("orders.filterAll")}
-              </option>
-            ))}
-          </select>
-          <input
-            placeholder={t("orders.searchPh")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && applyFilter()}
-            className="flex-1 border rounded-lg px-3 py-2 text-sm"
-          />
-          <button
-            onClick={applyFilter}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
-          >
-            {t("orders.searchBtn")}
-          </button>
+        <CardContent className="pt-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 max-w-xs sm:max-w-md">
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Semua Status</SelectItem>
+                  {STATUSES.filter(Boolean).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s === "baru" ? "Baru" : s === "konfirmasi" ? "Konfirmasi" : s === "dikirim" ? "Dikirim" : "Selesai"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <Input
+                  placeholder={t("orders.searchPh") || "Cari pelanggan, produk..."}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyFilter()}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <Button onClick={applyFilter} className="gap-2 whitespace-nowrap">
+              <span>Terapkan</span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      {error ? (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
-      ) : null}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-3">
+            <p className="text-xs text-red-700">{error}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("orders.listTitle")}</CardTitle>
+          <CardTitle>{t("orders.listTitle") || "Daftar Pesanan"}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-gray-500">{t("common.loading")}</p>
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-6 w-20" />
+                </div>
+              ))}
+            </div>
           ) : orders.length === 0 ? (
             <div className="text-center py-10">
-              <p className="text-lg font-medium text-gray-900">{t("orders.emptyTitle")}</p>
-              <p className="text-sm text-gray-500 mt-1">{t("orders.emptyDesc")}</p>
+              <p className="text-lg font-medium text-gray-900">{t("orders.emptyTitle") || "Belum ada pesanan"}</p>
+              <p className="text-sm text-gray-500 mt-1">{t("orders.emptyDesc") || "Pesanan akan muncul di sini setelah pelanggan checkout"}</p>
             </div>
           ) : (
             <>
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500 border-b">
-                      <th className="pb-2 font-medium">{t("orders.colCustomer")}</th>
-                      <th className="pb-2 font-medium">{t("orders.colProduct")}</th>
-                      <th className="pb-2 font-medium text-right">{t("orders.colTotal")}</th>
-                      <th className="pb-2 font-medium">{t("orders.colStatus")}</th>
-                      <th className="pb-2 font-medium">{t("orders.colDate")}</th>
-                      <th className="pb-2 font-medium">{t("orders.colChange")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b border-gray-100 bg-gray-50/50 text-gray-500 font-semibold">
+                      <TableHead className="py-3 px-5">{t("orders.colCustomer") || "Pelanggan"}</TableHead>
+                      <TableHead className="py-3 px-4">{t("orders.colProduct") || "Produk"}</TableHead>
+                      <TableHead className="py-3 px-4 text-right">{t("orders.colTotal") || "Total"}</TableHead>
+                      <TableHead className="py-3 px-4 text-center">{t("orders.colStatus") || "Status"}</TableHead>
+                      <TableHead className="py-3 px-4">{t("orders.colDate") || "Tanggal"}</TableHead>
+                      <TableHead className="py-3 px-4 text-center">{t("orders.colChange") || "Aksi"}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-gray-100">
                     {orders.map((o) => (
-                      <tr key={o.id} className="hover:bg-gray-50">
-                        <td className="py-2">
-                          <p className="font-medium">{o.customer_name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-xs text-gray-500">{o.customer_phone}</span>
-                            {o.customer_phone ? (
-                              <a
-                                href={waUrl(o.customer_phone, o.customer_name, o.product_name, o.total_amount)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Hubungi Pembeli via WhatsApp"
-                                className="inline-flex items-center gap-1 text-[11px] text-green-700 bg-green-50 hover:bg-green-100 px-1.5 py-0.5 rounded border border-green-200"
-                              >
-                                <MessageCircle className="h-3 w-3 text-green-600" />
-                                Chat WA
-                              </a>
-                            ) : null}
+                      <TableRow key={o.id} className="hover:bg-gray-50/80 transition-colors">
+                        <TableCell className="py-3 px-5">
+                          <div>
+                            <p className="font-medium text-gray-900">{o.customer_name}</p>
+                            <p className="text-xs text-gray-500">{o.customer_phone}</p>
                           </div>
-                        </td>
-                        <td className="py-2">
-                          {o.product_name} × {o.quantity}
-                        </td>
-                        <td className="py-2 text-right font-medium">Rp {o.total_amount.toLocaleString("id-ID")}</td>
-                        <td className="py-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${badge(o.status)}`}>
-                            {stLabel(o.status)}
-                          </span>
-                        </td>
-                        <td className="py-2 text-gray-500">{new Date(o.order_date).toLocaleDateString("id-ID")}</td>
-                        <td className="py-2">
-                          <select
-                            value={o.status}
-                            disabled={updatingId === o.id || o.status === "selesai"}
-                            onChange={(e) => changeStatus(o, e.target.value)}
-                            className="border rounded-lg px-2 py-1 text-xs"
-                          >
-                            {["baru", "konfirmasi", "dikirim", "selesai"].map((s) => (
-                              <option key={s} value={s}>
-                                {stLabel(s)}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="py-3 px-4">
+                          <p className="text-gray-900">{o.product_name}</p>
+                          <p className="text-xs text-gray-500">× {o.quantity}</p>
+                        </TableCell>
+                        <TableCell className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                          Rp {o.total_amount.toLocaleString("id-ID")}
+                        </TableCell>
+                        <TableCell className="py-3 px-4 text-center">
+                          {statusBadge(o.status)}
+                        </TableCell>
+                        <TableCell className="py-3 px-4 text-gray-500">
+                          {new Date(o.order_date).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </TableCell>
+                        <TableCell className="py-3 px-4 text-center">
+                          <Select value={o.status} onValueChange={(v) => changeStatus(o, v)} disabled={updatingId === o.id || o.status === "selesai"}>
+                            <SelectTrigger className="w-full h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["baru", "konfirmasi", "dikirim", "selesai"].map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s === "baru" ? "Baru" : s === "konfirmasi" ? "Konfirmasi" : s === "dikirim" ? "Dikirim" : "Selesai"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
+
               <div className="md:hidden space-y-3">
                 {orders.map((o) => (
-                  <div key={o.id} className="border rounded-xl p-3">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">{o.customer_name}</p>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${badge(o.status)}`}>
-                        {stLabel(o.status)}
-                      </span>
+                  <div key={o.id} className="border rounded-xl p-3 bg-white">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium text-gray-900">{o.customer_name}</p>
+                      {statusBadge(o.status)}
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {o.product_name} × {o.quantity} — Rp {o.total_amount.toLocaleString("id-ID")}
+                    <p className="text-sm text-gray-600 mb-2">
+                      {o.product_name} × {o.quantity} — <span className="font-bold text-emerald-800">Rp {o.total_amount.toLocaleString("id-ID")}</span>
                     </p>
-                    <button
+                    <p className="text-xs text-gray-500 mb-2">
+                      {new Date(o.order_date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setOpenId(openId === o.id ? null : o.id)}
-                      className="text-xs text-primary-600 mt-1"
+                      className="w-full gap-2"
                     >
-                      {openId === o.id ? t("orders.hideDetail") : t("orders.detail")}
-                    </button>
-                    {openId === o.id ? (
-                      <div className="mt-2 space-y-2 text-sm">
+                      {openId === o.id ? "Sembunyikan" : "Detail"}
+                    </Button>
+
+                    {openId === o.id && (
+                      <div className="mt-2 space-y-2 text-sm pt-2 border-t border-gray-100">
                         <div className="flex items-center justify-between">
                           <p className="text-gray-500">📞 {o.customer_phone} • {o.payment_method.toUpperCase()}</p>
-                          {o.customer_phone ? (
+                          {o.customer_phone && (
                             <a
                               href={waUrl(o.customer_phone, o.customer_name, o.product_name, o.total_amount)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200"
+                              className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
                             >
-                              <MessageCircle className="h-3.5 w-3.5 text-green-600" /> Chat WA
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              Chat WA
                             </a>
-                          ) : null}
+                          )}
                         </div>
-                        <select
-                          value={o.status}
-                          disabled={updatingId === o.id || o.status === "selesai"}
-                          onChange={(e) => changeStatus(o, e.target.value)}
-                          className="border rounded-lg px-2 py-1.5 text-sm w-full"
-                        >
-                          {["baru", "konfirmasi", "dikirim", "selesai"].map((s) => (
-                            <option key={s} value={s}>
-                              {stLabel(s)}
-                            </option>
-                          ))}
-                        </select>
+                        <Select value={o.status} onValueChange={(v) => changeStatus(o, v)} disabled={updatingId === o.id || o.status === "selesai"}>
+                          <SelectTrigger className="w-full h-9 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["baru", "konfirmasi", "dikirim", "selesai"].map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s === "baru" ? "Baru" : s === "konfirmasi" ? "Konfirmasi" : s === "dikirim" ? "Dikirim" : "Selesai"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    ) : null}
+                    )}
                   </div>
                 ))}
               </div>
+
               <div className="flex items-center justify-between mt-4 text-sm">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => load(page - 1, status, search)}
-                  className="px-3 py-1.5 border rounded-lg disabled:opacity-50"
-                >
-                  {t("orders.prev")}
-                </button>
-                <span className="text-gray-500">{t("orders.page", { p: page, t: totalPages })}</span>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => load(page + 1, status, search)}
-                  className="px-3 py-1.5 border rounded-lg disabled:opacity-50"
-                >
-                  {t("orders.next")}
-                </button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => load(page - 1, status, search)}>
+                  {t("orders.prev") || "Sebelumnya"}
+                </Button>
+                <span className="text-gray-500">{t("orders.page") || "Halaman"} {page} {t("orders.of") || "dari"} {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => load(page + 1, status, search)}>
+                  {t("orders.next") || "Selanjutnya"}
+                </Button>
               </div>
             </>
           )}

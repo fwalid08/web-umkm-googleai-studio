@@ -59,6 +59,39 @@ jobs:
             fi
           done
           if [ "$empty" -eq 1 ]; then exit 1; fi
+          # F-fix-3: tolak bare CREATE TRIGGER / CREATE POLICY tanpa guard.
+          # Aturan: trigger hanya boleh muncul INDENTED di dalam DO $$ ...
+          # IF NOT EXISTS (pg_trigger); policy CREATE harus didahului
+          # DROP POLICY IF EXISTS dalam 5 baris sebelumnya.
+          # Postgres tidak punya CREATE TRIGGER/POLICY IF NOT EXISTS.
+          bad=0
+          for f in "$DIR"/*.sql; do
+            lineno=0
+            # sliding window 5 baris terakhir untuk cek DROP POLICY
+            w1=""; w2=""; w3=""; w4=""; w5=""
+            while IFS= read -r line || [ -n "$line" ]; do
+              lineno=$((lineno + 1))
+              case "$line" in
+                '--'*) w1="$w2"; w2="$w3"; w3="$w4"; w4="$w5"; w5="$line"; continue;;
+              esac
+              case "$line" in
+                'CREATE TRIGGER '*)
+                  echo "❌ $f:$lineno: bare CREATE TRIGGER (bungkus DO \$\$ IF NOT EXISTS pg_trigger)"
+                  bad=1;;
+                'CREATE POLICY '*)
+                  case "$w1 $w2 $w3 $w4 $w5" in
+                    *'DROP POLICY IF EXISTS'*) ;;
+                    *) echo "❌ $f:$lineno: bare CREATE POLICY (tambahkan DROP POLICY IF EXISTS di atasnya)"; bad=1;;
+                  esac;;
+              esac
+              w1="$w2"; w2="$w3"; w3="$w4"; w4="$w5"; w5="$line"
+            done < "$f"
+          done
+          if [ "$bad" -eq 1 ]; then
+            echo "❌ Migrasi mengandung bare CREATE TRIGGER/POLICY — lihat baris di atas"
+            exit 1
+          fi
+          echo "✅ Idempotency lint OK: tidak ada bare CREATE TRIGGER/POLICY."
           count=$(echo "$nums" | wc -l | tr -d ' ')
           last=$(echo "$nums" | tail -1)
           echo "✅ Migrations OK: $count file, berurutan 001..$last, tidak ada yang kosong."

@@ -34,17 +34,19 @@ DROP POLICY IF EXISTS "Users can view own orders" ON orders;
 DROP POLICY IF EXISTS "Users can insert own orders" ON orders;
 DROP POLICY IF EXISTS "Users can update own orders" ON orders;
 DROP POLICY IF EXISTS "Users can delete own orders" ON orders;
-DROP POLICY IF EXISTS orders_owner_select ON orders;
-DROP POLICY IF EXISTS orders_owner_update ON orders;
-DROP POLICY IF EXISTS orders_owner_delete ON orders;
 
+-- DROP tepat di atas CREATE masing-masing: CI lint idempotency memakai sliding
+-- window 5 baris untuk memastikan setiap CREATE POLICY punya DROP pasangannya.
+DROP POLICY IF EXISTS orders_owner_select ON orders;
 CREATE POLICY orders_owner_select ON orders
   FOR SELECT TO authenticated
   USING (user_id = auth.uid());
+DROP POLICY IF EXISTS orders_owner_update ON orders;
 CREATE POLICY orders_owner_update ON orders
   FOR UPDATE TO authenticated
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS orders_owner_delete ON orders;
 CREATE POLICY orders_owner_delete ON orders
   FOR DELETE TO authenticated
   USING (user_id = auth.uid());

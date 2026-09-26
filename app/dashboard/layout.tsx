@@ -16,9 +16,6 @@ import {
   Globe,
   ChevronUp,
   Palette,
-  ExternalLink,
-  Copy,
-  Check,
   CreditCard,
   Layers,
   Users,
@@ -26,11 +23,22 @@ import {
   Megaphone,
   Compass,
 } from "lucide-react";
-import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { useLang, type Lang } from "@/lib/i18n";
 import { tenantDisplay, tenantUrl } from "@/lib/urls";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 
 type NavigationItem = {
   name: string;
@@ -73,7 +81,39 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [sites, setSites] = useState<Array<{ id: string; name: string; subdomain: string | null }>>([]);
+  const [activeSiteId, setActiveSiteId] = useState("");
+
+  // Load websites for selector
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/websites");
+        const json = await res.json();
+        if (json.success && json.data.websites) {
+          setSites(json.data.websites);
+          setActiveSiteId(json.data.active_website_id ?? json.data.websites[0]?.id ?? "");
+        }
+      } catch {
+        // fail silently
+      }
+    })();
+  }, [session]);
+
+  async function switchWebsite(id: string) {
+    if (!id || id === activeSiteId) return;
+    try {
+      const res = await fetch(`/api/websites/${id}/activate`, { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setActiveSiteId(id);
+        window.location.reload();
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   const user = session?.user;
   const tier = (user as any)?.tier || "free";
@@ -86,13 +126,6 @@ export default function DashboardLayout({
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
-
-  const copyStoreLink = () => {
-    if (!websiteUrl) return;
-    navigator.clipboard?.writeText(websiteUrl).catch(() => {});
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
 
   // Grouped Menu Navigation with Headers (Focused on Daily Store Operations & Appearance)
   const menuGroups: MenuGroup[] = [
@@ -117,6 +150,10 @@ export default function DashboardLayout({
       ],
     },
   ];
+
+  const initials = (user as any)?.name?.charAt(0).toUpperCase() ||
+    (user as any)?.email?.charAt(0).toUpperCase() ||
+    "U";
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 selection:bg-emerald-100 selection:text-emerald-900">
@@ -159,6 +196,24 @@ export default function DashboardLayout({
             </button>
           </div>
 
+          {/* Website Selector */}
+          {sites.length > 1 && (
+            <div className="px-3 mt-3">
+              <Select value={activeSiteId} onValueChange={switchWebsite}>
+                <SelectTrigger className="w-full h-9 text-xs bg-gray-50 border-gray-200">
+                  <SelectValue placeholder="Pilih Website Toko" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Active Store Fast-Access Card */}
           {websiteUrl && (
             <div className="p-3.5 mx-3 mt-3 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 border border-emerald-200/70 rounded-xl space-y-2">
@@ -171,37 +226,13 @@ export default function DashboardLayout({
                   href="/dashboard/stores"
                   className="text-[11px] text-emerald-700 hover:text-emerald-900 font-medium hover:underline"
                 >
-                  Kelola Cabang →
+                  Website saya
                 </Link>
               </div>
 
               <p className="text-xs text-gray-600 font-mono truncate bg-white/80 px-2 py-1 rounded border border-emerald-100">
                 {tenantDisplay(subdomain)}
               </p>
-
-              <div className="flex items-center gap-2 pt-0.5">
-                <a
-                  href={websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  <span>Buka Toko</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={copyStoreLink}
-                  title="Salin link toko"
-                  className="inline-flex items-center justify-center p-1.5 bg-white hover:bg-emerald-50 text-gray-700 border border-emerald-200 rounded-lg text-xs transition-colors shrink-0"
-                >
-                  {copiedLink ? (
-                    <Check className="h-4 w-4 text-emerald-600" />
-                  ) : (
-                    <Copy className="h-4 w-4 text-gray-500" />
-                  )}
-                </button>
-              </div>
             </div>
           )}
 
@@ -232,7 +263,7 @@ export default function DashboardLayout({
                       <Link
                         key={item.name}
                         href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                           isActive
                             ? "bg-emerald-50 text-emerald-950 font-bold shadow-2xs border border-emerald-200/80"
                             : "text-gray-600 hover:bg-gray-100/80 hover:text-gray-900"
@@ -257,115 +288,98 @@ export default function DashboardLayout({
 
           {/* User Account / Footer */}
           <div className="p-3 border-t border-gray-100 relative bg-gray-50/50">
-            {userMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                <div className="absolute bottom-full left-3 right-3 mb-2 z-20 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden py-1">
-                  <div className="px-3.5 py-2.5 border-b border-gray-100 bg-gray-50/70">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="w-full flex items-center gap-3 p-1.5 rounded-xl hover:bg-white border border-transparent hover:border-gray-200 transition-all text-left"
+                >
+                  <Avatar className="w-9 h-9">
+                    <AvatarImage src={(user as any)?.image || ""} alt={user?.name || ""} />
+                    <AvatarFallback className="bg-emerald-100 text-emerald-800 font-bold text-sm">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-gray-900 truncate">
-                      {(user as any)?.name || "Pengguna Toko"}
+                      {(user as any)?.name || "Pengguna"}
                     </p>
-                    <p className="text-[11px] text-gray-500 truncate">{(user as any)?.email}</p>
-                    <div className="mt-1.5 flex items-center justify-between">
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${tierBadgeStyle(
-                          tier
-                        )}`}
-                      >
-                        Paket {tierLabel}
-                      </span>
-                      {isFree && (
-                        <Link
-                          href="/dashboard/settings/billing"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
-                        >
-                          Upgrade →
-                        </Link>
-                      )}
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <Badge variant="outline" className={`text-[10px] ${tierBadgeStyle(tier)}`}>
+                        {tierLabel}
+                      </Badge>
                     </div>
                   </div>
+                  <ChevronUp
+                    className={`h-4 w-4 text-gray-400 transition-transform ${
+                      userMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+              </DropdownMenuTrigger>
 
-                  <div className="py-1">
-                    <div className="px-3.5 pt-1.5 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 select-none">
-                      Akun & Pengaturan
-                    </div>
+              <DropdownMenuContent className="w-64" align="end" sideOffset={8}>
+                <div className="px-3 py-2 border-b border-gray-100">
+                  <p className="text-xs font-bold text-gray-900 truncate">
+                    {(user as any)?.name || "Pengguna Toko"}
+                  </p>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    {(user as any)?.email}
+                  </p>
+                </div>
+
+                <div className="py-1">
+                  <div className="px-3 pt-1.5 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 select-none">
+                    Akun & Pengaturan
+                  </div>
+                  <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/stores"
-                      onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
                     >
                       <Layers className="h-4 w-4 text-gray-500" />
                       <span>{t("nav.stores")}</span>
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/settings/billing"
-                      onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
                     >
                       <CreditCard className="h-4 w-4 text-gray-500" />
                       <span>{t("nav.billing")}</span>
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/settings"
-                      onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-900 transition-colors"
                     >
                       <Settings className="h-4 w-4 text-gray-500" />
                       <span>{t("nav.settings")}</span>
                     </Link>
-                  </div>
-
-                  <div className="border-t border-gray-100 my-0.5" />
-                  <div className="py-0.5">
-                    <button
-                      onClick={async () => {
-                        try {
-                          localStorage.removeItem("umkm_demo_id");
-                          localStorage.removeItem("umkm_demo_user");
-                          await fetch("/api/auth/demo-logout", { method: "POST" }).catch(() => {});
-                        } catch {}
-                        signOut({ callbackUrl: "/signin" });
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left transition-colors"
-                    >
-                      <LogOut className="h-4 w-4 text-red-500" />
-                      <span>{t("nav.logout")}</span>
-                    </button>
-                  </div>
+                  </DropdownMenuItem>
                 </div>
-              </>
-            )}
 
-            <button
-              onClick={() => setUserMenuOpen((v) => !v)}
-              className="w-full flex items-center gap-3 p-1.5 rounded-xl hover:bg-white border border-transparent hover:border-gray-200 transition-all text-left"
-            >
-              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0 text-sm">
-                {(user as any)?.name?.charAt(0).toUpperCase() ||
-                  (user as any)?.email?.charAt(0).toUpperCase() ||
-                  "U"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-gray-900 truncate">
-                  {(user as any)?.name || "Pengguna"}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${tierBadgeStyle(
-                      tier
-                    )}`}
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem asChild>
+                  <button
+                    onClick={async () => {
+                      try {
+                        localStorage.removeItem("umkm_demo_id");
+                        localStorage.removeItem("umkm_demo_user");
+                        await fetch("/api/auth/demo-logout", { method: "POST" }).catch(() => {});
+                      } catch {}
+                      signOut({ callbackUrl: "/signin" });
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left transition-colors"
                   >
-                    {tierLabel}
-                  </span>
-                </div>
-              </div>
-              <ChevronUp
-                className={`h-4 w-4 text-gray-400 transition-transform ${
-                  userMenuOpen ? "" : "rotate-180"
-                }`}
-              />
-            </button>
+                    <LogOut className="h-4 w-4 text-red-500" />
+                    <span>{t("nav.logout")}</span>
+                  </button>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </aside>
@@ -375,7 +389,7 @@ export default function DashboardLayout({
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200/80">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8 gap-3">
-            {/* Left: Mobile Menu toggle + Website Switcher */}
+            {/* Left: Mobile Menu toggle */}
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <button
                 aria-label="Buka menu navigasi"
@@ -384,11 +398,6 @@ export default function DashboardLayout({
               >
                 <Menu className="h-5 w-5" />
               </button>
-
-              {/* Website Switcher dropdown */}
-              <div className="min-w-0">
-                <WebsiteSwitcher />
-              </div>
             </div>
 
             {/* Right: Quick actions, language, tier */}
@@ -413,8 +422,8 @@ export default function DashboardLayout({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-all shadow-2xs"
                 >
-                  <ExternalLink className="h-3.5 w-3.5 text-emerald-600" />
                   <span className="hidden sm:inline">Lihat Toko</span>
+                  <Globe className="h-3.5 w-3.5" />
                 </a>
               )}
             </div>

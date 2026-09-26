@@ -13,8 +13,14 @@ import {
   CheckCircle2,
   ArrowRight,
   Sparkles,
+  Loader2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useLang } from "@/lib/i18n";
 import { tenantDisplay, tenantUrl } from "@/lib/urls";
 import { websiteStatus } from "@/lib/websites/status";
@@ -116,7 +122,7 @@ export default function DashboardStoresPage() {
     return (
       <div className="flex items-center justify-center min-h-[320px]">
         <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
           <p className="text-xs text-gray-500">Memuat daftar toko...</p>
         </div>
       </div>
@@ -128,10 +134,10 @@ export default function DashboardStoresPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-            Kelola Toko & Cabang
+            Website saya
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
             Atur semua website toko online milik Anda dalam satu akun dashboard.
@@ -139,42 +145,46 @@ export default function DashboardStoresPage() {
         </div>
 
         {/* Quota Indicator */}
-        <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-2xs space-y-1.5 min-w-[200px]">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium">Kapasitas Toko:</span>
-            <span className="font-bold text-gray-900 font-mono">
-              {count} / {max} Toko
-            </span>
-          </div>
-          <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-600 transition-all"
-              style={{ width: `${Math.min(100, (count / Math.max(max, 1)) * 100)}%` }}
-            />
-          </div>
-          {isFull && (
-            <Link
-              href="/dashboard/settings/billing"
-              className="text-[11px] font-semibold text-emerald-700 hover:underline block text-right pt-0.5"
-            >
-              Tambah kuota toko →
-            </Link>
-          )}
-        </div>
+        <Card className="min-w-[200px]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="text-gray-500 font-medium">Kapasitas Toko</span>
+              <Badge variant="outline" className="font-mono">
+                {count} / {max}
+              </Badge>
+            </div>
+            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 transition-all"
+                style={{ width: `${Math.min(100, (count / Math.max(max, 1)) * 100)}%` }}
+              />
+            </div>
+            {isFull && (
+              <Link
+                href="/dashboard/settings/billing"
+                className="text-[11px] font-semibold text-emerald-700 hover:underline block text-right pt-2"
+              >
+                Tambah kuota toko →
+              </Link>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-xs flex items-center justify-between">
-          <span>{error}</span>
-          {limitHit && (
-            <Link
-              href="/dashboard/settings/billing"
-              className="font-bold text-red-800 underline underline-offset-2 ml-2"
-            >
-              Upgrade Paket
-            </Link>
-          )}
-        </div>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-3 flex items-center justify-between">
+            <span className="text-xs text-red-700">{error}</span>
+            {limitHit && (
+              <Link
+                href="/dashboard/settings/billing"
+                className="font-bold text-red-800 underline underline-offset-2 ml-2 text-xs"
+              >
+                Upgrade Paket
+              </Link>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Store Cards Grid */}
@@ -185,114 +195,129 @@ export default function DashboardStoresPage() {
           const isPublished = websiteStatus(site) === "publish";
 
           return (
-            <div
+            <Card
               key={site.id}
-              className={`rounded-2xl bg-white p-5 flex flex-col justify-between transition-all ${
+              className={`flex flex-col justify-between transition-all ${
                 isActive
                   ? "border-2 border-emerald-600 shadow-md ring-4 ring-emerald-50"
-                  : "border border-gray-200 hover:border-gray-300 shadow-2xs"
+                  : "border-gray-200 hover:border-gray-300 shadow-sm"
               }`}
             >
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-base ${
-                        isActive
-                          ? "bg-emerald-600 text-white"
-                          : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      <Store className="w-5 h-5" />
+              <CardContent className="p-5 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          isActive
+                            ? "bg-emerald-600 text-white"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        <Store className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-gray-900 leading-tight">
+                          {site.name}
+                        </h3>
+                        <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate max-w-[170px]">
+                          {tenantDisplay(site.subdomain)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-base text-gray-900 leading-tight">
-                        {site.name}
-                      </h3>
-                      <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate max-w-[170px]">
-                        {tenantDisplay(site.subdomain)}
-                      </p>
-                    </div>
+
+                    {isActive ? (
+                      <Badge className="text-[11px] shrink-0" variant="success">
+                        Aktif
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => activateStore(site.id)}
+                        className="text-[11px] shrink-0"
+                      >
+                        Pilih Toko
+                      </Button>
+                    )}
                   </div>
 
-                  {isActive ? (
-                    <span className="text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
-                      Aktif
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => activateStore(site.id)}
-                      className="text-[11px] font-semibold text-gray-600 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+                  <div className="mt-2 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Status Toko:</span>
+                    <Badge
+                      variant={isPublished ? "success" : "warning"}
+                      className="gap-1"
                     >
-                      Pilih Toko
-                    </button>
+                      {isPublished ? (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Live Siap Jual
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Draft Tampilan
+                        </>
+                      )}
+                    </Badge>
+                  </div>
+
+                  {site.custom_domain && (
+                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+                      <span className="text-gray-500">Domain:</span>
+                      <span className="font-medium text-gray-800 font-mono">
+                        {site.custom_domain}
+                      </span>
+                    </div>
                   )}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                  <span className="text-gray-500">Status Toko:</span>
-                  <span
-                    className={`font-semibold ${
-                      isPublished ? "text-emerald-700" : "text-amber-700"
-                    }`}
-                  >
-                    {isPublished ? "● Live Siap Jual" : "○ Draft Tampilan"}
-                  </span>
-                </div>
-
-                {site.custom_domain && (
-                  <div className="mt-1 flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Domain:</span>
-                    <span className="font-medium text-gray-800 font-mono">
-                      {site.custom_domain}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-5 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
-                <Link
-                  href={`/dashboard/${site.id}/builder`}
-                  className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-gray-800 transition-colors"
-                >
-                  <Palette className="w-3.5 h-3.5 text-gray-500" />
-                  <span>Desain Toko</span>
-                </Link>
-
-                {liveUrl ? (
-                  <a
-                    href={liveUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold text-emerald-800 transition-colors"
-                  >
-                    <span>Buka Web</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                ) : (
+                {/* Action Buttons */}
+                <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
                   <Link
                     href={`/dashboard/${site.id}/builder`}
-                    className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gray-50 text-xs font-semibold text-gray-600"
+                    className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-gray-800 transition-colors"
                   >
-                    Atur
+                    <Palette className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Desain Toko</span>
                   </Link>
-                )}
-              </div>
-            </div>
+
+                  {liveUrl ? (
+                    <a
+                      href={liveUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold text-emerald-800 transition-colors"
+                    >
+                      <span>Buka Web</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  ) : (
+                    <Link
+                      href={`/dashboard/${site.id}/builder`}
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gray-50 text-xs font-semibold text-gray-600"
+                    >
+                      Atur
+                    </Link>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
 
       {/* Add New Store Form */}
-      <Card className="border-gray-200/90 shadow-2xs">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold flex items-center gap-2">
+      <Card className="border-gray-200/90 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
             <Plus className="h-5 w-5 text-emerald-600" />
             <span>Tambah Toko / Cabang Baru</span>
           </CardTitle>
+          <CardDescription>
+            Buat toko cabang baru dengan nama dan kategori bisnis sendiri.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isFull ? (
@@ -301,55 +326,58 @@ export default function DashboardStoresPage() {
                 Kuota toko pada paket Anda sudah maksimal ({max} toko). Upgrade ke paket Starter atau
                 Growth untuk menambah hingga 10 toko baru.
               </p>
-              <Link
-                href="/dashboard/settings/billing"
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold whitespace-nowrap hover:bg-emerald-700 shadow-2xs text-center"
-              >
-                Lihat Paket & Upgrade
-              </Link>
+              <Button asChild size="sm">
+                <Link href="/dashboard/settings/billing">
+                  Lihat Paket & Upgrade
+                </Link>
+              </Button>
             </div>
           ) : (
-            <form onSubmit={createStore} className="space-y-3">
+            <form onSubmit={createStore} className="space-y-4">
               <div className="grid sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Nama Toko Baru:
-                  </label>
-                  <input
+                <div className="sm:col-span-2 space-y-2">
+                  <Label htmlFor="store-name">Nama Toko Baru</Label>
+                  <Input
+                    id="store-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Contoh: Warung Cabang Dago, Hijab Store 2"
                     required
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    disabled={busy}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Kategori Bisnis:
-                  </label>
-                  <select
-                    value={bizType}
-                    onChange={(e) => setBizType(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
-                  >
-                    <option value="food">🍽️ Kuliner & Minuman</option>
-                    <option value="fashion">👗 Fashion & Hijab</option>
-                    <option value="retail">🏪 Toko Retail / Kelontong</option>
-                    <option value="handicraft">🏺 Kerajinan Tangan</option>
-                    <option value="services">💼 Jasa & Servis</option>
-                  </select>
+                <div className="space-y-2">
+                  <Label htmlFor="business-type">Kategori Bisnis</Label>
+                  <Select value={bizType} onValueChange={setBizType} disabled={busy}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="food">🍽️ Kuliner & Minuman</SelectItem>
+                      <SelectItem value="fashion">👗 Fashion & Hijab</SelectItem>
+                      <SelectItem value="retail">🏪 Toko Retail / Kelontong</SelectItem>
+                      <SelectItem value="handicraft">🏺 Kerajinan Tangan</SelectItem>
+                      <SelectItem value="services">💼 Jasa & Servis</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-1">
-                <button
-                  type="submit"
-                  disabled={busy || !name.trim()}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-2xs transition-all disabled:opacity-50"
-                >
-                  {busy ? "Membuat Toko..." : "+ Buat Toko Sekarang"}
-                </button>
+              <div className="flex justify-end pt-2">
+                <Button type="submit" disabled={busy || !name.trim()} className="gap-2">
+                  {busy ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Membuat Toko...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Buat Toko Sekarang
+                    </>
+                  )}
+                </Button>
               </div>
             </form>
           )}

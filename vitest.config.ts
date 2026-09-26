@@ -8,7 +8,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
-      include: ["src/lib/tenant/**/*.ts", "src/lib/orders/**/*.ts", "src/lib/builder/**/*.ts", "src/lib/websites/**/*.ts"],
+      include: ["src/lib/tenant/**/*.ts", "src/lib/orders/**/*.ts", "src/lib/builder/**/*.ts", "src/lib/websites/**/*.ts", "src/lib/products/**/*.ts"],
     },
   },
   resolve: {
