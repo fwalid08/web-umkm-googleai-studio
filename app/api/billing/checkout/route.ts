@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         success: true,
         data: {
           snap_token: `mock-token-${orderId}`,
-          redirect_url: `/dashboard/settings/billing?mock=1&order_id=${orderId}`,
+          redirect_url: `/dashboard/billing?mock=1&order_id=${orderId}`,
           order_id: orderId,
           gross_amount: grossAmount,
           tier,
@@ -115,13 +115,14 @@ export async function POST(req: NextRequest) {
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
 
     // Mode dev tanpa key: simpan subscription pending (best-effort) + mock token.
+    // Status 'incomplete' = menunggu pembayaran (015 menghapus 'trialing').
     if (!serverKey) {
       try {
         const supabase = createServiceSupabaseClient();
         await supabase.from("subscriptions").insert({
           user_id: userId,
           tier,
-          status: "trialing",
+          status: "incomplete",
           current_period_start: now.toISOString(),
           current_period_end: currentPeriodEnd.toISOString(),
           payment_gateway: "midtrans",
@@ -138,8 +139,8 @@ export async function POST(req: NextRequest) {
         data: {
           snap_token: `mock-token-${orderId}`,
           redirect_url: appUrl
-            ? `${appUrl}/dashboard/settings/billing?mock=1&order_id=${orderId}`
-            : `/dashboard/settings/billing?mock=1&order_id=${orderId}`,
+            ? `${appUrl}/dashboard/billing?mock=1&order_id=${orderId}`
+            : `/dashboard/billing?mock=1&order_id=${orderId}`,
           order_id: orderId,
           gross_amount: grossAmount,
           tier,
@@ -211,7 +212,7 @@ export async function POST(req: NextRequest) {
       const row = {
         user_id: userId,
         tier,
-        status: "trialing",
+        status: "incomplete",
         current_period_start: now.toISOString(),
         current_period_end: currentPeriodEnd.toISOString(),
         payment_gateway: "midtrans",

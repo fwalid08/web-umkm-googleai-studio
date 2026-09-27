@@ -73,12 +73,14 @@ export async function POST(request: NextRequest) {
       return !!subClash;
     });
 
-    // Calculate trial end date (14 days from now)
-    const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+    // Sprint 04: tanpa trial — user baru langsung Free permanen (015).
+    // current_period_end +1 tahun agar konsisten dengan 015 (bukan trial 14 hari).
+    const freePeriodEnd = new Date();
+    freePeriodEnd.setFullYear(freePeriodEnd.getFullYear() + 1);
 
     // Create user profile (service-role bypasses RLS INSERT policy)
     // Sprint 03: kolom domain pindah ke websites; users.subdomain tidak lagi ditulis.
+    // Catatan 015: kolom users.trial_ends_at sudah di-drop — jangan insert lagi.
     const { data: user, error: profileError } = await supabase
       .from("users")
       .insert({
@@ -87,7 +89,6 @@ export async function POST(request: NextRequest) {
         name,
         business_type,
         tier: "free",
-        trial_ends_at: trialEndsAt.toISOString(),
         auth_provider: "credentials",
       })
       .select()
@@ -126,13 +127,13 @@ export async function POST(request: NextRequest) {
     }
     await supabase.from("users").update({ active_website_id: site.id }).eq("id", authData.user.id);
 
-    // Create default subscription record
+    // Create default subscription record (Free permanen, bukan trial)
     await supabase.from("subscriptions").insert({
       user_id: authData.user.id,
       tier: "free",
-      status: "trialing",
+      status: "active",
       current_period_start: new Date().toISOString(),
-      current_period_end: trialEndsAt.toISOString(),
+      current_period_end: freePeriodEnd.toISOString(),
       payment_gateway: "none",
     });
 

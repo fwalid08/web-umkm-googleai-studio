@@ -19,6 +19,20 @@ import {
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { tenantUrl, tenantDisplay } from "@/lib/urls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StorePageItem {
   id: string;
@@ -214,197 +228,196 @@ export default function StorePagesPage() {
             <span className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg">
               <FileText className="w-5 h-5" />
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               Halaman Info Toko
             </h1>
           </div>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             Buat halaman informasi penting seperti Tentang Toko, Jam Buka, Syarat Pengembalian, dan
             FAQ untuk meningkatkan kepercayaan calon pembeli.
           </p>
         </div>
 
-        <button
-          onClick={startAdd}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-colors self-start sm:self-auto"
-        >
+        <Button onClick={startAdd} className="gap-2 self-start sm:self-auto">
           <Plus className="w-4 h-4" />
           <span>Tambah Halaman Baru</span>
-        </button>
+        </Button>
       </div>
 
       {notification && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-4 py-3 text-xs flex items-center gap-2 font-medium">
+        <div role="status" className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-4 py-3 text-sm flex items-center gap-2 font-medium">
           <Check className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{notification}</span>
         </div>
       )}
 
-      {/* Editor Modal / Drawer */}
-      {(editingPage || isAdding) && (
-        <div className="bg-white border-2 border-emerald-600 rounded-2xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h3 className="font-bold text-base text-gray-900 flex items-center gap-2">
+      {/* Editor Dialog */}
+      <Dialog
+        open={editingPage !== null || isAdding}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingPage(null);
+            setIsAdding(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <Edit3 className="w-4 h-4 text-emerald-600" />
               <span>{isAdding ? "Tambah Halaman Baru" : `Edit Halaman: ${editingPage?.title}`}</span>
-            </h3>
-            <button
-              onClick={() => {
-                setEditingPage(null);
-                setIsAdding(false);
-              }}
-              className="text-xs text-gray-400 hover:text-gray-600 font-bold"
-            >
-              ✕ Batal
-            </button>
-          </div>
+            </DialogTitle>
+            <DialogDescription>
+              Halaman info tampil di toko online Anda (mis. /p/tentang-kami).
+            </DialogDescription>
+          </DialogHeader>
 
           <form onSubmit={handleSaveForm} className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Judul Halaman:</label>
-                <input
+              <div className="space-y-1.5">
+                <Label htmlFor="page-title">Judul Halaman:</Label>
+                <Input
+                  id="page-title"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   placeholder="Contoh: Tentang Brand Kami"
                   required
-                  className="w-full text-xs border border-gray-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
+              <div className="space-y-1.5">
+                <Label htmlFor="page-slug">
                   Alamat URL Slug:
-                </label>
+                </Label>
                 <div className="flex items-center">
-                  <span className="text-xs bg-gray-50 border border-r-0 border-gray-300 px-3 py-2.5 text-gray-400 rounded-l-xl font-mono">
+                  <span className="text-sm bg-gray-50 border border-r-0 border-gray-300 px-3 py-2 text-gray-400 rounded-l-lg font-mono h-10 flex items-center">
                     /p/
                   </span>
-                  <input
+                  <Input
+                    id="page-slug"
                     value={formSlug}
                     onChange={(e) => setFormSlug(e.target.value)}
                     placeholder="tentang-kami"
-                    className="w-full text-xs border border-gray-300 rounded-r-xl px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                    className="rounded-l-none font-mono"
                   />
                 </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="page-content">
                 Isi Konten Halaman:
-              </label>
-              <textarea
+              </Label>
+              <Textarea
+                id="page-content"
                 value={formContent}
                 onChange={(e) => setFormContent(e.target.value)}
                 rows={6}
                 placeholder="Tuliskan isi cerita brand, informasi kontak, jam buka toko, atau kebijakan refund..."
-                className="w-full text-xs border border-gray-300 rounded-xl p-3.5 focus:ring-2 focus:ring-emerald-500 outline-none leading-relaxed"
+                className="leading-relaxed"
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="page-published"
                   checked={formPublished}
-                  onChange={(e) => setFormPublished(e.target.checked)}
-                  className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                  onCheckedChange={setFormPublished}
                 />
-                <span>Publikasikan langsung di website toko</span>
-              </label>
+                <Label htmlFor="page-published" className="text-sm font-medium cursor-pointer">
+                  Publikasikan langsung di website toko
+                </Label>
+              </div>
 
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => {
                     setEditingPage(null);
                     setIsAdding(false);
                   }}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50"
                 >
                   Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs"
-                >
+                </Button>
+                <Button type="submit">
                   Simpan Halaman
-                </button>
+                </Button>
               </div>
             </div>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Pages Table */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-2xs">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-900">Daftar Halaman Toko ({pages.length})</h3>
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 py-4">
+          <CardTitle className="text-sm">Daftar Halaman Toko ({pages.length})</CardTitle>
           <span className="text-xs text-gray-400">
             {pages.filter((p) => p.is_published).length} Tayang di Toko
           </span>
-        </div>
+        </CardHeader>
 
-        <div className="divide-y divide-gray-100">
+        <CardContent className="p-0 divide-y divide-gray-100">
           {pages.map((page) => (
             <div
               key={page.id}
               className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/70 transition-colors"
             >
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-sm text-gray-900">{page.title}</h4>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      page.is_published
-                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                        : "bg-gray-100 text-gray-500 border-gray-200"
-                    }`}
-                  >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-bold text-sm text-gray-900 dark:text-white">{page.title}</h4>
+                  <Badge variant={page.is_published ? "success" : "secondary"} className="text-xs">
                     {page.is_published ? "● Tayang" : "○ Draft"}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-gray-400 font-mono">
                   <span>/p/{page.slug}</span>
                   <span>·</span>
                   <span className="font-sans">Diperbarui {page.updated_at}</span>
                 </div>
-                <p className="text-xs text-gray-500 line-clamp-1 max-w-xl font-sans mt-0.5">
+                <p className="text-sm text-gray-500 line-clamp-1 max-w-xl mt-0.5">
                   {page.content}
                 </p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => handleTogglePublish(page.id)}
-                  className={`text-xs px-3 py-1.5 rounded-xl font-semibold border transition-colors ${
-                    page.is_published
-                      ? "border-gray-200 text-gray-600 hover:bg-gray-100"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
-                  }`}
-                >
-                  {page.is_published ? "Ubah ke Draft" : "Tayangkan"}
-                </button>
-                <button
+                <div className="flex items-center gap-1.5 mr-1">
+                  <Switch
+                    checked={page.is_published}
+                    onCheckedChange={() => handleTogglePublish(page.id)}
+                    aria-label={page.is_published ? `Ubah ${page.title} ke draft` : `Tayangkan ${page.title}`}
+                  />
+                  <span className="text-xs text-gray-500 hidden lg:inline">
+                    {page.is_published ? "Tayang" : "Draft"}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => startEdit(page)}
-                  className="p-2 border border-gray-200 rounded-xl hover:bg-gray-100 text-gray-700"
+                  className="h-8 w-8"
                   title="Edit Halaman"
+                  aria-label={`Edit ${page.title}`}
                 >
                   <Edit3 className="w-4 h-4" />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => handleDeletePage(page.id)}
-                  className="p-2 border border-red-100 rounded-xl hover:bg-red-50 text-red-600"
+                  className="h-8 w-8 text-red-600 border-red-100 hover:bg-red-50 hover:text-red-700"
                   title="Hapus Halaman"
+                  aria-label={`Hapus ${page.title}`}
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
           ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

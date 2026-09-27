@@ -45,7 +45,7 @@ export function WebsitePanelMenu() {
   const items = [
     {
       name: t("workspace.overview"),
-      href: `/dashboard/stores`,
+      href: `/dashboard/websites`,
       icon: LayoutGrid,
       desc: t("workspace.contextNote", { url: tenantDisplay(site.subdomain) }),
     },
@@ -69,7 +69,7 @@ export function WebsitePanelMenu() {
     },
     {
       name: t("workspace.mBilling"),
-      href: "/dashboard/settings/billing",
+      href: "/dashboard/billing",
       icon: Users,
       desc: t("workspace.mBillingDesc"),
     },

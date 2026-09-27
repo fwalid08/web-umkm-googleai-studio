@@ -193,7 +193,7 @@ export const en: Dict = {
     compareTitle: "Detailed Feature Comparison",
     faqTitle: "Frequently Asked Questions",
     guaranteeTitle: "Risk-Free Transparent Guarantee",
-    guaranteeDesc: "Start free for 14 days without credit card. 0% sales commission. Cancel or switch plans at any time.",
+    guaranteeDesc: "Free plan forever without credit card. 0% sales commission. Cancel or switch plans at any time.",
     tiers: {
       free: [
         "1 Online Store Website",

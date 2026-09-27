@@ -85,12 +85,12 @@ export function ProductForm({
   useEffect(() => {
     if (initialData) {
       setFormName(initialData.name);
-      setFormPrice(initialData.price.toString());
+      setFormPrice(initialData.price?.toString() ?? "0");
       setFormDesc(initialData.description || "");
       setFormCat(initialData.category || "Umum");
-      setFormStock(initialData.stock.toString());
-      setFormLowStockThreshold(initialData.low_stock_threshold.toString());
-      setFormIsActive(initialData.is_active);
+      setFormStock(initialData.stock?.toString() ?? "0");
+      setFormLowStockThreshold(initialData.low_stock_threshold?.toString() ?? "5");
+      setFormIsActive(initialData.is_active ?? true);
       setImageEntries(
         (initialData.images || []).map((img) => ({ kind: "saved" as const, id: img.id, url: img.public_url }))
       );

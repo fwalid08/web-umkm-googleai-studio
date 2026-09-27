@@ -169,11 +169,11 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("orders.title")}</h1>
-          <p className="text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{t("orders.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">
             {status ? t("orders.countFilter", { total, status: status || "Semua" }) : t("orders.countIn", { total })}
           </p>
         </div>
@@ -221,7 +221,7 @@ export default function OrdersPage() {
       {error && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-3">
-            <p className="text-xs text-red-700">{error}</p>
+            <p className="text-sm text-red-700">{error}</p>
           </CardContent>
         </Card>
       )}
@@ -244,7 +244,7 @@ export default function OrdersPage() {
             </div>
           ) : orders.length === 0 ? (
             <div className="text-center py-10">
-              <p className="text-lg font-medium text-gray-900">{t("orders.emptyTitle") || "Belum ada pesanan"}</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">{t("orders.emptyTitle") || "Belum ada pesanan"}</p>
               <p className="text-sm text-gray-500 mt-1">{t("orders.emptyDesc") || "Pesanan akan muncul di sini setelah pelanggan checkout"}</p>
             </div>
           ) : (
@@ -266,15 +266,15 @@ export default function OrdersPage() {
                       <TableRow key={o.id} className="hover:bg-gray-50/80 transition-colors">
                         <TableCell className="py-3 px-5">
                           <div>
-                            <p className="font-medium text-gray-900">{o.customer_name}</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{o.customer_name}</p>
                             <p className="text-xs text-gray-500">{o.customer_phone}</p>
                           </div>
                         </TableCell>
                         <TableCell className="py-3 px-4">
-                          <p className="text-gray-900">{o.product_name}</p>
+                          <p className="text-gray-900 dark:text-white">{o.product_name}</p>
                           <p className="text-xs text-gray-500">× {o.quantity}</p>
                         </TableCell>
-                        <TableCell className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                        <TableCell className="py-3 px-4 text-right font-mono font-bold text-gray-900 dark:text-white">
                           Rp {o.total_amount.toLocaleString("id-ID")}
                         </TableCell>
                         <TableCell className="py-3 px-4 text-center">
@@ -309,9 +309,10 @@ export default function OrdersPage() {
 
               <div className="md:hidden space-y-3">
                 {orders.map((o) => (
-                  <div key={o.id} className="border rounded-xl p-3 bg-white">
+                  <Card key={o.id}>
+                    <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="font-medium text-gray-900">{o.customer_name}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{o.customer_name}</p>
                       {statusBadge(o.status)}
                     </div>
                     <p className="text-sm text-gray-600 mb-2">
@@ -334,15 +335,21 @@ export default function OrdersPage() {
                         <div className="flex items-center justify-between">
                           <p className="text-gray-500">📞 {o.customer_phone} • {o.payment_method.toUpperCase()}</p>
                           {o.customer_phone && (
-                            <a
-                              href={waUrl(o.customer_phone, o.customer_name, o.product_name, o.total_amount)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                              className="gap-1 text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"
                             >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                              Chat WA
-                            </a>
+                              <a
+                                href={waUrl(o.customer_phone, o.customer_name, o.product_name, o.total_amount)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                Chat WA
+                              </a>
+                            </Button>
                           )}
                         </div>
                         <Select value={o.status} onValueChange={(v) => changeStatus(o, v)} disabled={updatingId === o.id || o.status === "selesai"}>
@@ -359,7 +366,8 @@ export default function OrdersPage() {
                         </Select>
                       </div>
                     )}
-                  </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
 

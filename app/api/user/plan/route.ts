@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: "Upgrade paket hanya via pembayaran resmi",
-          upgrade_url: "/dashboard/settings/billing",
+          upgrade_url: "/dashboard/billing",
         },
         { status: 403 }
       );

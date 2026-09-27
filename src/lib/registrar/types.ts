@@ -144,19 +144,20 @@ export interface RegistrantContact {
 }
 
 export interface RegistrarConfig {
-  provider: string; // "porkbun" | "niagahoster" | "idcloudhost" | ...
+  provider: string; // "porkbun" | "domainnameapi" | "mock" | ...
   apiKey: string;
   apiSecret: string;
   apiUrl?: string; // override endpoint
   defaultNameservers?: string[];
   defaultContactData?: RegistrantContact;
+  /** Inject fetch untuk test. Default: global fetch. */
+  fetchFn?: typeof fetch;
 }
 
-export type RegistrarProviderType = "porkbun" | "niagahoster" | "idcloudhost" | "custom";
+export type RegistrarProviderType = "porkbun" | "domainnameapi" | "mock";
 
 export const REGISTRAR_PROVIDERS: Record<RegistrarProviderType, { name: string; defaultApiUrl: string }> = {
   porkbun: { name: "Porkbun", defaultApiUrl: "https://api.porkbun.com/api/json/v3" },
-  niagahoster: { name: "Niagahoster", defaultApiUrl: "https://api.niagahoster.co.id/v1" },
-  idcloudhost: { name: "IDCloudHost", defaultApiUrl: "https://api.idcloudhost.com/v1" },
-  custom: { name: "Custom", defaultApiUrl: "" },
+  domainnameapi: { name: "DomainNameAPI", defaultApiUrl: "https://api.domainresellerapi.com/v1" },
+  mock: { name: "Mock (Simulasi)", defaultApiUrl: "" },
 };

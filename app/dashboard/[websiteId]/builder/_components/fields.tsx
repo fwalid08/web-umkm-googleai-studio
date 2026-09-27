@@ -4,7 +4,14 @@
  * Sprint 01 Week 2 — Field editor generik untuk Builder.
  * Prinsip Bu Toni: form sederhana (input/toggle/tambah-hapus), tanpa drag & drop.
  * Dipakai galeri editor untuk style, content, theme, dan SEO.
+ * Semua kontrol memakai komponen shadcn (Switch, Input, Textarea, Label, Button).
  */
+
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export function Toggle({
   checked,
@@ -18,21 +25,12 @@ export function Toggle({
   label?: string;
 }) {
   return (
-    <button
-      type="button"
+    <Switch
+      checked={checked}
+      onCheckedChange={onChange}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-        checked ? "bg-green-600" : "bg-gray-300"
-      } ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
       aria-label={label ?? "Toggle"}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          checked ? "translate-x-6" : "translate-x-1"
-        }`}
-      />
-    </button>
+    />
   );
 }
 
@@ -49,17 +47,29 @@ export function TextInput({
   placeholder?: string;
   textarea?: boolean;
 }) {
-  const cls =
-    "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  const id = `builder-field-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
   return (
-    <label className="block">
-      <span className="text-xs font-medium text-gray-500 capitalize">{label.replace(/_/g, " ")}</span>
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs font-medium text-gray-500 capitalize">
+        {label.replace(/_/g, " ")}
+      </Label>
       {textarea ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={3} className={cls} />
+        <Textarea
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+        />
       ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
+        <Input
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
       )}
-    </label>
+    </div>
   );
 }
 
@@ -72,16 +82,19 @@ export function NumberInput({
   value: number;
   onChange: (v: number) => void;
 }) {
+  const id = `builder-field-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
   return (
-    <label className="block">
-      <span className="text-xs font-medium text-gray-500 capitalize">{label.replace(/_/g, " ")}</span>
-      <input
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs font-medium text-gray-500 capitalize">
+        {label.replace(/_/g, " ")}
+      </Label>
+      <Input
+        id={id}
         type="number"
         value={Number.isNaN(value) ? 0 : value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
       />
-    </label>
+    </div>
   );
 }
 
@@ -94,23 +107,28 @@ export function ColorInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const id = `builder-field-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
   return (
-    <label className="block">
-      <span className="text-xs font-medium text-gray-500 capitalize">{label.replace(/_/g, " ")}</span>
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs font-medium text-gray-500 capitalize">
+        {label.replace(/_/g, " ")}
+      </Label>
       <span className="flex gap-2">
         <input
           type="color"
           value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#15803D"}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-12 rounded border border-gray-300 cursor-pointer"
+          className="h-10 w-12 rounded-lg border border-gray-300 cursor-pointer bg-white px-1"
+          aria-label={`${label} (pemilih warna)`}
         />
-        <input
+        <Input
+          id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+          className="flex-1 font-mono"
         />
       </span>
-    </label>
+    </div>
   );
 }
 
@@ -128,7 +146,7 @@ export function ValueField({
     return (
       <span className="flex items-center gap-2">
         <Toggle checked={value} onChange={(v) => onChange(v)} label={fieldKey} />
-        <span className="text-xs text-gray-500 capitalize">{fieldKey.replace(/_/g, " ")}</span>
+        <span className="text-sm text-gray-500 capitalize">{fieldKey.replace(/_/g, " ")}</span>
       </span>
     );
   }
@@ -182,28 +200,31 @@ export function StringArrayEditor({
       <p className="text-xs font-medium text-gray-500 capitalize">{label.replace(/_/g, " ")}</p>
       {items.map((it, i) => (
         <span key={i} className="flex gap-2">
-          <input
+          <Input
             value={it}
             onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))}
             placeholder={label === "images" ? "https://... (URL gambar)" : "Tulis di sini..."}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="flex-1"
+            aria-label={`${label} #${i + 1}`}
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => onChange(items.filter((_, j) => j !== i))}
-            className="px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+            className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
           >
             Hapus
-          </button>
+          </Button>
         </span>
       ))}
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={() => onChange([...items, ""])}
-        className="text-sm text-green-700 border border-green-200 rounded-lg px-3 py-2 hover:bg-green-50"
+        className="text-green-700 border-green-200 hover:bg-green-50"
       >
         + Tambah
-      </button>
+      </Button>
     </div>
   );
 }
@@ -229,24 +250,27 @@ export function ObjectArrayEditor({
         <div key={i} className="border rounded-lg p-3 space-y-3 bg-gray-50">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-500">#{i + 1}</span>
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="sm"
               onClick={() => onChange(items.filter((_, j) => j !== i))}
-              className="text-xs text-red-600 hover:underline"
+              className="text-red-600 h-auto p-0"
             >
               Hapus
-            </button>
+            </Button>
           </div>
           <ObjectEditor data={it} onChange={(next) => onChange(items.map((x, j) => (j === i ? next : x)))} />
         </div>
       ))}
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={() => onChange([...items, { ...blank }])}
-        className="text-sm text-green-700 border border-green-200 rounded-lg px-3 py-2 hover:bg-green-50"
+        className="text-green-700 border-green-200 hover:bg-green-50"
       >
         + Tambah
-      </button>
+      </Button>
     </div>
   );
 }

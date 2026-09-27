@@ -231,7 +231,7 @@ export async function PUT(request: NextRequest) {
         {
           success: false,
           error: `Template ${template.name} hanya untuk paket Starter ke atas. Upgrade untuk membuka semua template.`,
-          upgrade_url: "/dashboard/settings/billing",
+          upgrade_url: "/dashboard/billing",
         },
         { status: 403 }
       );
@@ -253,7 +253,7 @@ export async function PUT(request: NextRequest) {
         {
           success: false,
           error: `Paket Free maksimal ${FREE_PRODUCT_MAX} produk. Upgrade ke Starter untuk produk unlimited.`,
-          upgrade_url: "/dashboard/settings/billing",
+          upgrade_url: "/dashboard/billing",
         },
         { status: 403 }
       );

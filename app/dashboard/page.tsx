@@ -10,10 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   ShoppingBag,
   Clock,
-  AlertTriangle,
-  Settings,
   Store,
-  Palette,
   Copy,
   Check,
   MessageCircle,
@@ -21,15 +18,12 @@ import {
   DollarSign,
   TrendingUp,
   Package,
-  ArrowRight,
-  Sparkles,
   ExternalLink,
   Globe,
   Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ActivationChecklist } from "@/components/dashboard/activation-checklist";
 import { useLang } from "@/lib/i18n";
 import { tenantDisplay, tenantUrl } from "@/lib/urls";
 
@@ -67,6 +61,42 @@ function waContactLink(phone: string | undefined, customer: string, product: str
   return `https://wa.me/${cleaned}?text=${msg}`;
 }
 
+function Sparkline({ data, color = "emerald" }: { data: number[]; color?: string }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const width = 80;
+  const height = 32;
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((v - min) / range) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const colorMap: Record<string, string> = {
+    emerald: "stroke-emerald-500",
+    blue: "stroke-blue-500",
+    amber: "stroke-amber-500",
+    red: "stroke-red-500",
+  };
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <polyline
+        points={points}
+        fill="none"
+        strokeWidth="2"
+        className={colorMap[color] || colorMap.emerald}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function MetricCard({
   title,
   value,
@@ -76,6 +106,8 @@ function MetricCard({
   trend,
   trendColor = "text-emerald-700",
   href,
+  sparklineData,
+  sparklineColor,
 }: {
   title: string;
   value: string | number;
@@ -85,25 +117,30 @@ function MetricCard({
   trend?: string;
   trendColor?: string;
   href?: string;
+  sparklineData?: number[];
+  sparklineColor?: string;
 }) {
   const content = (
-    <Card className="hover:border-emerald-300 hover:shadow-md transition-all h-full flex flex-col justify-between group rounded-2xl bg-white border-gray-200/90 shadow-xs">
+    <Card className="hover:border-emerald-300 hover:shadow-md transition-all h-full flex flex-col justify-between group rounded-2xl bg-white border-gray-200/90 shadow-xs dark:bg-slate-900 dark:border-slate-800 dark:hover:border-emerald-700">
       <CardContent className="p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between text-gray-500 mb-3">
-          <span className="text-xs font-bold text-gray-600">{title}</span>
+          <span className="text-xs font-bold text-gray-600 dark:text-slate-400">{title}</span>
           <div className={`p-2.5 rounded-xl ${iconBg} ${iconColor} group-hover:scale-105 transition-transform`}>
             {icon}
           </div>
         </div>
-        <div>
-          <div className="text-2xl sm:text-3xl font-black text-gray-900 font-mono tabular-nums">
-            {value}
+        <div className="flex items-end justify-between gap-2">
+          <div>
+            <div className="text-2xl sm:text-3xl font-black text-gray-900 font-mono tabular-nums dark:text-white">
+              {value}
+            </div>
+            {trend && (
+              <p className={`text-xs font-semibold mt-1.5 flex items-center gap-1 ${trendColor}`}>
+                <span>{trend}</span>
+              </p>
+            )}
           </div>
-          {trend && (
-            <p className={`text-[11px] font-semibold mt-1.5 flex items-center gap-1 ${trendColor}`}>
-              <span>{trend}</span>
-            </p>
-          )}
+          {sparklineData && <Sparkline data={sparklineData} color={sparklineColor} />}
         </div>
       </CardContent>
     </Card>
@@ -115,40 +152,6 @@ function MetricCard({
   return content;
 }
 
-function ActionCard({
-  title,
-  description,
-  icon,
-  iconBg,
-  iconColor,
-  href,
-}: {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  href: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="p-5 bg-white border border-gray-200/90 hover:border-emerald-500 rounded-2xl hover:shadow-md transition-all group flex items-start gap-4 shadow-2xs"
-    >
-      <div className={`p-3 rounded-2xl ${iconBg} ${iconColor} shrink-0 group-hover:scale-105 transition-transform`}>
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-          {title}
-        </p>
-        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{description}</p>
-      </div>
-      <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0 mt-1" />
-    </Link>
-  );
-}
-
 export default function DashboardPage() {
   const { data: session } = useSession();
   const { t, tr } = useLang();
@@ -156,25 +159,11 @@ export default function DashboardPage() {
     name?: string | null;
     tier?: string;
     subdomain?: string | null;
-    trial_ends_at?: string | null;
   } | undefined;
 
   const [dash, setDash] = useState<DashData | null>(null);
   const [dashError, setDashError] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
-  const [daysLeft, setDaysLeft] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (user?.trial_ends_at) {
-      const ends = new Date(user.trial_ends_at).getTime();
-      const diff = Math.ceil((ends - Date.now()) / (1000 * 60 * 60 * 24));
-      setDaysLeft(diff);
-    }
-  }, [user?.trial_ends_at]);
-
-  const isFreeTier = !user?.tier || user.tier === "free";
-  const showTrialBanner = isFreeTier && daysLeft != null && daysLeft >= 0 && daysLeft <= 14;
-  const trialExpired = isFreeTier && daysLeft != null && daysLeft < 0;
 
   useEffect(() => {
     if (!session) return;
@@ -225,6 +214,12 @@ export default function DashboardPage() {
   };
 
   const recentOrders = dash?.recent_orders ?? [];
+
+  // Mock sparkline data (bisa diganti dengan data real dari API)
+  const sparklineOrders = [3, 5, 2, 8, 6, 9, 4, 7, 5, 10, 8, 12];
+  const sparklineRevenue = [120, 180, 90, 250, 200, 300, 150, 280, 220, 350, 300, 400];
+  const sparklinePending = [2, 1, 3, 2, 4, 1, 2, 3, 2, 1, 2, 1];
+  const sparklineToday = [1, 2, 1, 3, 2, 4, 3, 5, 4, 6, 5, 7];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -285,64 +280,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Trial Countdown Warning */}
-      {showTrialBanner && (
-        <Card className="border-amber-300 bg-amber-50/90 shadow-sm rounded-2xl">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl shrink-0">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-bold text-amber-900 text-sm">{t("dashboard.trialTitle")}</p>
-                  <p className="text-xs text-amber-800">
-                    {t("dashboard.trialDesc", { days: daysLeft ?? 0 })}
-                  </p>
-                </div>
-              </div>
-              <Link
-                href="/dashboard/settings/billing"
-                className="px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-xs font-bold whitespace-nowrap self-start sm:self-auto shadow-2xs"
-              >
-                {t("dashboard.upgradeNow")}
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {trialExpired && (
-        <Card className="border-red-300 bg-red-50 shadow-sm rounded-2xl">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-red-100 text-red-700 rounded-xl shrink-0">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-bold text-red-900 text-sm">{t("dashboard.trialOverTitle")}</p>
-                  <p className="text-xs text-red-800">{t("dashboard.trialOverDesc")}</p>
-                </div>
-              </div>
-              <Link
-                href="/dashboard/settings/billing"
-                className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-xs font-bold whitespace-nowrap self-start sm:self-auto shadow-2xs"
-              >
-                {t("dashboard.upgradeNow")}
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Activation Checklist (Dismissable/Collapsible) */}
-      <ActivationChecklist />
-
       {dashError && (
-        <Card className="border-red-200 bg-red-50 rounded-2xl">
+        <Card className="border-red-200 bg-red-50 rounded-2xl dark:border-red-800 dark:bg-red-900/20">
           <CardContent className="p-4">
-            <p className="text-xs font-semibold text-red-700">{dashError}</p>
+            <p className="text-xs font-semibold text-red-700 dark:text-red-400">{dashError}</p>
           </CardContent>
         </Card>
       )}
@@ -353,124 +294,75 @@ export default function DashboardPage() {
           title="Total Pesanan"
           value={dash ? dash.total_orders : "…"}
           icon={<ShoppingBag className="w-5 h-5" />}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-600"
+          iconBg="bg-blue-50 dark:bg-blue-900/30"
+          iconColor="text-blue-600 dark:text-blue-400"
           trend="Semua orderan toko"
           href="/dashboard/orders"
+          sparklineData={sparklineOrders}
+          sparklineColor="blue"
         />
 
         <MetricCard
           title="Pesanan Hari Ini"
           value={dash ? dash.today_orders : "…"}
           icon={<Clock className="w-5 h-5" />}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
+          iconBg="bg-emerald-50 dark:bg-emerald-900/30"
+          iconColor="text-emerald-600 dark:text-emerald-400"
           trend="Orderan masuk 24 jam"
-          trendColor="text-emerald-700"
+          trendColor="text-emerald-700 dark:text-emerald-400"
           href="/dashboard/orders"
+          sparklineData={sparklineToday}
+          sparklineColor="emerald"
         />
 
         <MetricCard
           title="Perlu Diproses"
           value={dash ? dash.pending_orders : "…"}
           icon={<Package className="w-5 h-5" />}
-          iconBg={dash && dash.pending_orders > 0 ? "bg-amber-50" : "bg-gray-50"}
-          iconColor={dash && dash.pending_orders > 0 ? "text-amber-800" : "text-gray-600"}
+          iconBg={dash && dash.pending_orders > 0 ? "bg-amber-50 dark:bg-amber-900/30" : "bg-gray-50 dark:bg-slate-800"}
+          iconColor={dash && dash.pending_orders > 0 ? "text-amber-800 dark:text-amber-400" : "text-gray-600 dark:text-slate-400"}
           trend={dash && dash.pending_orders > 0 ? "⚠️ Segera hubungi pembeli" : "Semua pesanan aman"}
-          trendColor={dash && dash.pending_orders > 0 ? "text-amber-800" : "text-gray-400"}
+          trendColor={dash && dash.pending_orders > 0 ? "text-amber-800 dark:text-amber-400" : "text-gray-400 dark:text-slate-500"}
           href="/dashboard/orders"
+          sparklineData={sparklinePending}
+          sparklineColor="amber"
         />
 
         <MetricCard
           title="Estimasi Omset"
           value={dash ? `Rp ${dash.month_revenue.toLocaleString("id-ID")}` : "…"}
           icon={<DollarSign className="w-5 h-5" />}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
+          iconBg="bg-emerald-50 dark:bg-emerald-900/30"
+          iconColor="text-emerald-600 dark:text-emerald-400"
           trend="Bulan ini (0% komisi)"
-          trendColor="text-gray-500"
+          trendColor="text-gray-500 dark:text-slate-400"
+          sparklineData={sparklineRevenue}
+          sparklineColor="emerald"
         />
       </div>
 
-      {/* Quick Operational Actions Section */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-emerald-600" />
-            <span>Aksi Cepat Toko</span>
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <ActionCard
-            title="Katalog Produk"
-            description="Tambah menu, atur harga, stok & foto barang"
-            icon={<Store className="w-5 h-5" />}
-            iconBg="bg-emerald-100"
-            iconColor="text-emerald-700"
-            href="/dashboard/products"
-          />
-
-          <ActionCard
-            title="Kelola Pesanan"
-            description="Cek detail status orderan & export rekap CSV"
-            icon={<ShoppingBag className="w-5 h-5" />}
-            iconBg="bg-blue-100"
-            iconColor="text-blue-700"
-            href="/dashboard/orders"
-          />
-
-          <ActionCard
-            title="Desain Toko"
-            description="Ganti konsep bisnis, warna tema, banner hero & teks"
-            icon={<Palette className="w-5 h-5" />}
-            iconBg="bg-purple-100"
-            iconColor="text-purple-700"
-            href="/dashboard/builder"
-          />
-
-          <ActionCard
-            title="Website & Domain"
-            description="Pasang domain sendiri (.com / .id) atau subdomain"
-            icon={<Settings className="w-5 h-5" />}
-            iconBg="bg-amber-100"
-            iconColor="text-amber-700"
-            href="/dashboard/domain"
-          />
-        </div>
-      </div>
-
       {/* Recent Orders Section */}
-      <Card className="border-gray-200/90 shadow-sm overflow-hidden rounded-3xl bg-white">
-        <CardHeader className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-gray-900">{t("dashboard.recentTitle")}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Pesanan terbaru yang masuk dari checkout toko online</p>
-          </div>
-          <Link
-            href="/dashboard/orders"
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200"
-          >
-            <span>Lihat Semua Pesanan</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+      <Card className="border-gray-200/90 shadow-sm overflow-hidden rounded-3xl bg-white dark:border-slate-800 dark:bg-slate-900">
+        <CardHeader className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800">
+          <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{t("dashboard.recentTitle")}</h3>
+          <p className="text-xs text-gray-500 mt-0.5 dark:text-slate-400">Pesanan terbaru yang masuk dari checkout toko online</p>
         </CardHeader>
 
         {recentOrders.length === 0 ? (
           <CardContent className="py-14 px-4 text-center space-y-4">
-            <div className="w-14 h-14 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
+            <div className="w-14 h-14 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
               <ShoppingBag className="w-7 h-7" />
             </div>
             <div className="max-w-sm mx-auto">
-              <p className="text-base font-bold text-gray-900">{t("dashboard.emptyTitle")}</p>
-              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{t("dashboard.emptyDesc")}</p>
+              <p className="text-base font-bold text-gray-900 dark:text-white">{t("dashboard.emptyTitle")}</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed dark:text-slate-400">{t("dashboard.emptyDesc")}</p>
             </div>
             <div className="pt-2 flex justify-center">
               <Button
                 variant="default"
                 size="sm"
                 onClick={handleCopyLink}
-                className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold dark:bg-emerald-700 dark:hover:bg-emerald-600"
               >
                 <Share2 className="w-4 h-4" />
                 <span>Salin & Bagikan Link Toko ke WhatsApp</span>
@@ -480,24 +372,24 @@ export default function DashboardPage() {
         ) : (
           <CardContent className="p-0">
             {/* Mobile Card List (< sm screens) */}
-            <div className="divide-y divide-gray-100 sm:hidden">
+            <div className="divide-y divide-gray-100 sm:hidden dark:divide-slate-800">
               {recentOrders.map((order) => (
-                <div key={order.id} className="p-4 space-y-2.5 hover:bg-gray-50/50 transition-colors">
+                <div key={order.id} className="p-4 space-y-2.5 hover:bg-gray-50/50 transition-colors dark:hover:bg-slate-800/50">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-xs font-bold text-gray-900">{order.customer_name}</p>
-                      <p className="text-xs text-gray-600 mt-0.5">{order.product_name}</p>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white">{order.customer_name}</p>
+                      <p className="text-xs text-gray-600 mt-0.5 dark:text-slate-400">{order.product_name}</p>
                     </div>
                     {getStatusBadge(order.status)}
                   </div>
 
                   <div className="flex items-center justify-between pt-1 text-xs">
-                    <span className="font-mono font-bold text-emerald-800">
+                    <span className="font-mono font-bold text-emerald-800 dark:text-emerald-400">
                       Rp {order.total_amount.toLocaleString("id-ID")}
                     </span>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-slate-500">
                         {new Date(order.order_date).toLocaleDateString("id-ID", {
                           day: "numeric",
                           month: "short",
@@ -513,7 +405,7 @@ export default function DashboardPage() {
                           )}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
                           title="Hubungi pembeli di WhatsApp"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
@@ -530,7 +422,7 @@ export default function DashboardPage() {
             <div className="hidden sm:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-gray-100 bg-gray-50/60 text-gray-500 font-bold text-xs">
+                  <TableRow className="border-b border-gray-100 bg-gray-50/60 text-gray-500 font-bold text-xs dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
                     <TableHead className="py-3.5 px-6">{t("orders.colCustomer")}</TableHead>
                     <TableHead className="py-3.5 px-4">{t("orders.colProduct")}</TableHead>
                     <TableHead className="py-3.5 px-4 text-right">{t("orders.colTotal")}</TableHead>
@@ -539,18 +431,18 @@ export default function DashboardPage() {
                     <TableHead className="py-3.5 px-6 text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody className="divide-y divide-gray-100">
+                <TableBody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {recentOrders.map((order) => (
-                    <TableRow key={order.id} className="hover:bg-gray-50/80 transition-colors">
-                      <TableCell className="py-4 px-6 font-bold text-gray-900">
+                    <TableRow key={order.id} className="hover:bg-gray-50/80 transition-colors dark:hover:bg-slate-800/50">
+                      <TableCell className="py-4 px-6 font-bold text-gray-900 dark:text-white">
                         {order.customer_name}
                       </TableCell>
-                      <TableCell className="py-4 px-4 text-gray-700 text-xs font-medium">{order.product_name}</TableCell>
-                      <TableCell className="py-4 px-4 text-right font-mono font-bold text-gray-900 text-xs">
+                      <TableCell className="py-4 px-4 text-gray-700 text-xs font-medium dark:text-slate-300">{order.product_name}</TableCell>
+                      <TableCell className="py-4 px-4 text-right font-mono font-bold text-gray-900 text-xs dark:text-white">
                         Rp {order.total_amount.toLocaleString("id-ID")}
                       </TableCell>
                       <TableCell className="py-4 px-4 text-center">{getStatusBadge(order.status)}</TableCell>
-                      <TableCell className="py-4 px-4 text-gray-500 text-xs">
+                      <TableCell className="py-4 px-4 text-gray-500 text-xs dark:text-slate-400">
                         {new Date(order.order_date).toLocaleDateString("id-ID", {
                           day: "numeric",
                           month: "short",
@@ -568,13 +460,13 @@ export default function DashboardPage() {
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-xl transition-all shadow-2xs"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-xl transition-all shadow-2xs dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800 dark:hover:bg-emerald-900/50"
                           >
-                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span>Hubungi WA</span>
                           </a>
                         ) : (
-                          <span className="text-gray-400 text-xs">—</span>
+                          <span className="text-gray-400 text-xs dark:text-slate-500">—</span>
                         )}
                       </TableCell>
                     </TableRow>

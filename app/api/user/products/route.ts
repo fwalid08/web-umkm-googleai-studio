@@ -347,15 +347,18 @@ export async function POST(req: NextRequest) {
     const imageFiles = pendingImageFiles;
     const images: any[] = [];
     if (imageFiles.length > 0) {
-      // Check image limit
+      // Check image limit SEBELUM insert product (produk baru = 0 existing images)
       const imageLimitCheck = await checkProductImageLimit(userId, product.id, imageFiles.length);
       if (!imageLimitCheck.ok) {
-        // Product created but images rejected
-        return NextResponse.json({
-          success: true,
-          message: "Produk dibuat, tapi gambar melebihi batas",
-          data: { product: { ...product, images: [] }, warning: "Gambar melebihi batas tier" },
-        });
+        // Rollback: hapus product yang sudah terbuat
+        await supabase.from("products").delete().eq("id", product.id);
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Batas gambar per produk tercapai (${imageLimitCheck.currentCount}/${imageLimitCheck.maxLimit}). Upgrade untuk menambah lebih banyak.`,
+          },
+          { status: 403 }
+        );
       }
 
       // Process and upload images
@@ -707,6 +710,17 @@ export async function DELETE(req: NextRequest) {
 
     if (!website) {
       return NextResponse.json({ success: false, error: "Akses ditolak" }, { status: 403 });
+    }
+
+    // Cleanup storage files sebelum delete product (best-effort)
+    const { data: productImages } = await supabase
+      .from("product_images")
+      .select("storage_path")
+      .eq("product_id", productId);
+
+    if (productImages && productImages.length > 0) {
+      const { deleteProductImages } = await import("@/lib/storage/products");
+      await deleteProductImages(productImages.map((img) => img.storage_path));
     }
 
     // Delete product (cascades to product_images via FK)

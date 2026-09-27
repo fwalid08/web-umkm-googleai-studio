@@ -15,6 +15,20 @@ import {
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { dnsTarget, rootHost, tenantDisplay } from "@/lib/urls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface DomainState {
   website_id: string;
@@ -224,11 +238,10 @@ export default function DashboardDomainPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-gray-500">Memuat status domain...</p>
-        </div>
+      <div className="space-y-4 max-w-5xl mx-auto" aria-label="Memuat status domain">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }
@@ -237,18 +250,19 @@ export default function DashboardDomainPage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="border-b border-gray-100 pb-5">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
           Domain & Alamat Toko
         </h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 mt-1">
           Pengaturan alamat web untuk toko aktif Anda:{" "}
-          <strong className="text-gray-900 font-semibold">{domain?.website_name || "Toko"}</strong>.
+          <strong className="text-gray-900 dark:text-white font-semibold">{domain?.website_name || "Toko"}</strong>.
         </p>
       </div>
 
       {msg && (
         <div
-          className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+          role="alert"
+          className={`p-4 rounded-xl text-sm font-semibold flex items-center gap-2 ${
             msg.ok
               ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
               : "bg-red-50 text-red-800 border border-red-200"
@@ -264,67 +278,45 @@ export default function DashboardDomainPage() {
       )}
 
       {/* Tabs Switcher */}
-      <div className="flex border-b border-gray-200 text-sm">
-        <button
-          type="button"
-          onClick={() => setTab("own")}
-          className={`py-3 px-5 font-bold border-b-2 transition-colors ${
-            tab === "own"
-              ? "border-emerald-600 text-emerald-700"
-              : "border-transparent text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          Domain & Subdomain Saya
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("buy")}
-          className={`py-3 px-5 font-bold border-b-2 transition-colors ${
-            tab === "buy"
-              ? "border-emerald-600 text-emerald-700"
-              : "border-transparent text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          Beli Domain Baru (.com / .id)
-        </button>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "own" | "buy")}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="own">Domain & Subdomain Saya</TabsTrigger>
+          <TabsTrigger value="buy">Beli Domain Baru</TabsTrigger>
+        </TabsList>
 
       {/* Tab 1: Manage Existing Subdomain & Custom Domain */}
-      {tab === "own" && (
-        <div className="space-y-6">
+      <TabsContent value="own" className="space-y-6 mt-6">
           {/* Section 1: Subdomain */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-gray-900">1. Subdomain Toko Gratis</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">1. Subdomain Toko Gratis</CardTitle>
+              <CardDescription>
                 Alamat instan gratis yang langsung aktif untuk tokomu tanpa biaya tambahan.
-              </p>
-            </div>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
 
             <form onSubmit={saveSubdomain} className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
-                <div className="flex-1 flex items-center border border-gray-300 rounded-xl px-3 py-2 bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
-                  <input
+                <div className="flex-1 flex items-center gap-1">
+                  <Input
                     value={subInput}
                     onChange={(e) => setSubInput(e.target.value)}
                     placeholder="nama-toko-anda"
-                    className="flex-1 outline-none text-xs font-mono bg-transparent"
+                    className="flex-1 font-mono"
                     required
+                    aria-label="Subdomain toko"
                   />
-                  <span className="text-xs text-gray-400 font-mono">.{rootHost()}</span>
+                  <span className="text-sm text-gray-400 font-mono shrink-0">.{rootHost()}</span>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={busy === "sub"}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs disabled:opacity-50 transition-colors"
-                >
+                <Button type="submit" disabled={busy === "sub"}>
                   {busy === "sub" ? "Menyimpan..." : "Simpan Subdomain"}
-                </button>
+                </Button>
               </div>
 
               {domain?.subdomain && (
-                <div className="text-xs text-gray-500 flex items-center gap-2">
+                <div className="text-sm text-gray-500 flex items-center gap-2">
                   <span>Alamat aktif:</span>
                   <a
                     href={domain.subdomain_url || "#"}
@@ -338,52 +330,55 @@ export default function DashboardDomainPage() {
                 </div>
               )}
             </form>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Section 2: Custom Domain */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-gray-900">2. Hubungkan Domain Sendiri</h2>
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle className="text-base">2. Hubungkan Domain Sendiri</CardTitle>
+                <Badge variant="secondary" className="text-xs">
                   Starter / Growth
-                </span>
+                </Badge>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <CardDescription>
                 Gunakan alamat web profesional milik Anda sendiri seperti <code>tokokopi.com</code> atau <code>butik.id</code>.
-              </p>
-            </div>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
 
             <form onSubmit={saveCustomDomain} className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
-                <input
+                <Input
                   value={customInput}
                   onChange={(e) => setCustomInput(e.target.value)}
                   placeholder="contoh: tokokopi.com atau www.butik.id"
-                  className="flex-1 border border-gray-300 rounded-xl px-3.5 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="flex-1 font-mono"
+                  aria-label="Domain sendiri"
                 />
 
-                <button
+                <Button
                   type="submit"
+                  variant="secondary"
                   disabled={busy === "custom" || !customInput.trim()}
-                  className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-bold shadow-2xs disabled:opacity-50 transition-colors"
                 >
                   {busy === "custom" ? "Menghubungkan..." : "Hubungkan Domain"}
-                </button>
+                </Button>
               </div>
 
               {domain?.custom_domain && (
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-sm flex-wrap">
                   <span className="text-gray-500">Status domain:</span>
-                  <span className="font-mono font-bold text-gray-900">{domain.custom_domain}</span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-white">{domain.custom_domain}</span>
                   {domain.custom_domain_verified ? (
-                    <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">
+                    <Badge variant="success">
                       ✓ Terverifikasi & Aktif
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
+                    <Badge variant="warning">
                       ⏳ Menunggu DNS
-                    </span>
+                    </Badge>
                   )}
                 </div>
               )}
@@ -392,97 +387,99 @@ export default function DashboardDomainPage() {
             {/* DNS Instructions Card */}
             {(dns || (domain?.custom_domain && !domain.custom_domain_verified)) && (
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
-                <p className="text-xs font-bold text-gray-800">
+                <p className="text-sm font-bold text-gray-800">
                   Instruksi DNS Registrar (Niagahoster, Domainesia, Rumahweb, Cloudflare, dll):
                 </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left bg-white border rounded-lg">
-                    <thead>
-                      <tr className="border-b bg-gray-50 text-gray-500">
-                        <th className="py-2 px-3">Tipe Record</th>
-                        <th className="py-2 px-3">Nama Host</th>
-                        <th className="py-2 px-3">Target Nilai</th>
-                        <th className="py-2 px-3 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 font-mono">
+                <div className="overflow-x-auto rounded-lg border bg-white">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipe Record</TableHead>
+                        <TableHead>Nama Host</TableHead>
+                        <TableHead>Target Nilai</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="font-mono">
                       {(dns?.instructions && dns.instructions.length > 0
                         ? dns.instructions
                         : [{ type: "CNAME", name: "www", value: cnameTarget, description: "" }]
                       ).map((row, i) => (
-                        <tr key={`${row.type}-${row.name}-${i}`}>
-                          <td className="py-2.5 px-3 font-bold text-emerald-800">{row.type}</td>
-                          <td className="py-2.5 px-3">{row.name}</td>
-                          <td className="py-2.5 px-3 text-gray-700 break-all">{row.value}</td>
-                          <td className="py-2.5 px-3 text-right">
-                            <button
+                        <TableRow key={`${row.type}-${row.name}-${i}`}>
+                          <TableCell className="font-bold text-emerald-800">{row.type}</TableCell>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell className="text-gray-700 break-all">{row.value}</TableCell>
+                          <TableCell className="text-right font-sans">
+                            <Button
                               type="button"
+                              variant="link"
+                              size="sm"
                               onClick={() => handleCopy(row.value)}
-                              className="text-xs font-sans text-emerald-700 hover:underline"
+                              className="text-emerald-700 h-auto p-0"
                             >
                               {copiedValue === row.value ? "Tersalin!" : "Salin"}
-                            </button>
-                          </td>
-                        </tr>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
-                <p className="text-[11px] text-gray-500">
+                <p className="text-xs text-gray-500">
                   Verifikasi otomatis berjalan di sistem. Begitu DNS terpasang, status akan berubah menjadi aktif otomatis.
                 </p>
                 {dns?.code && (
-                  <p className="text-[11px] text-gray-600">
+                  <p className="text-xs text-gray-600">
                     Kode verifikasi TXT Anda:{" "}
-                    <code className="font-mono font-bold text-gray-900 break-all">{dns.code}</code>{" "}
-                    <button
+                    <code className="font-mono font-bold text-gray-900 dark:text-white break-all">{dns.code}</code>{" "}
+                    <Button
                       type="button"
+                      variant="link"
+                      size="sm"
                       onClick={() => handleCopy(dns.code)}
-                      className="text-emerald-700 font-semibold hover:underline"
+                      className="text-emerald-700 h-auto p-0 text-xs"
                     >
                       {copiedValue === dns.code ? "Tersalin!" : "Salin"}
-                    </button>
+                    </Button>
                   </p>
                 )}
               </div>
             )}
-          </div>
-        </div>
-      )}
+            </CardContent>
+          </Card>
+      </TabsContent>
 
       {/* Tab 2: Buy New Domain Simulation */}
-      {tab === "buy" && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-6">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">Beli Domain Langsung</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+      <TabsContent value="buy" className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Beli Domain Langsung</CardTitle>
+            <CardDescription>
               Cari dan aktifkan nama domain unik untuk tokomu. Terhubung otomatis tanpa perlu atur DNS manual.
-            </p>
-          </div>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
 
           <form onSubmit={searchDomain} className="flex gap-2 max-w-xl">
-            <div className="flex-1 flex items-center border border-gray-300 rounded-xl px-3.5 py-2 bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
-              <Search className="w-4 h-4 text-gray-400 mr-2 shrink-0" />
-              <input
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Ketik nama tokomu (mis. kopibutoni)"
-                className="w-full text-xs outline-none bg-transparent"
+                className="pl-9"
+                aria-label="Cari domain"
               />
             </div>
-            <button
-              type="submit"
-              disabled={searching || q.trim().length < 2}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs disabled:opacity-50 transition-colors"
-            >
+            <Button type="submit" disabled={searching || q.trim().length < 2}>
               {searching ? "Mencari..." : "Cek Domain"}
-            </button>
+            </Button>
           </form>
 
           {/* Search Results */}
           {results.length > 0 && (
             <div className="space-y-3 pt-2">
-              <p className="text-xs font-bold text-gray-700">Hasil Pencarian Domain:</p>
+              <p className="text-sm font-bold text-gray-700">Hasil Pencarian Domain:</p>
               <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
                 {results.map((r) => (
                   <div
@@ -490,30 +487,30 @@ export default function DashboardDomainPage() {
                     className="p-3.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors"
                   >
                     <div>
-                      <p className="text-xs font-bold text-gray-900 font-mono">{r.domain}</p>
-                      <p className="text-[11px] text-gray-500">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white font-mono">{r.domain}</p>
+                      <p className="text-xs text-gray-500">
                         {r.available ? "Tersedia untuk didaftarkan" : "Sudah dimiliki orang lain"}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-xs text-gray-900">
+                      <span className="font-mono font-bold text-sm text-gray-900 dark:text-white">
                         Rp {r.price_yearly.toLocaleString("id-ID")}/thn
                       </span>
 
                       {r.available ? (
-                        <button
+                        <Button
                           type="button"
+                          size="sm"
                           disabled={buying === r.domain}
                           onClick={() => buyDomain(r.domain)}
-                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs disabled:opacity-50"
                         >
                           {buying === r.domain ? "Memproses..." : "Beli & Pasang"}
-                        </button>
+                        </Button>
                       ) : (
-                        <span className="text-[11px] font-semibold text-gray-400 px-2 py-1 bg-gray-100 rounded">
+                        <Badge variant="secondary">
                           Tidak Tersedia
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -525,29 +522,31 @@ export default function DashboardDomainPage() {
           {/* Orders History */}
           {orders.length > 0 && (
             <div className="pt-4 border-t border-gray-100 space-y-3">
-              <p className="text-xs font-bold text-gray-700">Riwayat Pembelian Domain:</p>
+              <p className="text-sm font-bold text-gray-700">Riwayat Pembelian Domain:</p>
               <div className="space-y-2">
                 {orders.map((o) => (
                   <div
                     key={o.id}
-                    className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between text-xs"
+                    className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between text-sm"
                   >
                     <div>
-                      <span className="font-mono font-bold text-gray-900">{o.domain}</span>
+                      <span className="font-mono font-bold text-gray-900 dark:text-white">{o.domain}</span>
                       <span className="text-gray-400 ml-2">
                         Rp {o.price_yearly.toLocaleString("id-ID")}/thn
                       </span>
                     </div>
-                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    <Badge variant="success">
                       Aktif Terhubung
-                    </span>
+                    </Badge>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
-      )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+      </Tabs>
     </div>
   );
 }

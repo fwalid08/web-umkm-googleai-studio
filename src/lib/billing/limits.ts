@@ -73,7 +73,7 @@ export async function checkProductLimit(
       currentCount: 0,
       maxLimit: 1,
       tier: "free",
-      upgradeUrl: "/dashboard/settings/billing",
+      upgradeUrl: "/dashboard/billing",
     };
   }
 }
@@ -123,7 +123,7 @@ export async function getProductLimitInfo(
     maxImagesPerProduct: limits.maxImagesPerProduct,
     maxFileSizeMb: limits.maxFileSizeMb,
     tier,
-    upgradeUrl: currentCount >= maxLimit ? "/dashboard/settings/billing" : undefined,
+    upgradeUrl: currentCount >= maxLimit ? "/dashboard/billing" : undefined,
   };
 }
 
@@ -235,4 +235,109 @@ export function formatLimitError(limitType: "products" | "images" | "variants" |
     fileSize: `Ukuran file melebihi batas ${Math.round(max / 1024 / 1024)}MB.`,
   };
   return messages[limitType] || "Batas tercapai";
+}
+
+// ---------------------------------------------------------------------------
+// Tier limits & custom domain gate (Sprint 2 checkout, Sprint 4 enforcement).
+// Nilai sinkron dengan migrasi 015 tier_limits + 012 plans.
+// DB tier_limits diutamakan (dynamic update), fallback ke konstanta di bawah.
+// ---------------------------------------------------------------------------
+
+export interface TierLimits {
+  maxWebsites: number;
+  maxProducts: number;
+  maxOrdersMonthly: number; // -1 = unlimited
+  allowCustomDomain: boolean;
+  includedDomains: number;
+  allowAnalyticsExport: boolean;
+  allowCustomerList: boolean;
+  allowStockTracking: boolean;
+  maxPages: number; // 0 = unlimited
+}
+
+export const TIER_LIMITS_DEFAULTS: Record<string, TierLimits> = {
+  free: { maxWebsites: 1, maxProducts: 5, maxOrdersMonthly: 50, allowCustomDomain: false, includedDomains: 0, allowAnalyticsExport: false, allowCustomerList: false, allowStockTracking: false, maxPages: 0 },
+  starter: { maxWebsites: 3, maxProducts: 50, maxOrdersMonthly: -1, allowCustomDomain: true, includedDomains: 1, allowAnalyticsExport: true, allowCustomerList: true, allowStockTracking: true, maxPages: 5 },
+  growth: { maxWebsites: 10, maxProducts: 200, maxOrdersMonthly: -1, allowCustomDomain: true, includedDomains: 3, allowAnalyticsExport: true, allowCustomerList: true, allowStockTracking: true, maxPages: 0 },
+  enterprise: { maxWebsites: 999, maxProducts: 9999, maxOrdersMonthly: -1, allowCustomDomain: true, includedDomains: 10, allowAnalyticsExport: true, allowCustomerList: true, allowStockTracking: true, maxPages: 0 },
+};
+
+/** Ambil limit tier: DB tier_limits dulu, fallback konstanta (display-safe, tidak throw). */
+export async function getTierLimits(tier: string): Promise<TierLimits> {
+  try {
+    const supabase = createServiceSupabaseClient();
+    const { data } = await supabase.from("tier_limits").select("*").eq("tier", tier).maybeSingle();
+    if (data) {
+      const row = data as Record<string, unknown>;
+      const num = (v: unknown, fb: number): number =>
+        typeof v === "number" && Number.isFinite(v) ? v : fb;
+      const bool = (v: unknown, fb: boolean): boolean =>
+        typeof v === "boolean" ? v : fb;
+      const fb = TIER_LIMITS_DEFAULTS[tier] ?? TIER_LIMITS_DEFAULTS.free;
+      return {
+        maxWebsites: num(row.max_websites, fb.maxWebsites),
+        maxProducts: num(row.max_products, fb.maxProducts),
+        maxOrdersMonthly: num(row.max_orders_monthly, fb.maxOrdersMonthly),
+        allowCustomDomain: bool(row.allow_custom_domain, fb.allowCustomDomain),
+        includedDomains: num(row.included_domains, fb.includedDomains),
+        allowAnalyticsExport: bool(row.allow_analytics_export, fb.allowAnalyticsExport),
+        allowCustomerList: bool(row.allow_customer_list, fb.allowCustomerList),
+        allowStockTracking: bool(row.allow_stock_tracking, fb.allowStockTracking),
+        maxPages: num(row.max_pages, fb.maxPages),
+      };
+    }
+  } catch (err) {
+    console.error("getTierLimits error:", err);
+  }
+  return TIER_LIMITS_DEFAULTS[tier] ?? TIER_LIMITS_DEFAULTS.free;
+}
+
+export interface DomainLimitCheckResult {
+  ok: boolean;
+  current: number;
+  max: number;
+  message?: string;
+  upgradeUrl?: string;
+}
+
+/**
+ * Gate checkout/renew domain: Free tidak boleh; tier berbayar dibatasi kuota
+ * includedDomains (dihitung dari websites terverifikasi + domain_orders aktif).
+ * Fail-closed saat DB error (tolak pembelian agar tidak over-limit).
+ */
+export async function checkCustomDomainLimit(userId: string, tier: string): Promise<DomainLimitCheckResult> {
+  const upgradeUrl = "/dashboard/billing";
+  const limits = await getTierLimits(tier);
+  if (!limits.allowCustomDomain) {
+    return {
+      ok: false,
+      current: 0,
+      max: 0,
+      message: "Custom domain tidak tersedia di paket Free. Upgrade ke Starter untuk domain profesional.",
+      upgradeUrl,
+    };
+  }
+  try {
+    const supabase = createServiceSupabaseClient();
+    const [{ count: verifiedSites }, { count: activeOrders }] = await Promise.all([
+      supabase.from("websites").select("id", { count: "exact", head: true })
+        .eq("user_id", userId).not("custom_domain", "is", null).eq("custom_domain_verified", true),
+      supabase.from("domain_orders").select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("status", "active"),
+    ]);
+    const current = Math.max(verifiedSites ?? 0, activeOrders ?? 0);
+    if (current >= limits.includedDomains) {
+      return {
+        ok: true, // boleh beli tambahan (bayar per domain), tapi flag kuota habis untuk upsell
+        current,
+        max: limits.includedDomains,
+        message: `Kuota domain termasuk paket habis (${current}/${limits.includedDomains}). Domain tambahan ditagih per tahun.`,
+        upgradeUrl,
+      };
+    }
+    return { ok: true, current, max: limits.includedDomains };
+  } catch (err) {
+    console.error("checkCustomDomainLimit error:", err);
+    return { ok: false, current: 0, max: limits.includedDomains, message: "Gagal memeriksa kuota domain.", upgradeUrl };
+  }
 }

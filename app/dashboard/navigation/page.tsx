@@ -16,6 +16,13 @@ import {
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { tenantUrl, tenantDisplay } from "@/lib/urls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface NavItem {
   id: string;
@@ -188,159 +195,140 @@ export default function StoreNavigationPage() {
             <span className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg">
               <Compass className="w-5 h-5" />
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               Menu Navigasi Toko
             </h1>
           </div>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             Atur tautan menu yang tampil di header dan footer toko online Anda untuk mempermudah
             pengunjung mencari produk dan informasi.
           </p>
         </div>
 
-        <button
+        <Button
           onClick={() => {
             setEditingItem(null);
             setFormLabel("");
             setFormUrl("");
             setIsAdding(true);
           }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-colors self-start sm:self-auto"
+          className="gap-2 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Tambah Tautan Menu</span>
-        </button>
+        </Button>
       </div>
 
       {notification && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-4 py-3 text-xs flex items-center gap-2 font-medium">
+        <div role="status" className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-4 py-3 text-sm flex items-center gap-2 font-medium">
           <Check className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{notification}</span>
         </div>
       )}
 
       {/* Tabs Switcher: Header vs Footer */}
-      <div className="flex items-center gap-2 border-b border-gray-200">
-        <button
-          onClick={() => {
-            setActiveTab("header");
-            setIsAdding(false);
-            setEditingItem(null);
-          }}
-          className={`pb-3 text-xs font-bold transition-all relative ${
-            activeTab === "header"
-              ? "text-emerald-700 border-b-2 border-emerald-600"
-              : "text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          <span>Menu Utama (Header Navigasi)</span>
-          <span className="ml-2 text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600">
-            {headerLinks.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab("footer");
-            setIsAdding(false);
-            setEditingItem(null);
-          }}
-          className={`pb-3 text-xs font-bold transition-all relative ${
-            activeTab === "footer"
-              ? "text-emerald-700 border-b-2 border-emerald-600"
-              : "text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          <span>Tautan Kaki (Footer Links)</span>
-          <span className="ml-2 text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600">
-            {footerLinks.length}
-          </span>
-        </button>
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          setActiveTab(v as "header" | "footer");
+          setIsAdding(false);
+          setEditingItem(null);
+        }}
+      >
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="header" className="gap-2">
+            Menu Utama
+            <Badge variant="secondary" className="text-xs">{headerLinks.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="footer" className="gap-2">
+            Footer
+            <Badge variant="secondary" className="text-xs">{footerLinks.length}</Badge>
+          </TabsTrigger>
+        </TabsList>
 
       {/* Form Add/Edit */}
       {(isAdding || editingItem) && (
-        <form
-          onSubmit={handleSaveForm}
-          className="bg-white border-2 border-emerald-600 rounded-2xl p-5 shadow-md space-y-4"
-        >
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <h3 className="font-bold text-sm text-gray-900">
+        <Card className="border-emerald-600 mt-4">
+          <form onSubmit={handleSaveForm}>
+          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 pb-3">
+            <CardTitle className="text-sm">
               {editingItem ? "Edit Tautan Menu" : `Tambah Menu Baru ke ${activeTab === "header" ? "Header" : "Footer"}`}
-            </h3>
-            <button
+            </CardTitle>
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setIsAdding(false);
                 setEditingItem(null);
               }}
-              className="text-xs text-gray-400 hover:text-gray-600 font-bold"
             >
               ✕ Batal
-            </button>
-          </div>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-4">
 
           <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="nav-label">
                 Nama Teks Menu:
-              </label>
-              <input
+              </Label>
+              <Input
+                id="nav-label"
                 value={formLabel}
                 onChange={(e) => setFormLabel(e.target.value)}
                 placeholder="Contoh: Promo Spesial, Tentang Toko"
                 required
-                className="w-full text-xs border border-gray-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="nav-url">
                 Tujuan Link (URL / Anchor):
-              </label>
-              <input
+              </Label>
+              <Input
+                id="nav-url"
                 value={formUrl}
                 onChange={(e) => setFormUrl(e.target.value)}
                 placeholder="Contoh: #products, /p/tentang-kami, https://wa.me/..."
                 required
-                className="w-full text-xs border border-gray-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                className="font-mono"
               />
             </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => {
                 setIsAdding(false);
                 setEditingItem(null);
               }}
-              className="px-4 py-2 text-xs border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50"
             >
               Batal
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-2xs"
-            >
+            </Button>
+            <Button type="submit">
               Simpan Tautan
-            </button>
+            </Button>
           </div>
-        </form>
+          </CardContent>
+          </form>
+        </Card>
       )}
 
       {/* Menu List */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-2xs">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-900">
+      <Card className="overflow-hidden mt-4">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 py-4">
+          <CardTitle className="text-sm">
             Urutan Menu {activeTab === "header" ? "Header Toko" : "Footer Toko"}
-          </h3>
+          </CardTitle>
           <span className="text-xs text-gray-400">
             {currentList.filter((it) => it.enabled).length} Aktif
           </span>
-        </div>
+        </CardHeader>
 
-        <div className="divide-y divide-gray-100">
+        <CardContent className="p-0 divide-y divide-gray-100">
           {currentList.map((item, idx) => (
             <div
               key={item.id}
@@ -351,12 +339,12 @@ export default function StoreNavigationPage() {
                   {idx + 1}
                 </span>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <span>{item.label}</span>
                     {!item.enabled && (
-                      <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <Badge variant="secondary" className="text-xs">
                         Nonaktif
-                      </span>
+                      </Badge>
                     )}
                   </h4>
                   <p className="text-xs text-gray-400 font-mono mt-0.5">{item.url}</p>
@@ -364,56 +352,66 @@ export default function StoreNavigationPage() {
               </div>
 
               <div className="flex items-center gap-2 self-end sm:self-auto">
-                <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                  <button
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     disabled={idx === 0}
                     onClick={() => moveItem(idx, "up", activeTab)}
-                    className="p-1.5 hover:bg-gray-100 text-gray-500 disabled:opacity-30"
+                    className="h-8 w-8"
                     title="Geser ke Atas"
+                    aria-label="Geser ke atas"
                   >
                     <MoveUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     disabled={idx === currentList.length - 1}
                     onClick={() => moveItem(idx, "down", activeTab)}
-                    className="p-1.5 hover:bg-gray-100 text-gray-500 border-l border-gray-200 disabled:opacity-30"
+                    className="h-8 w-8"
                     title="Geser ke Bawah"
+                    aria-label="Geser ke bawah"
                   >
                     <MoveDown className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
 
-                <button
-                  onClick={() => toggleLink(item.id, activeTab)}
-                  className={`text-xs px-3 py-1.5 rounded-xl font-semibold border transition-colors ${
-                    item.enabled
-                      ? "border-gray-200 text-gray-600 hover:bg-gray-100"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
-                  }`}
-                >
-                  {item.enabled ? "Nonaktifkan" : "Aktifkan"}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <Switch
+                    checked={item.enabled}
+                    onCheckedChange={() => toggleLink(item.id, activeTab)}
+                    aria-label={item.enabled ? `Nonaktifkan ${item.label}` : `Aktifkan ${item.label}`}
+                  />
+                </div>
 
-                <button
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => startEdit(item, activeTab)}
-                  className="p-2 border border-gray-200 rounded-xl hover:bg-gray-100 text-gray-700"
+                  className="h-8 w-8"
                   title="Edit Tautan"
+                  aria-label={`Edit ${item.label}`}
                 >
                   <Edit3 className="w-4 h-4" />
-                </button>
+                </Button>
 
-                <button
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => deleteLink(item.id, activeTab)}
-                  className="p-2 border border-red-100 rounded-xl hover:bg-red-50 text-red-600"
+                  className="h-8 w-8 text-red-600 border-red-100 hover:bg-red-50 hover:text-red-700"
                   title="Hapus Tautan"
+                  aria-label={`Hapus ${item.label}`}
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
           ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+      </Tabs>
     </div>
   );
 }

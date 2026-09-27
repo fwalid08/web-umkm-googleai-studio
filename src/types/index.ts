@@ -142,7 +142,7 @@ export interface Subscription {
   created_at: string;
 }
 
-export type SubscriptionStatus = "active" | "canceled" | "past_due" | "trialing";
+export type SubscriptionStatus = "active" | "canceled" | "past_due" | "incomplete" | "incomplete_expired";
 
 // Domain Types
 export interface DomainStatus {

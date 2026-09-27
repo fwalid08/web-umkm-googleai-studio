@@ -14,6 +14,10 @@ import { useParams } from "next/navigation";
 import { ChevronDown, ExternalLink, Monitor, Save, Smartphone } from "lucide-react";
 import { ColorInput, ObjectArrayEditor, ObjectEditor, StringArrayEditor, TextInput, Toggle } from "../_components/fields";
 import { ActiveWebsiteChip } from "@/components/dashboard/active-website-chip";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface EdSection {
   id: string;
@@ -179,7 +183,7 @@ export default function BuilderEditorPage() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div>
           <Link href={`/dashboard/${websiteId}/builder`} className="text-sm text-gray-500 hover:underline">← Galeri</Link>
-          <h1 className="text-2xl font-bold text-gray-900 capitalize">Edit: {templateName}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white capitalize">Edit: {templateName}</h1>
           <div className="mt-1.5">
             <ActiveWebsiteChip />
           </div>
@@ -190,15 +194,15 @@ export default function BuilderEditorPage() {
         </div>
         <div className="flex gap-2">
           {previewUrl ? (
-            <a href={previewUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-            <ExternalLink className="h-4 w-4" /> Lihat Website
-          </a>
+            <Button variant="outline" asChild className="gap-1.5">
+              <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" /> Lihat Website
+              </a>
+            </Button>
           ) : null}
-          <button onClick={simpan} disabled={saving}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+          <Button onClick={simpan} disabled={saving} className="gap-1.5 bg-green-600 hover:bg-green-700">
             <Save className="h-4 w-4" /> {saving ? "Menyimpan..." : "Simpan & Publish"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -206,7 +210,7 @@ export default function BuilderEditorPage() {
         <div className={`rounded-lg px-4 py-3 text-sm ${msg.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-700"}`}>
           {msg.text}
           {!msg.ok && msg.text.includes("Starter") ? (
-            <Link href="/dashboard/settings/billing" className="ml-2 underline font-medium">Upgrade →</Link>
+            <Link href="/dashboard/billing" className="ml-2 underline font-medium">Upgrade →</Link>
           ) : null}
         </div>
       ) : null}
@@ -215,31 +219,40 @@ export default function BuilderEditorPage() {
         {/* Kolom konfigurasi */}
         <div className="space-y-4">
           {/* Theme */}
-          <details className="border rounded-xl bg-white" open>
-            <summary className="px-4 py-3 font-semibold cursor-pointer">🎨 Theme Global</summary>
-            <div className="px-4 pb-4 grid sm:grid-cols-2 gap-3">
-              <ColorInput label="Warna utama" value={theme.primary} onChange={(v) => setTheme({ ...theme, primary: v })} />
-              <ColorInput label="Background" value={theme.background} onChange={(v) => setTheme({ ...theme, background: v })} />
-              <ColorInput label="Warna teks" value={theme.text} onChange={(v) => setTheme({ ...theme, text: v })} />
-              <TextInput label="Font judul" value={theme.heading_font} onChange={(v) => setTheme({ ...theme, heading_font: v })} />
-              <TextInput label="Font isi" value={theme.body_font} onChange={(v) => setTheme({ ...theme, body_font: v })} />
-            </div>
-          </details>
+          <Card className="p-0 overflow-hidden">
+            <Accordion type="single" collapsible defaultValue="theme">
+              <AccordionItem value="theme" className="border-0">
+                <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                  🎨 Theme Global
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <ColorInput label="Warna utama" value={theme.primary} onChange={(v) => setTheme({ ...theme, primary: v })} />
+                    <ColorInput label="Background" value={theme.background} onChange={(v) => setTheme({ ...theme, background: v })} />
+                    <ColorInput label="Warna teks" value={theme.text} onChange={(v) => setTheme({ ...theme, text: v })} />
+                    <TextInput label="Font judul" value={theme.heading_font} onChange={(v) => setTheme({ ...theme, heading_font: v })} />
+                    <TextInput label="Font isi" value={theme.body_font} onChange={(v) => setTheme({ ...theme, body_font: v })} />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </Card>
 
           {/* Sections */}
           {[...sections].sort((a, b) => a.order - b.order).map((s) => {
             const open = openId === s.id;
             return (
-              <div key={s.id} className={`border rounded-xl bg-white ${s.enabled ? "" : "opacity-70"}`}>
+              <Card key={s.id} className={`p-0 overflow-hidden ${s.enabled ? "" : "opacity-70"}`}>
                 <div className="flex items-center gap-3 px-4 py-3">
                   <Toggle checked={s.enabled} disabled={s.required}
                     onChange={(v) => patchSection(s.id, { enabled: v })} label={s.label} />
-                  <button onClick={() => setOpenId(open ? null : s.id)} className="flex-1 text-left">
-                    <span className="font-semibold">{s.label}</span>{" "}
+                  <Button variant="ghost" onClick={() => setOpenId(open ? null : s.id)} className="flex-1 justify-start h-auto py-1 px-2 text-left font-normal hover:bg-transparent" aria-expanded={open}>
+                    <span className="text-sm font-semibold">{s.label}</span>{" "}
                     <span className="text-xs text-gray-400">
                       {s.required ? "• wajib" : "• opsional"} {!s.enabled ? "• nonaktif" : ""}
                     </span>
-                  </button>
+                  </Button>
+                  {!s.enabled && <Badge variant="secondary" className="text-xs">Nonaktif</Badge>}
                   <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
                 </div>
                 {open ? (
@@ -282,33 +295,51 @@ export default function BuilderEditorPage() {
                     })}
                   </div>
                 ) : null}
-              </div>
+              </Card>
             );
           })}
 
           {/* SEO */}
-          <details className="border rounded-xl bg-white">
-            <summary className="px-4 py-3 font-semibold cursor-pointer">🔍 SEO Dasar</summary>
-            <div className="px-4 pb-4 space-y-3">
-              <TextInput label="Judul (maks 60 karakter)" value={seo.title} onChange={(v) => setSeo({ ...seo, title: v })} />
-              <TextInput label="Deskripsi (maks 160 karakter)" value={seo.description} onChange={(v) => setSeo({ ...seo, description: v })} textarea />
-            </div>
-          </details>
+          <Card className="p-0 overflow-hidden">
+            <Accordion type="single" collapsible>
+              <AccordionItem value="seo" className="border-0">
+                <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                  🔍 SEO Dasar
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="space-y-3">
+                    <TextInput label="Judul (maks 60 karakter)" value={seo.title} onChange={(v) => setSeo({ ...seo, title: v })} />
+                    <TextInput label="Deskripsi (maks 160 karakter)" value={seo.description} onChange={(v) => setSeo({ ...seo, description: v })} textarea />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </Card>
         </div>
 
         {/* Kolom preview live */}
         <div className="lg:sticky lg:top-20 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="font-semibold">Preview Live</p>
-            <div className="flex gap-1 border rounded-lg p-1">
-              <button onClick={() => setDevice("mobile")}
-                className={`p-1.5 rounded ${device === "mobile" ? "bg-gray-900 text-white" : "text-gray-500"}`} aria-label="Mobile">
+            <p className="text-sm font-semibold">Preview Live</p>
+            <div className="flex gap-1 border rounded-lg p-1 bg-white">
+              <Button
+                variant={device === "mobile" ? "default" : "ghost"}
+                size="icon"
+                onClick={() => setDevice("mobile")}
+                className="h-8 w-8"
+                aria-label="Mobile"
+              >
                 <Smartphone className="h-4 w-4" />
-              </button>
-              <button onClick={() => setDevice("desktop")}
-                className={`p-1.5 rounded ${device === "desktop" ? "bg-gray-900 text-white" : "text-gray-500"}`} aria-label="Desktop">
+              </Button>
+              <Button
+                variant={device === "desktop" ? "default" : "ghost"}
+                size="icon"
+                onClick={() => setDevice("desktop")}
+                className="h-8 w-8"
+                aria-label="Desktop"
+              >
                 <Monitor className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           </div>
           {previewUrl ? (
@@ -317,7 +348,7 @@ export default function BuilderEditorPage() {
                 <span className="w-2.5 h-2.5 bg-red-400 rounded-full" />
                 <span className="w-2.5 h-2.5 bg-yellow-400 rounded-full" />
                 <span className="w-2.5 h-2.5 bg-green-400 rounded-full" />
-                <span className="ml-2 text-[11px] text-gray-400 truncate">{previewUrl.replace("https://", "")}</span>
+                <span className="ml-2 text-xs text-gray-400 truncate">{previewUrl.replace("https://", "")}</span>
               </div>
               <iframe key={previewUrl} src={previewUrl} title="Preview website"
                 className={`w-full border-0 ${device === "mobile" ? "h-[600px]" : "h-[700px]"}`} />

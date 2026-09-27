@@ -7,13 +7,13 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-white hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary-100 text-secondary-900 hover:bg-secondary-200",
-        destructive: "border-transparent bg-destructive-600 text-white hover:bg-destructive-700",
-        outline: "border-gray-300 text-gray-700",
-        success: "border-transparent bg-green-100 text-green-800 hover:bg-green-200",
-        warning: "border-transparent bg-amber-100 text-amber-800 hover:bg-amber-200",
-        info: "border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200",
+        default: "border-transparent bg-primary text-white hover:bg-primary/80 dark:bg-primary dark:text-white dark:hover:bg-primary/80",
+        secondary: "border-transparent bg-secondary-100 text-secondary-900 hover:bg-secondary-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
+        destructive: "border-transparent bg-destructive-600 text-white hover:bg-destructive-700 dark:bg-destructive-600 dark:text-white dark:hover:bg-destructive-700",
+        outline: "border-gray-300 text-gray-700 dark:border-slate-700 dark:text-slate-300",
+        success: "border-transparent bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50",
+        warning: "border-transparent bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50",
+        info: "border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50",
       },
     },
     defaultVariants: {

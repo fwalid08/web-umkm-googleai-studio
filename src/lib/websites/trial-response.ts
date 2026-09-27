@@ -10,7 +10,7 @@ export function trialBlockResponse(reason: "edit" | "create") {
     {
       success: false,
       error: trialBlockMessage(reason),
-      upgrade_url: "/dashboard/settings/billing",
+      upgrade_url: "/dashboard/billing",
     },
     { status: 402 }
   );

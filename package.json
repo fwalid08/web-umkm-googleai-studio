@@ -10,9 +10,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:push": "echo \"→ Jalankan supabase/migrations/001..018 BERURUTAN. Opsi: `supabase db push` (Supabase CLI, butuh access token) atau copy-paste tiap file ke Supabase Dashboard > SQL Editor. Verifikasi urutan dengan `pnpm db:check`. Lihat README # Database Setup + docs/STOCK.md.\"",
+    "db:push": "echo \"→ Jalankan supabase/migrations/001..020 BERURUTAN. Opsi: `supabase db push` (Supabase CLI, butuh access token) atau copy-paste tiap file ke Supabase Dashboard > SQL Editor. Verifikasi urutan dengan `pnpm db:check`. Lihat README # Database Setup + docs/STOCK.md.\"",
     "db:reset": "echo \"⚠️  DEV ONLY: TRUNCATE users, orders, subscriptions, user_templates CASCADE di SQL Editor. Jangan di prod!\"",
-    "db:new": "echo \"Buat file supabase/migrations/019_nama.sql baru (contoh: 019_add_variants.sql). Ikuti format 001..018 + guard idempotent (DROP POLICY IF EXISTS / DO $$ IF NOT EXISTS pg_trigger).\"",
+    "db:new": "echo \"Buat file supabase/migrations/021_nama.sql baru (contoh: 021_add_variants.sql). Ikuti format 001..020 + guard idempotent (DROP POLICY IF EXISTS / DO $$ IF NOT EXISTS pg_trigger).\"",
     "db:check": "ls -1 supabase/migrations/"
   },
   "dependencies": {

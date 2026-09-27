@@ -38,7 +38,7 @@ function FailedContent() {
           </p>
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <Link
-              href="/dashboard/settings/billing"
+              href="/dashboard/billing"
               className="flex-1 text-center py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               Coba Lagi / Pilih Paket Lain

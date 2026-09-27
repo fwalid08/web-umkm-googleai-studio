@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: `Paket Anda maksimal ${limit.max} website. Upgrade untuk menambah website.`,
-          upgrade_url: "/dashboard/settings/billing",
+          upgrade_url: "/dashboard/billing",
         },
         { status: 403 }
       );

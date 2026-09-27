@@ -29,7 +29,7 @@ export default function BusinessSettingsPage() {
       icon: <CreditCard className="h-4 w-4" />,
       iconBg: "bg-emerald-50",
       iconColor: "text-emerald-700",
-      href: "/dashboard/settings/billing",
+      href: "/dashboard/billing",
       badge: "Paling Penting",
       badgeVariant: "success",
     },
@@ -39,7 +39,7 @@ export default function BusinessSettingsPage() {
       icon: <Layers className="h-4 w-4" />,
       iconBg: "bg-purple-50",
       iconColor: "text-purple-700",
-      href: "/dashboard/stores",
+      href: "/dashboard/websites",
     },
     {
       title: "Domain & Alamat Toko",
@@ -78,10 +78,10 @@ export default function BusinessSettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
           {t("settingsHub.title") || "Pengaturan"}
         </h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 mt-1">
           Pengaturan operasional toko, alamat domain, dan langganan paket.
         </p>
         <div className="mt-2.5">
@@ -95,21 +95,21 @@ export default function BusinessSettingsPage() {
             <Card className="hover:shadow-md hover:border-emerald-300 transition-all h-full group">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-gray-900 group-hover:text-emerald-700">
+                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white group-hover:text-emerald-700">
                     <span className={`p-2 rounded-lg ${item.iconBg} ${item.iconColor} shrink-0 group-hover:scale-105 transition-transform`}>
                       {item.icon}
                     </span>
                     <span className="flex-1 min-w-0">{item.title}</span>
                   </CardTitle>
                   {item.badge && (
-                    <Badge variant={item.badgeVariant || "default"} className="text-[10px] shrink-0">
+                    <Badge variant={item.badgeVariant || "default"} className="text-xs shrink-0">
                       {item.badge}
                     </Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-xs leading-relaxed">
+                <CardDescription className="text-sm leading-relaxed">
                   {item.description}
                 </CardDescription>
               </CardContent>
@@ -126,13 +126,13 @@ export default function BusinessSettingsPage() {
               <Settings className="h-4 w-4" />
             </span>
             <span>Akun & Profil</span>
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-xs">
               {t("common.soonFull") || "Coming Soon"}
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-gray-500">
+          <p className="text-sm text-gray-500">
             Jam operasional toko dan notifikasi pesanan WhatsApp sedang disiapkan.
           </p>
         </CardContent>
@@ -141,7 +141,7 @@ export default function BusinessSettingsPage() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm font-bold text-gray-900">
+          <CardTitle className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
             <Shield className="h-4 w-4 text-emerald-600" />
             <span>Aksi Cepat</span>
           </CardTitle>
@@ -149,13 +149,13 @@ export default function BusinessSettingsPage() {
         <CardContent className="pt-0">
           <div className="grid sm:grid-cols-2 gap-3">
             <Button variant="outline" asChild className="w-full gap-2 justify-start">
-              <Link href="/dashboard/settings/billing">
+              <Link href="/dashboard/billing">
                 <CreditCard className="h-4 w-4" />
                 <span>Kelola Paket & Billing</span>
               </Link>
             </Button>
             <Button variant="outline" asChild className="w-full gap-2 justify-start">
-              <Link href="/dashboard/stores">
+              <Link href="/dashboard/websites">
                 <Layers className="h-4 w-4" />
                 <span>Kelola Website</span>
               </Link>

@@ -6,7 +6,18 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useLang } from "@/lib/i18n";
 
 interface Customer {
@@ -62,29 +73,27 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t("soonPages.customersTitle")}</h1>
-        <p className="text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{t("soonPages.customersTitle")}</h1>
+        <p className="text-sm text-gray-500 mt-1">
           {total} {t("soonPages.customersSub")}
         </p>
       </div>
 
       <Card>
         <CardContent className="pt-4 flex flex-col sm:flex-row gap-2">
-          <input
+          <Input
             placeholder={t("orders.searchPh")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && applySearch()}
-            className="flex-1 border rounded-lg px-3 py-2 text-sm"
+            className="flex-1"
+            aria-label={t("orders.searchPh")}
           />
-          <button
-            onClick={applySearch}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
-          >
+          <Button onClick={applySearch}>
             {t("orders.searchBtn")}
-          </button>
+          </Button>
         </CardContent>
       </Card>
 
@@ -95,83 +104,94 @@ export default function CustomersPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t("soonPages.customersTitle")}</CardTitle>
+          <CardDescription>
+            {total} {t("soonPages.customersSub")}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-gray-500">{t("common.loading")}</p>
+            <div className="space-y-2" aria-label={t("common.loading")}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
           ) : customers.length === 0 ? (
             <div className="text-center py-10">
-              <p className="text-lg font-medium text-gray-900">{t("orders.emptyTitle")}</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">{t("orders.emptyTitle")}</p>
               <p className="text-sm text-gray-500 mt-1">{t("orders.emptyDesc")}</p>
             </div>
           ) : (
             <>
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500 border-b">
-                      <th className="pb-2 font-medium">{t("orders.colCustomer")}</th>
-                      <th className="pb-2 font-medium">Order</th>
-                      <th className="pb-2 font-medium text-right">{t("orders.colTotal")}</th>
-                      <th className="pb-2 font-medium">{t("orders.colDate")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("orders.colCustomer")}</TableHead>
+                      <TableHead>Order</TableHead>
+                      <TableHead className="text-right">{t("orders.colTotal")}</TableHead>
+                      <TableHead>{t("orders.colDate")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {customers.map((c) => (
-                      <tr key={`${c.phone || c.email || c.name}`} className="hover:bg-gray-50">
-                        <td className="py-2">
+                      <TableRow key={`${c.phone || c.email || c.name}`}>
+                        <TableCell>
                           <p className="font-medium">{c.name || "—"}</p>
                           <p className="text-xs text-gray-500">
                             {[c.phone, c.email].filter(Boolean).join(" • ") || "—"}
                           </p>
-                        </td>
-                        <td className="py-2">{c.total_orders}×</td>
-                        <td className="py-2 text-right font-medium">
+                        </TableCell>
+                        <TableCell>{c.total_orders}×</TableCell>
+                        <TableCell className="text-right font-medium">
                           Rp {c.total_spent.toLocaleString("id-ID")}
-                        </td>
-                        <td className="py-2 text-gray-500">
+                        </TableCell>
+                        <TableCell className="text-gray-500">
                           {c.last_order ? new Date(c.last_order).toLocaleDateString("id-ID") : "—"}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
               <div className="md:hidden space-y-3">
                 {customers.map((c) => (
-                  <div key={`${c.phone || c.email || c.name}`} className="border rounded-xl p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium">{c.name || "—"}</p>
-                      <span className="text-xs text-gray-500">{c.total_orders}× order</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {[c.phone, c.email].filter(Boolean).join(" • ") || "—"}
-                    </p>
-                    <div className="flex items-center justify-between mt-1 text-sm">
-                      <span className="font-medium">Rp {c.total_spent.toLocaleString("id-ID")}</span>
-                      <span className="text-xs text-gray-500">
-                        {c.last_order ? new Date(c.last_order).toLocaleDateString("id-ID") : "—"}
-                      </span>
-                    </div>
-                  </div>
+                  <Card key={`${c.phone || c.email || c.name}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">{c.name || "—"}</p>
+                        <span className="text-xs text-gray-500">{c.total_orders}× order</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {[c.phone, c.email].filter(Boolean).join(" • ") || "—"}
+                      </p>
+                      <div className="flex items-center justify-between mt-2 text-sm">
+                        <span className="font-semibold">Rp {c.total_spent.toLocaleString("id-ID")}</span>
+                        <span className="text-xs text-gray-500">
+                          {c.last_order ? new Date(c.last_order).toLocaleDateString("id-ID") : "—"}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
-              <div className="flex items-center justify-between mt-4 text-sm">
-                <button
+              <div className="flex items-center justify-between mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={page <= 1}
                   onClick={() => load(page - 1, search)}
-                  className="px-3 py-1.5 border rounded-lg disabled:opacity-50"
                 >
                   {t("orders.prev")}
-                </button>
-                <span className="text-gray-500">{t("orders.page", { p: page, t: totalPages })}</span>
-                <button
+                </Button>
+                <span className="text-sm text-gray-500">{t("orders.page", { p: page, t: totalPages })}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={page >= totalPages}
                   onClick={() => load(page + 1, search)}
-                  className="px-3 py-1.5 border rounded-lg disabled:opacity-50"
                 >
                   {t("orders.next")}
-                </button>
+                </Button>
               </div>
             </>
           )}

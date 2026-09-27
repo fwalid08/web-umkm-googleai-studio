@@ -1,6 +1,11 @@
 # Sprint 2: Custom Domain Real Registrar Integration
 **Duration:** 2 weeks (10 working days)  
-**Goal:** Replace simulated domain purchase with real registrar integration (DomainNameAPI), Midtrans payment, Vercel provisioning, and DNS verification.
+**Goal:** Replace simulated domain purchase with real registrar integration via switchable driver (Porkbun default, DomainNameAPI alternative), payment driver (Midtrans default, Xendit alternative), Vercel provisioning, and DNS verification.
+
+> **Status dokumen:** direvisi pasca-review kesiapan (Sep 2026). Perubahan utama:
+> driver registrar switchable (§2, §5), driver payment Midtrans+Xendit (§4.2),
+> migrasi `020` (bukan 024) dengan backfill (§3), order_id + idempotency (§4.2),
+> notifier port tanpa dependensi Sprint 3 (§7), cron UTC + secret (§8).
 
 ---
 
@@ -20,185 +25,159 @@
 
 ---
 
-## 2. Registrar Selection: DomainNameAPI (domainnameapi.com)
+## 2. Registrar Driver (Switchable Provider)
 
-### Why DomainNameAPI?
-- **ICANN-accredited** registrar (Atak Domain) with 40,000+ resellers in 200+ countries
-- **800+ TLDs** including .com, .net, .org, .id (.co.id, .web.id, .biz.id, etc.)
-- **REST API** + SOAP + PHP/.NET SDKs, comprehensive documentation
-- **OT&E Test Platform** (sandbox) for safe development: `https://ote.domainresellerapi.com/swagger/index.html`
-- **Wholesale pricing tiers**: Reseller ($11.31/.com), Premium ($10.91), Platinum ($10.81), VIP ($10.81)
-- **Default nameservers**: `tr.apiname.com`, `eu.apiname.com`
-- **Indonesian market support**: Local TLDs (.co.id, .web.id), support in Bahasa Indonesia
-- **Free integrations**: WHMCS, WiseCP, HostBill, Blesta, ClientExec, FOSSBilling
-
-### DomainNameAPI REST API Endpoints
-
-**Base URLs:**
-- Production: `https://api.domainresellerapi.com/v1`
-- OT&E (Test): `https://ote.domainresellerapi.com/v1`
-
-**Authentication:** Reseller ID + API Key (sent in request body)
+Semua kode domain memakai interface `RegistrarProvider` (`src/lib/registrar/types.ts`).
+Ganti provider **tanpa mengubah caller** — cukup env + kredensial:
 
 ```
-POST /v1/domain/check        # Domain availability + price
-POST /v1/domain/register     # Register domain
-POST /v1/domain/renew        # Renew domain
-POST /v1/domain/transfer     # Transfer in
-POST /v1/domain/dns          # Create DNS record
-PUT    /v1/domain/dns/{id}   # Update DNS record
-DELETE /v1/domain/dns/{id}   # Delete DNS record
-POST /v1/domain/nameservers  # Set custom nameservers
-GET    /v1/domain/info       # Get domain details
-GET    /v1/tld/pricing       # TLD price list
+REGISTRAR_PROVIDER=porkbun|domainnameapi|mock   (default: mock di dev, porkbun di prod)
 ```
+
+| Provider | Kapan dipakai | Kredensial env |
+|----------|---------------|----------------|
+| **porkbun** (default) | Produksi umum; API JSON sederhana, `.com` murah | `PORKBUN_API_KEY`, `PORKBUN_API_SECRET` (+ `PORKBUN_API_URL` opsional) |
+| **domainnameapi** | Butuh TLD `.id` native (`.co.id`, `.web.id`, `.biz.id`) + tier grosir reseller | `DOMAINNAMEAPI_*_RESELLER_ID` + `*_API_KEY` (varian `_OTE_` untuk sandbox; `DOMAINNAMEAPI_SANDBOX=false` untuk produksi) |
+| **mock** | Dev/test tanpa kredensial; simulasi deterministik (konsisten dengan katalog UI). **Ditolak di production** | — |
+
+Implementasi (sudah ada, jangan tulis ulang):
+
+- `src/lib/registrar/types.ts` — interface `RegistrarProvider` + `REGISTRAR_PROVIDERS`
+- `src/lib/registrar/porkbun.ts` — `PorkbunProvider` (harga USD → IDR via `domains/pricing`)
+- `src/lib/registrar/domainnameapi.ts` — `DomainNameAPIProvider` (auth `resellerId+apiKey` di body; base prod `api.domainresellerapi.com/v1`, OT&E `ote.domainresellerapi.com/v1`)
+- `src/lib/registrar/mock.ts` — `MockRegistrarProvider` (dev/test)
+- `src/lib/registrar/factory.ts` — `getRegistrarProvider()` (singleton), `setRegistrarProvider()` (injeksi test), `resetRegistrarProvider()`, `createRegistrarProvider(config)`
+- Test: `factory.test.ts`, `domainnameapi.test.ts`
+
+Aturan driver:
+
+1. Provider baru = implement `RegistrarProvider` + 1 case di `createRegistrarProvider()` (contoh: Niagahoster/IDCloudHost backlog).
+2. Harga grosir USD **selalu** lewat `src/lib/domains/pricing.ts` (`wholesaleUsdToIdr`, `calcDomainPrice`) — jangan konversi manual di provider.
+3. Semua method yang bisa gagal network return `{ success: false, error }` — **jangan throw** (kecuali kredensial hilang / `getDomainInfo`).
 
 ### Required DNS Records for Vercel
+
 | Type | Name | Value | TTL |
 |------|------|-------|-----|
 | A | @ | 76.76.21.21 | 3600 |
-| CNAME | www | cname.vercel-dns.com | 3600 |
+| CNAME | www | cname.vercel-dns.com. | 3600 |
 | TXT | _saas-verify | {verification_token} | 300 |
+
+> Nilai ini didefinisikan sekali di `src/lib/domains/register.ts`
+> (`VERCEL_DNS_A_VALUE`, `VERCEL_DNS_CNAME_VALUE`, `standardVercelDnsRecords()`) —
+> dashboard dan orchestrator wajib pakai helper itu, bukan literal.
 
 ---
 
-## 3. Database Migration (024_update_domain_orders.sql)
+## 3. Database Migration (020_domain_orders_reconcile.sql)
+
+> Nomor file = `020` (migrasi terakhir repo = `019`). Spec lama menulis `024` — salah, jangan dipakai.
+> File sudah dibuat: `supabase/migrations/020_domain_orders_reconcile.sql` (idempoten, ada blok Down).
+
+Poin penting (detail SQL lihat file migrasi):
+
+1. **Backfill dulu, baru ganti constraint:** `pending_dokumen → registering` (`failed` dipertahankan).
+2. **Enum baru:** `pending_payment, registering, active, failed, expired, deleted, transfer_in`.
+3. **Kolom baru:** `registrar`, `registrar_domain_id`, `nameservers`, `dns_records`,
+   `verification_token`, `auto_renew`, `renewal_reminder_sent_at`, `reseller_tier`,
+   **`payment_reference` (UNIQUE partial — kunci idempotency webhook)**,
+   `payment_provider`, `paid_at`.
+4. **Index:** `expires_at` (partial active, untuk cron), `verification_token` (partial not null),
+   `uq_domain_orders_payment_ref` (UNIQUE partial), `status`.
+5. **RLS pola 011:** `domain_orders_owner_all` (`authenticated`, USING + WITH CHECK `user_id = auth.uid()`); tanpa policy anon.
 
 ```sql
--- 024_update_domain_orders.sql
--- Update domain_orders table for real registrar flow
-
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS registrar VARCHAR(50) DEFAULT 'domainnameapi';
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS registrar_domain_id VARCHAR(100); -- DomainNameAPI domain ID
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS nameservers JSONB DEFAULT '[]'; -- Applied nameservers
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS dns_records JSONB DEFAULT '[]'; -- Applied DNS records
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS verification_token VARCHAR(100); -- For DNS verification
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS auto_renew BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS renewal_reminder_sent_at TIMESTAMPTZ;
-ALTER TABLE domain_orders ADD COLUMN IF NOT EXISTS reseller_tier VARCHAR(20) DEFAULT 'reseller'; -- reseller/premium/platinum/vip
-
--- Update status enum
+-- Ringkasan (lihat file migrasi untuk versi lengkap + Down):
+UPDATE domain_orders SET status = 'registering' WHERE status = 'pending_dokumen';
 ALTER TABLE domain_orders DROP CONSTRAINT IF EXISTS domain_orders_status_check;
-ALTER TABLE domain_orders ADD CONSTRAINT domain_orders_status_check 
-CHECK (status IN (
-    'pending_payment',    -- Midtrans checkout created
-    'registering',        -- Payment success, registering at registrar
-    'active',             -- Registered, DNS verified, connected
-    'expired',            -- Past expiry, not renewed
-    'deleted',            -- Released/deleted
-    'transfer_in'         -- Transfer initiated
-));
-
--- Index for cron queries
-CREATE INDEX IF NOT EXISTS idx_domain_orders_expires_at ON domain_orders(expires_at) WHERE status = 'active';
-CREATE INDEX IF NOT EXISTS idx_domain_orders_verification ON domain_orders(verification_token) WHERE verification_token IS NOT NULL;
-
--- RLS already exists from migration 011 (user_id = auth.uid())
+ALTER TABLE domain_orders ADD CONSTRAINT domain_orders_status_check CHECK (status IN (
+  'pending_payment','registering','active','failed','expired','deleted','transfer_in'));
+-- + ADD COLUMN IF NOT EXISTS ... + index + RLS (lihat file)
 ```
+
+**Matriks transisi status (siapa boleh mengubah):**
+
+| Dari → Ke | Pemicu |
+|---|---|
+| (baru) → `pending_payment` | `POST /api/domains/checkout` |
+| `pending_payment` → `registering` | webhook `paid` |
+| `pending_payment` → `expired` | webhook `canceled`/`failed` |
+| `registering` → `active` | orchestrator sukses |
+| `registering` → `failed` | orchestrator gagal 3x retry (kredit/manual, BUKAN auto-refund) |
+| `active` → `expired` | cron melewati `expires_at` |
+| `active` → `transfer_in` | transfer masuk dimulai |
 
 ---
 
 ## 4. API Contracts
 
-### 4.1 Types (`src/types/domains.ts`)
+### 4.1 Types (`src/types/domains.ts` — sudah dibuat)
+
+`DomainSearchResult`, `DomainOrder`, `DomainStatus`, `DnsRecordEntry`,
+`DomainCheckoutResponse`, plus zod boundary `domainCheckoutSchema` / `domainRenewSchema`.
+Harga dalam **IDR utuh** (konsisten `docs/STOCK.md` F2-3).
+
 ```typescript
-export interface DomainSearchResult {
-  domain: string;
-  tld: string;
-  available: boolean;
-  price_yearly: number;      // IDR (sen) - converted from USD wholesale + margin
-  currency: 'IDR';
-  buyable: boolean;
-  requirement?: string;      // e.g., "KTP required for .co.id"
-  premium: boolean;
-  premium_price?: number;
-  wholesale_price_usd?: number; // For reference
-}
-
-export interface DomainOrder {
-  id: string;
-  user_id: string;
-  website_id: string;
-  domain: string;
-  tld: string;
-  price_yearly: number;
-  status: DomainStatus;
-  registrar: string;
-  registrar_domain_id: string | null;
-  nameservers: string[];
-  dns_records: DnsRecord[];
-  verification_token: string | null;
-  auto_renew: boolean;
-  reseller_tier: string;
-  expires_at: string | null;
-  sandbox: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export type DomainStatus = 
-  | 'pending_payment' 
-  | 'registering' 
-  | 'active' 
-  | 'expired' 
-  | 'deleted' 
-  | 'transfer_in';
-
-export interface DnsRecord {
-  type: 'A' | 'CNAME' | 'TXT' | 'MX';
-  name: string;
-  value: string;
-  ttl: number;
-}
-
 export interface DomainCheckoutResponse {
-  snap_token: string;
-  redirect_url: string;
-  order_id: string;
+  provider: 'midtrans' | 'xendit' | 'mock'; // bukan snap-only
+  order_id: string;      // prefix "domain-" (beda dari "umkm-" subscription)
+  redirect_url: string;  // Snap redirect ATAU Xendit invoice URL
+  token?: string;        // Snap token (midtrans) / invoice id (xendit)
+  gross_amount: number;  // IDR utuh
+  mock: boolean;
 }
 ```
 
 ### 4.2 Endpoints
 
+> **Payment driver** (`src/lib/payments/`): `PAYMENT_PROVIDER=midtrans|xendit|mock`
+> (default midtrans). Route checkout/webhook **wajib** lewat driver
+> (`getPaymentProvider()`), bukan fetch Midtrans langsung — lihat
+> `src/lib/payments/{types,midtrans,xendit,factory}.ts` + test.
+> Aturan keras: webhook **selalu** `verifyWebhook()` + cek idempotency
+> (`paid_at`/status) sebelum update DB; `payment_reference` UNIQUE (§3).
+
 #### GET `/api/domains/search?q=tokoku`
 ```
 Response: { success: true, data: { results: DomainSearchResult[], sandbox: boolean } }
-- Real-time DomainNameAPI availability check
-- Cache results 5 minutes (in-memory with TTL or Upstash Redis)
-- Fallback to cached prices if API fails (log warning)
-- Convert USD wholesale to IDR with 20% margin + payment gateway fee
+- Real-time via registrar driver (getRegistrarProvider().checkAvailability)
+- Cache hasil 5 menit (Upstash bila ada, fallback in-memory — tiru src/lib/rate/limit.ts)
+- Fallback harga katalog bila API down + flag warning "estimasi"
+- Harga jual via calcDomainPrice() (USD wholesale → IDR kurs env + margin % + fee flat)
+- Rate limit: 30 req/menit/user (checkRateLimit)
 ```
 
 #### POST `/api/domains/checkout`
 ```
-Body: { domain: "tokoku.com", cycle: "yearly" }
+Body: { domain: "tokoku.com", cycle: "yearly" }  (domainCheckoutSchema)
 Response: { success: true, data: DomainCheckoutResponse }
 Flow:
-1. Validate domain available (re-check DomainNameAPI)
-2. Calculate price: USD wholesale → IDR (rate 15,500) + 20% margin + Midtrans fee
-3. Create domain_orders record: status=pending_payment, sandbox=true/false
-4. Create Midtrans Snap transaction
-5. Return snap_token + redirect_url
+1. Auth + checkCustomDomainLimit(userId, tier) → 403 + upgrade_url bila Free
+2. Re-check availability via registrar driver (tolak bila sudah laku)
+3. Hitung harga via calcDomainPrice()
+4. order_id = buildDomainOrderId(userId)  // prefix "domain-", unik, terpisah dari "umkm-"
+5. Insert domain_orders: status=pending_payment, payment_reference=order_id,
+   payment_provider, registrar=provider aktif, sandbox=isTest
+6. paymentProvider.createTransaction({ orderId, grossAmount, itemName }) → Midtrans Snap / Xendit invoice
+7. Return provider + redirect_url + token
 ```
 
-#### POST `/api/domains/webhook` (Midtrans callback)
+#### POST `/api/domains/webhook` (callback Midtrans/Xendit)
 ```
-Headers: X-Midtrans-Signature
-Body: Midtrans notification JSON
+Verifikasi: midtrans → sha512(order_id+status_code+gross_amount+SERVER_KEY);
+            xendit → header x-callback-token === XENDIT_CALLBACK_TOKEN (fail-closed).
 Flow:
-1. Verify signature
-2. If settlement:
-   - Update order status=registering
-   - Call DomainNameAPI domain/register
-   - Set nameservers (Vercel: use DomainNameAPI defaults or custom)
-   - Create DNS records (A, CNAME, TXT verification)
-   - Update order: registrar_domain_id, nameservers, dns_records, verification_token
-   - Trigger Vercel domain add (async)
-   - Update order status=active
-   - Update website: custom_domain, custom_domain_verified=true
-3. If deny/expire/cancel:
-   - Update order status=expired
-   - No registrar action needed
+1. verifyWebhook() → 403 bila signature/token invalid (jangan proses)
+2. parseNotification() → status ternormalisasi (paid/pending/challenged/failed/canceled)
+3. Lookup domain_orders by payment_reference; bila tidak ada → 200 + log (agar gateway tidak retry)
+4. Idempotency: bila status=active && paid_at → return deduped:true
+5. paid → update status=registering, paid_at=now → panggil processDomainRegistration(orderId)
+   (orchestrator yang mengubah ke active; webhook JANGAN langsung active)
+6. challenged (CC) → biarkan pending_payment, tandai untuk review
+7. canceled/failed → status=expired (tidak ada aksi registrar)
+8. unknown → log + 200, jangan ubah status
+KEBIJAKAN REFUND: tidak ada auto-refund. Bila paid tapi register gagal 3x
+(1m, 5m, 15m) → status=failed + notifikasi support + kredit manual.
 ```
 
 #### GET `/api/domains/orders`
@@ -208,413 +187,208 @@ Response: { success: true, data: { orders: DomainOrder[] } }
 
 #### POST `/api/domains/renew/:id`
 ```
-Body: { cycle: "yearly" }
-Flow: Similar to checkout but calls DomainNameAPI domain/renew
+Body: { cycle: "yearly" }  (domainRenewSchema)
+Flow: gate limit → buat payment baru (order_id domain baru) → webhook paid →
+      registrar.renewDomain() → expires_at += 1 tahun
 ```
 
 ---
 
-## 5. DomainNameAPI Client Library (`src/lib/domains/domainnameapi.ts`)
+## 5. Registrar Client — Pakai Driver (§2), Jangan Duplikasi
+
+Contoh pemakaian di route (jangan tulis client baru):
 
 ```typescript
-// src/lib/domains/domainnameapi.ts
-const PRODUCTION_BASE = 'https://api.domainresellerapi.com/v1';
-const OTE_BASE = 'https://ote.domainresellerapi.com/v1';
+import { getRegistrarProvider } from '@/lib/registrar/factory';
+import { calcDomainPrice } from '@/lib/domains/pricing';
 
-export interface DomainNameAPIConfig {
-  resellerId: string;
-  apiKey: string;
-  baseUrl: string;
-  isTest: boolean;
-}
+// Search: availability + harga jual
+const registrar = getRegistrarProvider(); // porkbun | domainnameapi | mock via env
+const check = await registrar.checkAvailability('tokoku.com');
+const price = calcDomainPrice(check.wholesaleUsd ?? 0); // bila provider kirim USD
 
-export interface CheckDomainResponse {
-  success: boolean;
-  data?: {
-    domain: string;
-    available: boolean;
-    price: number; // USD wholesale
-    currency: 'USD';
-    premium: boolean;
-    premiumPrice?: number;
-    tld: string;
-  };
-  error?: string;
-}
-
-export interface RegisterDomainResponse {
-  success: boolean;
-  data?: {
-    domainId: string;
-    domain: string;
-    expiresAt: string;
-    nameservers: string[];
-  };
-  error?: string;
-}
-
-export interface DnsRecord {
-  id: string;
-  type: 'A' | 'CNAME' | 'TXT' | 'MX';
-  name: string;
-  content: string;
-  ttl: number;
-}
-
-export class DomainNameAPIClient {
-  private config: DomainNameAPIConfig;
-
-  constructor(config: DomainNameAPIConfig) {
-    this.config = config;
-  }
-
-  private async request<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
-    const url = `${this.config.baseUrl}${endpoint}`;
-    const payload = {
-      resellerId: this.config.resellerId,
-      apiKey: this.config.apiKey,
-      ...body,
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    return res.json();
-  }
-
-  // Check domain availability + price
-  async checkDomain(domain: string): Promise<CheckDomainResponse> {
-    return this.request<CheckDomainResponse>('/domain/check', { domain });
-  }
-
-  // Register domain
-  async registerDomain(params: {
-    domain: string;
-    period: number; // years
-    nameservers?: string[];
-    contacts?: Record<string, unknown>; // Optional: registrant contacts
-  }): Promise<RegisterDomainResponse> {
-    return this.request<RegisterDomainResponse>('/domain/register', {
-      domain: params.domain,
-      period: params.period,
-      nameservers: params.nameservers || ['tr.apiname.com', 'eu.apiname.com'],
-      contacts: params.contacts,
-    });
-  }
-
-  // Renew domain
-  async renewDomain(domainId: string, period: number): Promise<RegisterDomainResponse> {
-    return this.request<RegisterDomainResponse>('/domain/renew', {
-      domainId,
-      period,
-    });
-  }
-
-  // Create DNS record
-  async createDnsRecord(domainId: string, record: Omit<DnsRecord, 'id'>): Promise<{ success: boolean; data?: { id: string } }> {
-    return this.request(`/domain/${domainId}/dns`, record);
-  }
-
-  // Update DNS record
-  async updateDnsRecord(domainId: string, recordId: string, record: Partial<DnsRecord>): Promise<{ success: boolean }> {
-    return this.request(`/domain/${domainId}/dns/${recordId}`, { ...record, _method: 'PUT' });
-  }
-
-  // Delete DNS record
-  async deleteDnsRecord(domainId: string, recordId: string): Promise<{ success: boolean }> {
-    return this.request(`/domain/${domainId}/dns/${recordId}`, { _method: 'DELETE' });
-  }
-
-  // Set nameservers
-  async setNameservers(domainId: string, nameservers: string[]): Promise<{ success: boolean }> {
-    return this.request(`/domain/${domainId}/nameservers`, { nameservers });
-  }
-
-  // Get domain info
-  async getDomainInfo(domainId: string): Promise<{ success: boolean; data?: any }> {
-    return this.request(`/domain/info`, { domainId });
-  }
-
-  // Get TLD pricing
-  async getTldPricing(): Promise<{ success: boolean; data?: Record<string, number> }> {
-    return this.request('/tld/pricing', {});
-  }
-}
-
-// Factory function
-export function createDomainNameAPIClient(isTest: boolean = true): DomainNameAPIClient {
-  const resellerId = isTest 
-    ? process.env.DOMAINNAMEAPI_OTE_RESELLER_ID 
-    : process.env.DOMAINNAMEAPI_RESELLER_ID;
-  const apiKey = isTest
-    ? process.env.DOMAINNAMEAPI_OTE_API_KEY
-    : process.env.DOMAINNAMEAPI_API_KEY;
-  const baseUrl = isTest ? OTE_BASE : PRODUCTION_BASE;
-
-  if (!resellerId || !apiKey) {
-    throw new Error('DomainNameAPI credentials not configured');
-  }
-
-  return new DomainNameAPIClient({ resellerId, apiKey, baseUrl, isTest });
-}
+// Webhook paid → orchestrator (src/lib/domains/register.ts) yang memanggil
+// registrar.registerDomain() + setDnsRecords() — route JANGAN panggil langsung.
 ```
+
+> Spec lama memuat dump class `DomainNameAPIClient` ~100 baris — **dihapus**,
+> sudah diimplementasikan sebagai `DomainNameAPIProvider`
+> (`src/lib/registrar/domainnameapi.ts`) dengan test (`domainnameapi.test.ts`).
 
 ---
 
-## 6. Vercel Integration (Unchanged)
+## 6. Vercel Integration (`src/lib/vercel/domains.ts` — sudah dibuat)
 
-```typescript
-// src/lib/vercel/domains.ts
-const VERCEL_API = 'https://api.vercel.com/v10';
+`addDomainToVercel()` (409 = ok/idempoten), `verifyDomainOnVercel()`,
+`removeDomainFromVercel()` — typed result `{ ok, error? }`, tidak throw untuk
+error API. Auth `VERCEL_TOKEN` (+ `VERCEL_TEAM_ID` opsional). Test: `domains.test.ts`.
 
-async function addDomainToVercel(domain: string, teamId: string): Promise<void> {
-  await fetch(`${VERCEL_API}/domains/${domain}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ teamId }),
-  });
-}
-
-async function verifyDomainOnVercel(domain: string, teamId: string): Promise<boolean> {
-  const res = await fetch(`${VERCEL_API}/domains/${domain}/verify`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.VERCEL_TOKEN}` },
-  });
-  return res.ok;
-}
+### Required Env Vars (lihat `.env.example` untuk daftar lengkap)
 ```
-
-### Required Env Vars (Updated)
-```
-# DomainNameAPI
-DOMAINNAMEAPI_RESELLER_ID=your_reseller_id
-DOMAINNAMEAPI_API_KEY=your_api_key
-DOMAINNAMEAPI_OTE_RESELLER_ID=ote_reseller_id
-DOMAINNAMEAPI_OTE_API_KEY=ote_api_key
+# Registrar driver
+REGISTRAR_PROVIDER=porkbun|domainnameapi|mock
+PORKBUN_API_KEY= / PORKBUN_API_SECRET= / PORKBUN_API_URL= (opsional)
 DOMAINNAMEAPI_SANDBOX=true|false
-
+DOMAINNAMEAPI_RESELLER_ID= / DOMAINNAMEAPI_API_KEY=
+DOMAINNAMEAPI_OTE_RESELLER_ID= / DOMAINNAMEAPI_OTE_API_KEY=
+DEFAULT_NAMESERVERS= (opsional, koma-separated)
 # Vercel
 VERCEL_TOKEN=vercel_xxx
 VERCEL_TEAM_ID=team_xxx
-
-# Midtrans
+# Payment driver
+PAYMENT_PROVIDER=midtrans|xendit|mock
 MIDTRANS_SERVER_KEY=SB-Mid-server-xxx
 MIDTRANS_CLIENT_KEY=SB-Mid-client-xxx
-MIDTRANS_WEBHOOK_URL=https://app.umkm.id/api/domains/webhook
-
-# USD to IDR conversion rate (update periodically)
+MIDTRANS_IS_PRODUCTION=false
+XENDIT_SECRET_KEY=xnd_production_xxx
+XENDIT_CALLBACK_TOKEN=callback_xxx
+# Harga domain (lihat src/lib/domains/pricing.ts)
 USD_TO_IDR_RATE=15500
 DOMAIN_PRICE_MARGIN_PERCENT=20
+DOMAIN_GATEWAY_FEE_FLAT=4000
 ```
 
 ---
 
-## 7. Domain Registration Orchestrator (`src/lib/domains/register.ts`)
+## 7. Domain Registration Orchestrator (`src/lib/domains/register.ts` — sudah dibuat)
 
-```typescript
-// src/lib/domains/register.ts
-import { createServiceSupabaseClient } from '@/lib/supabase/service';
-import { createDomainNameAPIClient } from './domainnameapi';
-import { addDomainToVercel } from '@/lib/vercel/domains';
-import { dispatchNotification } from '@/lib/notify/dispatcher';
+`processDomainRegistration(orderId, deps?)` — dipakai webhook setelah `paid`.
+Idempoten (order `active` → return langsung, aman untuk retry webhook).
+Dependensi di-inject (`registrar`, `addToVercel`, `notifier`, `verificationToken`)
+sehingga bisa di-test tanpa network/DB.
 
-export async function processDomainRegistration(orderId: string): Promise<void> {
-  const supabase = createServiceSupabaseClient();
-  const isTest = process.env.DOMAINNAMEAPI_SANDBOX === 'true';
-  const client = createDomainNameAPIClient(isTest);
-  const usdToIdr = parseInt(process.env.USD_TO_IDR_RATE || '15500');
-  const margin = parseInt(process.env.DOMAIN_PRICE_MARGIN_PERCENT || '20');
+> **Tidak ada** import `@/lib/notify/dispatcher` (Sprint 3). Notifikasi lewat
+> port `DomainNotifier` (default `logDomainNotifier`: log server). Sprint 3
+> mengganti implementasi port tanpa mengubah orchestrator ini.
 
-  // 1. Get order details
-  const { data: order } = await supabase
-    .from('domain_orders')
-    .select('*, websites!inner(user_id, name, whatsapp)')
-    .eq('id', orderId)
-    .single();
-
-  if (!order) throw new Error('Order not found');
-
-  // 2. Register domain via DomainNameAPI
-  const registerResult = await client.registerDomain({
-    domain: order.domain,
-    period: 1, // 1 year
-    nameservers: ['tr.apiname.com', 'eu.apiname.com'], // DomainNameAPI defaults
-  });
-
-  if (!registerResult.success || !registerResult.data) {
-    throw new Error(`Domain registration failed: ${registerResult.error}`);
-  }
-
-  const { domainId, nameservers } = registerResult.data;
-
-  // 3. Create DNS records (A, CNAME, TXT for verification)
-  const verificationToken = `saas-verify-${crypto.randomUUID().slice(0, 8)}`;
-  const dnsRecords = [
-    { type: 'A', name: '@', content: '76.76.21.21', ttl: 3600 },
-    { type: 'CNAME', name: 'www', content: 'cname.vercel-dns.com', ttl: 3600 },
-    { type: 'TXT', name: '_saas-verify', content: verificationToken, ttl: 300 },
-  ];
-
-  const createdDnsRecords = [];
-  for (const record of dnsRecords) {
-    const result = await client.createDnsRecord(domainId, record);
-    if (result.success && result.data?.id) {
-      createdDnsRecords.push({ ...record, id: result.data.id });
-    }
-  }
-
-  // 4. Update order with registrar details
-  await supabase
-    .from('domain_orders')
-    .update({
-      status: 'active',
-      registrar_domain_id: domainId,
-      nameservers,
-      dns_records: createdDnsRecords,
-      verification_token: verificationToken,
-      expires_at: registerResult.data.expiresAt,
-    })
-    .eq('id', orderId);
-
-  // 5. Add domain to Vercel (async, don't block)
-  addDomainToVercel(order.domain, process.env.VERCEL_TEAM_ID!).catch(err => {
-    console.error('Vercel domain add failed:', err);
-    // Will be retried by cron or manual
-  });
-
-  // 6. Update website with custom domain
-  await supabase
-    .from('websites')
-    .update({
-      custom_domain: order.domain,
-      custom_domain_verified: false, // Will be verified by cron
-      custom_domain_verification_token: verificationToken,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', order.website_id)
-    .eq('user_id', order.websites.user_id);
-
-  // 7. Send notification to merchant
-  await dispatchNotification({
-    event: {
-      type: 'domain.registered',
-      website_id: order.website_id,
-      payload: {
-        domain: order.domain,
-        expires_at: registerResult.data.expiresAt,
-        message: `Domain ${order.domain} berhasil didaftarkan! Verifikasi DNS sedang berjalan.`,
-      },
-    },
-  });
-}
-```
+Alur: ambil order (harus `registering`) → `registrar.registerDomain()` →
+`setDnsRecords()` (A/CNAME/TXT via `standardVercelDnsRecords()`) → update
+`domain_orders` → `active` → Vercel add (best-effort, gagal → warn + cron retry) →
+set `websites.custom_domain` + token (`verified=false`; cron verify yang
+mengaktifkan) → `notifier.domainRegistered()`. Gagal → `notifier.domainFailed()`
++ throw (caller retry 1m/5m/15m; 3x → `failed`).
 
 ---
 
-## 8. Cron Jobs
+## 8. Cron Jobs (jadwal UTC di `vercel.json`; WIB = UTC+7)
 
-### 8.1 DNS Verification Cron (Enhanced)
+Auth semua cron: header `x-cron-secret: CRON_SECRET` atau `?secret=CRON_SECRET`
+(Vercel Cron tidak support custom header — pola yang sama dengan `/api/domains/verify`).
+
+### 8.1 DNS Verification Cron (Enhanced, sudah ada — tingkatkan)
 **Schedule:** Every 5 minutes (`*/5 * * * *`)
 **Endpoint:** `POST /api/domains/verify`
-**Logic:**
-1. Fetch websites with `custom_domain_verified=false` AND `custom_domain_verification_token` not null
-2. Check DNS TXT record `_saas-verify.{domain}` matches `verification_token` via Cloudflare DNS-over-HTTPS
-3. If verified:
-   - Update website: `custom_domain_verified=true`, `custom_domain_verified_at=now()`
-   - Call Vercel verify API
-   - Update domain_orders: `verification_token=null`
+**Tambahan Sprint 2:**
+1. Setelah TXT cocok → panggil `verifyDomainOnVercel()` (sekarang masih comment)
+2. Update `domain_orders`: `verification_token=null` bila website terverifikasi
+3. Retry Vercel add untuk order `active` yang belum terdaftar (best-effort)
 
-### 8.2 Renewal Reminder Cron
-**Schedule:** Daily 09:00 WIB (`0 9 * * *`)
+### 8.2 Renewal Reminder Cron (baru)
+**Schedule:** Daily 09:00 WIB = **02:00 UTC** (`0 2 * * *`)
 **Endpoint:** `POST /api/domains/renewal-reminders`
 **Logic:**
-1. Fetch active domains expiring in 30, 14, 7, 1 days
-2. For each, check if reminder already sent for that interval
-3. Send WA + Email reminder with renewal link
+1. Fetch order `active` expiring dalam 30/14/7/1 hari
+2. Cek `renewal_reminder_sent_at` per interval (jangan spam tiap hari)
+3. Kirim via `DomainNotifier` port (log dulu; WA/email penuh di Sprint 3)
 4. Update `renewal_reminder_sent_at`
 
-### 8.3 Auto-Renewal Cron
-**Schedule:** Daily 02:00 WIB (`0 2 * * *`)
+### 8.3 Auto-Renewal Cron (baru)
+**Schedule:** Daily 02:00 WIB = **19:00 UTC** (`0 19 * * *`)
 **Endpoint:** `POST /api/domains/auto-renew`
 **Logic:**
-1. Fetch active domains with `auto_renew=true` expiring in 14 days
-2. Check reseller account balance via DomainNameAPI
-3. Create Midtrans payment (one-time)
-4. On success → call DomainNameAPI domain/renew → extend `expires_at` by 1 year
+1. Fetch order `active` + `auto_renew=true` expiring ≤ 14 hari
+2. Cek saldo reseller via registrar (bila provider support; bila tidak → skip + alert)
+3. Buat payment via **payment driver** (bukan Midtrans langsung)
+4. Webhook `paid` → `registrar.renewDomain()` → `expires_at` += 1 tahun
 
 ---
 
-## 9. UI Specification (Unchanged)
+## 9. UI Specification (update dari versi simulasi)
+
+Halaman existing `app/dashboard/domain/page.tsx` (simulasi: `POST /api/domains/order`
+langsung aktif) **wajib direfactor**:
 
 ### 9.1 Domain Search Page (`/dashboard/domain/page.tsx`)
 ```
-- Search input: real-time debounced (300ms) → calls /api/domains/search
-- Results grid: Domain | TLD | Status (Tersedia/Tidak) | Harga/Tahun | [Beli]
-- "Tidak tersedia" rows greyed out
-- Premium domains highlighted with badge
-- Loading skeleton during search
+- Search input: debounce 300ms → GET /api/domains/search (tambah skeleton + badge premium)
+- Kolom hasil: Domain | TLD | Status | Harga/Tahun (formatIdr) | [Beli]
+- "Tidak tersedia" greyed out; premium badge; warning "estimasi" bila fallback katalog
+- Rate-limit 429 → toast "Terlalu sering, coba lagi"
 ```
 
-### 9.2 Domain Checkout Flow
+### 9.2 Domain Checkout Flow (baru — ganti buyDomain langsung)
 ```
-1. Click "Beli" → POST /api/domains/checkout → redirect to Midtrans Snap
-2. Midtrans success → redirect to /billing/success?tier=domain&domain=tokoku.com
-3. Success page: "Domain sedang didaftarkan..." + polling /api/domains/orders
-4. When status=active → "Domain aktif & tersambung!" + show DNS records
+1. Klik "Beli" → POST /api/domains/checkout → redirect ke redirect_url
+   (Midtrans Snap ATAU Xendit invoice — jangan hardcode Snap)
+2. Sukses bayar → redirect /billing/domain-success?order_id=domain-... (polling /api/domains/orders)
+3. status=registering → "Domain sedang didaftarkan..."
+4. status=active → "Domain aktif & tersambung!" + DNS dari standardVercelDnsRecords()
+5. status=failed → "Pendaftaran gagal, tim support dihubungi" (tanpa janji refund otomatis)
 ```
 
-### 9.3 Domain Orders Page (`/dashboard/settings/domains`)
+### 9.3 Domain Orders Page (`/dashboard/settings/domains` atau tab di /dashboard/domain)
 ```
 Table: Domain | Status | Harga/Tahun | Berlaku Hingga | Auto-renew | Aksi
 Actions: Perpanjang, Matikan Auto-renew, Lihat DNS, Hapus (jika expired)
+Free tier: banner "Custom domain tersedia di Starter+" (checkCustomDomainLimit)
 ```
 
 ---
 
-## 10. Task Breakdown (Updated)
+## 10. Task Breakdown (revisi — driver + payment + sunset simulasi)
 
-| Task | File(s) | Estimate |
-|------|---------|----------|
-| 1. Create migration 024_domain_orders.sql | `supabase/migrations/024_update_domain_orders.sql` | 2h |
-| 2. DomainNameAPI client library | `src/lib/domains/domainnameapi.ts` | 4h |
-| 3. Vercel domains client | `src/lib/vercel/domains.ts` | 2h |
-| 4. Domain search API (DomainNameAPI + cache) | `app/api/domains/search/route.ts` | 3h |
-| 5. Domain checkout API (Midtrans integration) | `app/api/domains/checkout/route.ts` | 4h |
-| 6. Midtrans webhook for domains | `app/api/domains/webhook/route.ts` | 4h |
-| 7. Domain registration orchestrator (register + DNS + Vercel) | `src/lib/domains/register.ts` | 6h |
-| 8. DNS verification cron enhancement | `app/api/domains/verify/route.ts` | 2h |
-| 9. Renewal reminder cron | `app/api/domains/renewal-reminders/route.ts` | 3h |
-| 10. Auto-renewal cron | `app/api/domains/auto-renew/route.ts` | 4h |
-| 11. Domain search UI | `app/dashboard/domain/page.tsx` | 4h |
-| 12. Domain orders UI | `app/dashboard/settings/domains/page.tsx` | 3h |
-| 13. Checkout success page for domains | `app/billing/domain-success/page.tsx` | 2h |
-| 14. Integration testing (OT&E → production) | Manual + script | 4h |
-| 15. Error handling & retry logic | Various | 3h |
+| Task | File(s) | Estimate | Status |
+|------|---------|----------|--------|
+| 0. DONE: registrar driver + DomainNameAPI + mock + factory + test | `src/lib/registrar/*` | — | ✅ Selesai |
+| 0. DONE: payment driver Midtrans+Xendit+mock + test | `src/lib/payments/*` | — | ✅ Selesai |
+| 0. DONE: migrasi 020 + RLS + index | `supabase/migrations/020_domain_orders_reconcile.sql` | — | ✅ Selesai |
+| 0. DONE: hapus `trialing` (checkout/register/status/webhook/type) | `app/api/...`, `src/types/index.ts` | — | ✅ Selesai |
+| 0. DONE: `checkCustomDomainLimit` + `getTierLimits` | `src/lib/billing/limits.ts` | — | ✅ Selesai |
+| 0. DONE: Vercel client + test | `src/lib/vercel/domains.ts` | — | ✅ Selesai |
+| 0. DONE: orchestrator + notifier port | `src/lib/domains/register.ts` | — | ✅ Selesai |
+| 0. DONE: pricing + types + env + vercel.json cron | `src/lib/domains/pricing.ts`, `src/types/domains.ts`, `.env.example` | — | ✅ Selesai |
+| 1. Jalankan migrasi 020 staging + verifikasi checklist | Supabase Dashboard > SQL Editor | 1h | TODO |
+| 2. Domain search API (driver + cache 5m + rate limit + zod) | `app/api/domains/search/route.ts` (refactor) | 3h | TODO |
+| 3. Domain checkout API (gate limit + driver payment) | `app/api/domains/checkout/route.ts` (baru) | 4h | TODO |
+| 4. Domain webhook (verify + idempotency + orchestrator) | `app/api/domains/webhook/route.ts` (baru) | 5h | TODO |
+| 5. Domain orders + renew API | `app/api/domains/orders/route.ts`, `renew/[id]/route.ts` (baru) | 3h | TODO |
+| 6. DNS verify cron: Vercel verify + token null + retry add | `app/api/domains/verify/route.ts` (refactor) | 2h | TODO |
+| 7. Renewal reminder cron | `app/api/domains/renewal-reminders/route.ts` (baru) | 3h | TODO |
+| 8. Auto-renewal cron | `app/api/domains/auto-renew/route.ts` (baru) | 4h | TODO |
+| 9. Refactor domain UI → Snap/invoice flow + polling | `app/dashboard/domain/page.tsx` | 4h | TODO |
+| 10. Domain orders UI + success page | `app/dashboard/settings/domains/page.tsx`, `app/billing/domain-success/page.tsx` | 4h | TODO |
+| 11. Sunset `/api/domains/order` simulasi (hapus setelah UI pindah) | `app/api/domains/order/route.ts` | 1h | TODO |
+| 12. Integration testing (sandbox registrar → staging) | Manual + script | 4h | TODO |
+| 13. RLS test checklist (user A vs B) + rate limit test | Manual | 2h | TODO |
 
-**Total: ~54 hours (~7 days + buffer)**
+**Sisa: ~40 jam (~5–6 hari + buffer).**
+
+Entry criteria (jangan mulai Task 1–13 sebelum ini):
+- [ ] Migrasi 001..020 jalan berurutan di staging (termasuk **015 hapus trial** — checkout Sprint 2 menulis `incomplete` yang hanya valid pasca-015; forward-fix login di `src/lib/auth/auth.ts` sudah masuk)
+- [ ] Keputusan provider awal: Porkbun atau DomainNameAPI (env staging diset)
+- [ ] Kredensial sandbox staging terisi + saldo test cukup
+- [ ] `pnpm typecheck && pnpm lint && pnpm test` hijau di main
 
 ---
 
 ## 11. Acceptance Criteria
 
-- [ ] Domain search returns real availability + price in < 2s (cached)
-- [ ] Purchase flow: Midtrans payment → DomainNameAPI register → Vercel add → DNS verify → active in < 60s
+- [ ] Domain search returns real availability + price in < 2s (cached) via driver aktif
+- [ ] Ganti `REGISTRAR_PROVIDER` porkbun↔domainnameapi↔mock tanpa ubah route (smoke search)
+- [ ] Ganti `PAYMENT_PROVIDER` midtrans↔xendit tanpa ubah route (checkout sandbox keduanya)
+- [ ] Purchase flow: payment paid → `registering` → register → Vercel add → DNS → `active` in < 60s
+- [ ] Webhook retry (kirim ulang notifikasi sama) → `deduped:true`, tidak ada double-register
+- [ ] Webhook signature/token invalid → 403, tidak ada perubahan DB
 - [ ] DNS verification cron works: TXT record checked, website updated, Vercel verified
-- [ ] Renewal reminders sent at T-30, T-14, T-7, T-1 via WA + email
-- [ ] Auto-renewal processes payment + extends domain via DomainNameAPI
+- [ ] Renewal reminders sent at T-30, T-14, T-7, T-1 (cek `renewal_reminder_sent_at`, anti-spam)
+- [ ] Auto-renewal processes payment + extends domain via registrar driver
 - [ ] Dashboard shows correct status, DNS records, expiry
-- [ ] Free tier users blocked from custom domain (403 + upgrade prompt)
-- [ ] OT&E sandbox mode works with DomainNameAPI test environment
-- [ ] All API endpoints have RLS + rate limiting
-- [ ] Rollback: if registrar fails after payment → refund Midtrans, mark order failed
-- [ ] .id TLDs (.co.id, .web.id) available and working
-- [ ] Pricing shows IDR with proper USD→IDR conversion + margin
+- [ ] Free tier users blocked from custom domain checkout (403 + upgrade prompt)
+- [ ] Sandbox mode works (mock tanpa kredensial; OT&E/sandbox provider dengan kredensial test)
+- [ ] All API endpoints have RLS + rate limiting + zod boundary
+- [ ] Registrar fails after payment → retry 3x → `failed` + support notified (TANPA janji auto-refund; kredit manual)
+- [ ] .id TLDs: `requirement` tampil di UI sebelum checkout; TLD `buyable=false` tidak bisa checkout (422)
+- [ ] Pricing IDR via `calcDomainPrice()` (kurs env + margin + fee), dibulatkan ke 500
 
 ---
 
@@ -622,49 +396,66 @@ Actions: Perpanjang, Matikan Auto-renew, Lihat DNS, Hapus (jika expired)
 
 | Scenario | Handling |
 |----------|----------|
-| DomainNameAPI API down | Cache last known availability; show warning "Harga/tersedia estimasi" |
-| Midtrans payment success but DomainNameAPI register fails | Retry 3x (1m, 5m, 15m); if still fails → refund, notify support |
-| Vercel domain add fails | Queue retry; domain still works via DNS, Vercel sync later |
-| DNS verification never passes | After 7 days → email support; manual intervention |
-| Domain transfer in | Separate flow: EPP code validation → DomainNameAPI transfer → same DNS setup |
-| Premium domain pricing | Show premium price; confirm before checkout |
-| Insufficient reseller balance | Check balance before register; show "Top up reseller account" alert |
-| .id TLD requirements (KTP) | Validate requirements via API response; show in UI before checkout |
+| Registrar API down | Cache harga/avail terakhir 5m; UI warning "estimasi"; checkout diblokir bila re-check gagal |
+| Payment paid tapi register gagal | Retry 3x (1m, 5m, 15m); gagal → `failed` + notifikasi support + kredit manual. **Tidak ada auto-refund** (Snap/Xendit refund manual via dashboard) |
+| Vercel domain add fails | Best-effort + warn log; verify cron retry; domain tetap jalan via DNS |
+| DNS verification never passes | Setelah 7 hari → email support; intervensi manual |
+| Domain transfer in | EPP code → `transferDomain()` driver → DNS sama; status `transfer_in` |
+| Premium domain pricing | Tampilkan `premium_price`; konfirmasi sebelum checkout |
+| Insufficient reseller balance | Cek saldo sebelum register (bila provider support); alert "Top up reseller account" |
+| .id TLD requirements (KTP/SIUP) | Tampilkan `requirement` di UI; `buyable=false` → 422 (validasi dokumen manual, bukan via API) |
+| Webhook dobel / replay attack | `verifyWebhook()` + UNIQUE `payment_reference` + cek `paid_at` (deduped) |
+| Provider switch tengah jalan | Order lama tetap pakai `registrar`/`payment_provider` yang tercatat di barisnya |
 
 ---
 
 ## 13. Testing Checklist
 
-- [ ] Search `example.com` → available, price correct (USD wholesale + margin)
+- [ ] Search `example.com` → available, harga = `calcDomainPrice()` (cek breakdown)
 - [ ] Search `google.com` → unavailable
-- [ ] Purchase `.com` via Midtrans sandbox → registered in DomainNameAPI OT&E
-- [ ] DNS records created: A, CNAME, TXT
+- [ ] `REGISTRAR_PROVIDER` switch porkbun/domainnameapi/mock tanpa ubah kode
+- [ ] `PAYMENT_PROVIDER` switch midtrans/xendit/mock (sandbox) tanpa ubah kode
+- [ ] Purchase `.com` via payment sandbox → terdaftar di registrar sandbox
+- [ ] Webhook retry → `deduped:true`, tidak double-register
+- [ ] Webhook signature/token salah → 403, DB tidak berubah
+- [ ] DNS records created: A, CNAME, TXT (via `standardVercelDnsRecords()`)
 - [ ] Vercel domain added + verified
 - [ ] Public site accessible via custom domain
-- [ ] Renewal reminder email/WA sent
-- [ ] Auto-renew extends expiry date via DomainNameAPI
+- [ ] Renewal reminder tercatat (`renewal_reminder_sent_at`), tidak spam harian
+- [ ] Auto-renew extends expiry date via registrar driver
 - [ ] Expired domain → status=expired, website falls back to subdomain
-- [ ] .co.id / .web.id registration works (with KTP requirement notice)
+- [ ] RLS: user A tidak bisa baca/ubah `domain_orders` user B (manual SQL checklist §020)
+- [ ] `.co.id` / `.web.id`: requirement tampil, `buyable=false` → 422 bila dipaksa
 
 ---
 
 ## 14. Rollback Plan
 
-1. Feature flag: `NEXT_PUBLIC_REAL_DOMAINS=false` → falls back to simulation
-2. Revert migration 024
-3. Keep old `/api/domains/order` (simulated) as fallback
-4. DNS verification cron continues to work for existing domains
+1. Provider switch instan: `REGISTRAR_PROVIDER=mock` → search/order kembali simulasi
+   (tanpa revert kode). Sama untuk payment: `PAYMENT_PROVIDER=mock`.
+2. Revert migrasi 020 → jalankan blok Down di file migrasi (kembalikan enum 008).
+3. Route simulasi lama `/api/domains/order` dipertahankan sampai Task 11 selesai.
+4. DNS verification cron tetap jalan untuk domain existing (independen dari provider).
 
 ---
 
-## 15. DomainNameAPI Account Setup Checklist
+## 15. Provider Account Setup Checklist
 
-- [ ] Register reseller account at `https://dm.apiname.com/Account/Register`
-- [ ] Verify email, login to reseller panel
-- [ ] Get **Production** Reseller ID + API Key from Integration section
-- [ ] Get **OT&E** Reseller ID + API Key for testing
-- [ ] Add credit/deposit for domain registrations
-- [ ] Configure default nameservers: `tr.apiname.com`, `eu.apiname.com`
-- [ ] Set retail pricing in panel (or calculate dynamically via API)
-- [ ] Test OT&E: check domain → register → verify DNS → renew
-- [ ] Switch to production credentials for launch
+### Porkbun
+- [ ] Buat akun + dapatkan API key/secret (Account → API Access)
+- [ ] (Opsional) `PORKBUN_API_URL` override untuk test
+- [ ] Set `DEFAULT_NAMESERVERS` bila tidak pakai default Vercel
+- [ ] Test staging: search → checkout mock payment → register → DNS → Vercel
+
+### DomainNameAPI
+- [ ] Register reseller di `https://dm.apiname.com/Account/Register`, verifikasi email
+- [ ] Ambil **Production** Reseller ID + API Key (bagian Integration)
+- [ ] Ambil **OT&E** Reseller ID + API Key untuk testing
+- [ ] Tambah kredit/deposit untuk registrasi domain
+- [ ] Test OT&E: search → register → DNS → renew (`DOMAINNAMEAPI_SANDBOX=true`)
+- [ ] Produksi: `DOMAINNAMEAPI_SANDBOX=false` + kredensial produksi
+
+### Payment (Midtrans + Xendit)
+- [ ] Midtrans: server/client key sandbox → test Snap → webhook `paid` terverifikasi
+- [ ] Xendit: secret key + callback token → test invoice → callback terverifikasi
+- [ ] Produksi: `MIDTRANS_IS_PRODUCTION=true` / Xendit live key; callback URL terdaftar di dashboard masing-masing

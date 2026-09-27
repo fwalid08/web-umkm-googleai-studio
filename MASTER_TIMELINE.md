@@ -75,7 +75,7 @@
 
 | Week | Sprint | Focus | Deliverables |
 |------|--------|-------|--------------|
-| 3 | Sprint 2 | Porkbun + Midtrans | Domain search, checkout, webhook, registration |
+| 3 | Sprint 2 | Registrar driver + payment driver | Domain search, checkout, webhook, registration |
 | 4 | Sprint 2 | Vercel + DNS | Auto-provision, verification cron, renewal reminders |
 | 5 | Sprint 3 | Fonnte + Dispatcher | WA gateway, order notifications, preferences UI, retry logic |
 
@@ -138,7 +138,7 @@
 | 022_stock_movements.sql | Sprint 7 | Week 9 | |
 | 023_add_stock_to_products.sql | Sprint 7 | Week 9 | |
 | 023b_stock_rpc.sql | Sprint 7 | Week 9 | |
-| 024_update_domain_orders.sql | Sprint 2 | Week 3 | Before domain API |
+| 020_domain_orders_reconcile.sql | Sprint 2 | Week 3 | Before domain API |
 | 025_product_translations.sql | Sprint 9 | Week 12 | Last |
 
 ---
@@ -158,16 +158,28 @@ NEXTAUTH_URL=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
-# Billing (Midtrans)
+# Billing (payment driver: midtrans|xendit|mock)
 MIDTRANS_SERVER_KEY=
 MIDTRANS_CLIENT_KEY=
 MIDTRANS_IS_PRODUCTION=false
 NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=
+PAYMENT_PROVIDER=midtrans
+XENDIT_SECRET_KEY=
+XENDIT_CALLBACK_TOKEN=
 
-# Domains (Porkbun)
+# Domains (registrar driver: porkbun|domainnameapi|mock)
+REGISTRAR_PROVIDER=
 PORKBUN_API_KEY=
 PORKBUN_API_SECRET=
-PORKBUN_SANDBOX=true
+DOMAINNAMEAPI_SANDBOX=true
+DOMAINNAMEAPI_RESELLER_ID=
+DOMAINNAMEAPI_API_KEY=
+DOMAINNAMEAPI_OTE_RESELLER_ID=
+DOMAINNAMEAPI_OTE_API_KEY=
+DEFAULT_NAMESERVERS=
+USD_TO_IDR_RATE=15500
+DOMAIN_PRICE_MARGIN_PERCENT=20
+DOMAIN_GATEWAY_FEE_FLAT=4000
 
 # Vercel (Domain Provisioning)
 VERCEL_TOKEN=
@@ -195,7 +207,7 @@ ALLOW_DEMO_AUTH=false
 | Sprint | Unit Tests | Integration Tests | E2E Tests | Manual QA |
 |--------|------------|-------------------|-----------|-----------|
 | 1 | API routes, limit checks | Product CRUD + RLS | Add/edit/delete products | ✅ |
-| 2 | Porkbun client, webhook | Domain purchase flow | Search → Buy → Verify | ✅ |
+| 2 | Registrar/payment driver, webhook | Domain purchase flow | Search → Buy → Verify | ✅ |
 | 3 | Dispatcher, retry logic | Order → WA notification | Place order → receive WA | ✅ |
 | 4 | Tier limit helpers | Registration → Free tier | Register → check limits | ✅ |
 | 5 | Page CRUD, slug gen | Page create → public view | Create page → visit URL | ✅ |
@@ -210,7 +222,7 @@ ALLOW_DEMO_AUTH=false
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Porkbun API changes | Low | High | Abstract behind interface; mock for tests |
+| Registrar API changes | Low | High | Abstract behind driver interface; mock for tests |
 | Fonnte delivery failures | Medium | Medium | Retry + dead letter queue; email fallback |
 | Supabase Realtime costs | Medium | Medium | Monitor usage; disable non-critical tables |
 | Migration data loss | Low | Critical | Backup before each; test on staging; rollback scripts |
@@ -225,7 +237,7 @@ ALLOW_DEMO_AUTH=false
 ### Pre-Launch (Week 12-13)
 - [ ] All migrations run on production
 - [ ] Environment variables set in Vercel
-- [ ] Porkbun production keys configured
+- [ ] Registrar production keys configured (porkbun atau domainnameapi + sandbox=false)
 - [ ] Fonnte production account verified
 - [ ] SendGrid domain authenticated
 - [ ] Midtrans production mode enabled
@@ -241,7 +253,7 @@ ALLOW_DEMO_AUTH=false
 - [ ] Smoke test all critical paths
 - [ ] Monitor error rates (Sentry)
 - [ ] Monitor Realtime connections
-- [ ] Monitor Midtrans webhook success rate
+- [ ] Monitor payment webhook success rate (midtrans/xendit)
 - [ ] Monitor Fonnte delivery rate
 - [ ] Customer support ready for inquiries
 

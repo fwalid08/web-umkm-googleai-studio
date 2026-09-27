@@ -21,7 +21,7 @@ export async function GET() {
         success: true,
         data: {
           tier,
-          status: "trialing",
+          status: "active",
           current_period_end: demo?.trial_ends_at || null,
           billing_cycle: "monthly",
           max_websites: TIER_WEBSITE_FALLBACK[tier] || 1,
@@ -69,7 +69,7 @@ export async function GET() {
         success: true,
         data: {
           tier,
-          status: sub?.status || "trialing",
+          status: sub?.status || "active",
           current_period_end: sub?.current_period_end || null,
           billing_cycle: sub?.billing_cycle || "monthly",
           max_websites: TIER_WEBSITE_FALLBACK[tier] || 1,
@@ -80,7 +80,7 @@ export async function GET() {
         success: true,
         data: {
           tier: "free",
-          status: "trialing",
+          status: "active",
           current_period_end: null,
           billing_cycle: "monthly",
           max_websites: 1,

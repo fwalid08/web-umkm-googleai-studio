@@ -16,6 +16,7 @@ import type {
   RegistrantContact,
   RegistrarCapabilities,
 } from "./types";
+import { wholesaleUsdToIdr } from "@/lib/domains/pricing";
 
 const DEFAULT_NAMESERVERS = ["ns1.vercel-dns.com", "ns2.vercel-dns.com"];
 
@@ -89,6 +90,7 @@ export class PorkbunProvider implements RegistrarProvider {
   private readonly apiUrl: string;
   private readonly defaultNameservers: string[];
   private readonly defaultContactData?: RegistrantContact;
+  private readonly fetchFn: typeof fetch;
 
   constructor(config: RegistrarConfig) {
     this.apiKey = config.apiKey;
@@ -96,6 +98,7 @@ export class PorkbunProvider implements RegistrarProvider {
     this.apiUrl = config.apiUrl || "https://api.porkbun.com/api/json/v3";
     this.defaultNameservers = config.defaultNameservers || DEFAULT_NAMESERVERS;
     this.defaultContactData = config.defaultContactData;
+    this.fetchFn = config.fetchFn ?? fetch;
   }
 
   private async request<T>(endpoint: string, body: Record<string, unknown> = {}): Promise<T> {
@@ -106,7 +109,7 @@ export class PorkbunProvider implements RegistrarProvider {
       ...body,
     };
 
-    const res = await fetch(url, {
+    const res = await this.fetchFn(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -131,9 +134,10 @@ export class PorkbunProvider implements RegistrarProvider {
   }
 
   async checkAvailability(domain: string): Promise<DomainAvailabilityResult> {
+    // Harga grosir Porkbun dalam USD -> konversi ke IDR via kurs env (domains/pricing).
     const tld = domain.split(".").slice(1).join(".");
     const pricing = await this.getPricing(tld);
-    const price = pricing?.registration || 0;
+    const price = pricing?.registration ? wholesaleUsdToIdr(pricing.registration) : 0;
 
     try {
       const result = await this.request<{ avail: string }>("/domain/check", { domain });
@@ -142,7 +146,7 @@ export class PorkbunProvider implements RegistrarProvider {
       return {
         domain,
         available,
-        priceYearly: Math.round(price * 100), // convert to sen (IDR)
+        priceYearly: price,
         currency: "IDR",
         premium: false,
       };
@@ -152,7 +156,7 @@ export class PorkbunProvider implements RegistrarProvider {
       return {
         domain,
         available: false,
-        priceYearly: Math.round(price * 100),
+        priceYearly: price,
         currency: "IDR",
         premium: false,
         reason: "API error",
@@ -259,7 +263,7 @@ export class PorkbunProvider implements RegistrarProvider {
       status: this.mapStatus(result.status),
       expiresAt: new Date(result.expirationDate).toISOString(),
       nameservers: result.nameservers,
-      autoRenew: result.autoreneew === "YES",
+      autoRenew: result.autorenew === "YES",
       registrarLock: result.registrarLock === "YES",
     };
   }

@@ -35,6 +35,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ProductForm, DEFAULT_PRODUCT_CATEGORIES } from "@/components/dashboard/product-form";
 import { useLang } from "@/lib/i18n";
@@ -288,7 +289,7 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t("products.title")}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{t("products.title")}</h1>
             <Badge variant="outline" className="text-xs">
               {websiteName}
             </Badge>
@@ -351,7 +352,7 @@ export default function ProductsPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-gray-500 font-medium">{t("products.totalProducts")}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{totalProducts}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{totalProducts}</p>
           </CardContent>
         </Card>
         <Card>
@@ -483,15 +484,14 @@ export default function ProductsPage() {
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedProducts.includes(prod.id)}
-                        onChange={() => toggleSelectProduct(prod.id)}
+                        onCheckedChange={() => toggleSelectProduct(prod.id)}
                         aria-label={t("products.selectProduct", { name: prod.name })}
-                        className="mt-0.5 h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                        className="mt-0.5"
                       />
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-base leading-snug truncate">
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-base leading-snug truncate">
                           {prod.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
@@ -518,7 +518,7 @@ export default function ProductsPage() {
                         </div>
                       </div>
                     </div>
-                    <span className="text-base font-bold text-gray-900 shrink-0 whitespace-nowrap">
+                    <span className="text-base font-bold text-gray-900 dark:text-white shrink-0 whitespace-nowrap">
                       Rp {prod.price.toLocaleString("id-ID")}
                     </span>
                   </div>
@@ -563,7 +563,7 @@ export default function ProductsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-gray-500 hover:text-gray-900"
+                          className="text-gray-500 hover:text-gray-900 dark:text-white"
                           aria-label={t("products.productActions", { name: prod.name })}
                         >
                           <MoreHorizontal className="w-4 h-4" aria-hidden="true" />

@@ -192,7 +192,7 @@ export const id = {
     compareTitle: "Perbandingan Fitur Lengkap",
     faqTitle: "Pertanyaan yang Sering Diajukan",
     guaranteeTitle: "Jaminan Transparan Tanpa Risiko",
-    guaranteeDesc: "Coba gratis 14 hari tanpa kartu kredit. 0% potongan komisi penjualan. Batalkan atau ganti paket kapan saja.",
+    guaranteeDesc: "Paket Gratis selamanya tanpa kartu kredit. 0% potongan komisi penjualan. Batalkan atau ganti paket kapan saja.",
     tiers: {
       free: [
         "1 Website Toko Online",

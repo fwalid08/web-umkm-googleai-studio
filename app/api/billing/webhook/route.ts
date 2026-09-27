@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, data: { order_id, status: "canceled" } });
     }
 
-    // pending / authorize / dll: biarkan trialing, tetap 200.
+    // pending / authorize / dll: biarkan incomplete, tetap 200.
     return NextResponse.json({
       success: true,
       data: { order_id, status: sub.status, ignored: transaction_status },

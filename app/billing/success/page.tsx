@@ -140,7 +140,7 @@ function SuccessContent() {
               → Ke Dashboard
             </Link>
             <Link
-              href="/dashboard/settings/billing"
+              href="/dashboard/billing"
               className="text-gray-500 hover:text-gray-800 hover:underline"
             >
               Kelola Billing

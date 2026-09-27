@@ -63,7 +63,7 @@ const nextAuth = NextAuth({
           if (error || !data.user) return null;
           const { data: profile } = await supabase
             .from("users")
-            .select("id, name, business_type, tier, subdomain, trial_ends_at, avatar_url")
+            .select("id, name, business_type, tier, subdomain, avatar_url")
             .eq("id", data.user.id)
             .single();
           if (!profile) return null;
@@ -83,7 +83,7 @@ const nextAuth = NextAuth({
             tier: (profile.tier as any) || "free",
             subdomain: active?.subdomain ?? profile.subdomain,
             business_type: profile.business_type,
-            trial_ends_at: profile.trial_ends_at,
+            trial_ends_at: null, // Sprint 04: kolom di-drop (015) — session selalu free-murni
           } as any;
         } catch {
           return null;
@@ -116,14 +116,13 @@ const nextAuth = NextAuth({
                 .maybeSingle();
               return !!subClash;
             });
-            const trialEndsAt = new Date(); trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+            // Sprint 04: tanpa trial — profil Free permanen (015 men-drop trial_ends_at).
             const { error } = await supabase.from("users").insert({
               id: newId,
               email: user.email!,
               name: user.name || user.email!.split("@")[0],
               business_type: "retail",
               tier: "free",
-              trial_ends_at: trialEndsAt.toISOString(),
               avatar_url: user.image || null,
               auth_provider: "google",
               google_id: account?.providerAccountId || null,
@@ -139,7 +138,7 @@ const nextAuth = NextAuth({
             (user as any).tier = "free";
             (user as any).subdomain = subdomain;
             (user as any).business_type = "retail";
-            (user as any).trial_ends_at = trialEndsAt.toISOString();
+            (user as any).trial_ends_at = null; // Sprint 04: tanpa trial
           } else {
             (user as any).id = existing.id;
             (user as any).tier = (existing as any).tier;
@@ -181,20 +180,18 @@ const nextAuth = NextAuth({
           const svc = createServiceSupabaseClient();
           const { data: u } = await svc
             .from("users")
-            .select("tier, business_type, trial_ends_at, active_website_id, subdomain")
+            .select("tier, business_type, active_website_id, subdomain")
             .eq("id", token.id as string)
             .maybeSingle();
           const row = u as {
             tier?: string | null;
             business_type?: string | null;
-            trial_ends_at?: string | null;
             active_website_id?: string | null;
             subdomain?: string | null;
           } | null;
           if (row) {
             if (row.tier) token.tier = row.tier;
             if (row.business_type) token.business_type = row.business_type;
-            if (row.trial_ends_at) token.trial_ends_at = row.trial_ends_at;
             let resolved: string | null = null;
             if (row.active_website_id) {
               const { data: site } = await svc

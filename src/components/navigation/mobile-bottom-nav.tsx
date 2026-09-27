@@ -14,8 +14,16 @@ export function MobileBottomNav() {
     { name: t("nav.products"), href: "/dashboard/products", icon: Store },
     { name: t("nav.orders"), href: "/dashboard/orders", icon: ShoppingBag },
     { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
-    { name: t("nav.stores"), href: "/dashboard/stores", icon: Layers },
+    { name: t("nav.stores"), href: "/dashboard/websites", icon: Layers },
   ];
+
+  const isTabActive = (tab: { href: string; exact?: boolean }) => {
+    if (tab.exact) return pathname === tab.href;
+    if (tab.href === "/dashboard/builder") {
+      return pathname.startsWith("/dashboard/builder") || pathname.includes("/builder");
+    }
+    return pathname === tab.href || pathname.startsWith(tab.href + "/");
+  };
 
   return (
     <nav
@@ -24,11 +32,7 @@ export function MobileBottomNav() {
     >
       <div className="flex items-center justify-around max-w-md mx-auto">
         {tabs.map((tab) => {
-          const isActive = tab.exact
-            ? pathname === tab.href
-            : pathname === tab.href ||
-              (pathname.startsWith(tab.href + "/") && tab.href !== "/dashboard/settings") ||
-              (tab.href === "/dashboard/builder" && pathname.includes("/builder"));
+          const isActive = isTabActive(tab);
 
           const Icon = tab.icon;
 
@@ -48,7 +52,7 @@ export function MobileBottomNav() {
                   <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-emerald-600 rounded-full" />
                 )}
               </div>
-              <span className="text-[10px] mt-1 tracking-tight leading-none truncate max-w-[62px]">
+              <span className="text-xs mt-1 tracking-tight leading-none truncate max-w-[72px]">
                 {tab.name}
               </span>
             </Link>

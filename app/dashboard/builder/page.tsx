@@ -12,7 +12,7 @@ export default function DashboardBuilderRedirect() {
         const res = await fetch("/api/websites");
         const contentType = res.headers.get("content-type") || "";
         if (!res.ok || !contentType.includes("application/json")) {
-          router.replace("/dashboard/stores");
+          router.replace("/dashboard/websites");
           return;
         }
         const json = await res.json();
@@ -20,10 +20,10 @@ export default function DashboardBuilderRedirect() {
           const activeId = json.data.active_website_id || json.data.websites[0].id;
           router.replace(`/dashboard/${activeId}/builder`);
         } else {
-          router.replace("/dashboard/stores");
+          router.replace("/dashboard/websites");
         }
       } catch {
-        router.replace("/dashboard/stores");
+        router.replace("/dashboard/websites");
       }
     })();
   }, [router]);

@@ -67,20 +67,20 @@ The codebase implements a **multi-tenant website builder for Indonesian UMKM** w
 #### Requirements
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| PRD-2.1 | Integrate real registrar API (recommend: **Porkbun API** — simple, cheap, supports .id via partner) | P0 |
-| PRD-2.2 | Domain search: real-time availability check via registrar API (not simulation) | P0 |
-| PRD-2.3 | Domain purchase: Midtrans checkout → webhook → registrar register → set nameservers → DNS verification | P0 |
-| PRD-2.4 | Auto-provision on Vercel: `vercel domains add {domain} --scope={team}` via Vercel API | P0 |
-| PRD-2.5 | DNS records managed: A `@ 76.76.21.21`, CNAME `www cname.vercel-dns.com`, TXT `_saas-verify` for verification | P0 |
-| PRD-2.6 | Domain lifecycle: `pending_payment → registering → active → expired → deleted` | P0 |
-| PRD-2.7 | Auto-renewal: cron 30/14/7/1 days before expiry → Midtrans recurring → registrar renew | P1 |
+| PRD-2.1 | Registrar via **driver switchable** (`REGISTRAR_PROVIDER=porkbun\|domainnameapi\|mock`): **Porkbun default** (API JSON sederhana, `.com` murah); **DomainNameAPI alternatif** untuk TLD `.id` native (`.co.id`, `.web.id`) + tier grosir reseller | P0 |
+| PRD-2.2 | Domain search: real-time availability check via registrar driver (bukan simulasi) | P0 |
+| PRD-2.3 | Domain purchase: payment driver (`PAYMENT_PROVIDER=midtrans\|xendit\|mock`) checkout → webhook terverifikasi + idempoten → registrar register → DNS → verifikasi | P0 |
+| PRD-2.4 | Auto-provision on Vercel: `addDomainToVercel` via Vercel API (best-effort, cron retry) | P0 |
+| PRD-2.5 | DNS records managed: A `@ 76.76.21.21`, CNAME `www cname.vercel-dns.com.`, TXT `_saas-verify` untuk verification | P0 |
+| PRD-2.6 | Domain lifecycle: `pending_payment → registering → active → expired/deleted` (`failed` bila register gagal 3x → kredit manual, tanpa auto-refund) | P0 |
+| PRD-2.7 | Auto-renewal: cron 30/14/7/1 hari sebelum expiry → payment driver → registrar renew | P1 |
 | PRD-2.8 | Transfer-in support (EPP code) | P2 |
 
-#### Registrar Choice: **Porkbun API**
-- REST API, JSON, API key + secret
-- Supports .com, .net, .org, .id (via partner), .co.id
-- Price: ~$8.50/.com/yr, ~Rp 150k/.co.id/yr
-- Webhook for domain events (optional, we poll)
+#### Registrar Choice: **driver switchable (Porkbun default, DomainNameAPI alternatif)**
+- Porkbun: REST JSON, API key + secret; `.com` ~$8.50/thn; implementasi `src/lib/registrar/porkbun.ts`
+- DomainNameAPI: ICANN-accredited (Atak Domain), 800+ TLD termasuk `.co.id`/`.web.id`, tier grosir reseller; sandbox OT&E; implementasi `src/lib/registrar/domainnameapi.ts`
+- Mock: simulasi deterministik untuk dev/test (dilarang di produksi)
+- Lihat `SPRINT_02_DOMAINS.md` §2 (driver) + §15 (setup akun keduanya)
 
 #### Acceptance Criteria
 - [ ] Search `tokoku.com` → real availability + real price in < 2s
@@ -288,7 +288,7 @@ UPDATE subscriptions SET status = 'active' WHERE status = 'trialing';
 | 021 | Create `stock_movements` table + RLS | Sprint 7 |
 | 022 | Create `product_variants` table + RLS | Sprint 7 |
 | 023 | Add `stock`, `low_stock_threshold` to `products` | Sprint 7 |
-| 024 | Update `domain_orders` for real registrar flow (status enum, registrar_id, nameservers) | Sprint 2 |
+| 020 | Update `domain_orders` for real registrar flow (rekonsiliasi 008: backfill status, registrar, payment_reference UNIQUE, RLS) | Sprint 2 |
 
 ---
 
@@ -358,7 +358,7 @@ POST   /api/user/notifications/test          { provider, phone } → test WA
 | Sprint | Theme | Duration | Key Deliverables |
 |--------|-------|----------|------------------|
 | **Sprint 1** | Products Management | 2 weeks | DB, API, UI, Builder integration, Image upload |
-| **Sprint 2** | Custom Domain Real Integration | 2 weeks | Porkbun API, Midtrans flow, Vercel provisioning, DNS |
+| **Sprint 2** | Custom Domain Real Integration | 2 weeks | Registrar driver (Porkbun/DomainNameAPI), payment driver (Midtrans/Xendit), Vercel provisioning, DNS |
 | **Sprint 3** | WA Notifications + Notification Center | 1 week | Fonnte config, Event triggers, Log UI, Retry logic |
 | **Sprint 4** | Remove Trial + Free Tier Limits | 1 week | Migration, Tier enforcement, Pricing update, Migration script |
 | **Sprint 5** | Multi-page CMS | 2 weeks | Pages table, API, Editor, Public routes, SEO |
@@ -400,7 +400,7 @@ POST   /api/user/notifications/test          { provider, phone } → test WA
 
 ## 10. Open Questions
 
-1. **Registrar final choice**: Porkbun confirmed? Or evaluate Niagahoster/IDCloudHost for .id native?
+1. **Registrar**: RESOLVED — driver switchable (Porkbun default, DomainNameAPI untuk `.id` native, mock untuk dev). Provider baru tinggal implement `RegistrarProvider`.
 2. **WA Gateway**: Fonnte approved? Need Meta Business verification for customer templates?
 3. **Email provider**: SendGrid vs Resend vs Supabase SMTP?
 4. **PDF generation**: `@react-pdf/renderer` (client) vs Puppeteer (Edge Function) vs `pdfkit` (server)?

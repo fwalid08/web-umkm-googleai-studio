@@ -12,7 +12,7 @@ export default function BillingPage() {
   return (
     <div className="space-y-4">
       <BillingPanel />
-      <Link href="/dashboard/settings" className="text-sm text-primary-600 hover:underline">
+      <Link href="/dashboard/settings" className="text-sm text-emerald-700 hover:text-emerald-900 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300">
         ← Kembali ke Pengaturan
       </Link>
     </div>

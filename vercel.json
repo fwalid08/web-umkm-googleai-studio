@@ -5,6 +5,16 @@
       "path": "/api/domains/verify",
       "schedule": "*/5 * * * *",
       "method": "POST"
+    },
+    {
+      "path": "/api/domains/renewal-reminders",
+      "schedule": "0 2 * * *",
+      "method": "POST"
+    },
+    {
+      "path": "/api/domains/auto-renew",
+      "schedule": "0 19 * * *",
+      "method": "POST"
     }
   ]
 }
