@@ -15,6 +15,8 @@ import { isValidSubdomain, normalizeHost, rootHost, isRootHost } from "@/lib/ten
 
 export interface PublicSiteData {
   subdomain: string;
+  /** ID website (baris websites.id) — dipakai form live (booking) untuk submit. */
+  websiteId: string;
   name: string;
   businessType: string;
   palette: ColorPalette;
@@ -222,6 +224,7 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
 
   const name = user.name || "Toko Kami";
   return {
+    websiteId: user.id,
     subdomain: user.subdomain ?? "",
     name,
     businessType: user.business_type ?? "retail",

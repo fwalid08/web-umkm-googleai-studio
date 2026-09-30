@@ -2,6 +2,7 @@ import { describe, expect, it, afterEach } from "vitest";
 import {
   calcDomainPrice,
   formatIdr,
+  retailPriceForProvider,
   wholesaleUsdToIdr,
 } from "./pricing";
 
@@ -55,5 +56,24 @@ describe("domain pricing (Sprint 2)", () => {
 
   it("formatIdr id-ID", () => {
     expect(formatIdr(199000)).toBe("Rp199.000");
+  });
+
+  it("retailPriceForProvider: mock = katalog apa adanya", () => {
+    setEnv({ USD_TO_IDR_RATE: "15500", DOMAIN_PRICE_MARGIN_PERCENT: "20", DOMAIN_GATEWAY_FEE_FLAT: "4000" });
+    expect(retailPriceForProvider("mock", 199000)).toBe(199000);
+  });
+
+  it("retailPriceForProvider: real = grosir IDR + margin + fee (bulat 500)", () => {
+    setEnv({ USD_TO_IDR_RATE: "15500", DOMAIN_PRICE_MARGIN_PERCENT: "20", DOMAIN_GATEWAY_FEE_FLAT: "4000" });
+    const wholesaleIdr = wholesaleUsdToIdr(11.31); // 175305
+    // Sama dengan calcDomainPrice(11.31).total = 214500
+    expect(retailPriceForProvider("porkbun", wholesaleIdr)).toBe(calcDomainPrice(11.31).total);
+  });
+
+  it("retailPriceForProvider: fail-closed (0/negatif/NaN/provider asing -> 0)", () => {
+    setEnv({ USD_TO_IDR_RATE: "15500", DOMAIN_PRICE_MARGIN_PERCENT: "20", DOMAIN_GATEWAY_FEE_FLAT: "4000" });
+    expect(retailPriceForProvider("porkbun", 0)).toBe(0);
+    expect(retailPriceForProvider("porkbun", -1)).toBe(0);
+    expect(retailPriceForProvider("porkbun", NaN)).toBe(0);
   });
 });

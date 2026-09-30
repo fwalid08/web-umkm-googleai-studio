@@ -217,7 +217,7 @@ export default function OnboardingPage() {
                   {t("onboarding.viewSite")}
                 </a>
                 <button
-                  onClick={() => router.push(websiteId ? `/dashboard/${websiteId}/builder` : "/dashboard")}
+                  onClick={() => router.push('/dashboard/builder')}
                   className="flex-1 py-3 rounded-xl border font-medium hover:bg-gray-50"
                 >
                   {t("onboarding.toWorkspace")}

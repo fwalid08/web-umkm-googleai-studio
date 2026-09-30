@@ -21,6 +21,82 @@ export interface NewOrderNotification {
   ownerPhone?: string;
 }
 
+export interface NewBookingNotification {
+  subdomain: string;
+  bookingId: string;
+  customerName: string;
+  serviceName: string;
+  bookingDate: string;
+  bookingTime: string;
+  ownerPhone?: string;
+}
+
+export function formatNewBookingMessage(n: NewBookingNotification): string {
+  return (
+    `Booking baru #${n.bookingId} di ${n.subdomain}: ` +
+    `${n.customerName} — ${n.serviceName} (${n.bookingDate} ${n.bookingTime})`
+  );
+}
+
+/**
+ * Kirim notifikasi booking baru. Tidak pernah throw untuk kegagalan kirim;
+ * hanya melempar untuk kesalahan programmer (payload tidak valid).
+ */
+export async function notifyNewBooking(
+  n: NewBookingNotification,
+  opts: NotifyOptions = {}
+): Promise<NotifyResult> {
+  if (!n || !n.subdomain || !n.bookingId || !n.customerName) {
+    throw new Error("notifyNewBooking: subdomain/bookingId/customerName wajib diisi");
+  }
+
+  const { provider, apiKey, apiUrl, timeoutMs, fetchFn } = resolveOptions(opts);
+
+  // Jalur mock (default): provider belum dikonfigurasi → log rapi, booking tetap sukses.
+  if (!provider || !SUPPORTED_PROVIDERS.includes(provider as (typeof SUPPORTED_PROVIDERS)[number])) {
+    console.log(
+      `[new-booking] tenant=${n.subdomain} booking=${n.bookingId} service=${n.serviceName} customer=${n.customerName}`
+    );
+    return { sent: false, reason: "no-provider" };
+  }
+  if (!apiKey) {
+    console.log(
+      `[new-booking] tenant=${n.subdomain} booking=${n.bookingId} customer=${n.customerName} (provider=${provider} tanpa API key)`
+    );
+    return { sent: false, reason: "no-api-key" };
+  }
+
+  const endpoint = apiUrl || DEFAULT_ENDPOINTS[provider];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchFn(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        to: n.ownerPhone ?? undefined,
+        message: formatNewBookingMessage(n),
+        booking_id: n.bookingId,
+        service: n.serviceName,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.error(`[new-booking] notify gagal: provider=${provider} status=${res.status} booking=${n.bookingId}`);
+      return { sent: false, reason: "send-failed" };
+    }
+    return { sent: true, reason: "sent" };
+  } catch (err) {
+    console.error(`[new-booking] notify gagal: provider=${provider} booking=${n.bookingId}`, err);
+    return { sent: false, reason: "send-failed" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export interface NotifyResult {
   sent: boolean;
   reason: string;

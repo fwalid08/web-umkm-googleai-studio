@@ -99,13 +99,13 @@ export async function POST(request: NextRequest) {
         const supabaseTrial = createServiceSupabaseClient();
         const { data: trialUser } = await supabaseTrial
           .from("users")
-          .select("tier, trial_ends_at")
+          .select("tier")
           .eq("id", userId)
           .maybeSingle();
         if (
           trialUser &&
           isTrialExpired(
-            (trialUser as { trial_ends_at?: string | null }).trial_ends_at ?? null,
+            null,
             (trialUser as { tier?: string | null }).tier ?? "free"
           )
         ) {
@@ -169,6 +169,22 @@ export async function POST(request: NextRequest) {
     if (error || !site) {
       console.error("Create website error:", error);
       return NextResponse.json({ success: false, error: "Gagal membuat website" }, { status: 500 });
+    }
+
+    // Create default homepage page for new website
+    const { error: pageError } = await supabase.from("store_pages").insert({
+      website_id: site.id,
+      title: "Halaman Utama",
+      slug: "home",
+      type: "custom",
+      is_published: true,
+      is_homepage: true,
+      layout: { rows: [], sections: [] },
+      content: "",
+    });
+    if (pageError) {
+      console.error("Create default homepage error:", pageError);
+      // Don't fail website creation, but log the error
     }
 
     await supabase.from("users").update({ active_website_id: site.id }).eq("id", userId);

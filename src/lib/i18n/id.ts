@@ -24,11 +24,12 @@ export const id = {
   nav: {
     dashboard: "Dashboard",
     orders: "Pesanan",
+    bookings: "Booking",
     products: "Produk",
     customers: "Pelanggan",
     analytics: "Analytics",
     settings: "Pengaturan",
-    builder: "Desain Toko",
+    builder: "Desain",
     myWebsites: "Website Saya",
     billing: "Billing",
     business: "Kelola Bisnis",
@@ -254,7 +255,7 @@ export const id = {
     st: { baru: "Baru", konfirmasi: "Konfirmasi", dikirim: "Dikirim", selesai: "Selesai" },
   },
   builder: {
-    title: "Desain Toko",
+    title: "Desain",
     subtitle: "Pilih konsep tampilan & sesuaikan warna, teks hero, serta katalog produk Anda.",
     continue: "✏️ Lanjutkan edit website Anda →",
     useBtn: "Pilih",

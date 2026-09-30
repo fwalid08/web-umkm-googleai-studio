@@ -55,7 +55,7 @@ export async function GET() {
     const supabase = createServiceSupabaseClient();
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select("tier, trial_ends_at, business_type")
+      .select("tier, business_type")
       .eq("id", sessionUser.id)
       .single();
 
@@ -84,7 +84,7 @@ export async function GET() {
 
     const allowed = getAllowedTemplateNames(
       user.tier,
-      user.trial_ends_at,
+      null,
       list.map((t) => t.name as string)
     );
 
@@ -152,7 +152,7 @@ export async function GET() {
         custom_config: customConfig,
         is_default: isDefault,
         tier: user.tier,
-        trial_active: isTrialActive(user.trial_ends_at),
+        trial_active: false,
         subdomain_url: subdomainUrl(site.subdomain),
       },
     });
@@ -184,7 +184,7 @@ export async function PUT(request: NextRequest) {
     const supabase = createServiceSupabaseClient();
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select("tier, trial_ends_at")
+      .select("tier")
       .eq("id", sessionUser.id)
       .single();
 
@@ -192,10 +192,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
     }
 
-    // P0-2 Trial enforcement: trial expired → kunci edit (GET tetap boleh).
-    if (isTrialExpired(user.trial_ends_at, user.tier)) {
-      return trialBlockResponse("edit");
-    }
+    // Sprint 04: trial system removed, no enforcement needed
 
     const site = await getActiveWebsite(sessionUser.id);
     if (!site) {
@@ -223,7 +220,7 @@ export async function PUT(request: NextRequest) {
       .eq("is_active", true);
     const allowed = getAllowedTemplateNames(
       user.tier,
-      user.trial_ends_at,
+      null,
       (allTemplates ?? []).map((t) => t.name as string)
     );
     if (!allowed.includes(template.name as string)) {
@@ -247,7 +244,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Limit Free: maksimal 5 item produk
-    const trialActive = isTrialActive(user.trial_ends_at);
+    const trialActive = false;
     if (user.tier === "free" && !trialActive && countProductItems(merged.sections) > FREE_PRODUCT_MAX) {
       return NextResponse.json(
         {

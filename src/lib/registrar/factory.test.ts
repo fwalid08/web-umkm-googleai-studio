@@ -8,7 +8,6 @@ import {
   resetRegistrarProvider,
   setRegistrarProvider,
 } from "./factory";
-import { DomainNameAPIProvider } from "./domainnameapi";
 import { MockRegistrarProvider } from "./mock";
 import { PorkbunProvider } from "./porkbun";
 
@@ -17,11 +16,6 @@ const ENV_KEYS = [
   "ALLOW_MOCK_REGISTRAR",
   "PORKBUN_API_KEY",
   "PORKBUN_API_SECRET",
-  "DOMAINNAMEAPI_SANDBOX",
-  "DOMAINNAMEAPI_OTE_RESELLER_ID",
-  "DOMAINNAMEAPI_OTE_API_KEY",
-  "DOMAINNAMEAPI_RESELLER_ID",
-  "DOMAINNAMEAPI_API_KEY",
   "DEFAULT_NAMESERVERS",
 ] as const;
 
@@ -46,10 +40,9 @@ afterEach(() => {
 });
 
 describe("registrar factory (driver switchable)", () => {
-  it("mendukung porkbun, domainnameapi, mock", () => {
-    expect(getSupportedProviders()).toEqual(["porkbun", "domainnameapi", "mock"]);
+  it("mendukung porkbun, mock", () => {
+    expect(getSupportedProviders()).toEqual(["porkbun", "mock"]);
     expect(isProviderSupported("porkbun")).toBe(true);
-    expect(isProviderSupported("domainnameapi")).toBe(true);
     expect(isProviderSupported("niagahoster")).toBe(false);
   });
 
@@ -59,18 +52,6 @@ describe("registrar factory (driver switchable)", () => {
     const p = getRegistrarProvider();
     expect(p.id).toBe("mock");
     expect(getRegistrarProvider()).toBe(p); // singleton
-  });
-
-  it("REGISTRAR_PROVIDER=domainnameapi memakai kredensial OT&E saat sandbox", () => {
-    setEnv({
-      REGISTRAR_PROVIDER: "domainnameapi",
-      DOMAINNAMEAPI_SANDBOX: "true",
-      DOMAINNAMEAPI_OTE_RESELLER_ID: "ote-123",
-      DOMAINNAMEAPI_OTE_API_KEY: "ote-key",
-    });
-    const p = getRegistrarProvider();
-    expect(p).toBeInstanceOf(DomainNameAPIProvider);
-    expect(p.id).toBe("domainnameapi");
   });
 
   it("REGISTRAR_PROVIDER=porkbun tanpa key -> throw eksplisit", () => {
@@ -89,9 +70,6 @@ describe("registrar factory (driver switchable)", () => {
     expect(
       createRegistrarProvider({ provider: "porkbun", apiKey: "k", apiSecret: "s" })
     ).toBeInstanceOf(PorkbunProvider);
-    expect(
-      createRegistrarProvider({ provider: "domainnameapi", apiKey: "k", apiSecret: "s", resellerId: "r" } as never)
-    ).toBeInstanceOf(DomainNameAPIProvider);
     expect(() => createRegistrarProvider({ provider: "custom", apiKey: "", apiSecret: "" })).toThrow(/not implemented/);
   });
 

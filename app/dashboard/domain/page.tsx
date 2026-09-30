@@ -54,17 +54,60 @@ interface SearchResult {
   tld: string;
   available: boolean;
   price_yearly: number;
+  currency: string;
   buyable: boolean;
   requirement: string | null;
+  premium: boolean;
+  premium_price?: number;
+}
+
+interface DnsRecordEntry {
+  type: string;
+  name: string;
+  value: string;
+  ttl: number;
 }
 
 interface DomainOrder {
   id: string;
   domain: string;
+  tld: string;
   price_yearly: number;
   status: string;
+  registrar: string;
+  dns_records: DnsRecordEntry[];
+  auto_renew: boolean;
   expires_at: string | null;
   created_at: string;
+}
+
+// Status final (polling berhenti): active/failed/expired/deleted.
+const FINAL_ORDER_STATUSES = ["active", "failed", "expired", "deleted"];
+
+function orderStatusBadge(status: string) {
+  switch (status) {
+    case "active":
+      return <Badge variant="success">Aktif Terhubung</Badge>;
+    case "registering":
+      return <Badge variant="info">Didaftarkan...</Badge>;
+    case "pending_payment":
+      return <Badge variant="warning">Menunggu Bayar</Badge>;
+    case "failed":
+      return <Badge variant="destructive">Gagal</Badge>;
+    case "expired":
+      return <Badge variant="secondary">Kadaluarsa</Badge>;
+    case "transfer_in":
+      return <Badge variant="info">Transfer...</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
+
+function formatDateId(iso: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function DashboardDomainPage() {
@@ -80,12 +123,15 @@ export default function DashboardDomainPage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
 
-  // Beli domain simulation
+  // Beli domain (Sprint 2: checkout payment → redirect Snap/invoice)
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchWarning, setSearchWarning] = useState<string | null>(null);
   const [buying, setBuying] = useState<string | null>(null);
+  const [renewing, setRenewing] = useState<string | null>(null);
   const [orders, setOrders] = useState<DomainOrder[]>([]);
+  const [upgradeUrl, setUpgradeUrl] = useState<string | null>(null);
 
   async function loadDomain() {
     try {
@@ -105,7 +151,7 @@ export default function DashboardDomainPage() {
 
   async function loadOrders() {
     try {
-      const res = await fetch("/api/domains/order");
+      const res = await fetch("/api/domains/orders");
       const json = await res.json();
       if (json.success && json.data) {
         setOrders(json.data.orders || []);
@@ -120,6 +166,33 @@ export default function DashboardDomainPage() {
     loadOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Polling status order non-final (pending_payment/registering) tiap 5 dtk.
+  const hasPendingOrder = orders.some((o) => !FINAL_ORDER_STATUSES.includes(o.status));
+  useEffect(() => {
+    if (!hasPendingOrder) return;
+    const id = setInterval(() => {
+      loadOrders();
+      loadDomain();
+    }, 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPendingOrder]);
+
+  // Debounce 300ms: ketik → cari otomatis (min 2 huruf, sesuai API).
+  useEffect(() => {
+    const query = q.trim();
+    if (query.length < 2) {
+      setResults([]);
+      setSearchWarning(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      searchDomain();
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   const handleCopy = (text: string) => {
     navigator.clipboard?.writeText(text).catch(() => {});
@@ -194,14 +267,19 @@ export default function DashboardDomainPage() {
 
   async function searchDomain(e?: React.FormEvent) {
     e?.preventDefault();
-    if (q.trim().length < 2) return;
+    const query = q.trim();
+    if (query.length < 2) return;
     setSearching(true);
     setResults([]);
+    setSearchWarning(null);
     try {
-      const res = await fetch(`/api/domains/search?q=${encodeURIComponent(q.trim())}`);
+      const res = await fetch(`/api/domains/search?q=${encodeURIComponent(query)}`);
       const json = await res.json();
       if (json.success) {
         setResults(json.data.results || []);
+        if (json.warning) setSearchWarning(json.warning);
+      } else if (res.status === 429) {
+        setMsg({ ok: false, text: "Terlalu sering mencari, coba lagi sebentar." });
       } else {
         setMsg({ ok: false, text: json.error ?? t("common.networkError") });
       }
@@ -212,27 +290,63 @@ export default function DashboardDomainPage() {
     }
   }
 
+  // Checkout Sprint 2: POST /api/domains/checkout → redirect ke
+  // Midtrans Snap / Xendit invoice (jangan hardcode Snap).
   async function buyDomain(name: string) {
     setBuying(name);
     setMsg(null);
+    setUpgradeUrl(null);
     try {
-      const res = await fetch("/api/domains/order", {
+      const res = await fetch("/api/domains/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain: name }),
       });
       const json = await res.json();
       if (!json.success) {
+        if (res.status === 403 && json.upgrade_url) setUpgradeUrl(json.upgrade_url);
         setMsg({ ok: false, text: json.error ?? t("common.networkError") });
         return;
       }
-      setMsg({ ok: true, text: json.message || `Domain ${name} berhasil dibeli & terhubung otomatis!` });
-      await loadDomain();
-      await loadOrders();
+      const redirectUrl: string | undefined = json.data?.redirect_url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      setMsg({ ok: false, text: "Link pembayaran tidak tersedia. Coba lagi." });
     } catch {
       setMsg({ ok: false, text: t("common.networkError") });
     } finally {
       setBuying(null);
+    }
+  }
+
+  // Perpanjang: POST /api/domains/renew/:id → redirect payment baru.
+  async function renewOrder(id: string) {
+    setRenewing(id);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/domains/renew/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cycle: "yearly" }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setMsg({ ok: false, text: json.error ?? t("common.networkError") });
+        return;
+      }
+      const redirectUrl: string | undefined = json.data?.redirect_url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      setMsg({ ok: false, text: "Link pembayaran tidak tersedia. Coba lagi." });
+      await loadOrders();
+    } catch {
+      setMsg({ ok: false, text: t("common.networkError") });
+    } finally {
+      setRenewing(null);
     }
   }
 
@@ -274,6 +388,11 @@ export default function DashboardDomainPage() {
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
           )}
           <span>{msg.text}</span>
+          {!msg.ok && upgradeUrl && (
+            <Link href={upgradeUrl} className="underline font-bold ml-1 shrink-0">
+              Upgrade Paket
+            </Link>
+          )}
         </div>
       )}
 
@@ -449,7 +568,7 @@ export default function DashboardDomainPage() {
           </Card>
       </TabsContent>
 
-      {/* Tab 2: Buy New Domain Simulation */}
+      {/* Tab 2: Buy New Domain — Sprint 2 real checkout */}
       <TabsContent value="buy" className="mt-6">
         <Card>
           <CardHeader>
@@ -476,6 +595,12 @@ export default function DashboardDomainPage() {
             </Button>
           </form>
 
+          {searchWarning && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+              {searchWarning}
+            </p>
+          )}
+
           {/* Search Results */}
           {results.length > 0 && (
             <div className="space-y-3 pt-2">
@@ -484,21 +609,25 @@ export default function DashboardDomainPage() {
                 {results.map((r) => (
                   <div
                     key={r.domain}
-                    className="p-3.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors"
+                    className={`p-3.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors ${
+                      !r.buyable ? "opacity-50 bg-gray-50" : ""
+                    }`}
                   >
                     <div>
                       <p className="text-sm font-bold text-gray-900 dark:text-white font-mono">{r.domain}</p>
                       <p className="text-xs text-gray-500">
                         {r.available ? "Tersedia untuk didaftarkan" : "Sudah dimiliki orang lain"}
+                        {r.requirement && ` — ${r.requirement}`}
+                        {r.premium && ` — Premium`}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <span className="font-mono font-bold text-sm text-gray-900 dark:text-white">
-                        Rp {r.price_yearly.toLocaleString("id-ID")}/thn
+                        {r.premium_price ? `Rp ${r.premium_price.toLocaleString("id-ID")}/thn` : `Rp ${r.price_yearly.toLocaleString("id-ID")}/thn`}
                       </span>
 
-                      {r.available ? (
+                      {r.available && r.buyable ? (
                         <Button
                           type="button"
                           size="sm"
@@ -509,7 +638,7 @@ export default function DashboardDomainPage() {
                         </Button>
                       ) : (
                         <Badge variant="secondary">
-                          Tidak Tersedia
+                          {r.available ? (r.buyable ? "Tidak Tersedia" : "Sudah Terpakai") : "Tidak Tersedia"}
                         </Badge>
                       )}
                     </div>
@@ -527,17 +656,33 @@ export default function DashboardDomainPage() {
                 {orders.map((o) => (
                   <div
                     key={o.id}
-                    className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between text-sm"
+                    className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm"
                   >
-                    <div>
+                    <div className="flex flex-col gap-1">
                       <span className="font-mono font-bold text-gray-900 dark:text-white">{o.domain}</span>
-                      <span className="text-gray-400 ml-2">
-                        Rp {o.price_yearly.toLocaleString("id-ID")}/thn
-                      </span>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>Rp {o.price_yearly.toLocaleString("id-ID")}/thn</span>
+                        <span>•</span>
+                        <span>{o.registrar}</span>
+                        <span>•</span>
+                        <span>Berlaku: {formatDateId(o.expires_at)}</span>
+                        {o.auto_renew && <Badge variant="info" className="text-[10px]">Auto-renew</Badge>}
+                      </div>
                     </div>
-                    <Badge variant="success">
-                      Aktif Terhubung
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {orderStatusBadge(o.status)}
+                      {o.status === "active" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={renewing === o.id}
+                          onClick={() => renewOrder(o.id)}
+                        >
+                          {renewing === o.id ? "Memproses..." : "Perpanjang"}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

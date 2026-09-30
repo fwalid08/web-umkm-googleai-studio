@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS design_styles (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  palette JSONB NOT NULL,
+  typography JSONB NOT NULL,
+  components JSONB NOT NULL,
+  effects JSONB DEFAULT '{}',
+  thumbnail_url VARCHAR(500),
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE websites ADD COLUMN IF NOT EXISTS design_style_id VARCHAR(50) DEFAULT 'minimalist';
+ALTER TABLE user_templates ADD COLUMN IF NOT EXISTS design_style_id VARCHAR(50) DEFAULT 'minimalist';
+
+INSERT INTO design_styles (id, name, description, palette, typography, components, effects) VALUES
+('minimalist', 'Minimalist', 'White space luas, warna netral, tipografi bersih', '{"primary":"#333333","secondary":"#666666","accent":"#333333","background":"#ffffff","surface":"#f5f5f5","text":"#333333","textMuted":"#666666","border":"#e5e5e5"}', '{"headingFont":"Inter","bodyFont":"Inter","baseSize":16,"scaleRatio":1.25,"headingWeight":700,"bodyWeight":400}', '{"borderRadius":4,"buttonStyle":"solid","shadowStyle":"sm","navStyle":"solid","footerStyle":"simple"}', '{}'),
+('flat', 'Flat Design', '2D simpel, warna cerah, tanpa shadow', '{"primary":"#3498db","secondary":"#2ecc71","accent":"#e74c3c","background":"#ffffff","surface":"#ecf0f1","text":"#2c3e50","textMuted":"#7f8c8d","border":"#bdc3c7"}', '{"headingFont":"Roboto","bodyFont":"Roboto","baseSize":16,"scaleRatio":1.3,"headingWeight":700,"bodyWeight":400}', '{"borderRadius":2,"buttonStyle":"solid","shadowStyle":"none","navStyle":"solid","footerStyle":"columns"}', '{"borderWidth":0}'),
+('neo-brutalism', 'Neo-Brutalism', 'Border hitam tebal, warna kontras, layout berani', '{"primary":"#ff0054","secondary":"#00f5d4","accent":"#fee440","background":"#ffffff","surface":"#f5f5f5","text":"#000000","textMuted":"#333333","border":"#000000"}', '{"headingFont":"Space Grotesk","bodyFont":"Space Grotesk","baseSize":16,"scaleRatio":1.4,"headingWeight":700,"bodyWeight":400}', '{"borderRadius":0,"buttonStyle":"solid","shadowStyle":"lg","navStyle":"bordered","footerStyle":"centered"}', '{"borderWidth":3,"uppercaseHeadings":true}'),
+('glassmorphism', 'Glassmorphism', 'Transparansi frosted glass, gradient lembut', '{"primary":"#667eea","secondary":"#764ba2","accent":"#f093fb","background":"linear-gradient(135deg, #667eea 0%, #764ba2 100%)","surface":"rgba(255,255,255,0.1)","text":"#ffffff","textMuted":"rgba(255,255,255,0.7)","border":"rgba(255,255,255,0.2)"}', '{"headingFont":"Inter","bodyFont":"Inter","baseSize":16,"scaleRatio":1.25,"headingWeight":600,"bodyWeight":300}', '{"borderRadius":16,"buttonStyle":"gradient","shadowStyle":"lg","navStyle":"glass","footerStyle":"centered"}', '{"glassmorphism":true}'),
+('dark-mode', 'Dark Mode', 'Latar gelap, aksen terang', '{"primary":"#e94560","secondary":"#0f3460","accent":"#e94560","background":"#0f0f0f","surface":"#1a1a2e","text":"#eeeeee","textMuted":"#a0a0a0","border":"#333333"}', '{"headingFont":"Inter","bodyFont":"Inter","baseSize":16,"scaleRatio":1.25,"headingWeight":700,"bodyWeight":400}', '{"borderRadius":8,"buttonStyle":"solid","shadowStyle":"md","navStyle":"solid","footerStyle":"columns"}', '{}'),
+('parallax', 'Parallax Scrolling', 'Layered depth, gradient backgrounds', '{"primary":"#667eea","secondary":"#764ba2","accent":"#f093fb","background":"linear-gradient(180deg, #667eea 0%, #764ba2 100%)","surface":"rgba(255,255,255,0.1)","text":"#ffffff","textMuted":"rgba(255,255,255,0.8)","border":"rgba(255,255,255,0.2)"}', '{"headingFont":"Playfair Display","bodyFont":"Inter","baseSize":16,"scaleRatio":1.3,"headingWeight":700,"bodyWeight":400}', '{"borderRadius":12,"buttonStyle":"gradient","shadowStyle":"xl","navStyle":"transparent","footerStyle":"centered"}', '{"gradientBackgrounds":true}'),
+('organic', 'Organic / Fluid', 'Bentuk melengkung, warna alam', '{"primary":"#2d6a4f","secondary":"#40916c","accent":"#95d5b2","background":"#f8f9fa","surface":"#ffffff","text":"#1b4332","textMuted":"#52b788","border":"#d8f3dc"}', '{"headingFont":"Nunito","bodyFont":"Nunito","baseSize":16,"scaleRatio":1.2,"headingWeight":700,"bodyWeight":400}', '{"borderRadius":24,"buttonStyle":"solid","shadowStyle":"md","navStyle":"solid","footerStyle":"centered"}', '{}'),
+('retro', 'Retro / Vintage', 'Estetika 80-90an, earth tone', '{"primary":"#e07a5f","secondary":"#3d405b","accent":"#81b29a","background":"#f4f1de","surface":"#f2cc8f","text":"#3d405b","textMuted":"#81b29a","border":"#e07a5f"}', '{"headingFont":"DM Serif Display","bodyFont":"Inter","baseSize":16,"scaleRatio":1.25,"headingWeight":400,"bodyWeight":400}', '{"borderRadius":0,"buttonStyle":"outline","shadowStyle":"sm","navStyle":"bordered","footerStyle":"simple"}', '{}'),
+('typography', 'Typography-Driven', 'Teks besar sebagai visual utama', '{"primary":"#000000","secondary":"#ffffff","accent":"#ff6b6b","background":"#ffffff","surface":"#f5f5f5","text":"#000000","textMuted":"#666666","border":"#000000"}', '{"headingFont":"Bebas Neue","bodyFont":"Inter","baseSize":18,"scaleRatio":1.5,"headingWeight":400,"bodyWeight":400}', '{"borderRadius":0,"buttonStyle":"outline","shadowStyle":"none","navStyle":"bordered","footerStyle":"minimal"}', '{"uppercaseHeadings":true}'),
+('3d-immersive', '3D & Immersive', 'Depth, gradient, modern', '{"primary":"#e94560","secondary":"#0f3460","accent":"#533483","background":"#1a1a2e","surface":"#16213e","text":"#ffffff","textMuted":"#a0a0a0","border":"#0f3460"}', '{"headingFont":"Space Grotesk","bodyFont":"Inter","baseSize":16,"scaleRatio":1.3,"headingWeight":700,"bodyWeight":400}', '{"borderRadius":12,"buttonStyle":"gradient","shadowStyle":"xl","navStyle":"glass","footerStyle":"columns"}', '{"gradientBackgrounds":true}')
+ON CONFLICT (id) DO NOTHING;

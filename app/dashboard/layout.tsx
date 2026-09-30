@@ -7,8 +7,9 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Store,
-  ShoppingBag,
+    ShoppingBag,
   BarChart3,
+  CalendarCheck,
   Settings,
   LogOut,
   Menu,
@@ -19,9 +20,6 @@ import {
   CreditCard,
   Layers,
   Users,
-  FileText,
-  Megaphone,
-  Compass,
   ExternalLink,
   Check,
   Bell,
@@ -161,6 +159,10 @@ export default function DashboardLayout({
     }
   }
 
+  function navigateToBuilder() {
+    window.location.href = "/dashboard/builder";
+  }
+
   const user = session?.user;
   const tier = (user as any)?.tier || "free";
   const isFree = tier === "free";
@@ -183,6 +185,7 @@ export default function DashboardLayout({
         { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard, exact: true },
         { name: t("nav.products"), href: "/dashboard/products", icon: Store },
         { name: t("nav.orders"), href: "/dashboard/orders", icon: ShoppingBag },
+        { name: t("nav.bookings"), href: "/dashboard/bookings", icon: CalendarCheck },
         { name: t("nav.customers"), href: "/dashboard/customers", icon: Users },
         ...(isFree ? [] : [{ name: t("nav.analytics"), href: "/dashboard/analytics", icon: BarChart3 }]),
       ],
@@ -190,21 +193,18 @@ export default function DashboardLayout({
     {
       header: t("nav.groupWebsite"),
       items: [
-        { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
-        { name: t("nav.pages"), href: "/dashboard/pages", icon: FileText },
-        { name: t("nav.announcement"), href: "/dashboard/announcement", icon: Megaphone },
-        { name: t("nav.navigation"), href: "/dashboard/navigation", icon: Compass },
+        { name: t("nav.builder"), href: "/dashboard/websites/customize", icon: Palette },
         { name: t("nav.domain"), href: "/dashboard/domain", icon: Globe },
       ],
     },
   ];
 
   /** Active-state per item: exact untuk root/settings, prefix untuk anak halaman,
-   *  khusus builder mencakup route nested /dashboard/[websiteId]/builder. */
+         *  khusus builder mencakup route /dashboard/websites/customize. */
   const isMenuActive = (item: NavigationItem) => {
     if (item.exact) return pathname === item.href;
-    if (item.href === "/dashboard/builder") {
-      return pathname.startsWith("/dashboard/builder") || pathname.includes("/builder");
+    if (item.href === "/dashboard/websites/customize") {
+      return pathname.startsWith("/dashboard/websites/customize");
     }
     return pathname === item.href || pathname.startsWith(item.href + "/");
   };
@@ -216,6 +216,17 @@ export default function DashboardLayout({
 
   const sidebarWidth = sidebarCollapsed ? "w-20" : "w-72";
   const mainMargin = sidebarCollapsed ? "lg:pl-20" : "lg:pl-72";
+
+  // Builder memakai mode full-page: tanpa sidebar/topbar dashboard agar
+  // seluruh viewport dipakai untuk kanvas editing (seperti Canva/Webflow).
+  const isBuilderFullPage = pathname.startsWith("/dashboard/builder") || pathname.startsWith("/dashboard/websites/page-builder");
+  if (isBuilderFullPage) {
+    return (
+      <div className="h-dvh w-full bg-slate-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-gray-900 selection:bg-slate-200 selection:text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -352,6 +363,22 @@ export default function DashboardLayout({
               </div>
             ))}
             </TooltipProvider>
+
+            {/* Settings - Inside nav, below Domain (per-website setting) */}
+            <div className="pt-3.5 border-t border-gray-100 dark:border-slate-800">
+              <Link
+                href="/dashboard/settings"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  pathname === "/dashboard/settings" || pathname.startsWith("/dashboard/settings/")
+                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                } ${sidebarCollapsed ? "justify-center" : ""}`}
+                title={sidebarCollapsed ? t("nav.settings") : undefined}
+              >
+                <Settings className="h-4 w-4 shrink-0" />
+                {!sidebarCollapsed && <span>{t("nav.settings")}</span>}
+              </Link>
+            </div>
           </nav>
 
           {/* User Account / Footer */}
@@ -428,15 +455,6 @@ export default function DashboardLayout({
                     >
                       <CreditCard className="h-4 w-4 text-gray-500" />
                       <span>{t("nav.billing")}</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href="/dashboard/settings"
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer dark:text-slate-300 dark:hover:bg-slate-800"
-                    >
-                      <Settings className="h-4 w-4 text-gray-500" />
-                      <span>{t("nav.settings")}</span>
                     </Link>
                   </DropdownMenuItem>
                 </div>

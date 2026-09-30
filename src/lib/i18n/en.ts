@@ -25,11 +25,12 @@ export const en: Dict = {
   nav: {
     dashboard: "Dashboard",
     orders: "Orders",
+    bookings: "Bookings",
     products: "Products",
     customers: "Customers",
     analytics: "Analytics",
     settings: "Settings",
-    builder: "Store Design",
+    builder: "Design",
     myWebsites: "My Websites",
     billing: "Billing",
     business: "Manage Business",
@@ -255,7 +256,7 @@ export const en: Dict = {
     st: { baru: "New", konfirmasi: "Confirmed", dikirim: "Shipped", selesai: "Done" },
   },
   builder: {
-    title: "Store Design",
+    title: "Design",
     subtitle: "Select a store concept & customize colors, hero text, and your product catalog.",
     continue: "✏️ Continue editing your website →",
     useBtn: "Select",

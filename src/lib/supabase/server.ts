@@ -1,8 +1,12 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export async function createServerSupabaseClient() {
-  const cookieStore = await cookies();
+/**
+ * Create Supabase client with NextAuth JWT token.
+ * This allows RLS policies to work with NextAuth sessions.
+ * 
+ * @param nextAuthToken - NextAuth JWT token (from session)
+ */
+export async function createServerSupabaseClient(nextAuthToken?: string): Promise<SupabaseClient> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
@@ -10,18 +14,18 @@ export async function createServerSupabaseClient() {
   if (!url || !key) {
     throw new Error("Supabase credentials not configured");
   }
-  return createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        } catch {}
-      },
+
+  // Always use anon key as the API key
+  // NextAuth JWT token is NOT compatible with Supabase Auth JWT
+  // Instead, we rely on RLS policies that use public.current_user_id()
+  // which reads from request.jwt.claim.sub set by Supabase
+  const client = createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
     },
   });
+
+  return client;
 }

@@ -57,7 +57,7 @@ export function WebsitePanelMenu() {
     },
     {
       name: t("workspace.mConfig"),
-      href: `/dashboard/${site.id}/builder`,
+      href: `/dashboard/builder`,
       icon: Palette,
       desc: t("workspace.mConfigDesc"),
     },

@@ -20,7 +20,7 @@ export function MobileBottomNav() {
   const isTabActive = (tab: { href: string; exact?: boolean }) => {
     if (tab.exact) return pathname === tab.href;
     if (tab.href === "/dashboard/builder") {
-      return pathname.startsWith("/dashboard/builder") || pathname.includes("/builder");
+      return pathname.startsWith("/dashboard/builder");
     }
     return pathname === tab.href || pathname.startsWith(tab.href + "/");
   };

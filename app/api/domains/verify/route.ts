@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
+import { isAuthorizedCronRequest } from "@/lib/cron/secret";
+import { addDomainToVercel, verifyDomainOnVercel } from "@/lib/vercel/domains";
 
-// POST /api/domains/verify - Verify custom domain (cron/admin only)
-// Auth: header x-cron-secret === CRON_SECRET. Tanpa itu → 401.
-// Fallback: query ?secret=CRON_SECRET — karena Vercel Cron tidak mendukung
-// custom headers (lihat vercel.json + docs/CRON_DOMAIN.md).
+// POST /api/domains/verify — verifikasi custom domain (cron 5 menit + admin).
+// Auth: header x-cron-secret === CRON_SECRET atau ?secret=CRON_SECRET
+// (Vercel Cron tidak mendukung custom headers — lihat vercel.json).
+//
+// Sprint 2 tambahan (§8.1):
+// 1. TXT cocok → verifyDomainOnVercel() (best-effort, gagal → hasil "added, verify pending").
+// 2. Website terverifikasi → domain_orders.verification_token = NULL.
+// 3. Retry addDomainToVercel() untuk order active yang token-nya masih ada
+//    (add awal gagal — best-effort, 409 = sudah ada = ok).
 export async function POST(request: NextRequest) {
   try {
-    const cronSecret = process.env.CRON_SECRET;
-    const provided =
-      request.headers.get("x-cron-secret") ??
-      new URL(request.url).searchParams.get("secret");
-    if (!cronSecret || provided !== cronSecret) {
+    if (!isAuthorizedCronRequest(request)) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
@@ -51,7 +54,7 @@ export async function POST(request: NextRequest) {
         // Check DNS TXT record — cocokkan token eksak bila ada, fallback prefix legacy
         const expected = user.custom_domain_verification_token || null;
         const verified = await checkDNSTXTRecord(user.custom_domain, expected);
-        
+
         if (verified) {
           // Update website as verified
           const { error: updateError } = await supabase
@@ -65,10 +68,33 @@ export async function POST(request: NextRequest) {
 
           if (!updateError) {
             verifiedCount++;
-            results.push({ domain: user.custom_domain, status: "verified" });
-            
-            // Trigger Vercel custom domain provisioning (if using Vercel)
-            // await provisionVercelDomain(user.custom_domain);
+
+            // Vercel: pastikan terdaftar (retry add, idempoten) + verifikasi ownership.
+            // Best-effort: token Vercel belum diset (dev) → skipped, cron berikut retry.
+            let vercel = "skipped";
+            try {
+              const added = await addDomainToVercel(user.custom_domain);
+              if (added.ok) {
+                const v = await verifyDomainOnVercel(user.custom_domain);
+                vercel = v.ok ? "verified" : `added, verify pending (${v.error ?? "unknown"})`;
+              } else {
+                vercel = `add failed: ${added.error ?? "unknown"}`;
+              }
+            } catch (err) {
+              vercel = `skipped: ${err instanceof Error ? err.message : "vercel unconfigured"}`;
+            }
+
+            // Token verifikasi tak diperlukan lagi → NULL (tandai selesai penuh).
+            const { error: tokenError } = await supabase
+              .from("domain_orders")
+              .update({ verification_token: null, updated_at: new Date().toISOString() })
+              .eq("domain", user.custom_domain)
+              .not("verification_token", "is", null);
+            if (tokenError) {
+              console.warn(`[domains/verify] token clear gagal untuk ${user.custom_domain}:`, tokenError);
+            }
+
+            results.push({ domain: user.custom_domain, status: "verified", vercel });
           } else {
             results.push({ domain: user.custom_domain, status: "failed", error: updateError.message });
           }
@@ -80,10 +106,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Retry Vercel add untuk order active yang belum terverifikasi penuh
+    // (token masih ada = verify TXT belum lolos / add awal gagal). Cap 20/run.
+    let vercelRetried = 0;
+    try {
+      const { data: pendingOrders } = await supabase
+        .from("domain_orders")
+        .select("domain")
+        .eq("status", "active")
+        .not("verification_token", "is", null)
+        .limit(20);
+      for (const o of (pendingOrders ?? []) as Array<{ domain: string }>) {
+        try {
+          const r = await addDomainToVercel(o.domain);
+          if (r.ok) vercelRetried++;
+          else console.warn(`[domains/verify] retry add ${o.domain} gagal:`, r.error);
+        } catch (err) {
+          console.warn(`[domains/verify] retry add ${o.domain} skipped:`, err);
+          break; // mis. VERCEL_TOKEN belum diset — hentikan loop, cron berikut retry.
+        }
+      }
+    } catch (err) {
+      console.warn("[domains/verify] retry batch gagal:", err);
+    }
+
     return NextResponse.json({
       success: true,
       verified: verifiedCount,
       total_checked: users.length,
+      vercel_retried: vercelRetried,
       results,
     });
   } catch (error) {

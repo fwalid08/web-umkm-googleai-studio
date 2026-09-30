@@ -3,34 +3,38 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantSite } from "@/lib/builder/public";
 import { PublicWebsite } from "@/components/website/renderer";
-import { rootHost, tenantDisplay } from "@/lib/urls";
+import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
+import { getDesignStyle } from "@/lib/builder/design-styles";
+
 import { LandingPricing } from "@/components/pricing/landing-pricing";
 import { InteractiveStorePreview } from "@/components/website/interactive-preview";
 import { LandingFAQ } from "@/components/website/landing-faq";
 import {
   Store,
   Sparkles,
-  ShoppingBag,
   BarChart3,
-  Clock,
-  Shield,
   ArrowRight,
   Check,
   Star,
   Globe,
   Palette,
   MessageCircle,
-  TrendingUp,
   Percent,
   Layers,
-  ChevronRight,
-  ExternalLink,
 } from "lucide-react";
 
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getTenantSite();
   if (tenant.site) {
-    return { title: tenant.site.seo.title, description: tenant.site.seo.description };
+    return {
+      title: tenant.site.seo.title,
+      description: tenant.site.seo.description,
+      openGraph: {
+        title: tenant.site.seo.title,
+        description: tenant.site.seo.description,
+        type: "website",
+      },
+    };
   }
   return {
     title: "UMKM SaaS — Website Toko Online Cepat untuk UMKM Indonesia",
@@ -40,8 +44,32 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Home() {
   const tenant = await getTenantSite();
+
+  if (tenant.isTenant && tenant.site) {
+    const customConfig = (tenant.site as unknown as { design_style_id?: string; sections?: unknown[] });
+    if (customConfig.design_style_id && customConfig.sections) {
+      const designStyle = getDesignStyle(customConfig.design_style_id);
+      if (designStyle) {
+        return (
+          <PublicWebsiteV3
+            site={{
+              designStyle,
+              paletteOverride: (customConfig as unknown as { palette_override?: import("@/lib/builder/design-styles").PaletteOverride }).palette_override ?? null,
+              sections: customConfig.sections as import("@/lib/builder/types").Section[],
+              header: (customConfig as unknown as { header: import("@/lib/builder/types").HeaderConfig }).header,
+              footer: (customConfig as unknown as { footer: import("@/lib/builder/types").FooterConfig }).footer,
+              websiteId: tenant.site.websiteId,
+              seo: tenant.site.seo,
+            }}
+          />
+        );
+      }
+    }
+    return <PublicWebsite site={tenant.site} />;
+  }
+
   if (tenant.isTenant && !tenant.site) notFound();
-  if (tenant.site) return <PublicWebsite site={tenant.site} />;
+
   return <LandingPage />;
 }
 
@@ -229,7 +257,7 @@ function LandingPage() {
               <div className="w-12 h-12 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center font-bold shadow-2xs">
                 <Palette className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900">Desain Toko Terpadu Siap Pakai</h3>
+              <h3 className="text-xl font-bold text-gray-900">Desain Terpadu Siap Pakai</h3>
               <p className="text-sm text-gray-600 leading-relaxed">
                 Pilih konsep kuliner, fashion, sembako, kerajinan, atau jasa. Edit warna tema, ganti logo, banner hero, dan teks dengan mudah.
               </p>

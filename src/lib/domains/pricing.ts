@@ -64,3 +64,21 @@ export function calcDomainPrice(
 export function formatIdr(n: number): string {
   return `Rp${Math.round(n).toLocaleString("id-ID")}`;
 }
+
+/**
+ * Harga jual dari `priceYearly` driver registrar (`DomainAvailabilityResult`).
+ *
+ * - `mock`: harga katalog sudah retail (konsisten UI) → pakai apa adanya.
+ * - real (`porkbun`): driver mengembalikan grosir IDR
+ *   (USD → kurs via `wholesaleUsdToIdr`, TANPA margin/fee) → tambah margin %
+ *   + fee flat via `calcDomainPrice()` (round-trip USD↔IDR eksak karena
+ *   `wholesaleUsdToIdr` hanya `Math.round(usd * rate)`).
+ * - provider tak dikenal → fail-closed 0 (caller: tolak checkout 502).
+ */
+export function retailPriceForProvider(providerId: string, driverPriceYearlyIdr: number): number {
+  if (!Number.isFinite(driverPriceYearlyIdr) || driverPriceYearlyIdr < 0) return 0;
+  if (providerId === "mock") return Math.round(driverPriceYearlyIdr);
+  if (driverPriceYearlyIdr === 0) return 0;
+  const wholesaleUsd = driverPriceYearlyIdr / usdToIdrRate();
+  return calcDomainPrice(wholesaleUsd).total;
+}

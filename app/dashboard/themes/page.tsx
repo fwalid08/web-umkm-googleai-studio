@@ -205,10 +205,10 @@ export default function ThemesPage() {
         <div role="status" className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-4 py-3 text-sm flex items-center justify-between font-medium">
           <span>{successMsg}</span>
           <Link
-            href="/dashboard/builder"
+            href="/dashboard/websites/customize?tab=templates"
             className="text-sm font-bold underline underline-offset-2 hover:text-emerald-950 ml-3"
           >
-            Lanjut Kustomisasi →
+            Lanjut Desain →
           </Link>
         </div>
       )}
@@ -231,9 +231,9 @@ export default function ThemesPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button asChild className="gap-1.5">
-              <Link href="/dashboard/builder">
+              <Link href="/dashboard/websites">
                 <Palette className="w-3.5 h-3.5" />
-                <span>Buka Kustomisasi</span>
+                <span>Buka Desain</span>
               </Link>
             </Button>
           </div>
@@ -356,7 +356,7 @@ export default function ThemesPage() {
                 <div className="pt-2 border-t border-gray-100 flex items-center gap-2">
                   {isCurrent ? (
                     <Button asChild size="sm" className="flex-1 gap-1.5">
-                      <Link href="/dashboard/builder">
+<Link href="/dashboard/websites/customize?tab=templates">
                         <Palette className="w-3.5 h-3.5" />
                         <span>Edit Tampilan</span>
                       </Link>

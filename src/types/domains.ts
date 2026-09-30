@@ -47,7 +47,7 @@ export interface DomainOrder {
   tld: string;
   price_yearly: number;
   status: DomainStatus;
-  registrar: string; // "porkbun" | "domainnameapi" | "mock"
+  registrar: string; // "porkbun" | "mock"
   registrar_domain_id: string | null;
   nameservers: string[];
   dns_records: DnsRecordEntry[];

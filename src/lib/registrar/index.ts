@@ -1,9 +1,8 @@
 /**
- * Registrar Module Exports — driver switchable (porkbun | domainnameapi | mock).
+ * Registrar Module Exports — driver switchable (porkbun | mock).
  */
 
 export * from "./types";
 export * from "./porkbun";
-export * from "./domainnameapi";
 export * from "./mock";
 export * from "./factory";

@@ -144,7 +144,7 @@ export interface RegistrantContact {
 }
 
 export interface RegistrarConfig {
-  provider: string; // "porkbun" | "domainnameapi" | "mock" | ...
+  provider: string; // "porkbun" | "mock" | ...
   apiKey: string;
   apiSecret: string;
   apiUrl?: string; // override endpoint
@@ -154,10 +154,9 @@ export interface RegistrarConfig {
   fetchFn?: typeof fetch;
 }
 
-export type RegistrarProviderType = "porkbun" | "domainnameapi" | "mock";
+export type RegistrarProviderType = "porkbun" | "mock";
 
 export const REGISTRAR_PROVIDERS: Record<RegistrarProviderType, { name: string; defaultApiUrl: string }> = {
   porkbun: { name: "Porkbun", defaultApiUrl: "https://api.porkbun.com/api/json/v3" },
-  domainnameapi: { name: "DomainNameAPI", defaultApiUrl: "https://api.domainresellerapi.com/v1" },
   mock: { name: "Mock (Simulasi)", defaultApiUrl: "" },
 };

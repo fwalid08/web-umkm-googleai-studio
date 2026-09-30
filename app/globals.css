@@ -138,3 +138,21 @@ body {
 }
 .animate-accordion-down { animation: accordion-down 0.2s ease-out; }
 .animate-accordion-up { animation: accordion-up 0.2s ease-out; }
+/* ============ Pita teks berjalan generik (ikut warna section) ============ */
+.bk-marquee{padding:16px 0;overflow:hidden;white-space:nowrap;font-weight:500;font-size:1.15rem}
+.bk-marquee-track{display:inline-flex;animation:bk-slide 32s linear infinite}
+.bk-marquee-item{margin:0 26px}
+@keyframes bk-slide{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.bk-marquee-track{animation:none!important}}
+
+/* ============ Mobile-friendliness: builder output ============ */
+/* Grid produk generik: maks 2 kolom di HP agar tidak terjepit */
+@container (max-width:640px){
+  .pg-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+/* Navigasi anchor situs live: smooth seperti referensi + offset header sticky */
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+
+/* Query container bingkai kanvas builder (responsif ikut lebar device) */
+.builder-cq{container-type:inline-size}

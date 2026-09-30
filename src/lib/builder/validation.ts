@@ -30,6 +30,14 @@ export function getAllowedTemplateNames(
   return allNames.filter((n) => free.includes(n));
 }
 
+/** Helper tier katalog didefinisikan di catalog.ts (tanpa dependensi runtime
+ *  berat) agar guard test tetap ringan; di-re-export di sini untuk API routes. */
+export {
+  ALL_TIERS,
+  isCatalogTemplateAllowedForTier,
+  filterCatalogByTier,
+} from "./templates/catalog";
+
 export interface SectionOverride {
   id: string;
   enabled?: boolean;
@@ -103,4 +111,32 @@ export function countProductItems(sections: MergedSection[]): number {
     if (Array.isArray(items)) n += items.length;
   }
   return n;
+}
+
+const PALETTE_KEYS = [
+  "primary",
+  "secondary",
+  "accent",
+  "background",
+  "surface",
+  "text",
+  "textMuted",
+  "border",
+] as const;
+
+/**
+ * Sanitasi palette_override dari client sebelum disimpan:
+ * hanya kunci palet dikenal + string pendek. Mencegah sampah
+ * (objek/nilai raksasa) masuk custom_config dan merusak render.
+ */
+export function sanitizePaletteOverride(input: unknown): Record<string, string> {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    if (!(PALETTE_KEYS as readonly string[]).includes(k)) continue;
+    if (typeof v !== "string") continue;
+    const s = v.trim().slice(0, 64);
+    if (s.length > 0) out[k] = s;
+  }
+  return out;
 }

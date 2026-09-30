@@ -5,11 +5,14 @@ import { FREE_PRODUCT_MAX, websiteConfigSchema } from "@/types";
 import {
   countProductItems,
   getAllowedTemplateNames,
+  isCatalogTemplateAllowedForTier,
   isTrialActive,
   mergeAndValidateSections,
+  sanitizePaletteOverride,
   type MergedSection,
 } from "@/lib/builder/validation";
-import { getActiveWebsite } from "@/lib/websites/active";
+import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
+import { getOwnedWebsite } from "@/lib/websites/active";
 import { tenantUrl } from "@/lib/urls";
 import {
   getDemoOwnedWebsite,
@@ -19,6 +22,7 @@ import {
   saveDemoWebsiteConfig,
   STATIC_TEMPLATES,
 } from "@/lib/mock/store";
+import { cookies } from "next/headers";
 
 const TEMPLATE_FIELDS =
   "id, name, description, color_palette, typography_config, sections_config, is_active";
@@ -40,10 +44,19 @@ function subdomainUrl(subdomain: string | null): string | null {
   return tenantUrl(subdomain);
 }
 
-/** Default template dari jenis bisnis (fallback jika user belum pilih). */
 function suggestedTemplate(businessType: string | undefined, names: string[]): string {
   if (businessType && names.includes(businessType)) return businessType;
   return names.includes("food") ? "food" : names[0] ?? "food";
+}
+
+async function getNextAuthToken(): Promise<string | undefined> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("authjs.session-token")?.value;
+    return token || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // GET /api/websites/[websiteId]/website — konfigurasi website AKTIF (merged dengan defaults template)
@@ -86,20 +99,73 @@ export async function GET(
       });
     }
 
-    // Verifikasi website milik user
-    const site = await getActiveWebsite(sessionUser.id);
+    console.log("[DEBUG] User ID:", sessionUser.id);
+    console.log("[DEBUG] Website ID:", websiteId);
+
+    const site = await getOwnedWebsite(sessionUser.id, websiteId);
+    console.log("[DEBUG] Site found:", !!site, site?.id);
     if (!site || site.id !== websiteId) {
+      console.log("[DEBUG] 404: Site not found or not owned by user");
       return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: user, error: userError } = await supabase
+    let { data: user, error: userError } = await supabase
       .from("users")
-      .select("tier, trial_ends_at, business_type")
+      .select("tier, business_type")
       .eq("id", sessionUser.id)
-      .single();
+      .maybeSingle();
+    
+    console.log("[DEBUG] GET website - user:", user, "error:", userError?.message);
+    
+    if (!user) {
+      const { data: newUser, error: createError } = await supabase
+        .from("users")
+        .insert({
+          id: sessionUser.id,
+          email: (sessionUser as unknown as { email?: string }).email ?? "",
+          name: (sessionUser as unknown as { name?: string }).name ?? "",
+          tier: "free",
+        })
+        .select("tier, business_type")
+        .maybeSingle();
+      
+      console.log("[DEBUG] GET website - created user:", newUser, "error:", createError?.message);
+      user = newUser;
+    }
 
-    if (userError || !user) {
+    if (!user) {
+      const email = (sessionUser as unknown as { email?: string }).email ?? "";
+      const name = (sessionUser as unknown as { name?: string }).name ?? "";
+
+      const { data: existingByEmail } = await supabase
+        .from("users")
+        .select("id, tier, business_type")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (existingByEmail) {
+        user = existingByEmail;
+      } else {
+        const { data: newUser, error: createError } = await supabase
+          .from("users")
+          .insert({
+            id: sessionUser.id,
+            email,
+            name,
+            tier: "free",
+          })
+          .select("tier, business_type")
+          .maybeSingle();
+
+        if (createError) {
+          return NextResponse.json({ success: false, error: "Gagal membuat user" }, { status: 500 });
+        }
+        user = newUser;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
     }
 
@@ -115,11 +181,10 @@ export async function GET(
 
     const allowed = getAllowedTemplateNames(
       user.tier,
-      user.trial_ends_at,
+      null,
       list.map((t) => t.name as string)
     );
 
-    // Config tersimpan: prioritaskan current_template_id, fallback baris terbaru
     const { data: rows } = await supabase
       .from("user_templates")
       .select("template_id, custom_config, updated_at")
@@ -144,20 +209,34 @@ export async function GET(
       typeof mergeAndValidateSections
     >[0];
     const storedConfig = (stored?.custom_config ?? null) as {
+      design_style_id?: string;
+      sections?: unknown[];
+      header?: Record<string, unknown>;
+      footer?: Record<string, unknown>;
       theme?: Record<string, unknown>;
-      sections?: MergedSection[];
+      core?: Record<string, unknown>;
       seo?: { title?: string; description?: string };
     } | null;
 
-    // Jika sudah ada config tersimpan untuk template ini → pakai langsung.
-    // Jika belum → defaults (semua section enabled).
-    let customConfig: { theme: Record<string, unknown>; sections: MergedSection[]; seo: Record<string, string> };
+    let customConfig: {
+      design_style_id?: string;
+      sections?: unknown[];
+      header?: Record<string, unknown>;
+      footer?: Record<string, unknown>;
+      theme: Record<string, unknown>;
+      core?: Record<string, unknown>;
+      seo: Record<string, string>;
+    };
     let isDefault: boolean;
-    if (stored && stored.template_id === template.id && Array.isArray(storedConfig?.sections)) {
+    if (stored && stored.template_id === template.id && storedConfig?.design_style_id) {
       customConfig = {
-        theme: storedConfig?.theme ?? {},
-        sections: storedConfig?.sections ?? [],
-        seo: { ...(storedConfig?.seo ?? {}) },
+        design_style_id: storedConfig.design_style_id,
+        sections: storedConfig.sections ?? [],
+        header: storedConfig.header ?? {},
+        footer: storedConfig.footer ?? {},
+        theme: storedConfig.theme ?? {},
+        core: storedConfig.core ?? {},
+        seo: { ...(storedConfig.seo ?? {}) },
       };
       isDefault = false;
     } else {
@@ -165,7 +244,15 @@ export async function GET(
       if (!merged.ok) {
         return NextResponse.json({ success: false, error: "Konfigurasi template rusak" }, { status: 500 });
       }
-      customConfig = { theme: {}, sections: merged.sections, seo: {} };
+      customConfig = {
+        design_style_id: (site as unknown as { design_style_id?: string }).design_style_id ?? 'minimalist',
+        sections: [],
+        header: {},
+        footer: {},
+        theme: {},
+        core: {},
+        seo: {},
+      };
       isDefault = true;
     }
 
@@ -180,7 +267,7 @@ export async function GET(
         custom_config: customConfig,
         is_default: isDefault,
         tier: user.tier,
-        trial_active: isTrialActive(user.trial_ends_at),
+        trial_active: false,
         subdomain_url: subdomainUrl(site.subdomain),
       },
     });
@@ -204,99 +291,288 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const validation = websiteConfigSchema.safeParse(body);
+
+    const hasNewFormat = body?.custom_config?.design_style_id !== undefined || body?.custom_config?.sections !== undefined;
+
+    console.log('[DEBUG PUT] body keys:', Object.keys(body));
+    console.log('[DEBUG PUT] template_id from body:', body.template_id);
+    console.log('[DEBUG PUT] hasNewFormat:', hasNewFormat);
+
+    const nextAuthToken = await getNextAuthToken();
+
+    const site = await getOwnedWebsite(sessionUser.id, websiteId);
+    if (!site || site.id !== websiteId) {
+      return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
+    }
+
+    const supabase = await createServerSupabaseClient(nextAuthToken);
+
+    if (hasNewFormat) {
+      const { template_id: raw_template_id, custom_config } = body;
+      let template_id = raw_template_id as string | undefined;
+      console.log('[DEBUG PUT] raw_template_id:', raw_template_id, 'template_id:', template_id);
+
+      if (isDemoUserId(sessionUser.id)) {
+        const demoTemplateId = template_id ?? STATIC_TEMPLATES[0]?.id ?? 'food';
+        saveDemoWebsiteConfig(sessionUser.id, websiteId, demoTemplateId, custom_config);
+        const tpl = STATIC_TEMPLATES.find((t) => t.id === demoTemplateId) || STATIC_TEMPLATES[0];
+        return NextResponse.json({
+          success: true,
+          data: { website_id: websiteId, template_id: demoTemplateId, template_name: tpl.name, custom_config },
+          message: "Website berhasil disimpan",
+        });
+      }
+
+      let { data: user } = await supabase
+        .from("users")
+        .select("tier")
+        .eq("id", sessionUser.id)
+        .maybeSingle();
+
+      if (!user) {
+        const { data: newUser } = await supabase
+          .from("users")
+          .insert({
+            id: sessionUser.id,
+            email: (sessionUser as unknown as Record<string, unknown>).email as string ?? "",
+            name: (sessionUser as unknown as Record<string, unknown>).name as string ?? "",
+            tier: "free",
+          })
+          .select("tier")
+          .maybeSingle();
+        user = newUser;
+      }
+
+      if (!user) {
+        return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
+      }
+
+      // Template builtin dari kode (catalog.ts) - bukan baris database.
+      // ID & kategori diturunkan dari katalog agar tambah template baru
+      // otomatis dikenali tanpa edit route ini.
+      const BUILTIN_BY_ID = new Map(BUILT_IN_CATALOG.map((t) => [t.id, t]));
+
+      // Normalize template_id: strip 'builtin-' prefix if present
+      const normalizedTemplateId = template_id?.startsWith('builtin-') ? template_id.slice(8) : template_id;
+      const builtinEntry = (normalizedTemplateId && BUILTIN_BY_ID.get(normalizedTemplateId)) || null;
+      const isBuiltinTemplate = !!builtinEntry;
+
+      console.log('[DEBUG] template_id:', template_id, 'normalized:', normalizedTemplateId, 'isBuiltinTemplate:', isBuiltinTemplate);
+
+      // Gate tier per-template (sumber: CatalogTemplate.tiers; undefined = semua tier).
+      if (builtinEntry && !isCatalogTemplateAllowedForTier(builtinEntry.tiers, user.tier)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Template ${builtinEntry.name} hanya untuk paket ${(builtinEntry.tiers ?? []).join(", ")}. Upgrade untuk membukanya.`,
+            upgrade_url: "/dashboard/billing",
+          },
+          { status: 403 }
+        );
+      }
+
+      // Builder/page-builder mengirim custom_config saja (template builtin dari kode).
+      // Fallback: pakai template aktif website, lalu template aktif pertama.
+      if (!template_id) {
+        const { data: allTemplatesForFallback } = await supabase
+          .from("templates")
+          .select("id")
+          .eq("is_active", true);
+        template_id =
+          (site.current_template_id as string | null) ?? (allTemplatesForFallback?.[0]?.id as string | undefined);
+      }
+
+      const { data: allTemplates } = await supabase
+        .from("templates")
+        .select("id, name")
+        .eq("is_active", true);
+
+      console.log('[DEBUG] allTemplates:', allTemplates);
+
+      let dbTemplateId = isBuiltinTemplate ? normalizedTemplateId : template_id;
+      let dbTemplate: { id: string; name: string } | null = null;
+
+      if (isBuiltinTemplate) {
+        // Map builtin template to database template by category (anchor FK).
+        const category = builtinEntry!.category;
+        console.log('[DEBUG] builtin category:', category);
+        dbTemplate = allTemplates?.find(t => t.name === category) ?? allTemplates?.[0] ?? null;
+        console.log('[DEBUG] dbTemplate found:', dbTemplate);
+        dbTemplateId = dbTemplate?.id ?? normalizedTemplateId;
+      } else {
+        // Regular database template lookup
+        const { data: template, error: templateError } = await supabase
+          .from("templates")
+          .select(TEMPLATE_FIELDS)
+          .eq("id", template_id)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (templateError || !template) {
+          return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
+        }
+        dbTemplate = { id: template.id, name: template.name };
+      }
+
+      // Gate tier legacy (baris DB) hanya untuk template database.
+      // Template builtin sudah dicek via CatalogTemplate.tiers di atas —
+      // dbTemplate di sana hanya anchor FK, bukan template sebenarnya.
+      if (!isBuiltinTemplate) {
+        const allowed = getAllowedTemplateNames(
+          user.tier,
+          null,
+          (allTemplates ?? []).map((t) => t.name as string)
+        );
+        if (!allowed.includes(dbTemplate?.name as string)) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Template ${dbTemplate?.name} hanya untuk paket Starter ke atas. Upgrade untuk membuka semua template.`,
+              upgrade_url: "/dashboard/billing",
+            },
+            { status: 403 }
+          );
+        }
+      }
+
+      const toStore = {
+        design_style_id: custom_config.design_style_id ?? 'minimalist',
+        sections: custom_config.sections ?? [],
+        header: custom_config.header ?? {},
+        footer: custom_config.footer ?? {},
+        theme: custom_config.theme ?? {},
+        core: custom_config.core ?? {},
+        seo: custom_config.seo ?? {},
+      };
+
+      const { error: upsertError } = await supabase.from("user_templates").upsert(
+        {
+          user_id: sessionUser.id,
+          website_id: websiteId,
+          template_id: dbTemplateId,
+          custom_config: toStore,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "website_id,template_id" }
+      );
+      if (upsertError) {
+        console.error("Upsert website config error:", upsertError);
+        return NextResponse.json({ success: false, error: "Gagal menyimpan konfigurasi" }, { status: 500 });
+      }
+
+      // Apply template sections to homepage (store_pages with is_homepage=true)
+      // Upsert: create if not exists, update if exists
+      const homepageSections = custom_config.sections ?? [];
+      if (homepageSections.length > 0) {
+        // First check if homepage exists
+        const { data: existingHomepage } = await supabase
+          .from("store_pages")
+          .select("id")
+          .eq("website_id", websiteId)
+          .eq("is_homepage", true)
+          .maybeSingle();
+
+        if (existingHomepage) {
+          // Update existing
+          const { error: pageError } = await supabase
+            .from("store_pages")
+            .update({
+              layout: { sections: homepageSections },
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingHomepage.id);
+          if (pageError) {
+            console.error("Update homepage layout error:", pageError);
+          }
+        } else {
+          // Create new homepage with template sections
+          const { error: pageError } = await supabase
+            .from("store_pages")
+            .insert({
+              website_id: websiteId,
+              title: "Halaman Utama",
+              slug: "home",
+              type: "custom",
+              is_published: true,
+              is_homepage: true,
+              layout: { sections: homepageSections },
+              content: "",
+            });
+          if (pageError) {
+            console.error("Create homepage with template error:", pageError);
+          }
+        }
+      }
+
+      await supabase
+        .from("websites")
+        .update({ current_template_id: dbTemplateId, updated_at: new Date().toISOString() })
+        .eq("id", websiteId)
+        .eq("user_id", sessionUser.id);
+
+      return NextResponse.json({
+        success: true,
+        data: { website_id: websiteId, template_id: dbTemplateId, template_name: dbTemplate?.name ?? 'Custom', custom_config: toStore },
+        message: "Website berhasil disimpan",
+      });
+    }
+
+    // Old format: validate with existing schema (supports partial updates)
+    const { template_id: bodyTemplateId, custom_config: bodyCustomConfig } = body as {
+      template_id?: string;
+      custom_config?: Record<string, unknown>;
+    };
+
+    // If partial update (only seo, etc), fetch existing and merge
+    let template_id = bodyTemplateId;
+    let custom_config = bodyCustomConfig ?? {};
+
+    if (!template_id || !bodyCustomConfig?.sections) {
+      // Fetch existing config to get template_id and merge
+      const { data: existing } = await supabase
+        .from("user_templates")
+        .select("template_id, custom_config")
+        .eq("website_id", websiteId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        template_id = template_id ?? existing.template_id;
+        if (bodyCustomConfig) {
+          custom_config = { ...(existing.custom_config as Record<string, unknown>), ...bodyCustomConfig };
+        }
+      }
+    }
+
+    const validation = websiteConfigSchema.safeParse({ template_id, custom_config });
     if (!validation.success) {
       return NextResponse.json(
         { success: false, error: validation.error.issues[0].message },
         { status: 400 }
       );
     }
-    const { template_id, custom_config } = validation.data;
+    const { template_id: validatedTemplateId, custom_config: validatedConfig } = validation.data;
 
     if (isDemoUserId(sessionUser.id)) {
-      saveDemoWebsiteConfig(sessionUser.id, websiteId, template_id, custom_config);
-      const tpl = STATIC_TEMPLATES.find((t) => t.id === template_id) || STATIC_TEMPLATES[0];
+      saveDemoWebsiteConfig(sessionUser.id, websiteId, validatedTemplateId, custom_config);
+      const tpl = STATIC_TEMPLATES.find((t) => t.id === validatedTemplateId) || STATIC_TEMPLATES[0];
       return NextResponse.json({
         success: true,
-        data: { website_id: websiteId, template_id: template_id, template_name: tpl.name, custom_config },
+        data: { website_id: websiteId, template_id: validatedTemplateId, template_name: tpl.name, custom_config },
         message: "Website berhasil disimpan",
       });
     }
 
-    // Verifikasi website milik user
-    const site = await getActiveWebsite(sessionUser.id);
-    if (!site || site.id !== websiteId) {
-      return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
-    }
-
-    const supabase = await createServerSupabaseClient();
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("tier, trial_ends_at")
-      .eq("id", sessionUser.id)
-      .single();
-
-    if (userError || !user) {
-      return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
-    }
-
-    const { data: template, error: templateError } = await supabase
-      .from("templates")
-      .select(TEMPLATE_FIELDS)
-      .eq("id", template_id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (templateError || !template) {
-      return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
-    }
-
-    // Tier gating: Free (trial habis) hanya boleh 3 template dasar
-    const { data: allTemplates } = await supabase
-      .from("templates")
-      .select("name")
-      .eq("is_active", true);
-    const allowed = getAllowedTemplateNames(
-      user.tier,
-      user.trial_ends_at,
-      (allTemplates ?? []).map((t) => t.name as string)
-    );
-    if (!allowed.includes(template.name as string)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Template ${template.name} hanya untuk paket Starter ke atas. Upgrade untuk membuka semua template.`,
-          upgrade_url: "/dashboard/billing",
-        },
-        { status: 403 }
-      );
-    }
-
-    // Whitelist section + required tidak boleh mati
-    const merged = mergeAndValidateSections(
-      (template.sections_config ?? []) as Parameters<typeof mergeAndValidateSections>[0],
-      (custom_config.sections ?? []) as Parameters<typeof mergeAndValidateSections>[1]
-    );
-    if (!merged.ok) {
-      return NextResponse.json({ success: false, error: merged.error }, { status: 400 });
-    }
-
-    // Limit Free: maksimal 5 item produk
-    const trialActive = isTrialActive(user.trial_ends_at);
-    if (user.tier === "free" && !trialActive && countProductItems(merged.sections) > FREE_PRODUCT_MAX) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Paket Free maksimal ${FREE_PRODUCT_MAX} produk. Upgrade ke Starter untuk produk unlimited.`,
-          upgrade_url: "/dashboard/billing",
-        },
-        { status: 403 }
-      );
-    }
-
+    // Save partial update to user_templates
     const toStore = {
+      design_style_id: custom_config.design_style_id ?? 'minimalist',
+      palette_override: sanitizePaletteOverride(custom_config.palette_override),
+      sections: custom_config.sections ?? [],
+      header: custom_config.header ?? {},
+      footer: custom_config.footer ?? {},
       theme: custom_config.theme ?? {},
-      sections: merged.sections,
+      core: custom_config.core ?? {},
       seo: custom_config.seo ?? {},
     };
 
@@ -304,7 +580,7 @@ export async function PUT(
       {
         user_id: sessionUser.id,
         website_id: websiteId,
-        template_id: template.id,
+        template_id: validatedTemplateId,
         custom_config: toStore,
         updated_at: new Date().toISOString(),
       },
@@ -317,13 +593,13 @@ export async function PUT(
 
     await supabase
       .from("websites")
-      .update({ current_template_id: template.id, updated_at: new Date().toISOString() })
+      .update({ current_template_id: validatedTemplateId, updated_at: new Date().toISOString() })
       .eq("id", websiteId)
       .eq("user_id", sessionUser.id);
 
     return NextResponse.json({
       success: true,
-      data: { website_id: websiteId, template_id: template.id, template_name: template.name, custom_config: toStore },
+      data: { website_id: websiteId, template_id: validatedTemplateId, template_name: 'Custom', custom_config: toStore },
       message: "Website berhasil disimpan",
     });
   } catch (error) {

@@ -1,11 +1,9 @@
 /**
  * Registrar Factory — driver switchable antar provider registrar.
  *
- *   REGISTRAR_PROVIDER=porkbun|domainnameapi|mock   (default: mock di dev, porkbun di prod)
+ *   REGISTRAR_PROVIDER=porkbun|mock   (default: mock di dev, porkbun di prod)
  *
  * - porkbun:       PORKBUN_API_KEY + PORKBUN_API_SECRET (+ PORKBUN_API_URL opsional)
- * - domainnameapi: DOMAINNAMEAPI_*_RESELLER_ID + *_API_KEY (+ _OTE_ varian sandbox,
- *                  DOMAINNAMEAPI_SANDBOX=false untuk produksi)
  * - mock:          simulasi deterministik (dev/test saja; DITOLAK di production)
  *
  * Provider baru cukup implement `RegistrarProvider` lalu daftarkan di switch
@@ -13,7 +11,6 @@
  */
 import type { RegistrarProvider, RegistrarConfig, RegistrarProviderType } from "./types";
 import { PorkbunProvider } from "./porkbun";
-import { DomainNameAPIProvider } from "./domainnameapi";
 import { MockRegistrarProvider } from "./mock";
 import { REGISTRAR_PROVIDERS } from "./types";
 
@@ -21,7 +18,7 @@ let _registrarProvider: RegistrarProvider | null = null;
 
 function defaultProviderType(): RegistrarProviderType {
   const raw = (process.env.REGISTRAR_PROVIDER || "").trim().toLowerCase();
-  if (raw === "porkbun" || raw === "domainnameapi" || raw === "mock") return raw;
+  if (raw === "porkbun" || raw === "mock") return raw;
   // Default aman: mock di dev/test agar tanpa kredensial tetap jalan;
   // di production default porkbun (akan throw eksplisit bila key belum diset).
   return process.env.NODE_ENV === "production" ? "porkbun" : "mock";
@@ -56,27 +53,9 @@ export function createRegistrarProviderFromEnv(provider: RegistrarProviderType):
         defaultNameservers: defaultNameservers(),
       });
     }
-    case "domainnameapi": {
-      const isTest = process.env.DOMAINNAMEAPI_SANDBOX !== "false";
-      const resellerId = (isTest ? process.env.DOMAINNAMEAPI_OTE_RESELLER_ID : process.env.DOMAINNAMEAPI_RESELLER_ID)
-        ?? process.env.DOMAINNAMEAPI_RESELLER_ID;
-      const apiKey = (isTest ? process.env.DOMAINNAMEAPI_OTE_API_KEY : process.env.DOMAINNAMEAPI_API_KEY)
-        ?? process.env.DOMAINNAMEAPI_API_KEY;
-      if (!resellerId || !apiKey) {
-        throw new Error("DomainNameAPI credentials not configured (atau set REGISTRAR_PROVIDER=mock untuk dev)");
-      }
-      return new DomainNameAPIProvider({
-        provider: "domainnameapi",
-        apiKey,
-        apiSecret: apiKey,
-        resellerId,
-        isTest,
-        defaultNameservers: defaultNameservers(),
-      });
-    }
     case "mock": {
       if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_REGISTRAR !== "true") {
-        throw new Error("Mock registrar dilarang di production (set REGISTRAR_PROVIDER=porkbun|domainnameapi)");
+        throw new Error("Mock registrar dilarang di production (set REGISTRAR_PROVIDER=porkbun)");
       }
       return new MockRegistrarProvider();
     }
@@ -100,8 +79,6 @@ export function createRegistrarProvider(config: RegistrarConfig): RegistrarProvi
   switch (config.provider) {
     case "porkbun":
       return new PorkbunProvider(config);
-    case "domainnameapi":
-      return new DomainNameAPIProvider(config);
     case "mock":
       return new MockRegistrarProvider();
     default:

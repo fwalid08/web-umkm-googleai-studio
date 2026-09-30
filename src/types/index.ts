@@ -285,7 +285,7 @@ export const websiteConfigSchema = z.object({
   template_id: z.string().uuid("Template tidak valid"),
   custom_config: z.object({
     theme: z.record(z.string(), z.unknown()).optional(),
-    sections: z.array(websiteSectionSchema).min(1, "Minimal 1 section"),
+    sections: z.array(websiteSectionSchema).optional(),
     seo: z
       .object({
         title: z.string().max(60, "Judul SEO maksimal 60 karakter").optional(),
@@ -297,6 +297,115 @@ export const websiteConfigSchema = z.object({
 
 export type WebsiteSectionInput = z.infer<typeof websiteSectionSchema>;
 export type WebsiteConfigInput = z.infer<typeof websiteConfigSchema>;
+
+// Builder V2 Schema (Section-based builder dengan design styles)
+// Nav item mendukung submenu 1 level (children max 5, tanpa cucu).
+const navChildSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  url: z.string(),
+  isExternal: z.boolean().default(false),
+  enabled: z.boolean().default(true),
+});
+
+const navItemSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  url: z.string(),
+  isExternal: z.boolean().default(false),
+  enabled: z.boolean().default(true),
+  children: z.array(navChildSchema).max(5).optional(),
+});
+
+export const builderConfigSchema = z.object({
+  design_style_id: z.string().min(1, "Design style wajib diisi"),
+  palette_override: z.record(z.string(), z.string()).optional(),
+  sections: z.array(z.object({
+    id: z.string().min(1),
+    type: z.string().min(1),
+    variant: z.string(),
+    config: z.record(z.string(), z.unknown()).default(() => ({})),
+    style: z.object({
+      padding: z.object({
+        top: z.number().default(0),
+        right: z.number().default(0),
+        bottom: z.number().default(0),
+        left: z.number().default(0),
+      }).default(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+      background: z.enum(['color', 'image', 'gradient', 'transparent']).default('transparent'),
+      backgroundColor: z.string().optional(),
+      backgroundImage: z.string().optional(),
+      backgroundGradient: z.string().optional(),
+    }).default(() => ({
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      background: 'transparent' as const,
+    })),
+    responsive: z.object({
+      hideOnMobile: z.boolean().optional(),
+      hideOnTablet: z.boolean().optional(),
+      hideOnDesktop: z.boolean().optional(),
+    }).default(() => ({})),
+  })).default([]),
+  header: z.object({
+    logoUrl: z.string().default(''),
+    faviconUrl: z.string().default(''),
+    siteTitle: z.string().default(''),
+    tagline: z.string().default(''),
+    navItems: z.array(navItemSchema).default(() => []),
+    ctaText: z.string().default(''),
+    ctaLink: z.string().default(''),
+    showCta: z.boolean().default(false),
+    sticky: z.boolean().default(true),
+    seo: z.object({
+      title: z.string().max(60).default(''),
+      description: z.string().max(160).default(''),
+    }).default(() => ({ title: '', description: '' })),
+  }).default(() => ({
+    logoUrl: '',
+    faviconUrl: '',
+    siteTitle: '',
+    tagline: '',
+    navItems: [],
+    ctaText: '',
+    ctaLink: '',
+    showCta: false,
+    sticky: true,
+    seo: { title: '', description: '' },
+  })),
+  footer: z.object({
+    style: z.enum(['simple', 'columns', 'centered', 'minimal']).default('simple'),
+    text: z.string().default(''),
+    navItems: z.array(navItemSchema).default(() => []),
+    showSocial: z.boolean().default(false),
+    socialLinks: z.record(z.string(), z.string()).default(() => ({})),
+    address: z.string().default(''),
+    phone: z.string().default(''),
+    email: z.string().default(''),
+    whatsapp: z.string().default(''),
+    showWhatsApp: z.boolean().default(true),
+  }).default(() => ({
+    style: 'simple' as const,
+    text: '',
+    navItems: [],
+    showSocial: false,
+    socialLinks: {},
+    address: '',
+    phone: '',
+    email: '',
+    whatsapp: '',
+    showWhatsApp: true,
+  })),
+  layout: z.object({
+    rows: z.array(z.unknown()).default(() => []),
+  }).default(() => ({ rows: [] })),
+  core: z.record(z.string(), z.unknown()).default(() => ({})),
+  seo: z.object({
+    title: z.string().max(60).default(''),
+    description: z.string().max(160).default(''),
+  }).default(() => ({ title: '', description: '' })),
+});
+
+export type BuilderConfigInput = z.infer<typeof builderConfigSchema>;
 
 // Batas tier (Sprint 01) — sinkron dengan sprints/sprint_1.md §4
 export const FREE_TEMPLATE_NAMES = ["food", "fashion", "retail"] as const;
@@ -326,6 +435,24 @@ export const updateOrderStatusSchema = z.object({
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
+
+// Booking — reservasi terjadwal dari section `booking` (terpisah dari contact).
+export const createBookingSchema = z.object({
+  website_id: z.string().uuid("Website ID tidak valid"),
+  customer_name: z.string().min(1, "Nama wajib diisi").max(100),
+  customer_phone: z.string().min(9, "Nomor HP minimal 9 digit").max(20),
+  service_name: z.string().min(1, "Layanan wajib dipilih").max(255),
+  booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid (YYYY-MM-DD)"),
+  booking_time: z.string().regex(/^\d{2}:\d{2}$/, "Jam tidak valid (HH:MM)"),
+  notes: z.string().max(1000).optional().or(z.literal("")),
+});
+
+export const updateBookingStatusSchema = z.object({
+  status: z.enum(["baru", "dikonfirmasi", "selesai", "batal"]),
+});
+
+export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;
 
 // Website & Plan Types (Sprint 03 — multi-website, isolasi per website_id)
 export interface Website {
