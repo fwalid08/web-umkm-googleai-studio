@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTemplateStore, getHeaderVariant, getFooterVariant } from '@/lib/builder/template-store';
 import { useBuilderStore } from '@/lib/builder/store';
-import { DESIGN_STYLES } from '@/lib/builder/design-styles';
-import { HEADER_VARIANTS, FOOTER_VARIANTS } from '@/lib/builder/chrome';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +40,8 @@ import { SectionConfig } from './section-config';
 import { SectionPicker } from './section-picker';
 import { StyleSelector } from './style-selector';
 import { TemplateGallery } from './template-gallery';
-import type { SectionType } from '@/lib/builder/types';
+import { ConfigForm } from '@/lib/builder/config-form';
+import { MockupPreview } from '@/lib/builder/mockup-preview';
 
 type SidebarLevel = 'main' | 'sections' | 'section-config' | 'header' | 'footer' | 'seo' | 'style' | 'template-info';
 
@@ -50,12 +50,19 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
   const [showSectionPicker, setShowSectionPicker] = useState(false);
   const [sectionSearch, setSectionSearch] = useState('');
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
-  const selectedSectionId = useBuilderStore((s) => s.selectedSectionId);
-  const sections = useBuilderStore((s) => s.sections);
+
+  const template = useTemplateStore((s) => s.template);
+  const sections = useTemplateStore((s) => s.sections);
+  const selectedSectionId = useTemplateStore((s) => s.selectedSectionId);
+  const headerVariantId = useTemplateStore((s) => s.headerVariantId);
+  const footerVariantId = useTemplateStore((s) => s.footerVariantId);
+  const setHeaderVariant = useTemplateStore((s) => s.setHeaderVariant);
+  const setFooterVariant = useTemplateStore((s) => s.setFooterVariant);
+  const selectSection = useTemplateStore((s) => s.selectSection);
+  const addSection = useTemplateStore((s) => s.addSection);
+
   const designStyleId = useBuilderStore((s) => s.designStyleId);
 
-  // Canvas memicu event ini saat tombol "Tambah Section" diklik.
-  // Tanpa listener ini tombol tersebut tidak melakukan apa-apa (bug lama).
   useEffect(() => {
     const open = () => {
       setLevel('sections');
@@ -66,7 +73,6 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
   }, []);
 
   const handleBack = () => {
-    // Kembali ke context sebelumnya, bukan selalu ke main
     if (level === 'section-config') setLevel('sections');
     else setLevel('main');
   };
@@ -75,22 +81,24 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
     ? sections.find((s) => s.id === selectedSectionId)
     : null;
 
-  const handleAddSection = (type: SectionType, variantId: string) => {
-    useBuilderStore.getState().addSection(type, variantId);
+  const handleAddSection = (type: string, variant: { id: string }) => {
+    addSection(type, variant.id);
     setShowSectionPicker(false);
   };
 
+  const headerVariant = getHeaderVariant(template, headerVariantId);
+  const footerVariant = getFooterVariant(template, footerVariantId);
+
   const renderMainMenu = () => (
     <div className="space-y-3">
-      {/* Banner sambutan playful */}
       <div className="rounded-2xl border border-slate-200/50 bg-gradient-to-br from-emerald-50/70 via-teal-50/40 to-amber-50/60 p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:from-white/[0.04] dark:via-transparent dark:to-transparent dark:border-white/[0.06]">
-        <p className="text-[13px] font-extrabold leading-tight">🎨 Atur tampilan tokomu</p>
+        <p className="text-[13px] font-extrabold leading-tight">Atur tampilan tokomu</p>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
           Klik kartu di bawah untuk edit. Semua tersimpan otomatis saat kamu tekan Simpan.
         </p>
       </div>
       <p className="px-1 pt-1 text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest">
-        🧱 Konten halaman
+        Konten halaman
       </p>
       <MenuCard
         onClick={() => setLevel('header')}
@@ -120,7 +128,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
       />
 
       <p className="px-1 pt-3 text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest">
-        ⚙️ Percantik & promosi
+        Percantik & promosi
       </p>
       <MenuCard
         onClick={() => setLevel('style')}
@@ -129,8 +137,6 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         hover="hover:border-teal-300 hover:shadow-teal-100"
         title="Tema & Warna"
         desc="Ganti theme & skema warna aman"
-        badge={DESIGN_STYLES.find((s) => s.id === designStyleId)?.name ?? 'Tema'}
-        badgeClass="bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200"
       />
       <MenuCard
         onClick={() => setShowTemplateGallery(true)}
@@ -138,7 +144,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         gradient="from-pink-500 to-rose-600"
         hover="hover:border-pink-300 hover:shadow-pink-100"
         title="Ganti Template"
-        desc="Warna, font & gaya sekaligus ✨"
+        desc="Warna, font & gaya sekaligus"
         badge="Baru"
         badgeClass="bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200"
       />
@@ -157,7 +163,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
     <div className="space-y-3">
       <div className="rounded-2xl border border-slate-200/50 bg-white p-3 flex items-center justify-between gap-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:bg-white/[0.03] dark:border-white/[0.06]">
         <div>
-          <h3 className="text-sm font-extrabold">🧱 {sections.length} blok halaman</h3>
+          <h3 className="text-sm font-extrabold">{sections.length} blok halaman</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">Klik blok untuk edit • seret untuk susun</p>
         </div>
         <Button size="sm" className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 font-bold shadow-sm shrink-0" onClick={() => setShowSectionPicker(true)}>
@@ -177,7 +183,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         </div>
       )}
       <SectionList search={sectionSearch} onEditSection={(id) => {
-        useBuilderStore.getState().selectSection(id);
+        selectSection(id);
         setLevel('section-config');
       }} />
     </div>
@@ -194,8 +200,78 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
     return <SectionConfig section={selectedSection} />;
   };
 
-  const renderHeaderConfig = () => <HeaderConfigPanel />;
-  const renderFooterConfig = () => <FooterConfigPanel />;
+  const renderHeaderConfig = () => (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200/50 bg-white dark:bg-white/[0.03] dark:border-white/[0.06] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] space-y-2">
+        <Label className="text-xs font-bold">Gaya header</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {template.headers.map((h) => (
+            <button
+              key={h.id}
+              onClick={() => setHeaderVariant(h.id)}
+              className={`p-2 rounded-xl border-2 text-left transition-all ${
+                headerVariantId === h.id
+                  ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20'
+                  : 'border-slate-200/70 dark:border-white/10 hover:border-emerald-300'
+              }`}
+            >
+              <div className="h-12 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1.5 overflow-hidden">
+                <MockupPreview mockup={h.mockup} />
+              </div>
+              <p className="text-[11px] font-bold">{h.name}</p>
+              <p className="text-[10px] text-muted-foreground line-clamp-1">{h.description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+      <Separator />
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Konten Header</h4>
+        <ConfigForm
+          fields={headerVariant.configFields}
+          config={headerVariant.defaultConfig}
+          onChange={() => {}}
+        />
+      </div>
+    </div>
+  );
+
+  const renderFooterConfig = () => (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200/50 bg-white dark:bg-white/[0.03] dark:border-white/[0.06] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] space-y-2">
+        <Label className="text-xs font-bold">Gaya footer</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {template.footers.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFooterVariant(f.id)}
+              className={`p-2 rounded-xl border-2 text-left transition-all ${
+                footerVariantId === f.id
+                  ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20'
+                  : 'border-slate-200/70 dark:border-white/10 hover:border-emerald-300'
+              }`}
+            >
+              <div className="h-12 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1.5 overflow-hidden">
+                <MockupPreview mockup={f.mockup} />
+              </div>
+              <p className="text-[11px] font-bold">{f.name}</p>
+              <p className="text-[10px] text-muted-foreground line-clamp-1">{f.description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+      <Separator />
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Konten Footer</h4>
+        <ConfigForm
+          fields={footerVariant.configFields}
+          config={footerVariant.defaultConfig}
+          onChange={() => {}}
+        />
+      </div>
+    </div>
+  );
+
   const renderSeoConfig = () => <SeoConfigPanel />;
   const renderStyleSelector = () => <StyleSelector />;
 
@@ -222,22 +298,14 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
 
   const getTitle = () => {
     switch (level) {
-      case 'main':
-        return 'Builder';
-      case 'sections':
-        return 'Sections';
-      case 'section-config':
-        return 'Section Config';
-      case 'header':
-        return 'Top Header';
-      case 'footer':
-        return 'Footer';
-      case 'seo':
-        return 'SEO';
-      case 'style':
-        return 'Tema & Warna';
-      default:
-        return 'Builder';
+      case 'main': return 'Builder';
+      case 'sections': return 'Sections';
+      case 'section-config': return 'Section Config';
+      case 'header': return 'Header';
+      case 'footer': return 'Footer';
+      case 'seo': return 'SEO';
+      case 'style': return 'Tema & Warna';
+      default: return 'Builder';
     }
   };
 
@@ -259,11 +327,11 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
                 {getTitle()}
               </h2>
               {level === 'main' ? (
-                <p className="text-[11px] text-muted-foreground truncate mt-0.5">Pilih yang mau diatur 👇</p>
+                <p className="text-[11px] text-muted-foreground truncate mt-0.5">Pilih yang mau diatur</p>
               ) : level === 'section-config' && selectedSection ? (
-                <p className="text-xs text-muted-foreground truncate">{selectedSection.type} • {selectedSection.variant}</p>
+                <p className="text-xs text-muted-foreground truncate">{selectedSection.type} • {selectedSection.variantId}</p>
               ) : level === 'style' ? (
-                <p className="text-[11px] text-muted-foreground truncate mt-0.5">Theme, skema & warna — berlaku di semua halaman ✨</p>
+                <p className="text-[11px] text-muted-foreground truncate mt-0.5">Theme, skema & warna — berlaku di semua halaman</p>
               ) : (
                 <p className="text-[11px] text-muted-foreground truncate mt-0.5">{sections.length} blok di halaman ini</p>
               )}
@@ -277,6 +345,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
 
       {showSectionPicker && (
         <SectionPicker
+          sections={template.sections}
           onSelect={handleAddSection}
           onClose={() => setShowSectionPicker(false)}
         />
@@ -298,16 +367,8 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
             <TemplateGallery
               websiteId={websiteId}
               onApply={async (template: any) => {
-                const td = template.template_data as unknown as import('@/lib/builder/types').FullTemplateData;
-                useBuilderStore.getState().applyFullTemplate({
-                  designStyleId: td.designStyleId ?? td.design_style_id,
-                  paletteOverride: td.paletteOverride ?? td.palette_override,
-                  sections: td.sections ?? [],
-                  header: td.header,
-                  footer: td.footer,
-                  seo: td.seo,
-                  core: td.core,
-                });
+                const td = template.template_data as unknown as import('@/lib/builder/template-types').Template;
+                useTemplateStore.getState().setTemplate(td.id);
                 try {
                   await useBuilderStore.getState().save(websiteId);
                 } catch (e) {
@@ -368,305 +429,16 @@ function MenuCard({
   );
 }
 
-function HeaderConfigPanel() {
-  const header = useBuilderStore((s) => s.header);
-  const updateHeader = useBuilderStore((s) => s.updateHeader);
-  const addNavItem = useBuilderStore((s) => s.addNavItem);
-  const updateNavItem = useBuilderStore((s) => s.updateNavItem);
-  const deleteNavItem = useBuilderStore((s) => s.deleteNavItem);
-  const reorderNavItems = useBuilderStore((s) => s.reorderNavItems);
-
-  return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200/50 bg-white dark:bg-white/[0.03] dark:border-white/[0.06] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] space-y-2">
-        <Label className="text-xs font-bold">🎨 Gaya header (bawaan template)</Label>
-        <Select
-          value={header.variant || 'standard'}
-          onValueChange={(value) => updateHeader({ variant: value })}
-        >
-          <SelectTrigger className="h-9 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-900 font-medium">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {HEADER_VARIANTS.map((v) => (
-              <SelectItem key={v.id} value={v.id} className="text-xs">{v.name} — {v.description}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">Logo & Title</h4>
-        <div className="space-y-2">
-          <Label>Logo URL</Label>
-          <Input
-            value={header.logoUrl}
-            onChange={(e) => updateHeader({ logoUrl: e.target.value })}
-            placeholder="https://..."
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Site Title</Label>
-          <Input
-            value={header.siteTitle}
-            onChange={(e) => updateHeader({ siteTitle: e.target.value })}
-            placeholder="Toko Saya"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Tagline</Label>
-          <Input
-            value={header.tagline}
-            onChange={(e) => updateHeader({ tagline: e.target.value })}
-            placeholder="Produk berkualitas"
-          />
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold">Navigation</h4>
-          <Button size="sm" variant="outline" onClick={() => addNavItem('header')}>
-            <Plus className="w-3 h-3 mr-1" />
-            Tambah
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {header.navItems.map((item, index) => (
-            <div key={item.id} className="flex items-center gap-2 p-2 border rounded-md">
-              <div className="flex flex-col gap-0.5">
-                <button
-                  onClick={() => reorderNavItems('header', index, index - 1)}
-                  disabled={index === 0}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                >
-                  <ChevronUp className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={() => reorderNavItems('header', index, index + 1)}
-                  disabled={index === header.navItems.length - 1}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                >
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="flex-1 space-y-1">
-                <Input
-                  className="h-7 text-xs"
-                  value={item.label}
-                  onChange={(e) => updateNavItem('header', item.id, { label: e.target.value })}
-                  placeholder="Label"
-                />
-                <Input
-                  className="h-7 text-xs"
-                  value={item.url}
-                  onChange={(e) => updateNavItem('header', item.id, { url: e.target.value })}
-                  placeholder="URL"
-                />
-              </div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={item.enabled}
-                  onChange={(e) => updateNavItem('header', item.id, { enabled: e.target.checked })}
-                  className="w-3 h-3"
-                />
-              </label>
-              <button
-                onClick={() => deleteNavItem('header', item.id)}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">Perilaku</h4>
-        <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
-          <div>
-            <Label htmlFor="header-sticky">Header menempel</Label>
-            <p className="text-[11px] text-muted-foreground">Tetap terlihat saat scroll (sticky)</p>
-          </div>
-          <Switch
-            id="header-sticky"
-            checked={header.sticky !== false}
-            onCheckedChange={(v) => updateHeader({ sticky: v })}
-          />
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">CTA Button</h4>
-        <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
-          <Label htmlFor="header-cta">Tampilkan CTA</Label>
-          <Switch
-            id="header-cta"
-            checked={header.showCta}
-            onCheckedChange={(v) => updateHeader({ showCta: v })}
-          />
-        </div>
-        {header.showCta && (
-          <>
-            <div className="space-y-2">
-              <Label>CTA Text</Label>
-              <Input
-                value={header.ctaText}
-                onChange={(e) => updateHeader({ ctaText: e.target.value })}
-                placeholder="Hubungi Kami"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>CTA Link</Label>
-              <Input
-                value={header.ctaLink}
-                onChange={(e) => updateHeader({ ctaLink: e.target.value })}
-                placeholder="/kontak"
-              />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function FooterConfigPanel() {
-  const footer = useBuilderStore((s) => s.footer);
-  const updateFooter = useBuilderStore((s) => s.updateFooter);
-  const addNavItem = useBuilderStore((s) => s.addNavItem);
-  const updateNavItem = useBuilderStore((s) => s.updateNavItem);
-  const deleteNavItem = useBuilderStore((s) => s.deleteNavItem);
-  const reorderNavItems = useBuilderStore((s) => s.reorderNavItems);
-
-  return (
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">🎨 Gaya footer (bawaan template)</h4>
-        <Select
-          value={footer.style}
-          onValueChange={(value) => updateFooter({ style: value as 'simple' | 'columns' | 'centered' | 'minimal' })}
-        >
-          <SelectTrigger className="h-9 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-900 font-medium">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FOOTER_VARIANTS.map((v) => (
-              <SelectItem key={v.id} value={v.id as 'simple' | 'columns' | 'centered' | 'minimal'} className="text-xs">{v.name} — {v.description}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">Footer Text</h4>
-        <Input
-          value={footer.text}
-          onChange={(e) => updateFooter({ text: e.target.value })}
-          placeholder={`© ${new Date().getFullYear()} Toko Saya`}
-        />
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold">Footer Navigation</h4>
-          <Button size="sm" variant="outline" onClick={() => addNavItem('footer')}>
-            <Plus className="w-3 h-3 mr-1" />
-            Tambah
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {footer.navItems.map((item, index) => (
-            <div key={item.id} className="flex items-center gap-2 p-2 border rounded-md">
-              <div className="flex flex-col gap-0.5">
-                <button
-                  onClick={() => reorderNavItems('footer', index, index - 1)}
-                  disabled={index === 0}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                >
-                  <ChevronUp className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={() => reorderNavItems('footer', index, index + 1)}
-                  disabled={index === footer.navItems.length - 1}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                >
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="flex-1 space-y-1">
-                <Input
-                  className="h-7 text-xs"
-                  value={item.label}
-                  onChange={(e) => updateNavItem('footer', item.id, { label: e.target.value })}
-                  placeholder="Label"
-                />
-                <Input
-                  className="h-7 text-xs"
-                  value={item.url}
-                  onChange={(e) => updateNavItem('footer', item.id, { url: e.target.value })}
-                  placeholder="URL"
-                />
-              </div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={item.enabled}
-                  onChange={(e) => updateNavItem('footer', item.id, { enabled: e.target.checked })}
-                  className="w-3 h-3"
-                />
-              </label>
-              <button
-                onClick={() => deleteNavItem('footer', item.id)}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">Social Links</h4>
-        <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
-          <Label htmlFor="footer-social">Tampilkan ikon sosial</Label>
-          <Switch
-            id="footer-social"
-            checked={footer.showSocial}
-            onCheckedChange={(v) => updateFooter({ showSocial: v })}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SeoConfigPanel() {
   const seo = useBuilderStore((s) => s.seo);
   const updateSeo = useBuilderStore((s) => s.updateSeo);
-  const sections = useBuilderStore((s) => s.sections);
-  const designStyleId = useBuilderStore((s) => s.designStyleId);
+  const sections = useTemplateStore((s) => s.sections);
 
   const checks = [
     { label: `Meta title terisi (${seo.title.length}/60)`, ok: seo.title.trim().length >= 10 && seo.title.length <= 60 },
     { label: `Meta description terisi (${seo.description.length}/160)`, ok: seo.description.trim().length >= 50 && seo.description.length <= 160 },
     { label: `Minimal 3 section konten (${sections.length})`, ok: sections.length >= 3 },
-    { label: 'Design style dipilih', ok: Boolean(designStyleId) },
+    { label: 'Template dipilih', ok: true },
   ];
   const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
 

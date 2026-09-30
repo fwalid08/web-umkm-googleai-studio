@@ -1,0 +1,1495 @@
+import type { Template } from '../template-types';
+
+export const PANGKAS_RAPI_TEMPLATE: Template = {
+  id: 'pangkas-rapi',
+  name: 'Pangkas Rapi — Barbershop & Jasa',
+  description:
+    'Template barbershop modern dengan hero foto, keunggulan, tarif, booking, testimoni, galeri, lokasi, FAQ, dan kontak.',
+  category: 'services',
+  tiers: ['free', 'starter', 'growth', 'enterprise'],
+  theme: {
+    palette: {
+      primary: '#047857',
+      secondary: '#065f46',
+      accent: '#f59e0b',
+      background: '#ffffff',
+      surface: '#ecfdf5',
+      text: '#111827',
+      textMuted: '#4b5563',
+      border: '#a7f3d0',
+    },
+    typography: {
+      headingFont: 'Space Grotesk',
+      bodyFont: 'Inter',
+      baseSize: 16,
+      scaleRatio: 1.25,
+      headingWeight: 700,
+      bodyWeight: 400,
+    },
+    components: {
+      borderRadius: 12,
+      buttonStyle: 'solid',
+      shadowStyle: 'md',
+      navStyle: 'solid',
+      footerStyle: 'simple',
+    },
+    effects: {},
+  },
+  headers: [
+    {
+      id: 'header-klasik',
+      name: 'Klasik',
+      description: 'Logo kiri, menu tengah, tombol CTA kanan',
+      layout: 'standard',
+      mockup: 'header-standard',
+      configFields: [
+        { key: 'logoUrl', label: 'Logo URL', type: 'image', placeholder: 'https://...' },
+        { key: 'siteTitle', label: 'Nama Toko', type: 'text', placeholder: 'Pangkas Rapi' },
+        { key: 'tagline', label: 'Tagline', type: 'text', placeholder: 'Rapi, Bersih, Percaya Diri' },
+        {
+          key: 'navItems',
+          label: 'Menu Navigasi',
+          type: 'list',
+          itemFields: [
+            { key: 'label', label: 'Label', type: 'text' },
+            { key: 'url', label: 'URL', type: 'text' },
+          ],
+        },
+        { key: 'ctaText', label: 'Teks CTA', type: 'text', placeholder: 'Booking via WA' },
+        { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
+        { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
+        { key: 'sticky', label: 'Header menempel', type: 'switch' },
+      ],
+      defaultConfig: {
+        logoUrl: '',
+        siteTitle: 'Pangkas Rapi',
+        tagline: 'Rapi, Bersih, Percaya Diri',
+        navItems: [
+          { id: 'nav-1', label: 'Layanan', url: '#layanan', isExternal: false, enabled: true },
+          { id: 'nav-2', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+          { id: 'nav-3', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+        ],
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        showCta: true,
+        sticky: true,
+      },
+    },
+    {
+      id: 'header-melayang',
+      name: 'Melayang',
+      description: 'Bar mengambang rounded dengan blur & bayangan',
+      layout: 'floating',
+      mockup: 'header-floating',
+      configFields: [
+        { key: 'logoUrl', label: 'Logo URL', type: 'image', placeholder: 'https://...' },
+        { key: 'siteTitle', label: 'Nama Toko', type: 'text', placeholder: 'Pangkas Rapi' },
+        { key: 'ctaText', label: 'Teks CTA', type: 'text', placeholder: 'Booking via WA' },
+        { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
+        { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
+      ],
+      defaultConfig: {
+        logoUrl: '',
+        siteTitle: 'Pangkas Rapi',
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        showCta: true,
+      },
+    },
+    {
+      id: 'header-minimal',
+      name: 'Minimal',
+      description: 'Logo + hamburger menu saja, bersih dan simpel',
+      layout: 'minimal',
+      mockup: 'header-minimal',
+      configFields: [
+        { key: 'logoUrl', label: 'Logo URL', type: 'image', placeholder: 'https://...' },
+        { key: 'siteTitle', label: 'Nama Toko', type: 'text', placeholder: 'Pangkas Rapi' },
+        {
+          key: 'navItems',
+          label: 'Menu Navigasi',
+          type: 'list',
+          itemFields: [
+            { key: 'label', label: 'Label', type: 'text' },
+            { key: 'url', label: 'URL', type: 'text' },
+          ],
+        },
+      ],
+      defaultConfig: {
+        logoUrl: '',
+        siteTitle: 'Pangkas Rapi',
+        navItems: [
+          { id: 'nav-1', label: 'Layanan', url: '#layanan', isExternal: false, enabled: true },
+          { id: 'nav-2', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+          { id: 'nav-3', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+        ],
+      },
+    },
+    {
+      id: 'header-hero',
+      name: 'Hero',
+      description: 'Transparan di atas hero, solid saat scroll',
+      layout: 'hero-overlay',
+      mockup: 'header-hero-overlay',
+      configFields: [
+        { key: 'logoUrl', label: 'Logo URL', type: 'image', placeholder: 'https://...' },
+        { key: 'siteTitle', label: 'Nama Toko', type: 'text', placeholder: 'Pangkas Rapi' },
+        {
+          key: 'navItems',
+          label: 'Menu Navigasi',
+          type: 'list',
+          itemFields: [
+            { key: 'label', label: 'Label', type: 'text' },
+            { key: 'url', label: 'URL', type: 'text' },
+          ],
+        },
+        { key: 'ctaText', label: 'Teks CTA', type: 'text', placeholder: 'Booking via WA' },
+        { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
+        { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
+      ],
+      defaultConfig: {
+        logoUrl: '',
+        siteTitle: 'Pangkas Rapi',
+        navItems: [
+          { id: 'nav-1', label: 'Layanan', url: '#layanan', isExternal: false, enabled: true },
+          { id: 'nav-2', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+        ],
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        showCta: true,
+      },
+    },
+  ],
+  footers: [
+    {
+      id: 'footer-satu-baris',
+      name: 'Satu Baris',
+      description: 'Baris tunggal bersih: teks, menu, ikon sosial',
+      layout: 'simple',
+      mockup: 'footer-simple',
+      configFields: [
+        { key: 'text', label: 'Teks Footer', type: 'text', placeholder: '© {year} Pangkas Rapi' },
+        {
+          key: 'navItems',
+          label: 'Menu Footer',
+          type: 'list',
+          itemFields: [
+            { key: 'label', label: 'Label', type: 'text' },
+            { key: 'url', label: 'URL', type: 'text' },
+          ],
+        },
+        { key: 'showSocial', label: 'Tampilkan ikon sosial', type: 'switch' },
+      ],
+      defaultConfig: {
+        text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+        navItems: [
+          { id: 'footer-1', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+          { id: 'footer-2', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+        ],
+        showSocial: true,
+      },
+    },
+    {
+      id: 'footer-kolom-aksen',
+      name: 'Kolom Aksen',
+      description: 'Tiga kolom dengan aksen gradasi di atas',
+      layout: 'columns',
+      mockup: 'footer-columns',
+      configFields: [
+        { key: 'text', label: 'Teks Footer', type: 'text', placeholder: '© {year} Pangkas Rapi' },
+        {
+          key: 'navItems',
+          label: 'Menu Footer',
+          type: 'list',
+          itemFields: [
+            { key: 'label', label: 'Label', type: 'text' },
+            { key: 'url', label: 'URL', type: 'text' },
+          ],
+        },
+        { key: 'showSocial', label: 'Tampilkan ikon sosial', type: 'switch' },
+        { key: 'address', label: 'Alamat', type: 'textarea' },
+        { key: 'phone', label: 'Telepon', type: 'text' },
+        { key: 'email', label: 'Email', type: 'text' },
+      ],
+      defaultConfig: {
+        text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+        navItems: [
+          { id: 'footer-1', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+          { id: 'footer-2', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+        ],
+        showSocial: true,
+        address: 'Jl. Merdeka No. 12, Jakarta',
+        phone: '0812-3456-7890',
+        email: 'hello@pangkasrapi.id',
+      },
+    },
+    {
+      id: 'footer-brand-tengah',
+      name: 'Brand Tengah',
+      description: 'Inisial brand besar + ornamen, bertumpuk tengah',
+      layout: 'centered',
+      mockup: 'footer-centered',
+      configFields: [
+        { key: 'text', label: 'Teks Footer', type: 'text', placeholder: '© {year} Pangkas Rapi' },
+        {
+          key: 'navItems',
+          label: 'Menu Footer',
+          type: 'list',
+          itemFields: [
+            { key: 'label', label: 'Label', type: 'text' },
+            { key: 'url', label: 'URL', type: 'text' },
+          ],
+        },
+        { key: 'showSocial', label: 'Tampilkan ikon sosial', type: 'switch' },
+      ],
+      defaultConfig: {
+        text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+        navItems: [
+          { id: 'footer-1', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+          { id: 'footer-2', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+        ],
+        showSocial: true,
+      },
+    },
+    {
+      id: 'footer-mini',
+      name: 'Mini',
+      description: 'Super ringkas: hanya teks hak cipta',
+      layout: 'minimal',
+      mockup: 'footer-minimal',
+      configFields: [
+        { key: 'text', label: 'Teks Footer', type: 'text', placeholder: '© {year} Pangkas Rapi' },
+      ],
+      defaultConfig: {
+        text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+      },
+    },
+    {
+      id: 'footer-newsletter',
+      name: 'Newsletter',
+      description: 'Footer dengan newsletter signup',
+      layout: 'newsletter',
+      mockup: 'footer-newsletter',
+      configFields: [
+        { key: 'text', label: 'Teks Footer', type: 'text', placeholder: '© {year} Pangkas Rapi' },
+        { key: 'newsletterTitle', label: 'Judul Newsletter', type: 'text', placeholder: 'Dapatkan Info Promo' },
+        { key: 'newsletterPlaceholder', label: 'Placeholder', type: 'text', placeholder: 'Email Anda' },
+        { key: 'newsletterButton', label: 'Teks Tombol', type: 'text', placeholder: 'Berlangganan' },
+        { key: 'showSocial', label: 'Tampilkan ikon sosial', type: 'switch' },
+      ],
+      defaultConfig: {
+        text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+        newsletterTitle: 'Dapatkan Info Promo',
+        newsletterPlaceholder: 'Email Anda',
+        newsletterButton: 'Berlangganan',
+        showSocial: true,
+      },
+    },
+    {
+      id: 'footer-social',
+      name: 'Social',
+      description: 'Footer dengan social links menonjol',
+      layout: 'social',
+      mockup: 'footer-social',
+      configFields: [
+        { key: 'text', label: 'Teks Footer', type: 'text', placeholder: '© {year} Pangkas Rapi' },
+        { key: 'showSocial', label: 'Tampilkan ikon sosial', type: 'switch' },
+        { key: 'instagram', label: 'Instagram URL', type: 'text', placeholder: 'https://instagram.com/...' },
+        { key: 'facebook', label: 'Facebook URL', type: 'text', placeholder: 'https://facebook.com/...' },
+        { key: 'tiktok', label: 'TikTok URL', type: 'text', placeholder: 'https://tiktok.com/...' },
+      ],
+      defaultConfig: {
+        text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+        showSocial: true,
+        instagram: '',
+        facebook: '',
+        tiktok: '',
+      },
+    },
+  ],
+  sections: [
+    {
+      type: 'hero',
+      name: 'Hero',
+      icon: 'Layout',
+      variants: [
+        {
+          id: 'hero-full',
+          name: 'Full Width',
+          description: 'Background full width dengan konten terpusat',
+          layout: 'hero-full',
+          mockup: 'hero-full',
+          configFields: [
+            { key: 'headline', label: 'Headline', type: 'text', placeholder: 'Tampil Rapi, Percaya Diri' },
+            { key: 'subheadline', label: 'Subheadline', type: 'textarea', placeholder: 'Barber berpengalaman, alat steril...' },
+            { key: 'cta_text', label: 'Teks CTA', type: 'text', placeholder: 'Booking Sekarang' },
+            { key: 'cta_link', label: 'Link CTA', type: 'text', placeholder: '#booking' },
+            { key: 'background_type', label: 'Tipe Background', type: 'select', options: [
+              { label: 'Warna', value: 'color' },
+              { label: 'Gambar', value: 'image' },
+              { label: 'Gradient', value: 'gradient' },
+            ]},
+            { key: 'background_image', label: 'Background Gambar', type: 'image', placeholder: 'https://...' },
+            { key: 'background_color', label: 'Warna Background', type: 'color' },
+          ],
+          defaultConfig: {
+            headline: 'Tampil Rapi, Percaya Diri',
+            subheadline: 'Barber berpengalaman, alat steril, hasil konsisten. Booking dulu, datang langsung dilayani.',
+            cta_text: 'Booking Sekarang',
+            cta_link: '#booking',
+            background_type: 'color',
+            background_image: '',
+            background_color: 'theme:primary',
+          },
+          defaultStyle: { padding: { top: 120, right: 24, bottom: 120, left: 24 } },
+        },
+        {
+          id: 'hero-split',
+          name: 'Split',
+          description: 'Teks di kiri, gambar di kanan',
+          layout: 'hero-split',
+          mockup: 'hero-split',
+          configFields: [
+            { key: 'headline', label: 'Headline', type: 'text', placeholder: 'Tampil Rapi, Percaya Diri' },
+            { key: 'subheadline', label: 'Subheadline', type: 'textarea', placeholder: 'Barber berpengalaman...' },
+            { key: 'cta_text', label: 'Teks CTA', type: 'text', placeholder: 'Booking Sekarang' },
+            { key: 'cta_link', label: 'Link CTA', type: 'text', placeholder: '#booking' },
+            { key: 'image', label: 'Gambar', type: 'image', placeholder: 'https://...' },
+          ],
+          defaultConfig: {
+            headline: 'Tampil Rapi, Percaya Diri',
+            subheadline: 'Barber berpengalaman, alat steril, hasil konsisten.',
+            cta_text: 'Booking Sekarang',
+            cta_link: '#booking',
+            image: '',
+          },
+          defaultStyle: { padding: { top: 80, right: 24, bottom: 80, left: 24 } },
+        },
+        {
+          id: 'hero-card',
+          name: 'Card',
+          description: 'Card terpusat dengan shadow di atas background',
+          layout: 'hero-card',
+          mockup: 'hero-card',
+          configFields: [
+            { key: 'headline', label: 'Headline', type: 'text', placeholder: 'Tampil Rapi, Percaya Diri' },
+            { key: 'subheadline', label: 'Subheadline', type: 'textarea', placeholder: 'Barber berpengalaman...' },
+            { key: 'cta_text', label: 'Teks CTA', type: 'text', placeholder: 'Booking Sekarang' },
+            { key: 'cta_link', label: 'Link CTA', type: 'text', placeholder: '#booking' },
+            { key: 'background_type', label: 'Tipe Background', type: 'select', options: [
+              { label: 'Warna', value: 'color' },
+              { label: 'Gambar', value: 'image' },
+              { label: 'Gradient', value: 'gradient' },
+            ]},
+            { key: 'background_image', label: 'Background Gambar', type: 'image' },
+          ],
+          defaultConfig: {
+            headline: 'Tampil Rapi, Percaya Diri',
+            subheadline: 'Barber berpengalaman, alat steril, hasil konsisten.',
+            cta_text: 'Booking Sekarang',
+            cta_link: '#booking',
+            background_type: 'color',
+            background_image: '',
+          },
+          defaultStyle: { padding: { top: 80, right: 24, bottom: 80, left: 24 } },
+        },
+        {
+          id: 'hero-video-bg',
+          name: 'Video Background',
+          description: 'Video background dengan overlay gelap',
+          layout: 'hero-video',
+          mockup: 'hero-video',
+          configFields: [
+            { key: 'headline', label: 'Headline', type: 'text', placeholder: 'Tampil Rapi, Percaya Diri' },
+            { key: 'subheadline', label: 'Subheadline', type: 'textarea', placeholder: 'Barber berpengalaman...' },
+            { key: 'cta_text', label: 'Teks CTA', type: 'text', placeholder: 'Booking Sekarang' },
+            { key: 'cta_link', label: 'Link CTA', type: 'text', placeholder: '#booking' },
+            { key: 'video_url', label: 'Video URL', type: 'text', placeholder: 'https://...' },
+          ],
+          defaultConfig: {
+            headline: 'Tampil Rapi, Percaya Diri',
+            subheadline: 'Barber berpengalaman, alat steril, hasil konsisten.',
+            cta_text: 'Booking Sekarang',
+            cta_link: '#booking',
+            video_url: '',
+          },
+          defaultStyle: { padding: { top: 120, right: 24, bottom: 120, left: 24 } },
+        },
+      ],
+    },
+    {
+      type: 'features',
+      name: 'Fitur',
+      icon: 'Grid',
+      variants: [
+        {
+          id: 'features-3col',
+          name: '3 Kolom Grid',
+          description: 'Grid 3 kolom dengan icon dan deskripsi',
+          layout: 'features-grid-3col',
+          mockup: 'features-3col',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Kenapa Pangkas di Kami' },
+            {
+              key: 'items',
+              label: 'Items',
+              type: 'list',
+              itemFields: [
+                { key: 'icon', label: 'Icon', type: 'text' },
+                { key: 'title', label: 'Title', type: 'text' },
+                { key: 'description', label: 'Description', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Kenapa Pangkas di Kami',
+            items: [
+              { icon: '✂️', title: 'Barber Berpengalaman', description: 'Tim barber dengan pengalaman 5+ tahun' },
+              { icon: '🧼', title: 'Alat Steril', description: 'Alat didesinfeksi setiap selesai dipakai' },
+              { icon: '⏱️', title: 'Tanpa Antre Lama', description: 'Booking online, datang langsung dilayani' },
+            ],
+          },
+        },
+        {
+          id: 'features-list',
+          name: 'List Horizontal',
+          description: 'List horizontal dengan icon di kiri',
+          layout: 'features-list',
+          mockup: 'features-list',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Keunggulan Kami' },
+            {
+              key: 'items',
+              label: 'Items',
+              type: 'list',
+              itemFields: [
+                { key: 'icon', label: 'Icon', type: 'text' },
+                { key: 'title', label: 'Title', type: 'text' },
+                { key: 'description', label: 'Description', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Keunggulan Kami',
+            items: [
+              { icon: '✅', title: 'Produk Original', description: '100% produk original' },
+              { icon: '✅', title: 'Harga Terjangkau', description: 'Harga kompetitif' },
+              { icon: '✅', title: 'Pelayanan Ramah', description: 'Customer service 24/7' },
+            ],
+          },
+        },
+        {
+          id: 'features-stacked',
+          name: 'Cards Stacked',
+          description: 'Cards stacked dengan nomor urut',
+          layout: 'features-stacked',
+          mockup: 'features-stacked',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Keunggulan Kami' },
+            {
+              key: 'items',
+              label: 'Items',
+              type: 'list',
+              itemFields: [
+                { key: 'title', label: 'Title', type: 'text' },
+                { key: 'description', label: 'Description', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Keunggulan Kami',
+            items: [
+              { title: 'Produk Original', description: '100% produk original' },
+              { title: 'Harga Terjangkau', description: 'Harga kompetitif' },
+              { title: 'Pelayanan Ramah', description: 'Customer service 24/7' },
+            ],
+          },
+        },
+        {
+          id: 'features-masonry',
+          name: 'Masonry',
+          description: 'Layout masonry dengan ukuran bervariasi',
+          layout: 'features-masonry',
+          mockup: 'features-masonry',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Keunggulan Kami' },
+            {
+              key: 'items',
+              label: 'Items',
+              type: 'list',
+              itemFields: [
+                { key: 'icon', label: 'Icon', type: 'text' },
+                { key: 'title', label: 'Title', type: 'text' },
+                { key: 'description', label: 'Description', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Keunggulan Kami',
+            items: [
+              { icon: '⭐', title: 'Kualitas Premium', description: 'Produk berkualitas tinggi' },
+              { icon: '🚚', title: 'Pengiriman Cepat', description: 'Same day delivery' },
+              { icon: '💯', title: 'Garansi', description: '30 hari uang kembali' },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      type: 'product_grid',
+      name: 'Produk',
+      icon: 'ShoppingBag',
+      variants: [
+        {
+          id: 'product-4col',
+          name: '4 Kolom',
+          description: 'Grid produk 4 kolom',
+          layout: 'product-grid-4col',
+          mockup: 'product-4col',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Produk Kami' },
+            { key: 'columns', label: 'Kolom', type: 'number' },
+          ],
+          defaultConfig: { title: 'Produk Kami', columns: 4 },
+        },
+        {
+          id: 'product-3col',
+          name: '3 Kolom',
+          description: 'Grid produk 3 kolom',
+          layout: 'product-grid-3col',
+          mockup: 'product-3col',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Produk Terlaris' },
+            { key: 'columns', label: 'Kolom', type: 'number' },
+          ],
+          defaultConfig: { title: 'Produk Terlaris', columns: 3 },
+        },
+        {
+          id: 'product-2col',
+          name: '2 Kolom',
+          description: 'Grid produk 2 kolom dengan card lebih lebar',
+          layout: 'product-grid-2col',
+          mockup: 'product-2col',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Produk Pilihan' },
+            { key: 'columns', label: 'Kolom', type: 'number' },
+          ],
+          defaultConfig: { title: 'Produk Pilihan', columns: 2 },
+        },
+        {
+          id: 'product-carousel',
+          name: 'Carousel',
+          description: 'Carousel produk dengan navigasi',
+          layout: 'product-carousel',
+          mockup: 'product-carousel',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Produk Kami' },
+          ],
+          defaultConfig: { title: 'Produk Kami' },
+        },
+      ],
+    },
+    {
+      type: 'testimonials',
+      name: 'Testimoni',
+      icon: 'Quote',
+      variants: [
+        {
+          id: 'testimonials-grid',
+          name: 'Grid',
+          description: 'Grid testimoni dengan avatar dan rating',
+          layout: 'testimonials-grid',
+          mockup: 'testimonials-grid',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Apa Kata Mereka' },
+            {
+              key: 'items',
+              label: 'Testimoni',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'text', label: 'Review', type: 'textarea' },
+                { key: 'rating', label: 'Rating', type: 'number' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Apa Kata Mereka',
+            items: [
+              { name: 'Andi', text: 'Potongannya rapi banget!', rating: 5 },
+              { name: 'Budi', text: 'Pelayanan memuaskan', rating: 5 },
+            ],
+          },
+        },
+        {
+          id: 'testimonials-carousel',
+          name: 'Carousel',
+          description: 'Carousel testimoni dengan navigasi',
+          layout: 'testimonials-carousel',
+          mockup: 'testimonials-carousel',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Review Pelanggan' },
+            {
+              key: 'items',
+              label: 'Testimoni',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'text', label: 'Review', type: 'textarea' },
+                { key: 'rating', label: 'Rating', type: 'number' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Review Pelanggan',
+            items: [
+              { name: 'Andi', text: 'Sangat recommended!', rating: 5 },
+              { name: 'Budi', text: 'Harga terjangkau', rating: 4 },
+            ],
+          },
+        },
+        {
+          id: 'testimonials-single',
+          name: 'Single Quote',
+          description: 'Testimoni tunggal dengan quote besar',
+          layout: 'testimonials-single',
+          mockup: 'testimonials-single',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: '' },
+            {
+              key: 'items',
+              label: 'Testimoni',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'text', label: 'Review', type: 'textarea' },
+                { key: 'rating', label: 'Rating', type: 'number' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: '',
+            items: [
+              { name: 'Pelanggan Setia', text: 'Ini adalah toko terbaik!', rating: 5 },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      type: 'faq',
+      name: 'FAQ',
+      icon: 'HelpCircle',
+      variants: [
+        {
+          id: 'faq-accordion',
+          name: 'Accordion',
+          description: 'FAQ dengan accordion expand/collapse',
+          layout: 'faq-accordion',
+          mockup: 'faq-accordion',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Pertanyaan Umum' },
+            {
+              key: 'items',
+              label: 'FAQ Items',
+              type: 'list',
+              itemFields: [
+                { key: 'question', label: 'Pertanyaan', type: 'text' },
+                { key: 'answer', label: 'Jawaban', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Pertanyaan Umum',
+            items: [
+              { question: 'Bagaimana cara memesan?', answer: 'Pilih produk, lalu checkout' },
+              { question: 'Apa saja metode pembayaran?', answer: 'Transfer bank, e-wallet, COD' },
+            ],
+          },
+        },
+        {
+          id: 'faq-list',
+          name: 'List',
+          description: 'FAQ sebagai list dengan jawaban selalu terlihat',
+          layout: 'faq-list',
+          mockup: 'faq-list',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'FAQ' },
+            {
+              key: 'items',
+              label: 'FAQ Items',
+              type: 'list',
+              itemFields: [
+                { key: 'question', label: 'Pertanyaan', type: 'text' },
+                { key: 'answer', label: 'Jawaban', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'FAQ',
+            items: [
+              { question: 'Berapa lama pengiriman?', answer: '1-3 hari kerja' },
+              { question: 'Apakah bisa retur?', answer: 'Bisa, maksimal 7 hari' },
+            ],
+          },
+        },
+        {
+          id: 'faq-grid',
+          name: 'Grid',
+          description: 'FAQ dalam bentuk grid 2 kolom',
+          layout: 'faq-grid',
+          mockup: 'faq-grid',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Tanya Jawab' },
+            {
+              key: 'items',
+              label: 'FAQ Items',
+              type: 'list',
+              itemFields: [
+                { key: 'question', label: 'Pertanyaan', type: 'text' },
+                { key: 'answer', label: 'Jawaban', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Tanya Jawab',
+            items: [
+              { question: 'Minimum pembelian?', answer: 'Tidak ada minimum' },
+              { question: 'Jam operasional?', answer: '09:00 - 21:00' },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      type: 'cta',
+      name: 'CTA',
+      icon: 'Megaphone',
+      variants: [
+        {
+          id: 'cta-banner',
+          name: 'Full Width Banner',
+          description: 'Banner CTA full width dengan background berwarna',
+          layout: 'cta-banner',
+          mockup: 'cta-banner',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Siap Memulai?' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea', placeholder: 'Hubungi kami sekarang' },
+            { key: 'button_text', label: 'Teks Tombol', type: 'text', placeholder: 'Hubungi Kami' },
+            { key: 'button_link', label: 'Link Tombol', type: 'text', placeholder: '/kontak' },
+          ],
+          defaultConfig: {
+            title: 'Siap Memulai?',
+            subtitle: 'Hubungi kami untuk penawaran spesial',
+            button_text: 'Hubungi Kami',
+            button_link: '/kontak',
+          },
+        },
+        {
+          id: 'cta-card',
+          name: 'Centered Card',
+          description: 'Card CTA terpusat dengan shadow',
+          layout: 'cta-card',
+          mockup: 'cta-card',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Dapatkan Diskon 20%' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea', placeholder: 'Daftar sekarang' },
+            { key: 'button_text', label: 'Teks Tombol', type: 'text', placeholder: 'Daftar' },
+            { key: 'button_link', label: 'Link Tombol', type: 'text', placeholder: '/daftar' },
+          ],
+          defaultConfig: {
+            title: 'Dapatkan Diskon 20%',
+            subtitle: 'Daftar sekarang dan dapatkan voucher',
+            button_text: 'Daftar',
+            button_link: '/daftar',
+          },
+        },
+        {
+          id: 'cta-split',
+          name: 'Split',
+          description: 'Layout split dengan teks di kiri dan tombol di kanan',
+          layout: 'cta-split',
+          mockup: 'cta-split',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Butuh Bantuan?' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea', placeholder: 'Tim kami siap membantu' },
+            { key: 'button_text', label: 'Teks Tombol', type: 'text', placeholder: 'Chat WhatsApp' },
+            { key: 'button_link', label: 'Link Tombol', type: 'text', placeholder: '/wa' },
+          ],
+          defaultConfig: {
+            title: 'Butuh Bantuan?',
+            subtitle: 'Tim kami siap membantu Anda',
+            button_text: 'Chat WhatsApp',
+            button_link: '/wa',
+          },
+        },
+      ],
+    },
+    {
+      type: 'contact',
+      name: 'Kontak',
+      icon: 'Mail',
+      variants: [
+        {
+          id: 'contact-form',
+          name: 'Form Saja',
+          description: 'Form kontak tanpa map',
+          layout: 'contact-form',
+          mockup: 'contact-form',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Hubungi Kami' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea', placeholder: 'Kirim pesan' },
+            { key: 'address', label: 'Alamat', type: 'textarea' },
+            { key: 'phone', label: 'Telepon', type: 'text' },
+            { key: 'email', label: 'Email', type: 'text' },
+          ],
+          defaultConfig: {
+            title: 'Hubungi Kami',
+            subtitle: 'Kirim pesan dan kami akan segera merespons',
+            address: 'Jl. Merdeka No. 12, Jakarta',
+            phone: '0812-3456-7890',
+            email: 'hello@pangkasrapi.id',
+          },
+        },
+        {
+          id: 'contact-form-map',
+          name: 'Form + Map',
+          description: 'Form kontak dengan Google Maps',
+          layout: 'contact-form-map',
+          mockup: 'contact-form-map',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Kontak' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            { key: 'address', label: 'Alamat', type: 'textarea' },
+            { key: 'phone', label: 'Telepon', type: 'text' },
+            { key: 'email', label: 'Email', type: 'text' },
+          ],
+          defaultConfig: {
+            title: 'Kontak',
+            subtitle: 'Kunjungi toko kami atau kirim pesan',
+            address: 'Jl. Merdeka No. 12, Jakarta',
+            phone: '0812-3456-7890',
+            email: 'hello@pangkasrapi.id',
+          },
+        },
+        {
+          id: 'contact-split',
+          name: 'Split',
+          description: 'Layout split dengan info kontak dan form',
+          layout: 'contact-split',
+          mockup: 'contact-split',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Get in Touch' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            { key: 'address', label: 'Alamat', type: 'textarea' },
+            { key: 'phone', label: 'Telepon', type: 'text' },
+            { key: 'email', label: 'Email', type: 'text' },
+          ],
+          defaultConfig: {
+            title: 'Get in Touch',
+            subtitle: 'Kami senang mendengar dari Anda',
+            address: 'Jl. Merdeka No. 12, Jakarta',
+            phone: '0812-3456-7890',
+            email: 'hello@pangkasrapi.id',
+          },
+        },
+      ],
+    },
+    {
+      type: 'booking',
+      name: 'Booking',
+      icon: 'CalendarCheck',
+      variants: [
+        {
+          id: 'booking-single',
+          name: 'Form Saja',
+          description: 'Form booking layanan satu kolom',
+          layout: 'booking-single',
+          mockup: 'booking-single',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Booking Layanan' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            {
+              key: 'services',
+              label: 'Layanan',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama layanan', type: 'text' },
+                { key: 'duration', label: 'Durasi', type: 'text' },
+                { key: 'price', label: 'Harga', type: 'text' },
+              ],
+            },
+            { key: 'hours', label: 'Jam operasional', type: 'text' },
+            { key: 'address', label: 'Alamat', type: 'textarea' },
+            { key: 'success_message', label: 'Pesan sukses', type: 'textarea' },
+          ],
+          defaultConfig: {
+            title: 'Booking Layanan',
+            subtitle: 'Pilih layanan, tanggal, dan jam',
+            services: [
+              { name: 'Potong Rambut', duration: '30 menit', price: 'Rp 25rb' },
+              { name: 'Potong + Cukur Jenggot', duration: '45 menit', price: 'Rp 40rb' },
+            ],
+            hours: 'Senin–Sabtu, 09.00–20.00',
+            address: '',
+            success_message: 'Terima kasih! Booking Anda diterima.',
+          },
+        },
+        {
+          id: 'booking-split',
+          name: 'Form + Info',
+          description: 'Form booking berdampingan dengan info jam & lokasi',
+          layout: 'booking-split',
+          mockup: 'booking-split',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Booking Sekarang' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            {
+              key: 'services',
+              label: 'Layanan',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama layanan', type: 'text' },
+                { key: 'duration', label: 'Durasi', type: 'text' },
+                { key: 'price', label: 'Harga', type: 'text' },
+              ],
+            },
+            { key: 'hours', label: 'Jam operasional', type: 'text' },
+            { key: 'address', label: 'Alamat', type: 'textarea' },
+            { key: 'success_message', label: 'Pesan sukses', type: 'textarea' },
+          ],
+          defaultConfig: {
+            title: 'Booking Sekarang',
+            subtitle: 'Amankan jadwal Anda',
+            services: [
+              { name: 'Potong Rambut', duration: '30 menit', price: 'Rp 25rb' },
+              { name: 'Potong + Cukur Jenggot', duration: '45 menit', price: 'Rp 40rb' },
+            ],
+            hours: 'Senin–Sabtu, 09.00–20.00',
+            address: 'Jl. Merdeka No. 12, Jakarta',
+            success_message: 'Terima kasih! Booking Anda diterima.',
+          },
+        },
+      ],
+    },
+    {
+      type: 'about',
+      name: 'Tentang',
+      icon: 'Info',
+      variants: [
+        {
+          id: 'about-left',
+          name: 'Gambar Kiri',
+          description: 'Gambar di kiri, teks di kanan',
+          layout: 'about-image-left',
+          mockup: 'about-left',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Tentang Kami' },
+            { key: 'content', label: 'Konten', type: 'textarea' },
+            { key: 'image', label: 'Gambar', type: 'image' },
+          ],
+          defaultConfig: {
+            title: 'Tentang Kami',
+            content: 'Kami adalah barber shop modern...',
+            image: '',
+          },
+        },
+        {
+          id: 'about-right',
+          name: 'Gambar Kanan',
+          description: 'Teks di kiri, gambar di kanan',
+          layout: 'about-image-right',
+          mockup: 'about-right',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Cerita Kami' },
+            { key: 'content', label: 'Konten', type: 'textarea' },
+            { key: 'image', label: 'Gambar', type: 'image' },
+          ],
+          defaultConfig: {
+            title: 'Cerita Kami',
+            content: 'Berawal dari toko kecil...',
+            image: '',
+          },
+        },
+        {
+          id: 'about-centered',
+          name: 'Centered',
+          description: 'Layout terpusat dengan gambar di atas',
+          layout: 'about-centered',
+          mockup: 'about-centered',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Tentang Kami' },
+            { key: 'content', label: 'Konten', type: 'textarea' },
+            { key: 'image', label: 'Gambar', type: 'image' },
+          ],
+          defaultConfig: {
+            title: 'Tentang Kami',
+            content: 'Dedikasi kami adalah memberikan yang terbaik...',
+            image: '',
+          },
+        },
+      ],
+    },
+    {
+      type: 'gallery',
+      name: 'Galeri',
+      icon: 'Image',
+      variants: [
+        {
+          id: 'gallery-grid',
+          name: 'Grid',
+          description: 'Grid gambar dengan ukuran sama',
+          layout: 'gallery-grid',
+          mockup: 'gallery-grid',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Galeri' },
+            { key: 'images', label: 'Gambar', type: 'gallery' },
+          ],
+          defaultConfig: { title: 'Galeri', images: [] },
+        },
+        {
+          id: 'gallery-masonry',
+          name: 'Masonry',
+          description: 'Layout masonry dengan ukuran bervariasi',
+          layout: 'gallery-masonry',
+          mockup: 'gallery-masonry',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Galeri Foto' },
+            { key: 'images', label: 'Gambar', type: 'gallery' },
+          ],
+          defaultConfig: { title: 'Galeri Foto', images: [] },
+        },
+        {
+          id: 'gallery-carousel',
+          name: 'Carousel',
+          description: 'Carousel gambar dengan navigasi',
+          layout: 'gallery-carousel',
+          mockup: 'gallery-carousel',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Galeri' },
+            { key: 'images', label: 'Gambar', type: 'gallery' },
+          ],
+          defaultConfig: { title: 'Galeri', images: [] },
+        },
+      ],
+    },
+    {
+      type: 'video',
+      name: 'Video',
+      icon: 'Play',
+      variants: [
+        {
+          id: 'video-full',
+          name: 'Full Width',
+          description: 'Video full width dengan aspect ratio 16:9',
+          layout: 'video-full',
+          mockup: 'video-full',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Video Kami' },
+            { key: 'url', label: 'Video URL', type: 'text', placeholder: 'https://youtube.com/...' },
+          ],
+          defaultConfig: { title: 'Video Kami', url: '' },
+        },
+        {
+          id: 'video-centered',
+          name: 'Centered',
+          description: 'Video terpusat dengan max-width',
+          layout: 'video-centered',
+          mockup: 'video-centered',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Tonton Video' },
+            { key: 'url', label: 'Video URL', type: 'text', placeholder: 'https://youtube.com/...' },
+          ],
+          defaultConfig: { title: 'Tonton Video', url: '' },
+        },
+      ],
+    },
+    {
+      type: 'team',
+      name: 'Tim',
+      icon: 'Users',
+      variants: [
+        {
+          id: 'team-grid',
+          name: 'Grid',
+          description: 'Grid foto tim dengan nama dan role',
+          layout: 'team-grid',
+          mockup: 'team-grid',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Tim Kami' },
+            {
+              key: 'members',
+              label: 'Anggota',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'role', label: 'Role', type: 'text' },
+                { key: 'image', label: 'Foto', type: 'image' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Tim Kami',
+            members: [
+              { name: 'John Doe', role: 'Founder', image: '' },
+              { name: 'Jane Doe', role: 'Co-Founder', image: '' },
+            ],
+          },
+        },
+        {
+          id: 'team-list',
+          name: 'List',
+          description: 'List horizontal dengan foto di kiri',
+          layout: 'team-list',
+          mockup: 'team-list',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Kepemimpinan' },
+            {
+              key: 'members',
+              label: 'Anggota',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'role', label: 'Role', type: 'text' },
+                { key: 'image', label: 'Foto', type: 'image' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Kepemimpinan',
+            members: [
+              { name: 'John Doe', role: 'CEO', image: '' },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      type: 'pricing',
+      name: 'Harga',
+      icon: 'DollarSign',
+      variants: [
+        {
+          id: 'pricing-3tier',
+          name: '3 Tier',
+          description: 'Tabel harga 3 paket',
+          layout: 'pricing-3tier',
+          mockup: 'pricing-3tier',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Paket Harga' },
+            {
+              key: 'items',
+              label: 'Paket',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'price', label: 'Harga', type: 'text' },
+                { key: 'features', label: 'Fitur', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Paket Harga',
+            items: [
+              { name: 'Basic', price: 'Rp 99.000', features: ['Fitur 1', 'Fitur 2'] },
+              { name: 'Pro', price: 'Rp 199.000', features: ['Fitur 1', 'Fitur 2', 'Fitur 3'] },
+              { name: 'Premium', price: 'Rp 399.000', features: ['Semua fitur'] },
+            ],
+          },
+        },
+        {
+          id: 'pricing-2tier',
+          name: '2 Tier',
+          description: 'Tabel harga 2 paket',
+          layout: 'pricing-2tier',
+          mockup: 'pricing-2tier',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Harga' },
+            {
+              key: 'items',
+              label: 'Paket',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'price', label: 'Harga', type: 'text' },
+                { key: 'features', label: 'Fitur', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Harga',
+            items: [
+              { name: 'Standar', price: 'Rp 149.000', features: ['Fitur dasar'] },
+              { name: 'Premium', price: 'Rp 299.000', features: ['Semua fitur'] },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      type: 'newsletter',
+      name: 'Newsletter',
+      icon: 'Send',
+      variants: [
+        {
+          id: 'newsletter-inline',
+          name: 'Inline',
+          description: 'Form newsletter inline dengan input dan tombol',
+          layout: 'newsletter-inline',
+          mockup: 'newsletter-inline',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Berlangganan Newsletter' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            { key: 'placeholder', label: 'Placeholder', type: 'text', placeholder: 'Email Anda' },
+            { key: 'button_text', label: 'Teks Tombol', type: 'text', placeholder: 'Berlangganan' },
+          ],
+          defaultConfig: {
+            title: 'Berlangganan Newsletter',
+            subtitle: 'Dapatkan info promo terbaru',
+            placeholder: 'Email Anda',
+            button_text: 'Berlangganan',
+          },
+        },
+        {
+          id: 'newsletter-card',
+          name: 'Card',
+          description: 'Card newsletter dengan background berwarna',
+          layout: 'newsletter-card',
+          mockup: 'newsletter-card',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Jangan Lewatkan Promo!' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            { key: 'placeholder', label: 'Placeholder', type: 'text' },
+            { key: 'button_text', label: 'Teks Tombol', type: 'text' },
+          ],
+          defaultConfig: {
+            title: 'Jangan Lewatkan Promo!',
+            subtitle: 'Daftar sekarang dan dapatkan diskon 10%',
+            placeholder: 'Masukkan email',
+            button_text: 'Daftar',
+          },
+        },
+      ],
+    },
+    {
+      type: 'divider',
+      name: 'Divider',
+      icon: 'Minus',
+      variants: [
+        {
+          id: 'divider-line',
+          name: 'Garis',
+          description: 'Garis pemisah tipis',
+          layout: 'divider-line',
+          mockup: 'divider-line',
+          configFields: [
+            { key: 'style', label: 'Style', type: 'select', options: [
+              { label: 'Solid', value: 'solid' },
+              { label: 'Dashed', value: 'dashed' },
+              { label: 'Dotted', value: 'dotted' },
+            ]},
+            { key: 'color', label: 'Warna', type: 'color' },
+          ],
+          defaultConfig: { style: 'solid', color: '#e5e7eb' },
+        },
+        {
+          id: 'divider-spacer',
+          name: 'Spacer',
+          description: 'Ruang kosong sebagai pemisah',
+          layout: 'divider-spacer',
+          mockup: 'divider-spacer',
+          configFields: [
+            { key: 'height', label: 'Tinggi (px)', type: 'number' },
+          ],
+          defaultConfig: { height: 80 },
+        },
+      ],
+    },
+    {
+      type: 'marquee',
+      name: 'Teks Berjalan',
+      icon: 'MoveHorizontal',
+      variants: [
+        {
+          id: 'marquee-band',
+          name: 'Pita Teks',
+          description: 'Pita teks berjalan untuk promo dan info toko',
+          layout: 'marquee-band',
+          mockup: 'marquee-band',
+          configFields: [
+            {
+              key: 'items',
+              label: 'Teks (satu per baris)',
+              type: 'list',
+              itemFields: [
+                { key: 'text', label: 'Teks', type: 'text' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            items: [
+              { text: 'Promo Spesial' },
+              { text: 'Gratis Konsultasi' },
+              { text: 'Buka Setiap Hari' },
+            ],
+          },
+          defaultStyle: { padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+        },
+      ],
+    },
+    {
+      type: 'menu_board',
+      name: 'Menu / Harga',
+      icon: 'Coffee',
+      variants: [
+        {
+          id: 'menu-tabs',
+          name: 'Tab Kategori',
+          description: 'Daftar harga bertab per kategori',
+          layout: 'menu-tabs',
+          mockup: 'menu-tabs',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Daftar Harga' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            {
+              key: 'groups',
+              label: 'Kategori',
+              type: 'list',
+              itemFields: [
+                { key: 'label', label: 'Nama kategori', type: 'text' },
+                {
+                  key: 'items',
+                  label: 'Items',
+                  type: 'list',
+                  itemFields: [
+                    { key: 'name', label: 'Nama', type: 'text' },
+                    { key: 'desc', label: 'Deskripsi', type: 'textarea' },
+                    { key: 'price', label: 'Harga', type: 'text' },
+                  ],
+                },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Daftar Harga',
+            subtitle: 'Pilih kategori untuk melihat harga.',
+            groups: [
+              {
+                key: 'kategori-1',
+                label: 'Kategori 1',
+                items: [
+                  { name: 'Item Contoh 1', desc: 'Deskripsi singkat', price: 'Rp 25rb' },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          id: 'menu-list',
+          name: 'Daftar Tunggal',
+          description: 'Daftar harga tunggal tanpa tab',
+          layout: 'menu-list',
+          mockup: 'menu-list',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Daftar Harga' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            {
+              key: 'items',
+              label: 'Items',
+              type: 'list',
+              itemFields: [
+                { key: 'name', label: 'Nama', type: 'text' },
+                { key: 'desc', label: 'Deskripsi', type: 'textarea' },
+                { key: 'price', label: 'Harga', type: 'text' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Daftar Harga',
+            subtitle: '',
+            items: [
+              { name: 'Item Contoh 1', desc: 'Deskripsi singkat', price: 'Rp 25rb' },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      type: 'steps',
+      name: 'Langkah',
+      icon: 'ListOrdered',
+      variants: [
+        {
+          id: 'steps-3col',
+          name: '3 Langkah',
+          description: 'Tiga langkah bernomor dalam 3 kolom',
+          layout: 'steps-3col',
+          mockup: 'steps-3col',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Cara Pesan' },
+            { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+            {
+              key: 'items',
+              label: 'Langkah',
+              type: 'list',
+              itemFields: [
+                { key: 'title', label: 'Judul langkah', type: 'text' },
+                { key: 'description', label: 'Deskripsi', type: 'textarea' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Cara Pesan',
+            subtitle: 'Tiga langkah mudah untuk memesan.',
+            items: [
+              { title: 'Pilih layanan', description: 'Tentukan layanan yang Anda butuhkan.' },
+              { title: 'Isi form', description: 'Lengkapi nama, kontak, dan jadwal.' },
+              { title: 'Konfirmasi', description: 'Kami konfirmasi via WhatsApp.' },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      type: 'location',
+      name: 'Lokasi',
+      icon: 'MapPin',
+      variants: [
+        {
+          id: 'location-hours',
+          name: 'Kunjungi Kami',
+          description: 'Alamat + jam buka + tombol WhatsApp',
+          layout: 'location-hours',
+          mockup: 'location-hours',
+          configFields: [
+            { key: 'title', label: 'Judul', type: 'text', placeholder: 'Kunjungi Kami' },
+            { key: 'address', label: 'Alamat', type: 'textarea' },
+            { key: 'note', label: 'Catatan', type: 'textarea' },
+            { key: 'button_text', label: 'Teks tombol', type: 'text' },
+            { key: 'button_link', label: 'Link tombol', type: 'text' },
+            {
+              key: 'hours',
+              label: 'Jam buka',
+              type: 'list',
+              itemFields: [
+                { key: 'days', label: 'Hari', type: 'text' },
+                { key: 'time', label: 'Jam', type: 'text' },
+              ],
+            },
+          ],
+          defaultConfig: {
+            title: 'Kunjungi Kami',
+            address: 'Jl. Contoh No. 17',
+            note: 'Mudah dijangkau, parkir luas.',
+            button_text: 'Chat via WhatsApp',
+            button_link: 'https://wa.me/6281234567890',
+            hours: [
+              { days: 'Senin–Sabtu', time: '09.00–20.00' },
+              { days: 'Minggu', time: 'Tutup' },
+            ],
+          },
+        },
+      ],
+    },
+  ],
+};

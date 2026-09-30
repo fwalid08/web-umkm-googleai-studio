@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { BuilderShell } from "@/components/builder/builder-shell";
 import { useBuilderStore } from "@/lib/builder/store";
+import { useTemplateStore } from "@/lib/builder/template-store";
 import { PageManager } from "@/components/builder/page-manager";
 import { TemplateGallery } from "@/components/builder/template-gallery";
-import type { TemplateLibraryItem } from "@/lib/builder/types";
 import {
   Dialog,
   DialogContent,
@@ -160,20 +160,8 @@ export default function BuilderPage() {
           </DialogHeader>
           <TemplateGallery
             websiteId={websiteId}
-            onApply={async (template: TemplateLibraryItem) => {
-              // Normalisasi format library (snake_case dari DB) & bawaan (camelCase)
-              // menjadi template utuh: style + navigasi + footer + section + seo.
-              const td = template.template_data as unknown as import('@/lib/builder/types').FullTemplateData;
-              useBuilderStore.getState().applyFullTemplate({
-                designStyleId: td.designStyleId ?? td.design_style_id,
-                paletteOverride: td.paletteOverride ?? td.palette_override,
-                sections: td.sections ?? [],
-                header: td.header,
-                footer: td.footer,
-                seo: td.seo,
-                core: td.core,
-              });
-              // Simpan ke database agar tab halaman & publik langsung ter-update
+            onApply={async (template: import('@/lib/builder/template-types').Template) => {
+              useTemplateStore.getState().setTemplate(template.id);
               try {
                 await useBuilderStore.getState().save(websiteId);
               } catch (e) {

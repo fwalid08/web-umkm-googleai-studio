@@ -170,33 +170,38 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
               websiteId={websiteId}
               userTier={userTier ?? undefined}
               onApply={async (template: any) => {
-                const td = template.template_data as unknown as import('@/lib/builder/types').FullTemplateData;
                 const res = await fetch(`/api/websites/${websiteId}/website`, {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     template_id: template.id.startsWith("built-in-") ? template.id.replace("built-in-", "") : template.id,
                     custom_config: {
-                      design_style_id: td.designStyleId ?? td.design_style_id,
-                      palette_override: td.paletteOverride ?? td.palette_override,
-                      sections: td.sections ?? [],
-                      header: td.header,
-                      footer: td.footer,
-                      layout: { rows: [] },
-                      core: td.core,
-                      seo: td.seo,
-                      theme: {},
+                      template_id: template.id,
+                      header_variant_id: template.headers?.[0]?.id,
+                      footer_variant_id: template.footers?.[0]?.id,
+                      sections: template.sections?.flatMap((st: any) =>
+                        st.variants.slice(0, 1).map((v: any) => ({
+                          id: crypto.randomUUID(),
+                          type: st.type,
+                          variant_id: v.id,
+                          config: v.defaultConfig,
+                          style: {
+                            padding: { top: 64, right: 24, bottom: 64, left: 24 },
+                            background: 'transparent',
+                            ...(v.defaultStyle?.padding ? { padding: { top: 64, right: 24, bottom: 64, left: 24, ...v.defaultStyle.padding } } : {}),
+                            ...(v.defaultStyle?.background ? { background: v.defaultStyle.background } : {}),
+                            ...(v.defaultStyle?.backgroundColor ? { backgroundColor: v.defaultStyle.backgroundColor } : {}),
+                          },
+                          responsive: {},
+                        }))
+                      ) ?? [],
                     },
                   }),
                 });
                 const json = await res.json();
                 if (json.success) {
-                  const newStyleId = td.designStyleId ?? td.design_style_id ?? null;
-                  setCurrentStyleId(newStyleId);
-                  const matched = BUILT_IN_CATALOG.find(
-                    (t) => t.data.designStyleId === newStyleId
-                  );
-                  if (matched) setCurrentTemplateId(matched.id);
+                  setCurrentStyleId(template.id);
+                  setCurrentTemplateId(template.id);
                   setNotice(`Template "${template.name}" berhasil diterapkan!`);
                   onTemplateApplied?.();
                   handleGalleryClose();

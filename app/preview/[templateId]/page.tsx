@@ -4,27 +4,29 @@ import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
-import { getDesignStyle } from "@/lib/builder/design-styles";
-import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
-import { getSectionVariant } from "@/lib/builder/sections/registry";
-import type { DesignStyle, Section, HeaderConfig, FooterConfig, SectionStyle } from "@/lib/builder/types";
+import { BUILTIN_TEMPLATES } from "@/lib/builder/template-store";
+import type { Template, TemplateSectionInstance } from "@/lib/builder/template-types";
 
 function generateId(): string {
   return crypto.randomUUID();
 }
 
-function toSection(s: any): Section {
-  const variant = getSectionVariant(s.type, s.variant);
+function toSection(s: any, template: Template): TemplateSectionInstance {
+  const variant = template.sections.find((st) => st.type === s.type)?.variants.find((v) => v.id === s.variant)
+    ?? template.sections.find((st) => st.type === s.type)?.variants[0];
   return {
     id: generateId(),
     type: s.type,
-    variant: s.variant,
+    variantId: variant?.id ?? 'default',
     config: { ...(variant?.defaultConfig ?? {}), ...(s.config ?? {}) },
     style: {
       padding: { top: 64, right: 24, bottom: 64, left: 24 },
       background: 'transparent' as const,
-      ...(variant?.defaultStyle ?? {}),
-      ...(s.style ?? {}),
+      ...(variant?.defaultStyle?.padding ? { padding: { top: 64, right: 24, bottom: 64, left: 24, ...variant.defaultStyle.padding } } : {}),
+      ...(variant?.defaultStyle?.background ? { background: variant.defaultStyle.background } : {}),
+      ...(variant?.defaultStyle?.backgroundColor ? { backgroundColor: variant.defaultStyle.backgroundColor } : {}),
+      ...(variant?.defaultStyle?.backgroundImage ? { backgroundImage: variant.defaultStyle.backgroundImage } : {}),
+      ...(variant?.defaultStyle?.backgroundGradient ? { backgroundGradient: variant.defaultStyle.backgroundGradient } : {}),
     },
     responsive: {},
   };
@@ -34,61 +36,37 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [siteData, setSiteData] = useState<{
-    designStyle: DesignStyle;
-    paletteOverride?: Record<string, string>;
-    sections: Section[];
-    header: HeaderConfig;
-    footer: FooterConfig;
+    template: Template;
+    headerVariantId: string;
+    footerVariantId: string;
+    sections: TemplateSectionInstance[];
     seo: { title: string; description: string };
   } | null>(null);
 
   useEffect(() => {
     const loadTemplate = async () => {
       const { templateId } = await params;
-      
+
       try {
-        const template = BUILT_IN_CATALOG.find(t => `builtin-${t.id}` === templateId || t.id === templateId);
-        
+        const template = BUILTIN_TEMPLATES.find(t => `builtin-${t.id}` === templateId || t.id === templateId);
+
         if (!template) {
           setError("Template tidak ditemukan");
           return;
         }
 
-        const designStyle = getDesignStyle(template.data.designStyleId ?? 'minimalist');
-        if (!designStyle) {
-          setError("Design style tidak ditemukan");
-          return;
-        }
-
-        const h = template.data.header ?? {};
-        const f = template.data.footer ?? {};
-
         setSiteData({
-          designStyle,
-          paletteOverride: (template.data.paletteOverride ?? template.data.palette_override ?? {}) as Record<string, string>,
-          sections: (template.data.sections ?? []).map(toSection),
-          header: {
-            variant: (h as { variant?: string }).variant ?? "standard",
-            logoUrl: h.logoUrl ?? "",
-            siteTitle: h.siteTitle ?? template.name,
-            tagline: h.tagline ?? "",
-            navItems: h.navItems ?? [],
-            ctaText: h.ctaText ?? "Hubungi Kami",
-            ctaLink: h.ctaLink ?? "/kontak",
-            showCta: h.showCta ?? false,
-            sticky: h.sticky ?? true,
-            faviconUrl: h.faviconUrl ?? "",
-            seo: h.seo ?? { title: "", description: "" },
-          },
-          footer: {
-            style: f.style ?? "simple",
-            text: f.text ?? `© ${new Date().getFullYear()} ${template.name}`,
-            navItems: f.navItems ?? [],
-            showSocial: f.showSocial ?? false,
-          },
+          template,
+          headerVariantId: template.headers[0].id,
+          footerVariantId: template.footers[0].id,
+          sections: (template.sections.flatMap((st) => st.variants.slice(0, 1).map((v) => ({
+            type: st.type,
+            variant: v.id,
+            config: v.defaultConfig,
+          })))).map((s) => toSection(s, template)),
           seo: {
-            title: template.data.seo?.title ?? template.name,
-            description: template.data.seo?.description ?? template.description,
+            title: template.name,
+            description: template.description,
           },
         });
       } catch (err) {

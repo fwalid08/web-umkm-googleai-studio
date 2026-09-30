@@ -14,24 +14,19 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import type { TemplateLibraryItem } from '@/lib/builder/types';
-import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
+import type { Template } from '@/lib/builder/template-types';
+import { BUILTIN_TEMPLATES } from '@/lib/builder/template-store';
+import { CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { isCatalogTemplateAllowedForTier } from '@/lib/builder/validation';
-import { DESIGN_STYLES } from '@/lib/builder/design-styles';
 import { useBuilderStore } from '@/lib/builder/store';
 
 const ITEMS_PER_PAGE = 9;
 
 interface TemplateGalleryProps {
   websiteId: string;
-  onApply: (template: TemplateLibraryItem) => void;
-  onPreview?: (template: UnifiedTemplate) => void;
+  onApply: (template: Template) => void;
+  onPreview?: (template: Template) => void;
   onClose?: () => void;
-  /**
-   * Tier paket user (free/starter/growth/enterprise).
-   * Bila tidak diisi, gallery mengambil sendiri dari API website.
-   * Dipakai untuk badge gembok template tier-terbatas.
-   */
   userTier?: string;
 }
 
@@ -42,22 +37,17 @@ interface UnifiedTemplate {
   name: string;
   description: string;
   category: BusinessCategory;
-  designStyleId: string;
-  designStyleName: string;
   source: TemplateSource;
   sectionsCount: number;
-  /** Tier yang boleh memakai (builtin saja; undefined = semua tier). */
   tiers?: string[];
-  data: any;
-  thumbnail?: string;
+  data: Template;
 }
 
 export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTier }: TemplateGalleryProps) {
-  const [savedTemplates, setSavedTemplates] = useState<TemplateLibraryItem[]>([]);
+  const [savedTemplates, setSavedTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | 'all'>('all');
-  const [selectedDesignStyle, setSelectedDesignStyle] = useState<string | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState<TemplateSource>('builtin');
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -65,7 +55,6 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
   const [resolvedTier, setResolvedTier] = useState<string | null>(null);
 
-  // Tier user untuk badge gembok: prop diutamakan, fallback fetch API website.
   useEffect(() => {
     if (userTier) {
       setResolvedTier(userTier);
@@ -80,23 +69,12 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           setResolvedTier(json.data.tier);
         }
       } catch {
-        // abaikan — tanpa tier, semua template tampil terbuka
+        // ignore
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [websiteId, userTier]);
 
-  const designStyleId = useBuilderStore((s) => s.designStyleId);
-  const paletteOverride = useBuilderStore((s) => s.paletteOverride);
-  const sections = useBuilderStore((s) => s.sections);
-  const header = useBuilderStore((s) => s.header);
-  const footer = useBuilderStore((s) => s.footer);
-  const core = useBuilderStore((s) => s.core);
-  const seo = useBuilderStore((s) => s.seo);
-
-  // Load saved templates from API
   const loadSavedTemplates = useCallback(async () => {
     try {
       const res = await fetch('/api/templates/library');
@@ -116,65 +94,51 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     loadSavedTemplates();
   }, [loadSavedTemplates]);
 
-  // Convert built-in templates to unified format
   const builtinUnified = useMemo((): UnifiedTemplate[] => {
-    return BUILT_IN_CATALOG.map((t) => ({
+    return BUILTIN_TEMPLATES.map((t) => ({
       id: `builtin-${t.id}`,
       name: t.name,
       description: t.description,
       category: t.category,
-      designStyleId: t.data.designStyleId ?? 'minimalist',
-      designStyleName: DESIGN_STYLES.find(s => s.id === t.data.designStyleId)?.name ?? t.data.designStyleId ?? 'Minimalist',
       source: 'builtin' as TemplateSource,
-      sectionsCount: t.data.sections?.length ?? 0,
+      sectionsCount: t.sections.length,
       tiers: t.tiers ? [...t.tiers] : undefined,
-      data: t.data,
+      data: t,
     }));
   }, []);
 
-  // Convert saved templates to unified format
   const savedUnified = useMemo((): UnifiedTemplate[] => {
-    return savedTemplates.map((t) => {
-      const td = t.template_data as any;
-      return {
-        id: t.id,
-        name: t.name,
-        description: t.description || '',
-        category: (td.category as BusinessCategory) || 'retail',
-        designStyleId: td.design_style_id || td.designStyleId || 'minimalist',
-        designStyleName: DESIGN_STYLES.find(s => s.id === (td.design_style_id || td.designStyleId))?.name ?? (td.design_style_id || td.designStyleId || 'minimalist'),
-        source: 'saved' as TemplateSource,
-        sectionsCount: td.sections?.length ?? 0,
-        data: td,
-      };
-    });
+    return savedTemplates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description || '',
+      category: (t as any).category || 'retail',
+      source: 'saved' as TemplateSource,
+      sectionsCount: (t as any).sections?.length ?? 0,
+      data: t as unknown as Template,
+    }));
   }, [savedTemplates]);
 
-  // Combine all templates
   const allTemplates = useMemo(() => [...builtinUnified, ...savedUnified], [builtinUnified, savedUnified]);
 
-  // Filter templates
   const filteredTemplates = useMemo(() => {
     return allTemplates.filter((t) => {
       const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory;
-      const matchesStyle = selectedDesignStyle === 'all' || t.designStyleId === selectedDesignStyle;
-      return matchesSearch && matchesCategory && matchesStyle;
+      return matchesSearch && matchesCategory;
     });
-  }, [allTemplates, searchQuery, selectedCategory, selectedDesignStyle]);
+  }, [allTemplates, searchQuery, selectedCategory]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredTemplates.length / ITEMS_PER_PAGE);
   const paginatedTemplates = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredTemplates.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredTemplates, currentPage]);
 
-  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedDesignStyle, activeTab]);
+  }, [searchQuery, selectedCategory, activeTab]);
 
   const handleExport = async (templateId: string) => {
     try {
@@ -197,14 +161,10 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     try {
       const text = await importFile.text();
       const data = JSON.parse(text);
-
       const res = await fetch('/api/templates/library/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: importName,
-          template_data: data.data || data,
-        }),
+        body: JSON.stringify({ name: importName, template_data: data.data || data }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -221,14 +181,10 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   const handleDelete = async (templateId: string) => {
     if (!confirm('Yakin ingin menghapus template ini?')) return;
     try {
-      const res = await fetch(`/api/templates/library/${templateId}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`/api/templates/library/${templateId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (json.success) {
-        loadSavedTemplates();
-      }
+      if (json.success) loadSavedTemplates();
     } catch (err) {
       console.error('Failed to delete template:', err);
     }
@@ -237,26 +193,17 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   const handleApply = async (template: UnifiedTemplate) => {
     setApplyingTemplateId(template.id);
     try {
-      const td = template.data;
-      await onApply({
-        id: template.id,
-        name: template.name,
-        description: template.description,
-        template_data: td,
-      } as unknown as TemplateLibraryItem);
-      // Minimum loading duration for better UX
+      await onApply(template.data);
       await new Promise(resolve => setTimeout(resolve, 500));
     } finally {
       setApplyingTemplateId(null);
     }
   };
 
-  const getStyleColors = (styleId: string) => {
-    const style = DESIGN_STYLES.find(s => s.id === styleId);
-    return style?.palette || { primary: '#15803D', secondary: '#0d9488', accent: '#f59e0b', background: '#ffffff' };
+  const getStyleColors = (template: Template) => {
+    return template.theme.palette;
   };
 
-  // Template Card Component - extracted to allow useState for confirmation
   function TemplateCard({
     template,
     onApply,
@@ -270,11 +217,10 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     onDelete: (id: string) => void;
     onPreview?: (template: UnifiedTemplate) => void;
   }) {
-    const colors = getStyleColors(template.designStyleId);
+    const colors = getStyleColors(template.data);
     const isBuiltin = template.source === 'builtin';
     const [showConfirm, setShowConfirm] = useState(false);
     const [applying, setApplying] = useState(false);
-    // Gembok tier: hanya builtin bertiers + tier user diketahui & tak termasuk.
     const locked =
       isBuiltin &&
       Array.isArray(template.tiers) &&
@@ -292,11 +238,6 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
       }
     };
 
-    const handlePreviewClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onPreview?.(template);
-    };
-
     return (
       <div
         key={template.id}
@@ -306,7 +247,6 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         role="button"
         tabIndex={0}
       >
-        {/* Visual thumbnail */}
         <div className="aspect-video rounded-xl overflow-hidden relative bg-gradient-to-br" style={{
           background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
         }}>
@@ -319,7 +259,6 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           </div>
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <h4 className="font-semibold truncate">{template.name}</h4>
@@ -340,112 +279,49 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
               <Palette className="w-3 h-3" />
               {template.sectionsCount} section
             </span>
-            <span className="flex items-center gap-1">
-              <Layout className="w-3 h-3" />
-              {template.designStyleName}
-            </span>
           </div>
         </div>
 
-        {/* Action for saved templates */}
         {template.source === 'saved' && (
           <div className="flex items-center gap-1 border-t pt-3 mt-2">
-            <button
-              className="h-8 w-8 p-1 rounded-lg hover:bg-muted transition-colors"
-              onClick={(e) => { e.stopPropagation(); onExport(template.id); }}
-              title="Export"
-            >
+            <button className="h-8 w-8 p-1 rounded-lg hover:bg-muted transition-colors" onClick={(e) => { e.stopPropagation(); onExport(template.id); }} title="Export">
               <Download className="w-3.5 h-3.5" />
             </button>
-            <button
-              className="h-8 w-8 p-1 rounded-lg hover:bg-muted transition-colors text-red-500"
-              onClick={(e) => { e.stopPropagation(); onDelete(template.id); }}
-              title="Hapus"
-            >
+            <button className="h-8 w-8 p-1 rounded-lg hover:bg-muted transition-colors text-red-500" onClick={(e) => { e.stopPropagation(); onDelete(template.id); }} title="Hapus">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* Apply & Preview buttons */}
         <div className="border-t pt-3 mt-2">
           {showConfirm ? (
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }}
-              >
+              <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }}>
                 Batal
               </Button>
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1"
-                onClick={(e) => { e.stopPropagation(); setShowConfirm(false); handleApply(); }}
-                disabled={applying}
-              >
-                {applying ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                    Menerapkan...
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-3.5 h-3.5 mr-1" />
-                    Ya, Terapkan
-                  </>
-                )}
+              <Button variant="default" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); handleApply(); }} disabled={applying}>
+                {applying ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
               </Button>
             </div>
           ) : locked ? (
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open('/dashboard/billing', '_blank');
-                }}
-                title={`Template ini untuk paket ${(template.tiers ?? []).join(', ')}`}
-              >
-                <Lock className="w-3.5 h-3.5 mr-1" />
-                Upgrade untuk Buka
+              <Button variant="outline" size="sm" className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40" onClick={(e) => { e.stopPropagation(); window.open('/dashboard/billing', '_blank'); }}>
+                <Lock className="w-3.5 h-3.5 mr-1" /> Upgrade untuk Buka
               </Button>
               {onPreview && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handlePreviewClick}
-                >
-                  <ExternalLink className="w-3.5 h-3.5 mr-1" />
-                  Pratinjau
+                <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
+                  <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
                 </Button>
               )}
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1"
-                onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
-              >
-                <Check className="w-3.5 h-3.5 mr-1" />
-                Terapkan
+              <Button variant="default" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}>
+                <Check className="w-3.5 h-3.5 mr-1" /> Terapkan
               </Button>
               {onPreview && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handlePreviewClick}
-                >
-                  <ExternalLink className="w-3.5 h-3.5 mr-1" />
-                  Pratinjau
+                <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
+                  <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
                 </Button>
               )}
             </div>
@@ -453,7 +329,7 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         </div>
       </div>
     );
-  };
+  }
 
   if (loading) {
     return (
@@ -465,23 +341,12 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
   return (
     <div className="space-y-4">
-      {/* Header with tabs */}
       <div className="flex items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-          <Button
-            variant={activeTab === 'builtin' ? 'default' : 'ghost'}
-            size="sm"
-            className="gap-2"
-            onClick={() => { setActiveTab('builtin'); setCurrentPage(1); }}
-          >
+          <Button variant={activeTab === 'builtin' ? 'default' : 'ghost'} size="sm" className="gap-2" onClick={() => { setActiveTab('builtin'); setCurrentPage(1); }}>
             <Sparkles className="w-4 h-4" /> Bawaan ({builtinUnified.length})
           </Button>
-          <Button
-            variant={activeTab === 'saved' ? 'default' : 'ghost'}
-            size="sm"
-            className="gap-2"
-            onClick={() => { setActiveTab('saved'); setCurrentPage(1); }}
-          >
+          <Button variant={activeTab === 'saved' ? 'default' : 'ghost'} size="sm" className="gap-2" onClick={() => { setActiveTab('saved'); setCurrentPage(1); }}>
             <Layout className="w-4 h-4" /> Tersimpan ({savedUnified.length})
           </Button>
         </div>
@@ -489,26 +354,14 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           <Button size="sm" variant="outline" onClick={() => document.getElementById('import-file')?.click()}>
             <Upload className="w-4 h-4 mr-1" /> Import
           </Button>
-          <input
-            id="import-file"
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-          />
+          <input id="import-file" type="file" accept=".json" className="hidden" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 p-4 bg-muted/30 rounded-xl">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari template... (nama, deskripsi)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-10"
-          />
+          <Input placeholder="Cari template... (nama, deskripsi)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
         </div>
         <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as BusinessCategory | 'all')}>
           <SelectTrigger className="w-full sm:w-48 h-10">
@@ -521,32 +374,19 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
             ))}
           </SelectContent>
         </Select>
-        <Select value={selectedDesignStyle} onValueChange={(v) => setSelectedDesignStyle(v)}>
-          <SelectTrigger className="w-full sm:w-56 h-10">
-            <SelectValue placeholder="Design Style" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Style</SelectItem>
-            {DESIGN_STYLES.map((s) => (
-              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {(searchQuery || selectedCategory !== 'all' || selectedDesignStyle !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setSelectedDesignStyle('all'); }}>
+        {(searchQuery || selectedCategory !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}>
             <Filter className="w-4 h-4 mr-1" /> Reset
           </Button>
         )}
       </div>
 
-      {/* Results count */}
       <p className="text-sm text-muted-foreground">
         Menampilkan {paginatedTemplates.length} dari {filteredTemplates.length} template
         {activeTab === 'builtin' && ` (${builtinUnified.length} bawaan`}
         {activeTab === 'saved' && ` (${savedUnified.length} tersimpan)`}
       </p>
 
-      {/* Template Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
         {paginatedTemplates.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
@@ -556,52 +396,27 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           </div>
         ) : (
           paginatedTemplates.map((template) => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              onApply={handleApply}
-              onExport={handleExport}
-              onDelete={handleDelete}
-              onPreview={onPreview}
-            />
+            <TemplateCard key={template.id} template={template} onApply={handleApply} onExport={handleExport} onDelete={handleDelete} onPreview={onPreview as ((template: UnifiedTemplate) => void) | undefined} />
           ))
         )}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <Button
-              key={page}
-              variant={currentPage === page ? 'default' : 'outline'}
-              size="sm"
-              className="w-10 h-10"
-              onClick={() => setCurrentPage(page)}
-            >
+            <Button key={page} variant={currentPage === page ? 'default' : 'outline'} size="sm" className="w-10 h-10" onClick={() => setCurrentPage(page)}>
               {page}
             </Button>
           ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-          >
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       )}
 
-      {/* Global Applying Overlay */}
       {applyingTemplateId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-background rounded-2xl p-8 text-center max-w-sm mx-4 shadow-2xl border">
@@ -612,7 +427,6 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         </div>
       )}
 
-      {/* Import Dialog */}
       <Dialog open={!!importFile} onOpenChange={() => setImportFile(null)}>
         <DialogContent>
           <DialogHeader>

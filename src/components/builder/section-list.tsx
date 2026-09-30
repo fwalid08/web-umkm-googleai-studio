@@ -1,10 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useBuilderStore } from '@/lib/builder/store';
+import { useTemplateStore, getSectionVariant } from '@/lib/builder/template-store';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Trash2, Edit3, Copy, LayoutList } from 'lucide-react';
-import { SECTION_REGISTRY } from '@/lib/builder/sections/registry';
+import { ChevronUp, ChevronDown, Trash2, Edit3, Copy } from 'lucide-react';
 
 interface SectionListProps {
   onEditSection: (sectionId: string) => void;
@@ -28,12 +27,13 @@ function dotFor(type: string) {
 }
 
 export function SectionList({ onEditSection, search = '' }: SectionListProps) {
-  const sections = useBuilderStore((s) => s.sections);
-  const selectedSectionId = useBuilderStore((s) => s.selectedSectionId);
-  const selectSection = useBuilderStore((s) => s.selectSection);
-  const deleteSection = useBuilderStore((s) => s.deleteSection);
-  const duplicateSection = useBuilderStore((s) => s.duplicateSection);
-  const reorderSections = useBuilderStore((s) => s.reorderSections);
+  const template = useTemplateStore((s) => s.template);
+  const sections = useTemplateStore((s) => s.sections);
+  const selectedSectionId = useTemplateStore((s) => s.selectedSectionId);
+  const selectSection = useTemplateStore((s) => s.selectSection);
+  const deleteSection = useTemplateStore((s) => s.deleteSection);
+  const duplicateSection = useTemplateStore((s) => s.duplicateSection);
+  const reorderSections = useTemplateStore((s) => s.reorderSections);
 
   const q = search.trim().toLowerCase();
   const visible = useMemo(() => {
@@ -41,13 +41,14 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
     return sections
       .map((s, i) => ({ s, i }))
       .filter(({ s }) => {
-        const meta = SECTION_REGISTRY[s.type];
+        const variant = getSectionVariant(template, s.type, s.variantId);
+        const sectionType = template.sections.find((st) => st.type === s.type);
         return (
-          (meta?.name || s.type).toLowerCase().includes(q) ||
-          s.variant.toLowerCase().includes(q)
+          (sectionType?.name || s.type).toLowerCase().includes(q) ||
+          (variant?.name || s.variantId).toLowerCase().includes(q)
         );
       });
-  }, [sections, q]);
+  }, [sections, q, template]);
 
   const handleMoveUp = (index: number) => {
     if (index > 0) {
@@ -64,9 +65,9 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
   if (sections.length === 0) {
     return (
       <div className="p-6 text-center rounded-2xl border-2 border-dashed border-slate-300/50 bg-slate-50/60 dark:bg-white/[0.03] dark:border-white/10">
-        <div className="text-3xl mb-2">🧱</div>
+        <div className="text-3xl mb-2">...</div>
         <p className="text-sm font-extrabold">Belum ada blok</p>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Klik “Tambah” untuk pasang blok pertama — hero, produk, testimoni.</p>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Klik "Tambah" untuk pasang blok pertama — hero, produk, testimoni.</p>
       </div>
     );
   }
@@ -83,7 +84,8 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
   return (
     <div className="space-y-2">
       {visible.map(({ s: section, i: index }) => {
-        const sectionType = SECTION_REGISTRY[section.type];
+        const variant = getSectionVariant(template, section.type, section.variantId);
+        const sectionType = template.sections.find((st) => st.type === section.type);
         const isSelected = selectedSectionId === section.id;
 
         return (
@@ -113,7 +115,6 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
                 onClick={() => handleMoveUp(index)}
                 disabled={index === 0}
                 className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
-                title="Pindah ke atas"
               >
                 <ChevronUp className="w-4 h-4" />
               </button>
@@ -121,7 +122,6 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
                 onClick={() => handleMoveDown(index)}
                 disabled={index === sections.length - 1}
                 className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
-                title="Pindah ke bawah"
               >
                 <ChevronDown className="w-4 h-4" />
               </button>
@@ -129,10 +129,9 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
 
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-semibold truncate">{sectionType?.name || section.type}</p>
-              <p className="text-[11px] text-muted-foreground truncate">{section.variant}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{variant?.name || section.variantId}</p>
             </div>
 
-            {/* Aksi selalu terlihat di layar sentuh; hover-reveal hanya di desktop */}
             <div
               className="flex items-center gap-0.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
@@ -142,7 +141,6 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => onEditSection(section.id)}
-                title="Edit section"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </Button>
@@ -151,7 +149,6 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => duplicateSection(section.id)}
-                title="Duplikat section"
               >
                 <Copy className="w-3.5 h-3.5" />
               </Button>
@@ -164,7 +161,6 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
                     deleteSection(section.id);
                   }
                 }}
-                title="Hapus section"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>

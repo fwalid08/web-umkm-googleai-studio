@@ -53,11 +53,25 @@ export default async function Home() {
         return (
           <PublicWebsiteV3
             site={{
-              designStyle,
-              paletteOverride: (customConfig as unknown as { palette_override?: import("@/lib/builder/design-styles").PaletteOverride }).palette_override ?? null,
-              sections: customConfig.sections as import("@/lib/builder/types").Section[],
-              header: (customConfig as unknown as { header: import("@/lib/builder/types").HeaderConfig }).header,
-              footer: (customConfig as unknown as { footer: import("@/lib/builder/types").FooterConfig }).footer,
+              template: {
+                id: 'legacy',
+                name: 'Legacy',
+                description: '',
+                category: 'retail',
+                theme: {
+                  palette: designStyle.palette,
+                  typography: designStyle.typography,
+                  components: designStyle.components,
+                  effects: designStyle.effects,
+                },
+                headers: [],
+                footers: [],
+                sections: [],
+              },
+              headerVariantId: '',
+              footerVariantId: '',
+              sections: customConfig.sections as unknown as import("@/lib/builder/template-types").TemplateSectionInstance[],
+              themeOverride: (customConfig as unknown as { palette_override?: Record<string, string> }).palette_override,
               websiteId: tenant.site.websiteId,
               seo: tenant.site.seo,
             }}
