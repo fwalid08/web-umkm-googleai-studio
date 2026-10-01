@@ -139,14 +139,16 @@ export async function PATCH(
     }
 
     if (is_homepage) {
+      // Hanya satu halaman boleh jadi homepage — turunkan flag di semua baris
+      // lain, lalu naikkan yang ini (di bawah pada update baris pageId).
+      //
+      // CATATAN: website_settings.homepage_page_id/homepage_type TIDAK lagi
+      // ditulis di sini. Homepage ditentukan murni dari baris store_pages
+      // dengan is_homepage = true (lihat 033_page_builder_only.sql), jadi
+      // kolomnya hanya sisa historis yang bisa di-drop terpisah nanti.
       await supabase
         .from("store_pages")
         .update({ is_homepage: false })
-        .eq("website_id", websiteId);
-
-      await supabase
-        .from("website_settings")
-        .update({ homepage_type: "page", homepage_page_id: pageId })
         .eq("website_id", websiteId);
     }
 
