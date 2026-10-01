@@ -250,6 +250,8 @@ export interface SectionStyle {
   backgroundBlur?: number;
   backgroundSize?: 'cover' | 'contain' | 'auto';
   backgroundOverlay?: 'none' | 'light' | 'dark' | 'primary';
+  /** Kekuatan overlay 0-100 (%). Kosong = pakai default per jenis overlay. */
+  backgroundOverlayOpacity?: number;
 }
 
 export interface Section {
@@ -285,11 +287,26 @@ export interface HeaderConfig {
   };
 }
 
+/**
+ * Grup navigasi footer untuk layout kolom: tiap grup punya judul + daftar
+ * link sendiri (mis. "Produk", "Bantuan", "Perusahaan").
+ */
+export interface NavGroup {
+  id: string;
+  title: string;
+  items: NavItem[];
+}
+
 export interface FooterConfig {
   /** ID varian footer (lihat FOOTER_VARIANTS di lib/builder/chrome.ts). */
   style: 'simple' | 'columns' | 'centered' | 'minimal';
+  /** Copyright — SELALU tampil di semua varian footer. */
   text: string;
+  /** Navigasi datar (layout inline). Untuk layout kolom pakai `navGroups`. */
   navItems: NavItem[];
+  /** Navigasi terkelompok (layout kolom). */
+  navGroups?: NavGroup[];
+  /** Tampilkan blok sosmed — opsional, bisa dimatikan user. */
   showSocial: boolean;
   socialLinks?: Record<string, string>;
   address?: string;
@@ -297,6 +314,11 @@ export interface FooterConfig {
   email?: string;
   whatsapp?: string;
   showWhatsApp?: boolean;
+  /**
+   * Tampilkan blok navigasi — opsional. Brand (logo & nama) dan copyright
+   * tidak punya toggle: keduanya inti footer dan selalu tampil.
+   */
+  showNav?: boolean;
 }
 
 export interface BuilderConfigV2 {

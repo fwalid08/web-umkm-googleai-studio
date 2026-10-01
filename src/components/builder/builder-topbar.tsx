@@ -1,10 +1,8 @@
 'use client';
 
-import { ArrowLeft, Undo2, Redo2, Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
-import { useBuilderStore } from '@/lib/builder/store';
-import { useTemplateStore } from '@/lib/builder/template-store';
 import {
   Tooltip,
   TooltipContent,
@@ -21,7 +19,15 @@ interface BuilderTopbarProps {
   onToggleSidebar: () => void;
   onPreview: () => void;
   onSave: () => void;
-  onPublish: () => void;
+  /**
+   * Aksi Publish. Opsional: hanya diisi bila builder memang punya konsep
+   * publish (page-builder set `is_published`). Builder lama TIDAK punya —
+   * di sana tombol ini disembunyikan karena publish = alias save, sehingga
+   * menampilkannya hanya membingungkan.
+   */
+  onPublish?: () => void;
+  /** Status tayang halaman. Undefined = builder tidak punya konsep publish. */
+  isPublished?: boolean;
   onShowPages?: () => void;
   onShowTemplates?: () => void;
   exitHref?: string;
@@ -49,12 +55,12 @@ function BarButton({
         <Button
           variant="ghost"
           size="sm"
-          className="h-9 w-9 p-0 rounded-xl hover:bg-emerald-100/80 hover:text-emerald-800 dark:hover:bg-slate-800 sm:w-auto sm:px-3 sm:gap-2 font-semibold"
+          className="h-8 w-8 p-0 rounded-lg hover:bg-emerald-100/80 hover:text-emerald-800 dark:hover:bg-slate-800 sm:w-auto sm:px-2.5 sm:gap-1.5 font-semibold"
           onClick={onClick}
           disabled={disabled}
         >
           {children}
-          {label && <span className="hidden sm:inline text-[13px] font-medium">{label}</span>}
+          {label && <span className="hidden sm:inline text-[12px] font-medium">{label}</span>}
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
@@ -74,22 +80,17 @@ export function BuilderTopbar({
   onPreview,
   onSave,
   onPublish,
+  isPublished,
   onShowPages,
   onShowTemplates,
   exitHref = '/dashboard',
   siteUrl,
 }: BuilderTopbarProps) {
   const router = useRouter();
-  const undo = () => {
-    useTemplateStore.getState().undo();
-    useBuilderStore.getState().undo();
-  };
-  const redo = () => {
-    useTemplateStore.getState().redo();
-    useBuilderStore.getState().redo();
-  };
-  const canUndo = useBuilderStore((s) => s.past.length > 0) || useTemplateStore((s) => s.past.length > 0);
-  const canRedo = useBuilderStore((s) => s.future.length > 0) || useTemplateStore((s) => s.future.length > 0);
+
+  // Catatan: undo/redo TIDAK lagi punya tombol di topbar, tapi tetap aktif lewat
+  // keyboard (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) di builder-shell.tsx — logika
+  // store-nya (pushHistory, past/future) tidak diubah sama sekali.
 
   const handleExit = () => {
     if (!saved) {
@@ -103,7 +104,7 @@ export function BuilderTopbar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <header className="relative border-b border-emerald-100/80 bg-gradient-to-r from-white via-emerald-50/50 to-amber-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 dark:border-slate-800 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-3 sm:px-4 py-2 shrink-0 sticky top-0 z-20">
+      <header className="relative border-b border-slate-200/70 bg-gradient-to-r from-slate-100 via-emerald-50/50 to-slate-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 dark:border-slate-800 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-3 sm:px-4 py-2 shrink-0 sticky top-0 z-20">
         {/* Progress bar saat menyimpan */}
         {isSaving && (
           <span className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-emerald-100 dark:bg-slate-800">
@@ -112,19 +113,19 @@ export function BuilderTopbar({
         )}
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <BarButton title="Keluar ke Dashboard" hint="Perubahan belum disimpan akan ditanya dulu" onClick={handleExit}>
-            <ArrowLeft className="w-[18px] h-[18px]" />
+            <ArrowLeft className="w-4 h-4" />
           </BarButton>
 
           {/* Konteks halaman yang sedang diedit */}
           <div className="flex items-center gap-2 min-w-0 rounded-xl border border-emerald-200/70 bg-white/80 dark:bg-slate-800/80 dark:border-slate-700 pl-1.5 pr-2.5 py-1 shadow-sm">
-            <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-sm">
+            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-sm">
               <FileText className="w-3.5 h-3.5 text-white" />
             </span>
             <span className="min-w-0 leading-tight">
               <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                 Page Builder
               </span>
-              <span className="block text-[13px] font-bold truncate max-w-32 sm:max-w-48">
+              <span className="block text-[12px] font-bold truncate max-w-32 sm:max-w-48">
                 {pageTitle || 'Halaman toko'}
               </span>
             </span>
@@ -138,18 +139,18 @@ export function BuilderTopbar({
           <div className="w-px h-6 bg-emerald-200/60 dark:bg-slate-700 mx-0.5 shrink-0 hidden sm:block" />
 
           <BarButton title="Panel pengaturan" hint="Tampilkan / sembunyikan sidebar" onClick={onToggleSidebar}>
-            <PanelLeft className="w-[18px] h-[18px]" />
+            <PanelLeft className="w-4 h-4" />
           </BarButton>
 
           {onShowPages && (
             <BarButton title="Kelola Halaman" onClick={onShowPages} label="Halaman">
-              <FileText className="w-[18px] h-[18px]" />
+              <FileText className="w-4 h-4" />
             </BarButton>
           )}
 
           {onShowTemplates && (
             <BarButton title="Galeri Template" hint="Terapkan template siap pakai" onClick={onShowTemplates} label="Template">
-              <LayoutTemplate className="w-[18px] h-[18px]" />
+              <LayoutTemplate className="w-4 h-4" />
             </BarButton>
           )}
 
@@ -177,21 +178,31 @@ export function BuilderTopbar({
             </span>
             {isSaving ? 'Menyimpan…' : saved ? '✨ Tersimpan' : '● Belum disimpan'}
           </div>
+
+          {/* Status tayang hanya relevan bila builder punya konsep publish
+              (page-builder). Label "Tersimpan" di sebelahnya tidak menjawab
+              hal ini: ia soal perubahan tersimpan ke DB, bukan halaman tayang. */}
+          {typeof isPublished === 'boolean' && !isSaving && (
+            <div
+              className={`hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${
+                isPublished
+                  ? 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+              }`}
+              title={
+                isPublished
+                  ? 'Halaman ini tayang di website publik'
+                  : 'Halaman masih draft — belum bisa diakses publik'
+              }
+            >
+              {isPublished ? '🌍 Tayang' : '📄 Draft'}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          <BarButton title="Undo" hint="Ctrl+Z" onClick={undo} disabled={!canUndo}>
-            <Undo2 className="w-[18px] h-[18px]" />
-          </BarButton>
-
-          <BarButton title="Redo" hint="Ctrl+Shift+Z" onClick={redo} disabled={!canRedo}>
-            <Redo2 className="w-[18px] h-[18px]" />
-          </BarButton>
-
-          <div className="w-px h-6 bg-emerald-200/60 dark:bg-slate-700 mx-0.5 shrink-0" />
-
           <BarButton title="Preview website" hint="Lihat tampilan asli (Esc untuk keluar)" onClick={onPreview} label="Preview">
-            <Eye className="w-[18px] h-[18px]" />
+            <Eye className="w-4 h-4" />
           </BarButton>
 
           {siteUrl && (
@@ -201,7 +212,7 @@ export function BuilderTopbar({
               onClick={() => window.open(siteUrl, '_blank', 'noopener,noreferrer')}
               label="Lihat Web"
             >
-              <ExternalLink className="w-[18px] h-[18px]" />
+              <ExternalLink className="w-4 h-4" />
             </BarButton>
           )}
 
@@ -210,7 +221,7 @@ export function BuilderTopbar({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 rounded-xl border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 text-emerald-800 dark:bg-slate-800 dark:text-emerald-200 dark:border-slate-700 font-semibold shadow-sm"
+                className="h-8 rounded-lg border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 text-emerald-800 dark:bg-slate-800 dark:text-emerald-200 dark:border-slate-700 font-semibold shadow-sm"
                 onClick={onSave}
                 disabled={isSaving}
               >
@@ -219,7 +230,7 @@ export function BuilderTopbar({
                 ) : (
                   <Save className="w-4 h-4 sm:mr-2" />
                 )}
-                <span className="hidden sm:inline text-[13px]">Simpan</span>
+                <span className="hidden sm:inline text-[12px]">Simpan</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
@@ -228,19 +239,24 @@ export function BuilderTopbar({
             </TooltipContent>
           </Tooltip>
 
-          <Button
-            size="sm"
-            className="h-9 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-500/25 border border-emerald-400/40"
-            onClick={onPublish}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-            ) : (
-              <Rocket className="w-4 h-4 sm:mr-2" />
-            )}
-            <span className="hidden sm:inline text-[13px]">Publish 🚀</span>
-          </Button>
+          {/* Hanya dirender bila builder punya konsep publish sungguhan.
+              Di builder lama publish = alias save, jadi tombolnya disembunyikan
+              agar tidak menjanjikan sesuatu yang tidak terjadi. */}
+          {onPublish && (
+            <Button
+              size="sm"
+              className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-500/25 border border-emerald-400/40"
+              onClick={onPublish}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+              ) : (
+                <Rocket className="w-4 h-4 sm:mr-2" />
+              )}
+              <span className="hidden sm:inline text-[12px]">Publish 🚀</span>
+            </Button>
+          )}
         </div>
         <style>{`@keyframes topbar-slide { 0% { transform: translateX(-100%);} 100% { transform: translateX(220%);} }`}</style>
       </header>

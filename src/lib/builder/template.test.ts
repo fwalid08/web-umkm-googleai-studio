@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { PANGKAS_RAPI_TEMPLATE } from './templates/pangkas-rapi';
 import { getTemplate, getSectionType, getSectionVariant, getHeaderVariant, getFooterVariant } from './template-store';
 import { migrateOldConfig, isOldConfig } from './migration';
+import { HEADER_VARIANTS, isKnownHeaderVariant } from './chrome';
+import { useTemplateStore } from './template-store';
+import { BUILT_IN_CATALOG } from './templates/catalog';
+import { applySectionAssets, assetsFor } from './template-assets';
 
 describe('Template System', () => {
   it('should have Pangkas Rapi template', () => {
@@ -9,14 +13,73 @@ describe('Template System', () => {
     expect(PANGKAS_RAPI_TEMPLATE.name).toContain('Pangkas Rapi');
   });
 
-  it('should have 4 header variants', () => {
-    expect(PANGKAS_RAPI_TEMPLATE.headers).toHaveLength(4);
+  it('should have 7 header variants (≥4 minimum)', () => {
+    // Setiap template mewarisi set header yang sama dari PANGKAS_RAPI_TEMPLATE,
+    // jadi 7 varian ini otomatis tersedia di kelima template.
+    expect(PANGKAS_RAPI_TEMPLATE.headers.length).toBeGreaterThanOrEqual(4);
+    expect(PANGKAS_RAPI_TEMPLATE.headers).toHaveLength(7);
     expect(PANGKAS_RAPI_TEMPLATE.headers.map((h) => h.id)).toEqual([
       'header-klasik',
       'header-melayang',
       'header-minimal',
       'header-hero',
+      'header-split',
+      'header-topbar',
+      'header-kaca',
     ]);
+  });
+
+  it('semua layout header terdaftar di chrome registry & punya mockup', () => {
+    for (const h of PANGKAS_RAPI_TEMPLATE.headers) {
+      expect(isKnownHeaderVariant(h.layout), `layout "${h.layout}" tak terdaftar di chrome.ts`).toBe(true);
+      expect(h.mockup, `${h.id}: mockup wajib diisi`).toMatch(/^header-/);
+      // configFields minimal satu + defaultConfig harus punya isi.
+      expect(h.configFields.length, `${h.id}: minimal 1 configField`).toBeGreaterThan(0);
+      expect(Object.keys(h.defaultConfig).length, `${h.id}: defaultConfig tidak boleh kosong`).toBeGreaterThan(0);
+    }
+  });
+
+  it('tujuh layout header yang diimplementasikan renderer', () => {
+    // Guard agar renderer (site-header-shared.tsx) tidak tertinggal: daftar
+    // layout di chrome registry harus persis 7 dan cocok dengan yang dirender.
+    expect(HEADER_VARIANTS.map((v) => v.id).sort()).toEqual(
+      ['floating', 'glass', 'hero-overlay', 'minimal', 'split-nav', 'standard', 'with-topbar'].sort(),
+    );
+  });
+
+  /**
+   * Kedalaman menu (1 atau 2 tingkat) diputuskan TEMPLATE, bukan renderer.
+   *
+   * Guard ini menjaga `maxNavDepth` tetap valid dan konsisten antar varian
+   * header — kalau ada varian tanpa nilai (=1) bercampur dengan 2, sidebar
+   * akan menampilkan form submenu yang tidak konsisten antar gaya header.
+   */
+  it('setiap varian header punya maxNavDepth valid (1 atau 2)', () => {
+    for (const t of BUILT_IN_CATALOG) {
+      for (const h of t.headers) {
+        expect(
+          h.maxNavDepth === 1 || h.maxNavDepth === 2,
+          `${t.id}/${h.id}: maxNavDepth harus 1 atau 2 (dapat ${String(h.maxNavDepth)})`,
+        ).toBe(true);
+      }
+      // Semua varian dalam satu template konsisten (campur 1 & 2 bikin
+      // form berubah-ubah saat user ganti gaya header).
+      const depths = new Set(t.headers.map((h) => h.maxNavDepth ?? 1));
+      expect(depths.size, `${t.id}: maxNavDepth tidak konsisten antar varian header`).toBe(1);
+    }
+  });
+
+  it('template declares maxNavDepth 2 hanya bila memang mendukung submenu', () => {
+    // Pangkas Rapi & Warung Makan = usaha tunggal/service → 1 tingkat.
+    for (const id of ['pangkas-rapi', 'warung-makan']) {
+      const t = BUILT_IN_CATALOG.find((x) => x.id === id)!;
+      expect(t.headers[0].maxNavDepth, `${id} seharusnya 1 tingkat`).toBe(1);
+    }
+    // Template katalog/retail → 2 tingkat.
+    for (const id of ['butik-hijab', 'toko-kelontong', 'kerajinan-tangan']) {
+      const t = BUILT_IN_CATALOG.find((x) => x.id === id)!;
+      expect(t.headers[0].maxNavDepth, `${id} seharusnya 2 tingkat`).toBe(2);
+    }
   });
 
   it('should have 6 footer variants', () => {
@@ -195,5 +258,81 @@ describe('Migration', () => {
 
     const migrated = migrateOldConfig(oldConfig) as { sections: Array<{ type: string }> };
     expect(migrated.sections[0].type).toBe('hero');
+  });
+});
+
+/**
+ * Regression: "ganti template" dulu mengosongkan kanvas (setTemplate → sections
+ * = []), jadi user kehilangan semua section. applyTemplate() harus mengisi
+ * section bawaan + aset foto per-bisnis, dan bisa di-undo.
+ */
+describe('applyTemplate — isi konten bawaan template', () => {
+  const original = useTemplateStore.getState();
+
+  afterEach(() => {
+    // Kembalikan state store agar test tidak saling memengaruhi.
+    useTemplateStore.setState({ ...original, past: [], future: [] });
+  });
+
+  it('setTemplate tetap mengosongkan (dipakai saat load/seed halaman)', () => {
+    useTemplateStore.getState().setTemplate('warung-makan');
+    expect(useTemplateStore.getState().sections).toHaveLength(0);
+  });
+
+  it('applyTemplate mengisi kanvas dengan section bawaan template', () => {
+    for (const t of BUILT_IN_CATALOG) {
+      useTemplateStore.getState().applyTemplate(t.id);
+      const state = useTemplateStore.getState();
+      expect(state.template.id, `${t.id}: template tidak berganti`).toBe(t.id);
+      expect(state.sections.length, `${t.id}: kanvas kosong setelah apply`).toBeGreaterThan(0);
+      // Tiap section punya id unik supaya React key & DOM valid.
+      expect(new Set(state.sections.map((s) => s.id)).size).toBe(state.sections.length);
+      // Tandai belum tersimpan supaya user prompted menyimpan.
+      expect(state.saved).toBe(false);
+    }
+  });
+
+  it('applyTemplate menyuntikkan foto per-niche ke config section', () => {
+    useTemplateStore.getState().applyTemplate('warung-makan');
+    const sections = useTemplateStore.getState().sections;
+    const withImage = sections.filter((s) => {
+      const c = s.config as Record<string, unknown>;
+      return typeof c.image === 'string' && c.image.startsWith('https://');
+    });
+    expect(withImage.length, 'tidak ada section yang dapat foto').toBeGreaterThan(0);
+  });
+
+  it('applyTemplate bisa di-undo (historyStores section lama)', () => {
+    useTemplateStore.getState().setTemplate('pangkas-rapi');
+    useTemplateStore.getState().addSection('hero', 'hero-full');
+    const before = useTemplateStore.getState().sections.length;
+
+    useTemplateStore.getState().applyTemplate('warung-makan');
+    expect(useTemplateStore.getState().past.length).toBeGreaterThan(0);
+
+    useTemplateStore.getState().undo();
+    expect(useTemplateStore.getState().sections.length).toBe(before);
+  });
+
+  it('applySectionAssets tidak menimpa gambar yang sudah ada', () => {
+    const custom = { image: 'https://cdn.toko-saya.com/foto.jpg' };
+    const out = applySectionAssets(custom, 'food');
+    expect(out.image).toBe('https://cdn.toko-saya.com/foto.jpg');
+  });
+
+  it('applySectionAssets mengisi items[] galeri tanpa menimpa yang terisi', () => {
+    const out = applySectionAssets(
+      { items: [{ title: 'A' }, { title: 'B', image: 'https://saya.com/b.jpg' }] },
+      'food',
+    );
+    const items = out.items as Array<{ title: string; image?: string }>;
+    expect(items[0].image).toMatch(/^https:\/\//);
+    expect(items[1].image).toBe('https://saya.com/b.jpg');
+  });
+
+  it('assetsFor menolak niche tak dikenal (tidak crash)', () => {
+    expect(assetsFor('toko-mobil')).toBeNull();
+    expect(assetsFor(undefined)).toBeNull();
+    expect(applySectionAssets({ title: 'x' }, 'toko-mobil')).toEqual({ title: 'x' });
   });
 });

@@ -44,6 +44,8 @@ export const KERAJINAN_TANGAN_TEMPLATE = ({
   },
   headers: PANGKAS_RAPI_TEMPLATE.headers.map((h) => ({
     ...h,
+    // Katalog kerajinan: menu 2 tingkat (Karya > Kayu / Anyaman / Keramik).
+    maxNavDepth: 2,
     defaultConfig: {
       ...h.defaultConfig,
       siteTitle: "Kerajinan Tangan",
@@ -85,8 +87,6 @@ export const KERAJINAN_TANGAN_TEMPLATE = ({
               subheadline: "Setiap karya dibuat penuh kesabaran oleh pengrajin lokal. Kayu, anyaman, keramik, tenun. Bisa custom untuk hadiah, merch, atau dekorasi ruang.",
               cta_text: "Lihat Karya & Custom",
               cta_link: "#karya",
-              background_type: "color",
-              background_color: "theme:primary",
             }
           : {}),
         ...(s.type === "about" && v.id === "about-left"
@@ -154,11 +154,15 @@ export const KERAJINAN_TANGAN_TEMPLATE = ({
       border: "#d8f3dc",
     },
     sections: [
-      { type: "hero", variant: "hero-card", anchorId: "beranda", config: { headline: "Produk Unik, Buatan Tangan, Bermakna", subheadline: "Setiap karya dibuat penuh kesabaran oleh pengrajin lokal. Kayu, anyaman, keramik, tenun. Bisa custom untuk hadiah, merch, atau dekorasi ruang.", cta_text: "Lihat Karya & Custom", cta_link: "#karya", background_type: "color", background_color: "theme:primary" } },
+      { type: "hero", variant: "hero-card", anchorId: "beranda", config: { headline: "Produk Unik, Buatan Tangan, Bermakna", subheadline: "Setiap karya dibuat penuh kesabaran oleh pengrajin lokal. Kayu, anyaman, keramik, tenun. Bisa custom untuk hadiah, merch, atau dekorasi ruang.", cta_text: "Lihat Karya & Custom", cta_link: "#karya" } },
       { type: "about", variant: "about-left", anchorId: "tentang", config: { title: "Cerita Kami", content: "Kami komunitas pengrajin dari berbagai daerah: ukir kayu Jepara, anyaman Tasikmalaya, keramik Kasongan, tenun Troso. Bergabung untuk membawa karya tangan Indonesia ke lebih banyak orang. Setiap pembelian mendukung penghidupan pengrajin & kelestarian budaya.", image: "" } },
       { type: "gallery", variant: "gallery-masonry", anchorId: "karya", config: { title: "Galeri Karya" } },
       { type: "team", variant: "team-grid", anchorId: "pengrajin", config: { title: "Pengrajin di Balik Karya", members: [{ name: "Pak Budi", role: "Ahli Ukir Kayu (Jepara)", image: "" }, { name: "Ibu Siti", role: "Ahli Anyaman Bambu (Tasik)", image: "" }, { name: "Pak Agus", role: "Ahli Keramik (Kasongan)", image: "" }, { name: "Ibu Dewi", role: "Ahli Tenun (Troso)", image: "" }] } },
       { type: "pricing", variant: "pricing-2tier", anchorId: "custom", config: { title: "Estimasi Harga Custom Order", items: [{ name: "Custom Kecil (Aksesoris, Kunci)", price: "Mulai Rp 50rb", features: ["Desain gratis", "Proses 3-5 hari", "Min. order 10 pcs"] }, { name: "Custom Sedang (Dekor, Merch)", price: "Mulai Rp 200rb", features: ["Konsultasi desain", "Proses 7-14 hari", "Min. order 20 pcs"] }] } },
+      { type: "location", variant: "location-hours", anchorId: "lokasi-toko", config: { title: "Kunjungi Toko Kami", address: "Jl. Kerajinan No. 7, Yogyakarta", note: "Dekat Pasar Seni, parkir motor tersedia", button_text: "Chat via WhatsApp", button_link: "https://wa.me/6281234567890", hours: [{ days: "Senin–Sabtu", time: "09.00–17.00" }, { days: "Minggu", time: "Tutup" }] } },
+      { type: "testimonials", variant: "testimonials-grid", anchorId: "testimoni", config: { title: "Cerita Pembeli", items: [{ name: "Ibu Ani", text: "Kualitasnya luar biasa, detailnya rapih. Sangat cocok untuk hadiah.", rating: 5 }, { name: "Budi", text: "Pesanan custom-nya cepat dan hasilnya sesuai permintaan.", rating: 5 }, { name: "Sinta", text: "Pengrajin-nya ramah dan sabar. Recommended! untuk semua yang suka kerajinan tangan.", rating: 5 }] } },
+      { type: "features", variant: "features-3col", anchorId: "keunggulan", config: { title: "Kenapa Belanja Produk Kami", items: [{ icon: "🤲", title: "Buatan Tangan", description: "Setiap karya dibuat penuh kesabaran oleh pengrajin lokal." }, { icon: "🎁", title: "Bisa Custom", description: "Warna, bentuk, dan ukuran bisa disesuaikan sesuai permintaan." }, { icon: "🌱", title: "Dukung Lokal", description: "Setiap pembelian menopang pengrajin & kelestarian budaya." }] } },
+      { type: "booking", variant: "booking-single", anchorId: "pesan-custom", config: { title: "Pesan Custom Order", subtitle: "Ceritakan idenya — tim kami balas via WhatsApp dalam 1 jam kerja.", services: [{ name: "Custom Aksesoris (Gelang, Kalung)", price: "Mulai Rp 50rb" }, { name: "Custom Dekorasi / Merch", price: "Mulai Rp 200rb" }], address: "Jl. Kerajinan No. 7, Yogyakarta", hours: "Senin–Sabtu, 09.00–17.00", success_message: "Pesanan custom diterima! Tim kami akan menghubungi kamu.", forward_wa: "" } },
       { type: "faq", variant: "faq-accordion", anchorId: "faq", config: { title: "Tanya Jawab Custom Order", items: [{ question: "Bisa custom desain sendiri?", answer: "Bisa. Kirim referensi/sketsa, tim kami bantu finalisasi desain gratis." }, { question: "Berapa lama prosesnya?", answer: "Tergantung kompleksitas & kuantitas: 3-14 hari kerja. Kami update progress via WA." }, { question: "Bisa kirim ke luar kota?", answer: "Bisa ke seluruh Indonesia. Ongkir dihitung dari berat & lokasi. Packing kayu/keramik extra hati-hati." }] } },
       { type: "contact", variant: "contact-split", anchorId: "kontak", config: { title: "Mulai Custom Order", subtitle: "Ceritakan ide Anda. Tim kami balas via WhatsApp dalam 1 jam kerja.", address: "Jl. Kerajinan No. 7, Yogyakarta" } },
     ],

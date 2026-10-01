@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Section, DesignStyle, BookingService } from '@/lib/builder/types';
-import { getOnColor, resolvePalette, resolveThemeColor, resolveThemeTokensInString } from '@/lib/builder/design-styles';
+import { getOnColor, resolvePalette, resolveThemeColor, clampBlur, composeGradientCss, overlayCss, type OverlayKind } from '@/lib/builder/design-styles';
 import { autoFixMutedColor, autoFixTextColor, getSectionEffectiveBackground, resolveButtonColors, resolvePrimaryOnSectionBg } from '@/lib/builder/section-contrast';
 import { useBuilderStore } from '@/lib/builder/store';
 
@@ -23,7 +23,6 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
   // bawaan template — resolve di sini supaya kanvas, preview, dan live-site
   // selalu sama tanpa perlu edit manual.
   const resolvedBgColor = resolveThemeColor(section.style.backgroundColor, palette);
-  const resolvedBgGradient = resolveThemeTokensInString(section.style.backgroundGradient, palette);
 
   // Latar efektif section (traverse: style sendiri → halaman). Teks yang
   // duduk langsung di atas section (judul hero, judul blok) di-autofix ke
@@ -38,10 +37,11 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
   const buttonColors = resolveButtonColors(effBg, palette);
   // Background foto tanpa overlay dipaksa overlay gelap otomatis agar teks
   // terang hasil autofix selalu terbaca di atas foto apa pun.
-  const forcedOverlay = section.style.background === 'image' &&
+  const forcedOverlay: OverlayKind =
+    section.style.background === 'image' &&
     (!section.style.backgroundOverlay || section.style.backgroundOverlay === 'none')
-    ? 'dark' as const
-    : section.style.backgroundOverlay;
+      ? 'dark'
+      : (section.style.backgroundOverlay ?? 'none');
   const tokens = {
     '--color-primary': palette.primary,
     '--color-secondary': palette.secondary,
@@ -76,26 +76,59 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
     color: 'var(--color-text)',
   };
 
-  if (section.style.background === 'image' && section.style.backgroundImage) {
-    sectionStyle.backgroundImage = `url(${section.style.backgroundImage})`;
-    sectionStyle.backgroundSize = section.style.backgroundSize || 'cover';
-    sectionStyle.backgroundPosition = 'center';
-    if (section.style.backgroundBlur) {
-      sectionStyle.filter = `blur(${section.style.backgroundBlur}px)`;
-    }
-    if (forcedOverlay && forcedOverlay !== 'none') {
-      const overlayColors: Record<string, string> = {
-        light: 'rgba(255,255,255,0.3)',
-        dark: 'rgba(0,0,0,0.5)',
-        primary: `${palette.primary}80`,
-      };
-      sectionStyle.backgroundColor = overlayColors[forcedOverlay];
-    }
+  if (section.style.background === 'gradient') {
+    // Fallback ke palet tema: memilih "Gradasi" tanpa menyimpan stop warna
+    // tetap menampilkan gradasi, bukan latar kosong.
+    const css = composeGradientCss(section.style.backgroundGradient, palette, {
+      primary: palette.primary,
+      secondary: palette.secondary,
+    });
+    if (css) sectionStyle.background = css;
   }
 
-  if (section.style.background === 'gradient' && resolvedBgGradient) {
-    sectionStyle.background = resolvedBgGradient;
+  // Latar foto + overlay digambar sebagai layer terpisah (bukan properti
+  // background pada elemen pembungkus) karena:
+  // 1. `filter: blur()` pada elemen pembungkus ikut memblur seluruh konten di
+  //    dalamnya — blur harus menempel hanya pada gambarnya.
+  // 2. `background-color` selalu tergambar DI BAWAH `background-image`, jadi
+  //    overlay tidak pernah terlihat bila diset lewat properti yang sama.
+  const bgImage = section.style.background === 'image' ? section.style.backgroundImage : undefined;
+  const hasImageLayer = Boolean(bgImage);
+  const blur = hasImageLayer ? clampBlur(section.style.backgroundBlur) : 0;
+  const overlayColor = hasImageLayer
+    ? overlayCss(forcedOverlay, palette, section.style.backgroundOverlayOpacity)
+    : undefined;
+
+  if (hasImageLayer || overlayColor) {
+    // `isolate` + `-z-10` membuat layer latar tidak mengubah stacking konten
+    // di dalamnya (aman untuk section flex/grid yang sudah ada).
+    sectionStyle.isolation = 'isolate';
+    sectionStyle.position = 'relative';
   }
+
+  // Lebar/tinggi bleed saat blur: tanpa ini tepi gambar jadi tembus pandang.
+  const bleed = blur > 0 ? `${Math.ceil(blur * 0.6)}px` : '0px';
+
+  const imageLayerStyle: React.CSSProperties | undefined = hasImageLayer
+    ? {
+        position: 'absolute',
+        top: `-${bleed}`,
+        right: `-${bleed}`,
+        bottom: `-${bleed}`,
+        left: `-${bleed}`,
+        backgroundImage: `url(${bgImage})`,
+        backgroundSize: section.style.backgroundSize || 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        filter: blur > 0 ? `blur(${blur}px)` : undefined,
+        WebkitFilter: blur > 0 ? `blur(${blur}px)` : undefined,
+        zIndex: -10,
+      }
+    : undefined;
+
+  const overlayLayerStyle: React.CSSProperties | undefined = overlayColor
+    ? { position: 'absolute', inset: 0, background: overlayColor, zIndex: -9 }
+    : undefined;
 
   const renderContent = () => {
     switch (section.type) {
@@ -144,6 +177,11 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
 
   return (
     <div id={anchorId || section.anchorId} style={sectionStyle} className="transition-all">
+      {/* Layer latar: gambar (+ blur) lalu overlay di atasnya. Keduanya
+          diposisikan absolut di belakang konten, jadi tidak pernah memblur
+          atau menutup teks, tombol, maupun gambar di dalam section. */}
+      {imageLayerStyle && <div aria-hidden="true" style={imageLayerStyle} />}
+      {overlayLayerStyle && <div aria-hidden="true" style={overlayLayerStyle} />}
       {renderContent()}
     </div>
   );

@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PagesTab } from "@/components/customize/pages-tab";
-import { NavigationTab } from "@/components/customize/navigation-tab";
 import { GeneralTab } from "@/components/customize/general-tab";
 import { ActiveTemplateCard } from "@/components/customize/active-template-card";
 import { TemplatesTab } from "@/components/customize/templates-tab";
@@ -26,7 +25,7 @@ interface ActiveSite {
 // Pakai type bersama (src/lib/builder/types.ts) agar selaras dengan store_pages.
 type StorePageRef = Pick<StorePage, "id" | "title" | "slug" | "is_homepage">;
 
-const VALID_TABS = ["umum", "halaman", "navigasi", "seo"] as const;
+const VALID_TABS = ["umum", "halaman", "seo"] as const;
 type TabKey = (typeof VALID_TABS)[number];
 
 function CustomizeInner() {
@@ -156,7 +155,8 @@ function CustomizeInner() {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Desain Website</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Toko: <span className="font-semibold text-foreground">{site.name}</span> {"\u2014"} template,
-            halaman, dan navigasi dalam satu tempat.
+            halaman, dan pengaturan umum dalam satu tempat. Menu navigasi diatur
+            di Page Builder ({'\u2192'} blok Header).
           </p>
         </div>
       </div>
@@ -175,18 +175,14 @@ function CustomizeInner() {
 
       {/* Tabs - Full Width Equal Width */}
       <Tabs value={tab} onValueChange={switchTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="umum">Umum</TabsTrigger>
-          <TabsTrigger value="navigasi">Navigasi</TabsTrigger>
           <TabsTrigger value="halaman">Halaman</TabsTrigger>
           <TabsTrigger value="seo">SEO</TabsTrigger>
         </TabsList>
 
         <TabsContent value="umum" className="mt-6">
           <GeneralTab websiteId={site.id} />
-        </TabsContent>
-        <TabsContent value="navigasi" className="mt-6">
-          <NavigationTab websiteId={site.id} />
         </TabsContent>
         <TabsContent value="halaman" className="mt-6">
           <PagesTab websiteId={site.id} />

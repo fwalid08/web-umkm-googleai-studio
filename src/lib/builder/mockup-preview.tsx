@@ -684,12 +684,76 @@ function LocationMockup({ variant }: { variant: string }) {
 }
 
 function HeaderMockup({ variant }: { variant: string }) {
+  if (variant === 'header-split-nav') {
+    return (
+      <div className="w-full h-full p-2 flex items-center justify-between px-3 bg-white dark:bg-slate-800">
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded bg-emerald-500" />
+          <div className="flex flex-col gap-0.5">
+            <div className="h-1.5 w-12 rounded-full bg-slate-400 dark:bg-white/40" />
+            <div className="h-1 w-8 rounded-full bg-slate-200 dark:bg-white/10" />
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="h-1.5 w-5 rounded-full bg-slate-300 dark:bg-white/20" />
+          <div className="h-1.5 w-5 rounded-full bg-slate-300 dark:bg-white/20" />
+          <div className="h-2.5 w-7 rounded-full bg-emerald-500" />
+        </div>
+      </div>
+    );
+  }
+  if (variant === 'header-with-topbar') {
+    return (
+      <div className="w-full h-full flex flex-col bg-white dark:bg-slate-800">
+        <div className="h-2.5 bg-emerald-500/80 flex items-center px-2 gap-1">
+          <div className="h-1 w-14 rounded-full bg-white/60" />
+          <div className="h-1 w-6 rounded-full bg-white/30 ml-auto" />
+        </div>
+        <div className="flex-1 p-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <div className="w-3.5 h-3.5 rounded bg-emerald-500" />
+            <div className="h-1.5 w-9 rounded-full bg-slate-400 dark:bg-white/40" />
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-1.5 w-5 rounded-full bg-slate-300 dark:bg-white/20" />
+            <div className="h-1.5 w-5 rounded-full bg-slate-300 dark:bg-white/20" />
+            <div className="h-2.5 w-7 rounded-full bg-emerald-500" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (variant === 'header-glass') {
+    return (
+      <div className="w-full h-full relative bg-gradient-to-br from-emerald-600 to-teal-500 p-2">
+        <div className="absolute inset-0 backdrop-blur-sm bg-white/20" />
+        <div className="relative h-full flex items-center justify-between px-3">
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-4 rounded bg-white/70" />
+            <div className="h-1.5 w-9 rounded-full bg-white/50" />
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-1.5 w-5 rounded-full bg-white/40" />
+            <div className="h-1.5 w-5 rounded-full bg-white/40" />
+            <div className="h-2.5 w-7 rounded-full bg-white/80" />
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (variant === 'header-floating') {
     return (
       <div className="w-full h-full p-2 flex items-center justify-center">
-        <div className="w-3/4 bg-white dark:bg-slate-800 rounded-xl shadow-lg px-2 py-1.5 flex items-center justify-between">
-          <div className="w-4 h-4 rounded bg-emerald-500" />
-          <div className="h-2.5 w-8 rounded-full bg-emerald-500" />
+        <div className="w-[85%] bg-white dark:bg-slate-800 rounded-xl shadow-lg px-2 py-1.5 flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="w-3.5 h-3.5 rounded bg-emerald-500" />
+            <div className="h-1.5 w-6 rounded-full bg-slate-400 dark:bg-white/40" />
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-1.5 w-3.5 rounded-full bg-slate-300 dark:bg-white/20" />
+            <div className="h-1.5 w-3.5 rounded-full bg-slate-300 dark:bg-white/20" />
+            <div className="h-2.5 w-6 rounded-full bg-emerald-500" />
+          </div>
         </div>
       </div>
     );

@@ -97,7 +97,7 @@ export function SectionPicker({ sections, onSelect, onClose }: SectionPickerProp
         className="bg-gradient-to-b from-white to-emerald-50/40 dark:from-slate-900 dark:to-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden border border-emerald-100 dark:border-slate-700"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 p-5 sm:p-6 pb-3">
+        <div className="flex items-center justify-between gap-2.5 p-4 pb-2.5">
           <div className="min-w-0">
             <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">Pilih Blok Halaman</h2>
             <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -121,13 +121,13 @@ export function SectionPicker({ sections, onSelect, onClose }: SectionPickerProp
 
         <div className="px-4 sm:px-6 pb-3 space-y-3 shrink-0">
           <div className="relative">
-            <Search className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               ref={inputRef}
               placeholder="Cari: hero, produk, testimoni, harga… (Esc untuk tutup)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-11 text-sm rounded-xl bg-white dark:bg-slate-800 border-emerald-200/60 focus-visible:ring-emerald-400"
+              className="pl-8 h-8 text-[12px] rounded-lg bg-white dark:bg-slate-800 border-emerald-200/60 focus-visible:ring-emerald-400"
             />
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
@@ -181,7 +181,7 @@ export function SectionPicker({ sections, onSelect, onClose }: SectionPickerProp
               {filtered.map((sectionType) => (
                 <div key={sectionType.type}>
                   <h3 className="text-xs font-extrabold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-md">
                       {SECTION_ICONS[sectionType.type] || <Layout className="w-5 h-5" />}
                     </span>
                     {sectionType.name}
@@ -207,7 +207,7 @@ export function SectionPicker({ sections, onSelect, onClose }: SectionPickerProp
                             Pakai
                           </span>
                         </div>
-                        <div className="p-3.5">
+                        <div className="p-3">
                           <h4 className="text-sm font-extrabold leading-tight">{variant.name}</h4>
                           <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">{variant.description}</p>
                         </div>

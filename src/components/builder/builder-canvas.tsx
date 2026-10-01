@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useTemplateStore, getSectionVariant, getHeaderVariant, getFooterVariant } from '@/lib/builder/template-store';
 import { useBuilderStore } from '@/lib/builder/store';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, ChevronUp, ChevronDown, Copy, Menu, X } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, Copy, Edit3 } from 'lucide-react';
 import { SectionRenderer } from '@/components/builder/section-renderer';
+import { SiteHeader } from '@/components/builder/site-header-shared';
+import { SiteFooter } from '@/components/builder/site-footer-shared';
 import { getDesignStyle } from '@/lib/builder/design-styles';
-import { getOnColor } from '@/lib/builder/design-styles';
 import { SectionPicker } from './section-picker';
 import { GoogleFonts } from './google-fonts';
 import type { SectionVariant } from '@/lib/builder/template-types';
@@ -33,7 +34,6 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const palette = { ...template.theme.palette, ...themeOverride };
-  const onPrimary = getOnColor(palette.primary);
   const effectiveTheme = { ...template.theme, palette };
 
   const viewportWidth = useBuilderStore((s) => s.viewportWidth);
@@ -45,6 +45,11 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
 
   const openPicker = () => {
     window.dispatchEvent(new CustomEvent('open-section-picker'));
+  };
+  // Minta sidebar membuka form config untuk section ini. Sidebar (dan shell,
+  // agar sidebar yang tertutup ikut terbuka) mendengarkan event yang sama.
+  const openSectionConfig = (sectionId: string) => {
+    window.dispatchEvent(new CustomEvent('open-section-config', { detail: { sectionId } }));
   };
 
   const handleInsertAt = (type: string, variant: SectionVariant) => {
@@ -111,7 +116,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
       className={`flex-1 overflow-auto min-h-0 transition-colors duration-300 ${
         preview
           ? 'bg-transparent p-0'
-          : 'p-3 sm:p-6 bg-gradient-to-br from-slate-200 via-emerald-100/60 to-amber-100/50 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 bg-[radial-gradient(circle_at_1px_1px,rgba(6,95,70,0.18)_1px,transparent_0)] bg-[size:22px_22px]'
+          : 'p-3 sm:p-6 bg-gradient-to-br from-slate-400 via-slate-300/60 to-emerald-200/45 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 bg-[radial-gradient(circle_at_1px_1px,rgba(6,95,70,0.30)_1px,transparent_0)] bg-[size:22px_22px]'
       }`}
       onScroll={handleScroll}
       onClick={(e) => {
@@ -204,6 +209,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                                 backgroundBlur: section.style.backgroundBlur,
                                 backgroundSize: section.style.backgroundSize,
                                 backgroundOverlay: section.style.backgroundOverlay,
+                                backgroundOverlayOpacity: section.style.backgroundOverlayOpacity,
                               },
                               responsive: section.responsive,
                             };
@@ -228,14 +234,16 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    const anchor = section.anchorId;
+                                    if (!anchor) return;
                                     try {
-                                      const done = navigator.clipboard?.writeText(section.id);
+                                      const done = navigator.clipboard?.writeText(`#${anchor}`);
                                       if (done) {
                                         void done
                                           .then(() => {
-                                            setCopiedId(section.id);
+                                            setCopiedId(anchor);
                                             setTimeout(() => {
-                                              setCopiedId((c) => (c === section.id ? null : c));
+                                              setCopiedId((c) => (c === anchor ? null : c));
                                             }, 1200);
                                           })
                                           .catch(() => undefined);
@@ -244,20 +252,29 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                                       // Clipboard tak tersedia — abaikan.
                                     }
                                   }}
-                                  title={`Section ID: ${section.id} — klik untuk salin`}
-                                  className="font-mono font-normal text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-200 transition-colors"
+                                  disabled={!section.anchorId}
+                                  title={
+                                    section.anchorId
+                                      ? `Anchor: #${section.anchorId} — klik untuk salin`
+                                      : 'Section ini belum punya anchor (untuk link menu)'
+                                  }
+                                  className="font-mono font-normal text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
-                                  {copiedId === section.id ? '✓ disalin' : `id:${section.id.slice(0, 8)}`}
+                                  {section.anchorId
+                                    ? copiedId === section.anchorId
+                                      ? '✓ disalin'
+                                      : `#${section.anchorId}`
+                                    : 'tanpa anchor'}
                                 </button>
                               </span>
                             </div>
 
                             <div className="absolute left-2 top-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity z-10">
                               <div
-                                className="flex items-center gap-0.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-1"
+                                className="flex items-center gap-0.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-1"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <span className="py-1 pl-1.5 pr-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-200 rounded-lg mr-0.5">
+                                <span className="py-0.5 pl-1.5 pr-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-200 rounded-lg mr-0.5">
                                   #{index + 1}
                                 </span>
                                 <button
@@ -265,20 +282,28 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                                   disabled={index === 0}
                                   className="p-2 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-lg disabled:opacity-30 transition-colors"
                                 >
-                                  <ChevronUp className="w-4 h-4" />
+                                  <ChevronUp className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => index < sections.length - 1 && reorderSections(index, index + 1)}
                                   disabled={index === sections.length - 1}
                                   className="p-2 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-lg disabled:opacity-30 transition-colors"
                                 >
-                                  <ChevronDown className="w-4 h-4" />
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => openSectionConfig(section.id)}
+                                  title="Edit isi blok ini"
+                                  aria-label={`Edit blok ${variant?.name || section.type}`}
+                                  className="p-1.5 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                 </button>
                                 <button
                                   onClick={() => duplicateSection(section.id)}
-                                  className="p-2 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                  className="p-1.5 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors"
                                 >
-                                  <Copy className="w-4 h-4 text-slate-500" />
+                                  <Copy className="w-3.5 h-3.5 text-slate-500" />
                                 </button>
                                 <button
                                   onClick={() => {
@@ -288,7 +313,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                                   }}
                                   className="p-2 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
                                 >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
                                 </button>
                               </div>
                             </div>
@@ -364,361 +389,36 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
   compact?: boolean;
   navSolid?: boolean;
 }) {
-  const palette = template.theme.palette;
-  const onPrimary = getOnColor(palette.primary);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as Array<{ id: string; label: string; url: string; enabled: boolean }>;
-  const links = navItems.filter((item) => item.enabled);
-  const layout = variant.layout;
-  const isTransparent = layout === 'hero-overlay' && !navSolid;
-  // Hormati opsi "Header menempel" seperti di live site (default menempel).
-  const sticky = config.sticky !== false;
-  const textShadow = isTransparent
-    ? '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)'
-    : undefined;
-
-  const headerStyle: React.CSSProperties = {
-    background: isTransparent ? 'transparent' : palette.surface,
-    borderBottom: isTransparent ? '1px solid transparent' : `1px solid ${palette.border}`,
-    transition: 'background .3s',
-  };
-
-  if (layout === 'floating') {
-    return (
-      <div className={sticky ? 'px-3 pt-2.5 sticky top-0 z-20' : 'px-3 pt-2.5'}>
-        <div
-          className="flex items-center justify-between gap-3 px-3.5 py-2.5 shadow-lg"
-          style={{
-            background: palette.surface,
-            border: `1px solid ${palette.border}`,
-            borderRadius: '16px',
-          }}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div
-              className="w-7 h-7 flex items-center justify-center font-bold text-xs shrink-0"
-              style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
-            >
-              {((config.siteTitle as string) || 'T').charAt(0).toUpperCase()}
-            </div>
-            <h1 className="text-[13px] font-bold truncate" style={{ color: palette.text, textShadow }}>
-              {(config.siteTitle as string) || 'Nama Toko'}
-            </h1>
-          </div>
-          {(config.showCta as boolean) && (
-            <button
-              className="px-3 py-1.5 text-xs font-bold shrink-0"
-              style={{ background: palette.primary, color: onPrimary, borderRadius: '999px', textShadow }}
-            >
-              {(config.ctaText as string) || 'Hubungi Kami'}
-            </button>
-          )}
-        </div>
-        <div className="h-2" />
-      </div>
-    );
-  }
-
-  if (layout === 'minimal') {
-    return (
-      <header className={`flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 ${sticky ? 'sticky top-0 z-20' : ''}`} style={headerStyle}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          {(config.logoUrl as string) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={config.logoUrl as string} alt={(config.siteTitle as string) || ''} className="h-8 w-auto object-contain" />
-          ) : (
-            <div
-              className="w-8 h-8 flex items-center justify-center font-bold text-sm shrink-0"
-              style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
-            >
-              {((config.siteTitle as string) || 'T').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
-            {(config.siteTitle as string) || 'Nama Toko'}
-          </h1>
-        </div>
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label={menuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
-            aria-expanded={menuOpen}
-            className="p-2 -mr-1 rounded-lg"
-            style={{ color: palette.text, textShadow }}
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-          {menuOpen && (
-            <div
-              className="absolute right-0 top-full mt-2 w-48 rounded-xl border shadow-xl p-1.5 z-30"
-              style={{ background: palette.surface, borderColor: palette.border }}
-            >
-              {links.slice(0, 7).map((item) => (
-                <a
-                  key={item.id}
-                  href={item.url}
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2 text-sm font-medium rounded-lg hover:opacity-80"
-                  style={{ color: palette.text }}
-                >
-                  {item.label || 'Link'}
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      </header>
-    );
-  }
-
   return (
-    <header className={layout !== 'hero-overlay' && sticky ? 'sticky top-0 z-20' : 'relative'} style={headerStyle}>
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          {(config.logoUrl as string) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={config.logoUrl as string} alt={(config.siteTitle as string) || ''} className="h-8 w-auto object-contain" />
-          ) : (
-            <div
-              className="w-8 h-8 flex items-center justify-center font-bold text-sm shrink-0"
-              style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
-            >
-              {((config.siteTitle as string) || 'T').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
-              {(config.siteTitle as string) || 'Nama Toko'}
-            </h1>
-            {(config.tagline as string) && (
-              <p className="text-xs truncate" style={{ color: palette.textMuted, textShadow }}>
-                {config.tagline as string}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {compact ? (
-          links.length > 0 && (
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setMenuOpen((o) => !o)}
-                aria-label={menuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
-                aria-expanded={menuOpen}
-                className="p-2 -mr-1 rounded-lg"
-                style={{ color: palette.text, textShadow }}
-              >
-                {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-              {menuOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 w-48 rounded-xl border shadow-xl p-1.5 z-30"
-                  style={{ background: palette.surface, borderColor: palette.border }}
-                >
-                  {links.slice(0, 7).map((item) => (
-                    <a
-                      key={item.id}
-                      href={item.url}
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-3 py-2 text-sm font-medium rounded-lg hover:opacity-80"
-                      style={{ color: palette.text }}
-                    >
-                      {item.label || 'Link'}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        ) : (
-          <nav className="hidden @[640px]:flex items-center gap-5 shrink-0" aria-label="Navigasi website">
-            {links.slice(0, 5).map((item) => (
-              <a
-                key={item.id}
-                href={item.url}
-                className="text-sm font-medium hover:opacity-80 transition-opacity"
-                style={{ color: palette.text, textShadow }}
-              >
-                {item.label || 'Link'}
-              </a>
-            ))}
-          </nav>
-        )}
-
-        {(config.showCta as boolean) && (
-          <button
-            className="px-3.5 py-2 text-[13px] font-medium shrink-0"
-            style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px`, textShadow }}
-          >
-            {(config.ctaText as string) || 'Hubungi Kami'}
-          </button>
-        )}
-      </div>
-    </header>
+    <SiteHeader
+      variant={variant}
+      config={config}
+      palette={template.theme.palette}
+      radius={template.theme.components.borderRadius}
+      compact={compact}
+      navSolid={navSolid}
+    />
   );
 }
 
+/**
+ * Footer kanvas = wrapper tipis atas `SiteFooter` (sumber kebenaran tunggal
+ * yang sama dipakai live site), supaya preview builder tidak pernah berbeda
+ * dari situs nyata.
+ */
 function CanvasFooter({ variant, config, template, compact = false }: {
   variant: { id: string; name: string; layout: string };
   config: Record<string, unknown>;
-  template: { theme: { palette: { primary: string; secondary: string; accent: string; background: string; surface: string; text: string; textMuted: string; border: string }; typography: { headingFont: string }; components: { borderRadius: number } } };
+  template: { theme: { palette: { primary: string; secondary: string; accent: string; background: string; surface: string; text: string; textMuted: string; border: string }; components: { borderRadius: number } } };
   compact?: boolean;
 }) {
-  const palette = template.theme.palette;
-  const onPrimary = getOnColor(palette.primary);
-  const footerText = ((config.text as string) || '').replace('{year}', String(new Date().getFullYear()));
-  const layout = variant.layout;
-  const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as Array<{ id: string; label: string; url: string; enabled: boolean }>;
-  const nav = navItems.filter((n) => n.enabled);
-  const socials = ['IG', 'FB', 'TW', 'WA'];
-
-  const socialRow = (centered = false) =>
-    (config.showSocial as boolean) && (
-      <div className={`flex items-center gap-1.5 ${centered ? 'justify-center' : ''}`}>
-        {socials.map((social) => (
-          <div
-            key={social}
-            className="w-7 h-7 flex items-center justify-center text-[10px] font-medium"
-            style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
-          >
-            {social}
-          </div>
-        ))}
-      </div>
-    );
-
   return (
-    <footer
-      className="border-t px-4 sm:px-6 py-6"
-      style={{ background: palette.surface, borderColor: palette.border }}
-    >
-      {layout === 'minimal' ? (
-        <p className="text-[13px] text-center" style={{ color: palette.textMuted }}>
-          {footerText}
-        </p>
-      ) : layout === 'centered' ? (
-        <div className="flex flex-col items-center text-center gap-2.5">
-          <div
-            className="w-10 h-10 flex items-center justify-center font-bold shadow-md"
-            style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
-          >
-            {(footerText || 'T').charAt(0).toUpperCase()}
-          </div>
-          <p className="text-[13px] font-semibold" style={{ color: palette.text }}>
-            {footerText}
-          </p>
-          <span aria-hidden="true" className="text-[10px] tracking-[0.4em]" style={{ color: palette.primary }}>✦ ✦ ✦</span>
-          {nav.length > 0 && (
-            <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-              {nav.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.url}
-                  className="text-[13px] font-medium hover:opacity-80 transition-opacity"
-                  style={{ color: palette.textMuted }}
-                >
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-          )}
-          {socialRow(true)}
-        </div>
-      ) : layout === 'columns' ? (
-        <div>
-          <div
-            aria-hidden="true"
-            className="h-1.5 rounded-full mb-5"
-            style={{ background: `linear-gradient(90deg, ${palette.primary}, ${palette.accent})` }}
-          />
-          <div className={`grid ${compact ? 'grid-cols-1' : 'grid-cols-1 @md:grid-cols-3'} gap-5`}>
-            <p className="text-[13px] font-semibold" style={{ color: palette.text }}>
-              {footerText}
-            </p>
-            <nav aria-label="Navigasi footer">
-              <p className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: palette.textMuted }}>
-                Menu
-              </p>
-              <ul className="space-y-1.5">
-                {nav.map((item) => (
-                  <li key={item.id}>
-                    <a
-                      href={item.url}
-                      className="text-[13px] hover:opacity-80 transition-opacity"
-                      style={{ color: palette.text }}
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: palette.textMuted }}>
-                Ikuti Kami
-              </p>
-              {socialRow()}
-            </div>
-          </div>
-        </div>
-      ) : layout === 'newsletter' ? (
-        <div className="max-w-xl mx-auto text-center space-y-3">
-          <p className="text-sm font-semibold" style={{ color: palette.text }}>
-            {(config.newsletterTitle as string) || 'Dapatkan Info Promo'}
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              placeholder={(config.newsletterPlaceholder as string) || 'Email Anda'}
-              className="flex-1 px-4 py-2 border rounded-lg text-sm"
-              style={{ borderColor: palette.border, borderRadius: `${template.theme.components.borderRadius}px` }}
-            />
-            <button
-              className="px-4 py-2 rounded-lg text-sm font-medium"
-              style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
-            >
-              {(config.newsletterButton as string) || 'Berlangganan'}
-            </button>
-          </div>
-          <p className="text-[11px]" style={{ color: palette.textMuted }}>{footerText}</p>
-        </div>
-      ) : layout === 'social' ? (
-        <div className="flex flex-col items-center text-center gap-3">
-          <div className="flex gap-2">
-            {socials.map((social) => (
-              <div
-                key={social}
-                className="w-9 h-9 flex items-center justify-center text-xs font-medium"
-                style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
-              >
-                {social}
-              </div>
-            ))}
-          </div>
-          <p className="text-[13px]" style={{ color: palette.textMuted }}>{footerText}</p>
-        </div>
-      ) : (
-        <div className={`flex ${compact ? 'flex-col' : 'flex-col @md:flex-row'} items-center justify-between gap-3`}>
-          <p className="text-[13px] text-center @md:text-left" style={{ color: palette.textMuted }}>
-            {footerText}
-          </p>
-          {nav.length > 0 && (
-            <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-              {nav.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.url}
-                  className="text-[13px] hover:opacity-80 transition-opacity"
-                  style={{ color: palette.textMuted }}
-                >
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-          )}
-          {socialRow()}
-        </div>
-      )}
-    </footer>
+    <SiteFooter
+      variant={variant}
+      config={config}
+      palette={template.theme.palette}
+      radius={template.theme.components.borderRadius}
+      compact={compact}
+    />
   );
 }

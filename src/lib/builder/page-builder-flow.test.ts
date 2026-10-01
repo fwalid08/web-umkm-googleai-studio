@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWebsiteCustomConfig } from "./migration";
+import { buildWebsiteCustomConfig, resolveChromeConfig } from "./migration";
 import { getTemplate } from "./template-store";
 import type { TemplateSectionInstance } from "./template-types";
 import type { Section } from "./types";
@@ -137,5 +137,74 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
   it("template store tersedia untuk id katalog (sanity)", () => {
     expect(template.id).toBe("warung-makan");
     expect(template.sections.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Submenu (dropdown 1 level) harus selamat di jalur save → load.
+ *
+ * Submenu ditambahkan lewat sidebar builder (`configFields.navItems.children`)
+ * lalu disimpan ke `custom_config.header.navItems`. Bila ada lapisan yang
+ * menyalin nav lalu membuang `children`, menu bertingkat hilang diam-diam di
+ * live site — sulit dilacak karena tidak ada error.
+ */
+describe("submenu bertahan di jalur simpan header", () => {
+  it("buildWebsiteCustomConfig meneruskan children apa adanya", () => {
+    const navItems = [
+      { id: "n1", label: "Katalog", url: "#katalog", enabled: true },
+      {
+        id: "n2",
+        label: "Layanan",
+        url: "#layanan",
+        enabled: true,
+        children: [
+          { id: "c1", label: "Potong", url: "#potong", enabled: true },
+          { id: "c2", label: "Pijat", url: "#pijat", enabled: false },
+        ],
+      },
+    ];
+    const cfg = buildWebsiteCustomConfig({
+      base: {},
+      sections: [],
+      header: { variant: "header-klasik", navItems },
+      footer: {},
+      designStyleId: "minimalist",
+      paletteOverride: {},
+      seo: { title: "", description: "" },
+      core: {},
+    });
+
+    const saved = (cfg.header as { navItems: typeof navItems }).navItems;
+    expect(saved).toHaveLength(2);
+    expect(saved[1].children).toHaveLength(2);
+    expect(saved[1].children?.[0]).toMatchObject({ label: "Potong", url: "#potong" });
+  });
+
+  it("resolveChromeConfig tidak membuang children saat varian ganti", () => {
+    const tpl = getTemplate("warung-makan")!;
+    const resolved = resolveChromeConfig(
+      tpl,
+      {
+        variant: "header-melayang",
+        navItems: [
+          {
+            id: "n2",
+            label: "Layanan",
+            url: "#layanan",
+            enabled: true,
+            children: [{ id: "c1", label: "Potong", url: "#potong" }],
+          },
+        ],
+      },
+      "header",
+    );
+    const items = resolved.config.navItems as Array<{ children?: unknown[] }>;
+    expect(items[0].children).toHaveLength(1);
+  });
+
+  it("navItems tanpa children tetap aman (backward compat data lama)", () => {
+    const tpl = getTemplate("warung-makan")!;
+    const resolved = resolveChromeConfig(tpl, { variant: "header-klasik" }, "header");
+    expect(Array.isArray(resolved.config.navItems)).toBe(true);
   });
 });

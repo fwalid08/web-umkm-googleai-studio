@@ -41,6 +41,8 @@ export default function PageBuilderPage() {
   const [websiteId, setWebsiteId] = useState<string | null>(null);
   const [pageTitle, setPageTitle] = useState("");
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
+  // Status tayang halaman. undefined selama loading / builder tanpa konsep.
+  const [isPublished, setIsPublished] = useState<boolean | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadConfig = useBuilderStore((s) => s.loadConfig);
@@ -88,6 +90,10 @@ export default function PageBuilderPage() {
           is_homepage: pageJson.data.is_homepage === true,
           slug: typeof pageJson.data.slug === "string" ? pageJson.data.slug : undefined,
         };
+        // Status tayang dari server — jadi topbar bisa menampilkan Tayang/Draft.
+        if (typeof pageJson.data.is_published === "boolean") {
+          if (!cancelled) setIsPublished(pageJson.data.is_published);
+        }
         // Fallback: jika page layout kosong, pakai sections dari global config (template)
         const pageSections = (layout.sections ?? []).length > 0 
           ? (layout.sections ?? []) 
@@ -230,6 +236,8 @@ export default function PageBuilderPage() {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error ?? "Gagal publish halaman");
+    // Badge Tayang/Draft di topbar harus langsungsinkron setelah publish.
+    setIsPublished(true);
   }, [websiteId, pageId, handleSavePage]);
 
   if (loading) {
@@ -304,6 +312,7 @@ export default function PageBuilderPage() {
       siteUrl={siteUrl}
       onSaveOverride={handleSavePage}
       onPublishOverride={handlePublishPage}
+      isPublished={isPublished}
       exitHref="/dashboard/websites/customize?tab=halaman"
     />
   );

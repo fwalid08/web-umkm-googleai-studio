@@ -7,7 +7,10 @@
  * Varian chrome bersifat global seperti tipe section: setiap template
  * memilih varian yang cocok, tampilannya mengikuti palet template.
  *
- * - Header: `HeaderConfig.variant` ('standard' | 'centered' | 'minimal').
+ * - Header: `HeaderConfig.variant` berisi ID LAYOUT yang diimplementasikan
+ *   renderer (lihat `site-header-shared.tsx`):
+ *   'standard' | 'floating' | 'hero-overlay' |
+ *   'split-nav' | 'with-topbar' | 'glass' | 'minimal'.
  * - Footer: `FooterConfig.style` adalah ID varian
  *   ('simple' | 'columns' | 'centered' | 'minimal').
  */
@@ -18,6 +21,11 @@ export interface ChromeVariant {
   description: string;
 }
 
+/**
+ * ID di sini WAJIB sama dengan nilai `layout` di `HeaderVariant`
+ * (src/lib/builder/template-types.ts) karena keduanya dibandingkan langsung
+ * oleh `catalog.test.ts` terhadap `data.header.variant` tiap template.
+ */
 export const HEADER_VARIANTS: ChromeVariant[] = [
   {
     id: "standard",
@@ -25,14 +33,34 @@ export const HEADER_VARIANTS: ChromeVariant[] = [
     description: "Bar penuh: logo kiri, menu tengah, tombol CTA kanan",
   },
   {
-    id: "centered",
-    name: "Pill Tengah",
-    description: "Brand besar di tengah, menu berbentuk pil, CTA menonjol",
+    id: "floating",
+    name: "Melayang",
+    description: "Bar mengambang rounded dengan menu navigasi & CTA",
+  },
+  {
+    id: "hero-overlay",
+    name: "Hero",
+    description: "Transparan di atas hero, solid saat scroll",
+  },
+  {
+    id: "split-nav",
+    name: "Nav Kiri",
+    description: "Blok brand besar di kiri, daftar menu & CTA di kanan",
+  },
+  {
+    id: "with-topbar",
+    name: "Promo Topbar",
+    description: "Baris kontak/promo di atas header utama",
+  },
+  {
+    id: "glass",
+    name: "Kaca",
+    description: "Header semi transparan dengan efek blur",
   },
   {
     id: "minimal",
-    name: "Melayang",
-    description: "Bar mengambang rounded dengan blur & bayangan",
+    name: "Minimal",
+    description: "Logo + hamburger menu saja, bersih dan simpel",
   },
 ];
 

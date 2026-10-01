@@ -28,6 +28,9 @@ function toSection(s: any, template: Template): TemplateSectionInstance {
       ...(typeof variant?.defaultStyle?.backgroundBlur === 'number' ? { backgroundBlur: variant.defaultStyle.backgroundBlur } : {}),
       ...(variant?.defaultStyle?.backgroundSize ? { backgroundSize: variant.defaultStyle.backgroundSize } : {}),
       ...(variant?.defaultStyle?.backgroundOverlay ? { backgroundOverlay: variant.defaultStyle.backgroundOverlay } : {}),
+      ...(typeof variant?.defaultStyle?.backgroundOverlayOpacity === 'number'
+        ? { backgroundOverlayOpacity: variant.defaultStyle.backgroundOverlayOpacity }
+        : {}),
     },
     responsive: {},
   };

@@ -44,6 +44,7 @@ import { ConfigForm } from '@/lib/builder/config-form';
 import { MockupPreview } from '@/lib/builder/mockup-preview';
 import { BUILT_IN_CATALOG, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { getSectionVariant } from '@/lib/builder/sections/registry';
+import { applySectionAssets } from '@/lib/builder/template-assets';
 
 type SidebarLevel = 'main' | 'sections' | 'section-config' | 'header' | 'footer' | 'seo' | 'style' | 'template-info';
 
@@ -99,9 +100,20 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
       setLevel('sections');
       setShowSectionPicker(true);
     };
+    // Dipicu kanvas: tombol Edit pada action bar tiap blok.
+    const openConfig = (e: Event) => {
+      const sectionId = (e as CustomEvent<{ sectionId: string }>).detail?.sectionId;
+      if (!sectionId) return;
+      selectSection(sectionId);
+      setLevel('section-config');
+    };
     window.addEventListener('open-section-picker', open);
-    return () => window.removeEventListener('open-section-picker', open);
-  }, []);
+    window.addEventListener('open-section-config', openConfig as EventListener);
+    return () => {
+      window.removeEventListener('open-section-picker', open);
+      window.removeEventListener('open-section-config', openConfig as EventListener);
+    };
+  }, [selectSection]);
 
   const handleBack = () => {
     if (level === 'section-config') setLevel('sections');
@@ -131,12 +143,6 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
 
   const renderMainMenu = () => (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-slate-200/50 bg-gradient-to-br from-emerald-50/70 via-teal-50/40 to-amber-50/60 p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:from-white/[0.04] dark:via-transparent dark:to-transparent dark:border-white/[0.06]">
-        <p className="text-[13px] font-extrabold leading-tight">Atur tampilan tokomu</p>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Klik kartu di bawah untuk edit. Semua tersimpan otomatis saat kamu tekan Simpan.
-        </p>
-      </div>
       <p className="px-1 pt-1 text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest">
         Konten halaman
       </p>
@@ -206,7 +212,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
           <h3 className="text-sm font-extrabold">{sections.length} blok halaman</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">Klik blok untuk edit • seret untuk susun</p>
         </div>
-        <Button size="sm" className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 font-bold shadow-sm shrink-0" onClick={() => setShowSectionPicker(true)}>
+        <Button size="sm" className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 font-bold shadow-sm shrink-0" onClick={() => setShowSectionPicker(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" />
           Tambah
         </Button>
@@ -218,7 +224,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
             placeholder="Cari blok… mis. hero, produk"
             value={sectionSearch}
             onChange={(e) => setSectionSearch(e.target.value)}
-            className="pl-9 h-9 text-xs rounded-xl bg-white dark:bg-slate-800"
+            className="pl-8 h-8 text-[11px] rounded-lg bg-white dark:bg-slate-800"
           />
         </div>
       )}
@@ -249,13 +255,13 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
             <button
               key={h.id}
               onClick={() => setHeaderVariant(h.id)}
-              className={`p-2 rounded-xl border-2 text-left transition-all ${
+              className={`p-1.5 rounded-lg border-2 text-left transition-all ${
                 headerVariantId === h.id
                   ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20'
                   : 'border-slate-200/70 dark:border-white/10 hover:border-emerald-300'
               }`}
             >
-              <div className="h-12 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1.5 overflow-hidden">
+              <div className="h-10 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1 overflow-hidden">
                 <MockupPreview mockup={h.mockup} />
               </div>
               <p className="text-[11px] font-bold">{h.name}</p>
@@ -265,13 +271,62 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         </div>
       </div>
       <Separator />
+      {/* Daftar anchor yang bisa dipakai di kolom URL menu. Tanpa ini user
+          cenderung menyalin "Section ID" (UUID) yang tidak akan pernah cocok
+          dengan id di DOM — bug link menu yang tidak menuju section. */}
+      {sections.filter((s) => s.anchorId).length > 0 && (
+        <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900/50 p-3.5 space-y-2">
+          <Label className="text-xs font-bold flex items-center gap-1.5">
+            Anchor tersedia untuk URL menu
+          </Label>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Di kolom URL menu, pakai format <span className="font-mono">#</span> +
+            nama anchor di bawah ini agar link melompat ke section yang benar.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {sections
+              .filter((s) => s.anchorId)
+              .map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  title="Klik untuk menyalin #anchor"
+                  onClick={() => {
+                    try {
+                      void navigator.clipboard
+                        ?.writeText(`#${s.anchorId}`)
+                        ?.catch(() => undefined);
+                    } catch {
+                      // Clipboard tak tersedia — abaikan.
+                    }
+                  }}
+                  className="px-2 py-1 rounded-md bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                >
+                  #{s.anchorId}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+      <Separator />
       <div className="space-y-3">
         <h4 className="text-sm font-semibold">Konten Header</h4>
+        {/* Field "Submenu" hanya ditampilkan bila template ini mendukung 2
+            tingkat menu (`maxNavDepth: 2`). Template 1 tingkat tetap punya
+            key `children` di configFields agar renderer tidak error, tapi
+            form menyembunyikannya agar user tidak bisa membuat menu yang
+            tidak akan dirender. */}
         <ConfigForm
           fields={headerVariant.configFields}
           config={{ ...headerVariant.defaultConfig, ...headerConfig }}
           onChange={(key, value) => updateHeaderChrome({ [key]: value })}
+          hiddenItemFieldKeys={headerVariant.maxNavDepth === 2 ? [] : ['children']}
         />
+        {headerVariant.maxNavDepth !== 2 && (
+          <p className="text-[10px] text-muted-foreground">
+            Template ini memakai menu 1 tingkat (tanpa submenu).
+          </p>
+        )}
       </div>
     </div>
   );
@@ -285,13 +340,13 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
             <button
               key={f.id}
               onClick={() => setFooterVariant(f.id)}
-              className={`p-2 rounded-xl border-2 text-left transition-all ${
+              className={`p-1.5 rounded-lg border-2 text-left transition-all ${
                 footerVariantId === f.id
                   ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20'
                   : 'border-slate-200/70 dark:border-white/10 hover:border-emerald-300'
               }`}
             >
-              <div className="h-12 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1.5 overflow-hidden">
+              <div className="h-10 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1 overflow-hidden">
                 <MockupPreview mockup={f.mockup} />
               </div>
               <p className="text-[11px] font-bold">{f.name}</p>
@@ -354,11 +409,11 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
   return (
     <>
       <aside className="w-full flex flex-col shrink-0 h-full min-h-0 bg-gradient-to-b from-white to-emerald-50/40 dark:from-slate-900 dark:to-slate-900">
-        <div className="px-4 py-3 border-b border-slate-200/40 dark:border-white/[0.06] shrink-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur">
+        <div className="px-3.5 py-2.5 border-b border-slate-200/40 dark:border-white/[0.06] shrink-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur">
           <div className="flex items-center gap-2">
             {canGoBack && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-emerald-100" onClick={handleBack} title="Kembali">
-                <ArrowLeft className="w-4 h-4" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-emerald-100" onClick={handleBack} title="Kembali">
+                <ArrowLeft className="w-3.5 h-3.5" />
               </Button>
             )}
             <div className="min-w-0 flex-1">
@@ -426,11 +481,16 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
                   const override = (s.config ?? {}) as Record<string, unknown>;
                   const styleBase = variant?.defaultStyle ?? {};
                   const styleOverride = (s.style ?? {}) as Record<string, unknown>;
+                  // Foto bawaan per-niche ikut tersimpan ke API, bukan hanya kanvas.
+                  const merged = applySectionAssets(
+                    { ...base, ...override } as Record<string, unknown>,
+                    catalogTemplate.category,
+                  );
                   return {
                     id: crypto.randomUUID(),
                     type: s.type,
                     variant: s.variant,
-                    config: JSON.parse(JSON.stringify({ ...base, ...override })),
+                    config: JSON.parse(JSON.stringify(merged)),
                     style: {
                       padding: { top: 64, right: 24, bottom: 64, left: 24 },
                       background: 'transparent' as const,
@@ -464,8 +524,9 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
                     console.error('Gagal menerapkan template:', json.error);
                     return;
                   }
-                  // Update template store and reset builder palette override to use new template's theme
-                  useTemplateStore.getState().setTemplate(templateId);
+                  // Terapkan template: theme/palette/header/footer ikut berganti dan
+                  // kanvas diisi section bawaan + aset foto per-bisnis.
+                  useTemplateStore.getState().applyTemplate(templateId);
                   useBuilderStore.getState().resetPaletteOverride();
                   setShowTemplateGallery(false);
                 } catch (e) {

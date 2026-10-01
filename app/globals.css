@@ -174,5 +174,10 @@ body {
 /* Navigasi anchor situs live: smooth seperti referensi + offset header sticky */
 html{scroll-behavior:smooth;scroll-padding-top:76px}
 
+/* Offset yang sama untuk kanvas builder. Kanvas punya scroll container sendiri
+   (`overflow-auto`), jadi `scroll-padding-top` milik <html> tidak ikut —
+   tanpa ini target anchor tertutup header sticky saat link menu diklik. */
+[id]{scroll-margin-top:76px}
+
 /* Query container bingkai kanvas builder (responsif ikut lebar device) */
 .builder-cq{container-type:inline-size}

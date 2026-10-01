@@ -399,6 +399,137 @@ export function extractGradientStops(css: string): string[] {
   return matches ?? [];
 }
 
+const GRADIENT_CSS_RE = /^\s*(linear|radial|conic)-gradient\s*\(/i;
+const ANGLE_RE = /^-?[\d.]+(deg|grad|rad|turn)$/i;
+
+/** Pecah string ber-koma tanpa memotong nilai di dalam tanda kurung. */
+function splitTopLevel(value: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of value) {
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    if (ch === ',' && depth === 0) {
+      out.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  out.push(current.trim());
+  return out.filter((p) => p.length > 0);
+}
+
+export interface GradientSpec {
+  /** Warna stopgradasi, sudah di-resolve dari token `theme:*`. */
+  stops: string[];
+  /** Sudut (CSS penuh) atau arah yang dipakai penyusun gradasi. */
+  angle?: string;
+}
+
+/**
+ * Baca `backgroundGradient` dalam dua format yang ada di data template:
+ * 1. Singkat — `"#047857, #065f46, 135deg"` (format yang dipakai panel
+ *    Gaya Blok dan `docs/TEMPLATE_GUIDE.md`).
+ * 2. CSS penuh — `"linear-gradient(135deg, #8B5A2B 0%, #D4A574 100%)"`
+ *    (format yang boleh dipakai template hasil AI).
+ *
+ * Keduanya dinormalkan ke bentuk yang sama supaya renderer dan panel selalu
+ * sepakat. Nilai `theme:*` di-resolve ke palet aktif lebih dulu agar gradasi
+ * ikut berubah saat user mengganti skema warna.
+ */
+export function parseGradientSpec(
+  value: string | undefined | null,
+  palette: DesignStylePalette,
+): GradientSpec {
+  const raw = resolveThemeTokensInString(value, palette);
+  if (!raw) return { stops: [] };
+
+  // Format CSS penuh: teruskan apa adanya (sudah valid untuk `background`).
+  if (GRADIENT_CSS_RE.test(raw)) {
+    return { stops: extractGradientStops(raw) };
+  }
+
+  const parts = splitTopLevel(raw);
+  const stops: string[] = [];
+  let angle: string | undefined;
+  for (const part of parts) {
+    if (ANGLE_RE.test(part)) {
+      angle ??= part;
+      continue;
+    }
+    stops.push(part);
+  }
+  return { stops, angle };
+}
+
+/**
+ * Susun nilai CSS `background` yang valid dari `backgroundGradient`.
+ * Mengembalikan `undefined` bila tidak ada warna yang bisa dipakai — pemanggil
+ * lalu membiarkan latar section apa adanya, bukan menulis CSS rusak.
+ */
+export function composeGradientCss(
+  value: string | undefined | null,
+  palette: DesignStylePalette,
+  fallback?: { primary: string; secondary: string; angle?: string },
+): string | undefined {
+  const raw = resolveThemeTokensInString(value, palette) ?? '';
+  // Sudah CSS penuh → pakai langsung.
+  if (GRADIENT_CSS_RE.test(raw)) return raw;
+
+  const { stops, angle } = parseGradientSpec(raw, palette);
+  // Tanpa stop warna, andalkan palet tema bila tersedia supaya memilih
+  // "Gradasi" di panel selalu menampilkan sesuatu (bukan latar kosong).
+  if (stops.length === 0) {
+    if (!fallback) return undefined;
+    return `linear-gradient(${fallback.angle ?? '135deg'}, ${fallback.primary}, ${fallback.secondary})`;
+  }
+  return `linear-gradient(${angle ?? '135deg'}, ${stops.join(', ')})`;
+}
+
+/** Opasitas default tiap jenis overlay, mengikuti nilai lama yang hardcoded. */
+export const OVERLAY_DEFAULT_OPACITY: Record<OverlayKind, number> = {
+  none: 0,
+  light: 30,
+  dark: 50,
+  primary: 60,
+};
+
+export type OverlayKind = 'none' | 'light' | 'dark' | 'primary';
+
+/**
+ * Warna overlay + opasitas → CSS `rgba()`.
+ *
+ * Nilai alpha dipasang eksplisit (bukan relying on 8-digit hex) supaya slider
+ * opasitas bisa mengendalikannya dan warnanya tetap bisa di-blend oleh
+ * `blendOnTop` saat menghitung kontras.
+ */
+export function overlayCss(
+  kind: OverlayKind,
+  palette: DesignStylePalette,
+  opacityPercent?: number,
+): string | undefined {
+  if (kind === 'none') return undefined;
+  const base = kind === 'light' ? '#ffffff' : kind === 'dark' ? '#000000' : palette.primary;
+  const rgb = hexToRgb(base);
+  if (!rgb) return undefined;
+  const pct = clampPercent(opacityPercent ?? OVERLAY_DEFAULT_OPACITY[kind]);
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${(pct / 100).toFixed(3)})`;
+}
+
+/** Kunci nilai 0-100 agar slider/JSON rusak tidak menghasilkan CSS tak valid. */
+export function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, value));
+}
+
+/** Kunci nilai blur ke rentang px yang dipakai panel. */
+export function clampBlur(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.min(24, Math.max(0, value));
+}
+
 function getLuminance(hex: string): number {
   const rgb = hexToRgb(hex);
   if (!rgb) return 0;

@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from "@/lib/builder/templates/catalog";
 import { DESIGN_STYLES } from "@/lib/builder/design-styles";
 import { getSectionVariant } from "@/lib/builder/sections/registry";
+import { applySectionAssets } from "@/lib/builder/template-assets";
 import { useBuilderStore } from "@/lib/builder/store";
 import { TemplateGallery } from "@/components/builder/template-gallery";
 
@@ -26,11 +27,17 @@ function resolveSections(tpl: (typeof BUILT_IN_CATALOG)[number]) {
     const override = (s.config ?? {}) as Record<string, unknown>;
     const styleBase = variant?.defaultStyle ?? {};
     const styleOverride = (s.style ?? {}) as Record<string, unknown>;
+    // Foto bawaan per-niche dilepas di sini (bukan hanya di kanvas) supaya
+    // hasil apply template di API/live site ikut punya aset yang sama.
+    const merged = applySectionAssets(
+      { ...base, ...override } as Record<string, unknown>,
+      tpl.category,
+    );
     return {
       id: crypto.randomUUID(),
       type: s.type,
       variant: s.variant,
-      config: JSON.parse(JSON.stringify({ ...base, ...override })),
+      config: JSON.parse(JSON.stringify(merged)),
       style: {
         padding: { top: 64, right: 24, bottom: 64, left: 24 },
         background: "transparent" as const,

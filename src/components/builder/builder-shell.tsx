@@ -10,7 +10,7 @@ import { useTemplateStore } from '@/lib/builder/template-store';
 import { Toaster, toast } from 'sonner';
 import { X, Monitor, Tablet, Smartphone } from 'lucide-react';
 
-export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, exitHref }: { websiteId: string; pageTitle?: string; siteUrl?: string | null; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: () => Promise<void>; onPublishOverride?: () => Promise<void>; exitHref?: string }) {
+export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, isPublished, exitHref }: { websiteId: string; pageTitle?: string; siteUrl?: string | null; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: () => Promise<void>; onPublishOverride?: () => Promise<void>; isPublished?: boolean; exitHref?: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,15 +35,22 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
   const handlePublish = useCallback(async () => {
     setIsSaving(true);
     try {
+      // Tanpa override = builder tanpa konsep publish. Fallback ke `save`
+      // (bukan `publish`) supaya tidak pernah memanggil aksi yang sama
+      // dengan Simpan lewat jalur bernama "publish".
       if (onPublishOverride) await onPublishOverride();
-      else await useBuilderStore.getState().publish(websiteId);
-      toast.success('Website berhasil dipublish 🎉');
+      else await useBuilderStore.getState().save(websiteId);
+      // Sebut nama halaman supaya jelas apa yang baru tayang (handler ini
+      // hanya terpanggil di builder yang benar-benar punya publish).
+      toast.success(
+        pageTitle ? `Halaman "${pageTitle}" berhasil ditayangkan 🎉` : 'Halaman berhasil ditayangkan 🎉',
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal publish');
     } finally {
       setIsSaving(false);
     }
-  }, [websiteId, onPublishOverride]);
+  }, [websiteId, pageTitle, onPublishOverride]);
 
   // Keyboard shortcuts: Ctrl+S simpan, Ctrl+Z / Ctrl+Shift+Z undo-redo, Esc keluar preview / deselect
   useEffect(() => {
@@ -82,6 +89,14 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
+  // Kanvas men-dispatch event ini saat tombol Edit diklik; pastikan sidebar
+  // terlihat (desktop bisa sengaja ditutup, mobile jadi overlay tersembunyi).
+  useEffect(() => {
+    const open = () => setSidebarOpen(true);
+    window.addEventListener('open-section-config', open);
+    return () => window.removeEventListener('open-section-config', open);
+  }, []);
+
   if (isPreview) {
     return (
       <div className="flex flex-col h-dvh w-full bg-slate-950 overflow-hidden">
@@ -105,7 +120,10 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onPreview={() => setIsPreview(true)}
         onSave={handleSave}
-        onPublish={handlePublish}
+        // Tanpa `onPublishOverride` builder ini tidak punya konsep publish
+        // (publish = alias save) → tombol Publish tidak dirender sama sekali.
+        onPublish={onPublishOverride ? handlePublish : undefined}
+        isPublished={isPublished}
         onShowPages={onShowPages}
         onShowTemplates={onShowTemplates}
         exitHref={exitHref}

@@ -14,12 +14,38 @@ interface ConfigFormProps {
   fields: ConfigField[];
   config: Record<string, unknown>;
   onChange: (key: string, value: unknown) => void;
+  /**
+   * Key `itemFields` yang disembunyikan di dalam field bertipe `list`.
+   *
+   * Dipakai template untuk menyatakan kemampuan: field `children`
+   * (submenu) tetap ada di configFields semua varian, tapi hanya ditampilkan
+   * bila template menyatakannya mendukung 2 tingkat menu.
+   */
+  hiddenItemFieldKeys?: string[];
 }
 
-export function ConfigForm({ fields, config, onChange }: ConfigFormProps) {
+export function ConfigForm({ fields, config, onChange, hiddenItemFieldKeys = [] }: ConfigFormProps) {
+  const hidden = new Set(hiddenItemFieldKeys);
+  // Buang key tersembunyi di setiap field list supaya tidak pernah dirender
+  // (juga berlaku ke list bersarang, mis. children di dalam children).
+  const withHiddenStripped = fields.map((f) =>
+    f.type === 'list' && f.itemFields
+      ? {
+          ...f,
+          itemFields: f.itemFields
+            .filter((child) => !hidden.has(child.key))
+            .map((child) =>
+              child.type === 'list' && child.itemFields
+                ? { ...child, itemFields: child.itemFields.filter((c) => !hidden.has(c.key)) }
+                : child,
+            ),
+        }
+      : f,
+  );
+
   return (
     <div className="space-y-4">
-      {fields.map((field) => (
+      {withHiddenStripped.map((field) => (
         <ConfigFieldRenderer
           key={field.key}
           field={field}
@@ -71,12 +97,12 @@ function ConfigFieldRenderer({ field, value, onChange }: ConfigFieldRendererProp
 function TextField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (v: unknown) => void }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <Input
         value={(value as string) || ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={field.placeholder}
-        className="h-9 text-[13px] rounded-xl bg-white dark:bg-slate-800 focus-visible:ring-emerald-400"
+        className="h-8 text-[12px] rounded-lg bg-white dark:bg-slate-800 focus-visible:ring-emerald-400"
       />
     </div>
   );
@@ -85,7 +111,7 @@ function TextField({ field, value, onChange }: { field: ConfigField; value: unkn
 function TextareaField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (v: unknown) => void }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <Textarea
         value={(value as string) || ''}
         onChange={(e) => onChange(e.target.value)}
@@ -100,12 +126,12 @@ function TextareaField({ field, value, onChange }: { field: ConfigField; value: 
 function NumberField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (v: unknown) => void }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <Input
         type="number"
         value={(value as number) || 0}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-9 text-[13px] rounded-xl bg-white dark:bg-slate-800 focus-visible:ring-emerald-400"
+        className="h-8 text-[12px] rounded-lg bg-white dark:bg-slate-800 focus-visible:ring-emerald-400"
       />
     </div>
   );
@@ -114,14 +140,14 @@ function NumberField({ field, value, onChange }: { field: ConfigField; value: un
 function SelectField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (v: unknown) => void }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <Select value={(value as string) || ''} onValueChange={(v) => onChange(v)}>
-        <SelectTrigger className="h-9 text-[13px] rounded-xl bg-white dark:bg-slate-800 font-medium">
+        <SelectTrigger className="h-8 text-[12px] rounded-lg bg-white dark:bg-slate-800 font-medium">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {field.options?.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+            <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
               {opt.label}
             </SelectItem>
           ))}
@@ -135,12 +161,12 @@ function ImageField({ field, value, onChange }: { field: ConfigField; value: unk
   const url = (value as string) || '';
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <Input
         value={url}
         onChange={(e) => onChange(e.target.value)}
         placeholder={field.placeholder || 'https://...'}
-        className="h-9 text-[13px] rounded-xl bg-white dark:bg-slate-800 focus-visible:ring-emerald-400"
+        className="h-8 text-[12px] rounded-lg bg-white dark:bg-slate-800 focus-visible:ring-emerald-400"
       />
       {url && (
         <div className="rounded-xl overflow-hidden border bg-slate-100 dark:bg-slate-800">
@@ -157,7 +183,12 @@ function ListField({ field, value, onChange }: { field: ConfigField; value: unkn
   const itemFields = field.itemFields || [];
 
   const addItem = () => {
-    const blank = itemFields.reduce((acc, f) => ({ ...acc, [f.key]: f.defaultValue ?? '' }), {});
+    const blank = itemFields.reduce<Record<string, unknown>>((acc, f) => {
+      // Field bertipe `list` (mis. submenu) harus mulai sebagai array kosong,
+      // bukan string — kalau diisi '' renderer akan choking saat mem-baca.
+      acc[f.key] = f.type === 'list' ? [] : (f.defaultValue ?? '');
+      return acc;
+    }, {});
     onChange([...items, blank]);
   };
 
@@ -181,7 +212,7 @@ function ListField({ field, value, onChange }: { field: ConfigField; value: unkn
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       {items.map((item, index) => (
         <div key={index} className="p-3 border rounded-xl space-y-2 bg-muted/20">
           <div className="flex items-center justify-between">
@@ -211,19 +242,34 @@ function ListField({ field, value, onChange }: { field: ConfigField; value: unkn
           </div>
           {itemFields.map((f) => (
             <div key={f.key} className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">{f.label}</Label>
-              {f.type === 'textarea' ? (
+              {/* Field `list` sudah punya label sendiri dari ListField
+                  anak, jadi label luar dilewati agar tidak dobel. */}
+              {f.type !== 'list' && (
+                <Label className="text-[10px] text-muted-foreground">{f.label}</Label>
+              )}
+              {f.type === 'list' ? (
+                /* Field list di dalam list = submenu (mis. anak menu). Render
+                   ListField lagi secara rekursif; nilainya tetap array sehingga
+                   bentuknya sama dengan `NavItem.children`. */
+                <div className="pl-2 border-l-2 border-dashed border-muted/40">
+                  <ListField
+                    field={f}
+                    value={Array.isArray(item[f.key]) ? item[f.key] : []}
+                    onChange={(v) => updateItem(index, f.key, v)}
+                  />
+                </div>
+              ) : f.type === 'textarea' ? (
                 <Textarea
                   value={(item[f.key] as string) || ''}
                   onChange={(e) => updateItem(index, f.key, e.target.value)}
                   rows={2}
-                  className="min-h-[40px] text-xs rounded-lg"
+                  className="min-h-[34px] text-[11px] rounded-lg"
                 />
               ) : (
                 <Input
                   value={(item[f.key] as string) || ''}
                   onChange={(e) => updateItem(index, f.key, e.target.value)}
-                  className="h-7 text-xs rounded-lg"
+                  className="h-6 text-[11px] rounded-md"
                 />
               )}
             </div>
@@ -233,7 +279,7 @@ function ListField({ field, value, onChange }: { field: ConfigField; value: unkn
       <Button
         variant="outline"
         size="sm"
-        className="w-full text-xs"
+        className="w-full text-[11px]"
         onClick={addItem}
       >
         <Plus className="w-3.5 h-3.5 mr-1" />
@@ -247,18 +293,18 @@ function ColorField({ field, value, onChange }: { field: ConfigField; value: unk
   const color = (value as string) || '#000000';
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <div className="flex items-center gap-2">
         <input
           type="color"
           value={color}
           onChange={(e) => onChange(e.target.value)}
-          className="w-10 h-10 rounded-xl border cursor-pointer bg-white p-1"
+          className="w-9 h-9 rounded-lg border cursor-pointer bg-white p-1"
         />
         <Input
           value={color}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 h-9 text-xs rounded-xl font-mono"
+          className="flex-1 h-8 text-[11px] rounded-lg font-mono"
         />
       </div>
     </div>
@@ -269,13 +315,13 @@ function BackgroundField({ field, value, onChange }: { field: ConfigField; value
   const bgType = (value as string) || 'color';
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <Select value={bgType} onValueChange={(v) => onChange(v)}>
-        <SelectTrigger className="h-9 text-[13px] rounded-xl bg-white dark:bg-slate-800 font-medium">
+        <SelectTrigger className="h-8 text-[12px] rounded-lg bg-white dark:bg-slate-800 font-medium">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="color" className="text-xs">Warna</SelectItem>
+          <SelectItem value="color" className="text-[11px]">Warna</SelectItem>
           <SelectItem value="image" className="text-xs">Gambar</SelectItem>
           <SelectItem value="gradient" className="text-xs">Gradient</SelectItem>
           <SelectItem value="transparent" className="text-xs">Transparan</SelectItem>
@@ -287,12 +333,12 @@ function BackgroundField({ field, value, onChange }: { field: ConfigField; value
             type="color"
             value={(value as string) || '#ffffff'}
             onChange={(e) => onChange(e.target.value)}
-            className="w-10 h-10 rounded-xl border cursor-pointer bg-white p-1"
+            className="w-9 h-9 rounded-lg border cursor-pointer bg-white p-1"
           />
           <Input
             value={(value as string) || '#ffffff'}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 h-9 text-xs rounded-xl font-mono"
+            className="flex-1 h-8 text-[11px] rounded-lg font-mono"
           />
         </div>
       )}
@@ -301,7 +347,7 @@ function BackgroundField({ field, value, onChange }: { field: ConfigField; value
           value={(value as string) || ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder="https://..."
-          className="h-9 text-[13px] rounded-xl"
+          className="h-8 text-[12px] rounded-lg"
         />
       )}
       {bgType === 'gradient' && (
@@ -309,7 +355,7 @@ function BackgroundField({ field, value, onChange }: { field: ConfigField; value
           value={(value as string) || ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-          className="h-9 text-[13px] rounded-xl font-mono"
+          className="h-8 text-[12px] rounded-lg font-mono"
         />
       )}
     </div>
@@ -335,7 +381,7 @@ function GalleryField({ field, value, onChange }: { field: ConfigField; value: u
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <div className="grid grid-cols-3 gap-2">
         {images.map((img, index) => (
           <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border bg-slate-100 dark:bg-slate-800">
@@ -372,7 +418,7 @@ function GalleryField({ field, value, onChange }: { field: ConfigField; value: u
               value={img}
               onChange={(e) => updateImage(index, e.target.value)}
               placeholder={`URL gambar ${index + 1}`}
-              className="h-7 text-xs rounded-lg"
+              className="h-6 text-[11px] rounded-md"
             />
           ))}
         </div>
@@ -384,7 +430,7 @@ function GalleryField({ field, value, onChange }: { field: ConfigField; value: u
 function SwitchField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (v: unknown) => void }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
-      <Label className="text-xs font-bold">{field.label}</Label>
+      <Label className="text-[11px] font-bold">{field.label}</Label>
       <Switch
         checked={(value as boolean) || false}
         onCheckedChange={(v) => onChange(v)}

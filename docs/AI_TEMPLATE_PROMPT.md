@@ -264,13 +264,19 @@ interface SectionVariant {
     backgroundColor?: string;
     backgroundImage?: string;
     backgroundGradient?: string;
-    backgroundBlur?: number;
+    backgroundBlur?: number;          // 0-16 px, hanya memblur gambar (bukan konten)
     backgroundSize?: 'cover' | 'contain' | 'auto';
     backgroundOverlay?: 'none' | 'light' | 'dark' | 'primary';
+    backgroundOverlayOpacity?: number; // 0-100%, default per jenis (light 30 / dark 50 / primary 60)
   };
   mockup: string;                // wajib, harus terdaftar di mockup-preview.tsx
 }
 ```
+
+> **Catatan gradasi:** `backgroundGradient` menerima dua format — singkat
+> (`'#047857, #065f46, 135deg'`) atau CSS penuh
+> (`'linear-gradient(135deg, #8B5A2B 0%, #D4A574 100%)'`). Keduanya aman dipakai.
+> `backgroundOverlay` hanya berlaku bila `background: 'image'`.
 
 ### ConfigField Interface
 

@@ -18,6 +18,7 @@ import { Loader2, Store, AlertTriangle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { getSectionVariant } from "@/lib/builder/sections/registry";
+import { applySectionAssets } from "@/lib/builder/template-assets";
 
 export default function BuilderPage() {
   const [websiteId, setWebsiteId] = useState<string | null>(null);
@@ -188,11 +189,16 @@ export default function BuilderPage() {
                 const override = (s.config ?? {}) as Record<string, unknown>;
                 const styleBase = variant?.defaultStyle ?? {};
                 const styleOverride = (s.style ?? {}) as Record<string, unknown>;
+                // Foto bawaan per-niche ikut tersimpan ke API, bukan hanya kanvas.
+                const merged = applySectionAssets(
+                  { ...base, ...override } as Record<string, unknown>,
+                  catalogTemplate.category,
+                );
                 return {
                   id: crypto.randomUUID(),
                   type: s.type,
                   variant: s.variant,
-                  config: JSON.parse(JSON.stringify({ ...base, ...override })),
+                  config: JSON.parse(JSON.stringify(merged)),
                   style: {
                     padding: { top: 64, right: 24, bottom: 64, left: 24 },
                     background: 'transparent' as const,
@@ -226,8 +232,9 @@ export default function BuilderPage() {
                   console.error('Gagal menerapkan template:', json.error);
                   return;
                 }
-                // Update template store and reset builder palette override to use new template's theme
-                useTemplateStore.getState().setTemplate(templateId);
+                // Terapkan template: theme/palette/header/footer ikut berganti dan
+                // kanvas diisi section bawaan + aset foto per-bisnis.
+                useTemplateStore.getState().applyTemplate(templateId);
                 useBuilderStore.getState().resetPaletteOverride();
                 setShowTemplates(false);
               } catch (e) {

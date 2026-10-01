@@ -16,7 +16,6 @@ export const SECTION_REGISTRY: Record<SectionType, SectionTypeDefinition> = {
           cta_text: 'Belanja Sekarang',
           cta_link: '/produk',
           text_align: 'center',
-          background_type: 'color',
         },
       },
       {
@@ -29,7 +28,6 @@ export const SECTION_REGISTRY: Record<SectionType, SectionTypeDefinition> = {
           cta_text: 'Lihat Produk',
           cta_link: '/produk',
           text_align: 'left',
-          background_type: 'color',
         },
       },
       {
@@ -42,7 +40,6 @@ export const SECTION_REGISTRY: Record<SectionType, SectionTypeDefinition> = {
           cta_text: 'Mulai Belanja',
           cta_link: '/produk',
           text_align: 'right',
-          background_type: 'color',
         },
       },
       {
@@ -55,8 +52,6 @@ export const SECTION_REGISTRY: Record<SectionType, SectionTypeDefinition> = {
           cta_text: 'Lihat Promo',
           cta_link: '/promo',
           text_align: 'center',
-          background_type: 'image',
-          background_image: '',
         },
       },
     ],

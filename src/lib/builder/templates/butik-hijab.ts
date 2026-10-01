@@ -45,6 +45,8 @@ export const BUTIK_HIJAB_TEMPLATE = ({
   },
   headers: PANGKAS_RAPI_TEMPLATE.headers.map((h) => ({
     ...h,
+    // Katalog fashion: menu 2 tingkat (mis. Koleksi > Muslim / Formal).
+    maxNavDepth: 2,
     defaultConfig: {
       ...h.defaultConfig,
       siteTitle: "Butik Hijab",
@@ -166,6 +168,11 @@ export const BUTIK_HIJAB_TEMPLATE = ({
       { type: "testimonials", variant: "testimonials-carousel", anchorId: "testimoni", config: { title: "Review Pelanggan", items: [{ name: "Siti", text: "Hijab ceruttynya adem, nggak gerah. Warna cantik banget sama fotonya!", rating: 5 }, { name: "Aisyah", text: "Gamisnya bagus, jahitan rapi. Udah beli 3x di sini, puas selalu.", rating: 5 }, { name: "Fatima", text: "Paket dua piece hemat, cocok buat kerja. Kirimnya cepet, packing rapi.", rating: 5 }] } },
       { type: "cta", variant: "cta-banner", anchorId: "promo", config: { title: "Dapatkan Diskon 15% untuk Pembelian Pertama", subtitle: "Daftar newsletter & dapatkan kode promo eksklusif. Berlaku untuk semua produk.", button_text: "Daftar & Belanja", button_link: "#koleksi" } },
       { type: "about", variant: "about-centered", anchorId: "tentang", config: { title: "Cerita Butik Hijab", content: "Berawal dari kebutuhan sendiri cari hijab berkualitas tapi terjangkau. Kini Butik Hijab melayani ribuan pelanggan setia di seluruh Indonesia dengan komitmen: kualitas terbaik, harga jujur, pelayanan hati.", image: "" } },
+      { type: "pricing", variant: "pricing-2tier", anchorId: "harga", config: { title: "Kategori Harga", items: [{ name: "Koleksi Harian", price: "Mulai Rp 89rb", features: ["Kain basic & premium", "Motif terbaru mingguan", "Stok selalu ada"] }, { name: "Koleksi Premium", price: "Mulai Rp 249rb", features: ["Kain cerutty & wolpeach", "Jilbab premium + gamis", "Free ongkir min. Rp 500rb"] }] } },
+      { type: "gallery", variant: "gallery-grid", anchorId: "galeri", config: { title: "Galeri Koleksi" } },
+      { type: "faq", variant: "faq-accordion", anchorId: "faq", config: { title: "Tanya Jawab", items: [{ question: "Apakah semua bahan premium?", answer: "Ya, kami memakai cerutty, voal, dan wolpeach berkualitas tinggi." }, { question: "Bisa kirim luar kota?", answer: "Bisa. Kami kirim ke seluruh Indonesia, ongkir dihitung dari berat & lokasi." }, { question: "Ada retensi ukuran?", answer: "Bisa tukar ukuran selama label masih terpasang." }] } },
+      { type: "location", variant: "location-hours", anchorId: "lokasi", config: { title: "Kunjungi Boutique Kami", address: "Jl. Fashion No. 12, Jakarta", hours: "Setiap hari 10.00–19.00", map_url: "", button_text: "Chat via WhatsApp", button_link: "https://wa.me/6281234567890" } },
+      { type: "booking", variant: "booking-single", anchorId: "konsultasi", config: { title: "Cek Ukuran & Konsultasi", subtitle: "Bingung pilih ukuran? Konsultasi dulu, gratis tanpa minimum.", services: [{ name: "Konsultasi Ukuran (Online)", price: "Gratis" }, { name: "Fit Custom (Bahan Premium)", price: "Mulai Rp 50rb" }], address: "Jl. Fashion No. 12, Jakarta", hours: "Setiap hari 10.00–19.00", success_message: "Terima kasih! Tim kami akan menghubungi kamu via WhatsApp.", forward_wa: "" } },
       { type: "contact", variant: "contact-form-map", anchorId: "kontak", config: { title: "Hubungi Kami", subtitle: "Butuh bantuan pilih ukuran? Atau mau tanya stok? Chat kami via WhatsApp.", show_map: true, address: "Jl. Fashion No. 12, Jakarta" } },
     ],
     header: {

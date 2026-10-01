@@ -235,6 +235,9 @@ export function builderSectionToInstance(
       ...(rawStyle.backgroundOverlay === 'none' || rawStyle.backgroundOverlay === 'light' || rawStyle.backgroundOverlay === 'dark' || rawStyle.backgroundOverlay === 'primary'
         ? { backgroundOverlay: rawStyle.backgroundOverlay }
         : {}),
+      ...(typeof rawStyle.backgroundOverlayOpacity === 'number'
+        ? { backgroundOverlayOpacity: rawStyle.backgroundOverlayOpacity }
+        : {}),
     },
     responsive: toResponsive(section.responsive),
     anchorId: typeof section.anchorId === 'string' ? section.anchorId : undefined,
@@ -257,6 +260,9 @@ export function instanceToBuilderSection(instance: TemplateSectionInstance): Sec
       ...(typeof instance.style.backgroundBlur === 'number' ? { backgroundBlur: instance.style.backgroundBlur } : {}),
       ...(instance.style.backgroundSize ? { backgroundSize: instance.style.backgroundSize } : {}),
       ...(instance.style.backgroundOverlay ? { backgroundOverlay: instance.style.backgroundOverlay } : {}),
+      ...(typeof instance.style.backgroundOverlayOpacity === 'number'
+        ? { backgroundOverlayOpacity: instance.style.backgroundOverlayOpacity }
+        : {}),
     },
     responsive: { ...(instance.responsive ?? {}) },
     anchorId: instance.anchorId,
@@ -407,6 +413,28 @@ export function defaultAnchorId(
   const byType = exact ?? entries.find((e) => e.type === type);
   const anchor = (byType as { anchorId?: unknown } | undefined)?.anchorId;
   return typeof anchor === 'string' && anchor.length > 0 ? anchor : undefined;
+}
+
+/**
+ * Normalisasi anchor id yang diketik user di panel Section Config.
+ *
+ * Aturan ID HTML: hanya huruf/angka/hyphen/underscore, dan TIDAK BOLEH mulai
+ * dengan angka (anchor `#123abc` tidak ter-resolve browser). Spasi diubah jadi
+ * hyphen, huruf dikecilkan, sisanya dibuang.
+ */
+export function sanitizeAnchor(raw: string | undefined | null): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  let v = raw.trim().toLowerCase();
+  // Hilangkan satu '#' di depan bila user menyalin format "#tarif".
+  v = v.replace(/^#+/, '');
+  // Karakter valid Aside dari itu dibuang (termasuk spasi → hyphen dulu).
+  v = v.replace(/\s+/g, '-').replace(/[^a-z0-9_-]+/g, '').replace(/-+/g, '-');
+  // Buang spasi/garis di tepi.
+  v = v.replace(/^[-_]+/, '').replace(/[-_]+$/, '');
+  // ID tidak boleh diawali angka → buang semua digit di depan.
+  v = v.replace(/^[0-9]+/, '');
+  v = v.replace(/^-+/, '');
+  return v.length > 0 ? v : undefined;
 }
 
 /**

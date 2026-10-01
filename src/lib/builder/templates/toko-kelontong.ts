@@ -44,6 +44,8 @@ export const TOKO_KELONTONG_TEMPLATE = ({
   },
   headers: PANGKAS_RAPI_TEMPLATE.headers.map((h) => ({
     ...h,
+    // Retail: menu 2 tingkat (Produk > Makanan / Minuman / Kebersihan).
+    maxNavDepth: 2,
     defaultConfig: {
       ...h.defaultConfig,
       siteTitle: "Toko Kelontong",
@@ -86,8 +88,6 @@ export const TOKO_KELONTONG_TEMPLATE = ({
               cta_text: "Lihat Semua Produk",
               cta_link: "#produk",
               text_align: "center",
-              background_type: "color",
-              background_color: "theme:primary",
             }
           : {}),
         ...(s.type === "product_grid" && v.id === "product-3col"
@@ -133,7 +133,7 @@ export const TOKO_KELONTONG_TEMPLATE = ({
           ? {
               title: "Pertanyaan Umum",
               items: [
-                { question: "Bisa beli grosir?", answer: "Bisa, minimal 1 dus/karton. Harga grosir otomatis 적용 di keranjang." },
+                { question: "Bisa beli grosir?", answer: "Bisa, minimal 1 dus/karton. Harga grosir otomatis berlaku di keranjang." },
                 { question: "Bisa antar ke rumah?", answer: "Gratis ongkir radius 5km min. belanja Rp 100rb. Di luar radius biaya Rp 10rb." },
                 { question: "Produk expired dekat?", answer: "Tidak. Kami rotasi stok FIFO, minimal 6 bulan kedaluwarsa. Bisa tukar kalau tidak puas." },
               ],
@@ -163,12 +163,17 @@ export const TOKO_KELONTONG_TEMPLATE = ({
       border: "#bae6fd",
     },
     sections: [
-      { type: "hero", variant: "hero-full", anchorId: "beranda", config: { headline: "Kebutuhan Rumah Tangga Lengkap & Terjangkau", subheadline: "Dari makanan, minuman, kebersihan, sampai peralatan rumah. Harga grosir & eceran. Stok lengkap, antar gratis radius 5km.", cta_text: "Lihat Semua Produk", cta_link: "#produk", text_align: "center", background_type: "color", background_color: "theme:primary" } },
+      { type: "hero", variant: "hero-full", anchorId: "beranda", config: { headline: "Kebutuhan Rumah Tangga Lengkap & Terjangkau", subheadline: "Dari makanan, minuman, kebersihan, sampai peralatan rumah. Harga grosir & eceran. Stok lengkap, antar gratis radius 5km.", cta_text: "Lihat Semua Produk", cta_link: "#produk", text_align: "center" } },
+      { type: "features", variant: "features-3col", anchorId: "keunggulan", config: { title: "Kenapa Belanja di Kelontong Kami", items: [{ icon: "🏪", title: "Stok Lengkap", description: "Ribuan produk kebutuhan harian, dari beras sampai popok. Semua ada." }, { icon: "💰", title: "Harga Warung", description: "Harga sama dengan pasar, tanpa markup berlebihan." }, { icon: "🚚", title: "Antar Same Day", description: "Dipesan pagi, sampai siang di area Jabodetabek." }] } },
       { type: "product_grid", variant: "product-3col", anchorId: "produk", config: { title: "Produk Terlaris", columns: 3, show_price: true, show_rating: true } },
       { type: "pricing", variant: "pricing-3tier", anchorId: "harga", config: { title: "Daftar Harga Grosir & Eceran", items: [{ name: "Beras Premium 5kg", price: "Rp 68rb", features: ["Beras kualitas super", "Bersih, tidak pecah", "Kemasan standar"] }, { name: "Minyak Goreng 2L", price: "Rp 32rb", features: ["Minyak sawit murni", "Kemasan botol aman", "Halal MUI"] }, { name: "Gula Pasir 1kg", price: "Rp 14rb", features: ["Gula putih bersih", "Kemasan plastik rapat", "Harga grosir tersedia"] }] } },
+      { type: "booking", variant: "booking-single", anchorId: "pesan", config: { title: "Pesan via WhatsApp", subtitle: "Belanja cepat tanpa ribet — kirim daftar belanjaan kamu.", services: [{ name: "Belanja Harian (Kebutuhan Rumah)", price: "Mulai Rp 50rb" }, { name: "Paket Bulanan", price: "Mulai Rp 500rb" }], address: "Jl. Pasar No. 8, Jakarta", hours: "Setiap hari 07.00–21.00", success_message: "Pesanan diterima! Kami akan konfirmasi via WhatsApp.", forward_wa: "" } },
+      { type: "testimonials", variant: "testimonials-grid", anchorId: "testimoni", config: { title: "Cerita Pelanggan", items: [{ name: "Bu Sari", text: "Stoknya lengkap, harga sama dengan pasar. Pengantarannya cepat banget!", rating: 5 }, { name: "Pak Joko", text: "Sering belanja di sini untuk kebutuhan rumah. Packingnya rapih dan rapi.", rating: 5 }, { name: "Ibu Ratna", text: "Harga bersahabat, owner-nya ramah dan Recommended!", rating: 5 }] } },
+      { type: "location", variant: "location-hours", anchorId: "lokasi-toko", config: { title: "Kunjungi Toko Kami", address: "Jl. Kerajinan No. 7, Yogyakarta", note: "Dekat Pasar Seni, parkir motor tersedia", button_text: "Chat via WhatsApp", button_link: "https://wa.me/6281234567890", hours: [{ days: "Senin–Sabtu", time: "09.00–17.00" }, { days: "Minggu", time: "Tutup" }] } },
+      { type: "gallery", variant: "gallery-grid", anchorId: "galeri", config: { title: "Galeri Toko" } },
       { type: "newsletter", variant: "newsletter-inline", anchorId: "promo", config: { title: "Dapatkan Info Promo Mingguan", subtitle: "Kirimkan daftar promo & stok baru ke email/WhatsApp Anda setiap Senin pagi.", placeholder: "Email atau No. WA", button_text: "Kirimkan Promo" } },
       { type: "location", variant: "location-hours", anchorId: "lokasi", config: { title: "Toko Kami", address: "Jl. Raya Kelontong No. 88, Jakarta", note: "Dekat terminal, parkir luas (mobil & motor)", button_text: "Chat via WhatsApp", button_link: WA, hours: [{ days: "Senin–Sabtu", time: "07.00–21.00" }, { days: "Minggu", time: "08.00–20.00" }] } },
-      { type: "faq", variant: "faq-accordion", anchorId: "faq", config: { title: "Pertanyaan Umum", items: [{ question: "Bisa beli grosir?", answer: "Bisa, minimal 1 dus/karton. Harga grosir otomatis 적용 di keranjang." }, { question: "Bisa antar ke rumah?", answer: "Gratis ongkir radius 5km min. belanja Rp 100rb. Di luar radius biaya Rp 10rb." }, { question: "Produk expired dekat?", answer: "Tidak. Kami rotasi stok FIFO, minimal 6 bulan kedaluwarsa. Bisa tukar kalau not puas." }] } },
+      { type: "faq", variant: "faq-accordion", anchorId: "faq", config: { title: "Pertanyaan Umum", items: [{ question: "Bisa beli grosir?", answer: "Bisa, minimal 1 dus/karton. Harga grosir otomatis berlaku di keranjang." }, { question: "Bisa antar ke rumah?", answer: "Gratis ongkir radius 5km min. belanja Rp 100rb. Di luar radius biaya Rp 10rb." }, { question: "Produk expired dekat?", answer: "Tidak. Kami rotasi stok FIFO, minimal 6 bulan kedaluwarsa. Bisa tukar kalau tidak puas." }] } },
       { type: "contact", variant: "contact-form-map", anchorId: "kontak", config: { title: "Hubungi Kami", subtitle: "Butuh kuantitas besar? Atau mau tanya stok? Tim kami siap bantu.", show_map: true, address: "Jl. Raya Kelontong No. 88, Jakarta" } },
     ],
     header: {

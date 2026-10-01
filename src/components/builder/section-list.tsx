@@ -96,7 +96,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') onEditSection(section.id);
             }}
-            className={`group relative flex items-center gap-2.5 p-2.5 rounded-2xl border transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 bg-white dark:bg-white/[0.03] ${
+            className={`group relative flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 bg-white dark:bg-white/[0.03] ${
               isSelected
                 ? 'border-emerald-300/70 bg-emerald-50/50 shadow-[0_2px_8px_rgba(16,185,129,0.12)] dark:bg-emerald-950/20 dark:border-emerald-800/50'
                 : 'border-slate-200/50 dark:border-white/[0.06] hover:border-slate-300/70 hover:shadow-[0_2px_8px_rgba(15,23,42,0.06)]'
@@ -106,7 +106,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
               onEditSection(section.id);
             }}
           >
-            <span className={`w-8 h-8 rounded-xl text-white text-[11px] font-extrabold flex items-center justify-center shrink-0 shadow-sm ${dotFor(section.type)}`}>
+            <span className={`w-7 h-7 rounded-lg text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 shadow-sm ${dotFor(section.type)}`}>
               {index + 1}
             </span>
 
@@ -139,7 +139,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => onEditSection(section.id)}
               >
                 <Edit3 className="w-3.5 h-3.5" />
@@ -147,7 +147,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => duplicateSection(section.id)}
               >
                 <Copy className="w-3.5 h-3.5" />
@@ -155,7 +155,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 hover:text-red-500"
+                className="h-7 w-7 hover:text-red-500"
                 onClick={() => {
                   if (confirm(`Hapus section "${sectionType?.name || section.type}"?`)) {
                     deleteSection(section.id);

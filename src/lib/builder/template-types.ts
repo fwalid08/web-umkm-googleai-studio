@@ -59,6 +59,7 @@ export interface SectionVariant {
     backgroundBlur?: number;
     backgroundSize?: 'cover' | 'contain' | 'auto';
     backgroundOverlay?: 'none' | 'light' | 'dark' | 'primary';
+    backgroundOverlayOpacity?: number;
   };
   mockup: string;
 }
@@ -88,6 +89,17 @@ export interface HeaderVariant {
   defaultConfig: Record<string, unknown>;
   mockup: string;
   mobileMenu?: MobileMenuConfig;
+  /**
+   * Kedalaman menu navigasi yang didukung varian ini (1 atau 2 tingkat).
+   *
+   * TEMPLATE yang memutuskan lewat nilai ini — bukan renderer:
+   * - `1` (default) = menu datar, tanpa submenu.
+   * - `2`           = boleh punya submenu (dropdown 1 level).
+   *
+   * Sidebar memakai nilai ini untuk menampilkan/menyembunyikan field
+   * "Submenu", sehingga form mengikuti kemampuan template tersebut.
+   */
+  maxNavDepth?: 1 | 2;
 }
 
 export interface FooterVariant {
@@ -166,6 +178,7 @@ export interface TemplateSectionInstance {
     backgroundBlur?: number;
     backgroundSize?: 'cover' | 'contain' | 'auto';
     backgroundOverlay?: 'none' | 'light' | 'dark' | 'primary';
+    backgroundOverlayOpacity?: number;
   };
   responsive: {
     hideOnMobile?: boolean;

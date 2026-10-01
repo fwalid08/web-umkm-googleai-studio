@@ -317,6 +317,14 @@ const navItemSchema = z.object({
   children: z.array(navChildSchema).max(5).optional(),
 });
 
+// Grup navigasi footer (layout kolom): judul + link-nya. Tak ada children
+// di dalam grup — footer tidak mendukung dropdown tingkat 2.
+const navGroupSchema = z.object({
+  id: z.string(),
+  title: z.string().default(''),
+  items: z.array(navChildSchema).default(() => []),
+});
+
 export const builderConfigSchema = z.object({
   design_style_id: z.string().min(1, "Design style wajib diisi"),
   palette_override: z.record(z.string(), z.string()).optional(),
@@ -339,7 +347,14 @@ export const builderConfigSchema = z.object({
       backgroundColor: z.string().optional(),
       backgroundImage: z.string().optional(),
       backgroundGradient: z.string().optional(),
-    }).default(() => ({
+      // PENTING: field gaya latar ikut dideklarasikan di sini. Zod `z.object()`
+      // membuang key yang tidak dikenal, dan hasil parse-lah yang dikirim ke
+      // API saat save — tanpa field ini blur/overlay/gradasi lenyap diam-diam.
+      backgroundBlur: z.number().min(0).max(24).optional(),
+      backgroundSize: z.enum(['cover', 'contain', 'auto']).optional(),
+      backgroundOverlay: z.enum(['none', 'light', 'dark', 'primary']).optional(),
+      backgroundOverlayOpacity: z.number().min(0).max(100).optional(),
+    }).passthrough().default(() => ({
       padding: { top: 0, right: 0, bottom: 0, left: 0 },
       background: 'transparent' as const,
     })),
@@ -348,7 +363,11 @@ export const builderConfigSchema = z.object({
       hideOnTablet: z.boolean().optional(),
       hideOnDesktop: z.boolean().optional(),
     }).default(() => ({})),
-  })).default([]),
+    // anchorId = target link `#...` di menu (slug, bukan UUID internal).
+    // WAJIB ada di sini: zod membuang key tak dikenal dan hasil parse-lah
+    // yang dikirim ke API — tanpa field ini anchor hasil edit user lenyap.
+    anchorId: z.string().optional(),
+  }).passthrough()).default([]),
   header: z.object({
     logoUrl: z.string().default(''),
     faviconUrl: z.string().default(''),
@@ -379,7 +398,11 @@ export const builderConfigSchema = z.object({
     style: z.enum(['simple', 'columns', 'centered', 'minimal']).default('simple'),
     text: z.string().default(''),
     navItems: z.array(navItemSchema).default(() => []),
+    // Grup navigasi untuk layout kolom. `items` bisa kosong — user boleh
+    // membuat grup dulu lalu mengisinya nanti.
+    navGroups: z.array(navGroupSchema).optional(),
     showSocial: z.boolean().default(false),
+    showNav: z.boolean().default(true),
     socialLinks: z.record(z.string(), z.string()).default(() => ({})),
     address: z.string().default(''),
     phone: z.string().default(''),
@@ -391,6 +414,7 @@ export const builderConfigSchema = z.object({
     text: '',
     navItems: [],
     showSocial: false,
+    showNav: true,
     socialLinks: {},
     address: '',
     phone: '',

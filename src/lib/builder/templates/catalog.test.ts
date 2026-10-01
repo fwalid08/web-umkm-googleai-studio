@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SECTION_REGISTRY } from "../sections/registry";
 import { DESIGN_STYLES, validateStyleContrast } from "../design-styles";
+import { builderSectionToInstance } from "../migration";
 import { ALL_TIERS, isCatalogTemplateAllowedForTier } from "./catalog";
 import { isKnownHeaderVariant, isKnownFooterVariant } from "../chrome";
 import { BUILT_IN_CATALOG } from "./catalog";
@@ -49,12 +49,34 @@ describe("template contract", () => {
   it("semua section menunjuk tipe + varian terdaftar", () => {
     for (const t of BUILT_IN_CATALOG) {
       for (const s of t.data.sections ?? []) {
-        const def = SECTION_REGISTRY[s.type];
+        // WAJIB cek ke `t.sections` (varian yang benar-benar dipakai kanvas,
+        // sidebar, dan renderer), bukan SECTION_REGISTRY — registry itu legacy
+        // dan punya daftar varian berbeda, sehingga validasi di sana tidak
+        // menangkap seed yang tidak cocok dengan template.
+        const def = t.sections.find((d) => d.type === s.type);
         expect(def, `${t.id}: tipe ${s.type} tak terdaftar`).toBeDefined();
         expect(
-          def.variants.some((v) => v.id === s.variant),
-          `${t.id}: varian ${s.variant} tak ada`,
+          def!.variants.some((v) => v.id === s.variant),
+          `${t.id}: varian ${s.variant} tak ada di template (dipakai builderSectionToInstance → diam-diam jatuh ke varian pertama)`,
         ).toBe(true);
+      }
+    }
+  });
+
+  /**
+   * Regression: `builderSectionToInstance()` menormalkan varian tak dikenal
+   * ke `variants[0]`. Kalau seed menunjuk varian yang tidak ada, section
+   * tampil dengan varian lain tanpa error — sulit dilacak. Guard ini
+   * memastikan seed = resolve tanpa fallback.
+   */
+  it("setiap section seed resolve ke varian yang sama (tidak fallback diam-diam)", () => {
+    for (const t of BUILT_IN_CATALOG) {
+      for (const s of t.data.sections ?? []) {
+        const resolved = builderSectionToInstance(s as never, t);
+        expect(
+          resolved.variantId,
+          `${t.id}: seed ${s.type}/${s.variant} resolve jadi ${resolved.variantId} (fallback)`,
+        ).toBe(s.variant);
       }
     }
   });

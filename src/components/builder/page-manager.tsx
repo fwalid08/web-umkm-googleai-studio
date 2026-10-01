@@ -131,8 +131,8 @@ export function PageManager({ websiteId }: PageManagerProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Halaman</h3>
-        <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" />
+        <Button size="sm" className="h-8 px-2.5" onClick={() => setIsCreateOpen(true)}>
+          <Plus className="w-3.5 h-3.5 mr-1" />
           Buat Halaman
         </Button>
       </div>
@@ -141,23 +141,23 @@ export function PageManager({ websiteId }: PageManagerProps) {
         {pages.map((page) => (
           <div
             key={page.id}
-            className="flex items-center gap-3 p-3 border rounded-lg bg-background hover:border-primary/50 transition-colors"
+            className="flex items-center gap-2.5 p-2.5 border rounded-lg bg-background hover:border-primary/50 transition-colors"
           >
-            {page.is_homepage && <Home className="w-4 h-4 text-primary" />}
+            {page.is_homepage && <Home className="w-3.5 h-3.5 text-primary" />}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{page.title}</p>
               <p className="text-xs text-muted-foreground">/{page.slug}</p>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => setEditingPage(page)}>
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEditingPage(page)}>
                 <Edit3 className="w-3.5 h-3.5" />
               </Button>
               {!page.is_homepage && (
-                <Button variant="ghost" size="sm" onClick={() => handleSetHomepage(page.id)}>
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => handleSetHomepage(page.id)}>
                   <Home className="w-3.5 h-3.5" />
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={() => handleDelete(page.id)}>
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => handleDelete(page.id)}>
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>

@@ -303,7 +303,7 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     return (
       <div
         key={template.id}
-        className={`group h-full flex flex-col p-4 gap-3 transition-all border-2 rounded-2xl ${
+        className={`group h-full flex flex-col p-3 gap-2.5 transition-all border-2 rounded-xl ${
           isBuiltin ? 'border-primary/20 bg-primary/5' : 'border-border bg-background'
         } hover:border-primary/50 hover:shadow-md ${applying ? 'opacity-70 pointer-events-none' : ''}`}
         role="button"
@@ -314,7 +314,7 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         }}>
           <div className="absolute inset-0 bg-black/10" />
           <div className="absolute inset-0 flex items-center justify-center text-white/20">
-            <Layout className="w-12 h-12" />
+            <Layout className="w-10 h-10" />
           </div>
           <div className="absolute bottom-3 left-3 right-3 flex gap-2">
             <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[template.category]}</Badge>
@@ -346,10 +346,10 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
         {template.source === 'saved' && (
           <div className="flex items-center gap-1 border-t pt-3 mt-2">
-            <button className="h-8 w-8 p-1 rounded-lg hover:bg-muted transition-colors" onClick={(e) => { e.stopPropagation(); onExport(template.id); }} title="Export">
+            <button className="h-7 w-7 p-1 rounded-md hover:bg-muted transition-colors" onClick={(e) => { e.stopPropagation(); onExport(template.id); }} title="Export">
               <Download className="w-3.5 h-3.5" />
             </button>
-            <button className="h-8 w-8 p-1 rounded-lg hover:bg-muted transition-colors text-red-500" onClick={(e) => { e.stopPropagation(); onDelete(template.id); }} title="Hapus">
+            <button className="h-7 w-7 p-1 rounded-md hover:bg-muted transition-colors text-red-500" onClick={(e) => { e.stopPropagation(); onDelete(template.id); }} title="Hapus">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -357,32 +357,39 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
         <div className="border-t pt-3 mt-2">
           {showConfirm ? (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }}>
-                Batal
-              </Button>
-              <Button variant="default" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); handleApply(); }} disabled={applying}>
-                {applying ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
-              </Button>
+            <div className="space-y-2">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Terapkan <span className="font-bold text-foreground">{template.name}</span>? Warna, font, header,
+                footer, dan seluruh section halaman akan diganti dengan layout bawaan template ini (lengkap dengan
+                foto contoh sesuai jenis bisnis). Bisa dibatalkan dengan Ctrl+Z.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }}>
+                  Batal
+                </Button>
+                <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); handleApply(); }} disabled={applying}>
+                  {applying ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
+                </Button>
+              </div>
             </div>
           ) : locked ? (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40" onClick={(e) => { e.stopPropagation(); window.open('/dashboard/billing', '_blank'); }}>
+              <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40" onClick={(e) => { e.stopPropagation(); window.open('/dashboard/billing', '_blank'); }}>
                 <Lock className="w-3.5 h-3.5 mr-1" /> Upgrade untuk Buka
               </Button>
               {onPreview && (
-                <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
+                <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
                   <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
                 </Button>
               )}
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button variant="default" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}>
+              <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}>
                 <Check className="w-3.5 h-3.5 mr-1" /> Terapkan
               </Button>
               {onPreview && (
-                <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
+                <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
                   <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
                 </Button>
               )}
@@ -405,15 +412,15 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-          <Button variant={activeTab === 'builtin' ? 'default' : 'ghost'} size="sm" className="gap-2" onClick={() => { setActiveTab('builtin'); setCurrentPage(1); }}>
+          <Button variant={activeTab === 'builtin' ? 'default' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => { setActiveTab('builtin'); setCurrentPage(1); }}>
             <Sparkles className="w-4 h-4" /> Bawaan ({builtinUnified.length})
           </Button>
-          <Button variant={activeTab === 'saved' ? 'default' : 'ghost'} size="sm" className="gap-2" onClick={() => { setActiveTab('saved'); setCurrentPage(1); }}>
+          <Button variant={activeTab === 'saved' ? 'default' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => { setActiveTab('saved'); setCurrentPage(1); }}>
             <Layout className="w-4 h-4" /> Tersimpan ({savedUnified.length})
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => document.getElementById('import-file')?.click()}>
+          <Button size="sm" className="h-8" variant="outline" onClick={() => document.getElementById('import-file')?.click()}>
             <Upload className="w-4 h-4 mr-1" /> Import
           </Button>
           <input
@@ -430,13 +437,13 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 p-4 bg-muted/30 rounded-xl">
+      <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/30 rounded-lg">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Cari template... (nama, deskripsi)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input placeholder="Cari template... (nama, deskripsi)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-8 h-8 text-[12px]" />
         </div>
         <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as BusinessCategory | 'all')}>
-          <SelectTrigger className="w-full sm:w-48 h-10">
+          <SelectTrigger className="w-full sm:w-48 h-8 text-[12px]">
             <SelectValue placeholder="Kategori" />
           </SelectTrigger>
           <SelectContent>
@@ -447,7 +454,7 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           </SelectContent>
         </Select>
         {(searchQuery || selectedCategory !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}>
+          <Button variant="ghost" size="sm" className="h-8 px-2.5" onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}>
             <Filter className="w-4 h-4 mr-1" /> Reset
           </Button>
         )}
@@ -475,15 +482,15 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+          <Button variant="outline" size="sm" className="h-8 px-2.5" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <Button key={page} variant={currentPage === page ? 'default' : 'outline'} size="sm" className="w-10 h-10" onClick={() => setCurrentPage(page)}>
+            <Button key={page} variant={currentPage === page ? 'default' : 'outline'} size="sm" className="w-8 h-8" onClick={() => setCurrentPage(page)}>
               {page}
             </Button>
           ))}
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+          <Button variant="outline" size="sm" className="h-8 px-2.5" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>

@@ -6,7 +6,8 @@ import { WARUNG_MAKAN_TEMPLATE } from './templates/warung-makan';
 import { BUTIK_HIJAB_TEMPLATE } from './templates/butik-hijab';
 import { TOKO_KELONTONG_TEMPLATE } from './templates/toko-kelontong';
 import { KERAJINAN_TANGAN_TEMPLATE } from './templates/kerajinan-tangan';
-import { seedTemplateSections } from './migration';
+import { seedTemplateSections, sanitizeAnchor, uniqueAnchorId } from './migration';
+import { applySectionAssets } from './template-assets';
 
 export const BUILTIN_TEMPLATES: Template[] = [
   PANGKAS_RAPI_TEMPLATE,
@@ -125,6 +126,9 @@ function createDefaultSectionInstance(template: Template, type: string, variantI
       ...(typeof ds.backgroundBlur === 'number' ? { backgroundBlur: ds.backgroundBlur } : {}),
       ...(ds.backgroundSize ? { backgroundSize: ds.backgroundSize } : {}),
       ...(ds.backgroundOverlay ? { backgroundOverlay: ds.backgroundOverlay } : {}),
+      ...(typeof ds.backgroundOverlayOpacity === 'number'
+        ? { backgroundOverlayOpacity: ds.backgroundOverlayOpacity }
+        : {}),
     },
     responsive: {},
   };
@@ -147,6 +151,12 @@ interface TemplateState {
   future: TemplateHistoryEntry[];
 
   setTemplate: (templateId: string) => void;
+  /**
+   * Terapkan template sebagai titik awal BARU: ganti theme/palette, reset
+   * header/footer ke varian pertama, DAN seed sections bawaan template lengkap
+   * dengan aset foto per-niche. Section lama digantikan (bisa di-undo).
+   */
+  applyTemplate: (templateId: string) => void;
   /** Timpa sections tanpa reset undo-user (dipakai seed dari data tersimpan). */
   replaceSections: (sections: TemplateSectionInstance[]) => void;
   setHeaderVariant: (variantId: string) => void;
@@ -159,6 +169,8 @@ interface TemplateState {
   setSectionVariant: (id: string, variantId: string) => void;
   updateSectionConfig: (id: string, config: Record<string, unknown>) => void;
   updateSectionStyle: (id: string, style: Partial<TemplateSectionInstance['style']>) => void;
+  /** Set anchor link (`#...`) sebuah section. Nilai dinormalisasi + dijaga unik. */
+  updateSectionAnchor: (id: string, anchorId: string) => void;
   reorderSections: (fromIndex: number, toIndex: number) => void;
   selectSection: (id: string | null) => void;
   updateThemeOverride: (patch: Record<string, string>) => void;
@@ -210,6 +222,50 @@ export const useTemplateStore = create<TemplateState>()(
         state.animations = template.animations || [];
         state.behaviours = template.behaviours || [];
         state.assets = template.assets || [];
+        state.saved = false;
+      }),
+
+    applyTemplate: (templateId) =>
+      set((state) => {
+        const template = getTemplate(templateId);
+        if (!template) return;
+        // Dorong histori dulu → "Ganti template" bisa di-undo seperti edit biasa.
+        pushTemplateHistory(state);
+
+        state.template = template;
+        state.headerVariantId = template.headers[0].id;
+        state.footerVariantId = template.footers[0].id;
+        state.headerConfig = deepClone(template.headers[0]?.defaultConfig ?? {});
+        state.footerConfig = deepClone(template.footers[0]?.defaultConfig ?? {});
+
+        // Seed section bawaan template lalu lengkapi foto per-niche bisnis.
+        // Tanpa ini kanvas kosong setelah ganti template (regression lama).
+        // Sumber = `data.sections` (konten per-bisnis) jika ada; kalau template
+        // tidak menyediakannya, jatuh ke varian pertama tiap tipe section.
+        const tplData = (template as unknown as { data?: { sections?: Parameters<typeof seedTemplateSections>[1] } }).data;
+        type SeedInput = NonNullable<Parameters<typeof seedTemplateSections>[1]>[number];
+        const fallback: SeedInput[] = (template.sections ?? []).flatMap((st) =>
+          st.variants.slice(0, 1).map((v) => ({
+            type: st.type as SeedInput['type'],
+            variant: v.id,
+            config: v.defaultConfig,
+          })),
+        );
+        const source = Array.isArray(tplData?.sections) && tplData.sections.length > 0 ? tplData.sections : fallback;
+        const seeded = seedTemplateSections(template, source);
+        state.sections = seeded.map((s) => ({
+          ...s,
+          config: applySectionAssets(s.config, template.category),
+        }));
+
+        state.selectedSectionId = null;
+        // Reset override tema supaya palet template (mis. oranye warung makan)
+        // benar-benar tampil, bukan sisa template sebelumnya.
+        state.themeOverride = {};
+        state.animations = template.animations || [];
+        state.behaviours = template.behaviours || [];
+        state.assets = template.assets || [];
+        state.future = [];
         state.saved = false;
       }),
 
@@ -319,6 +375,9 @@ export const useTemplateStore = create<TemplateState>()(
           ...(typeof nds.backgroundBlur === 'number' ? { backgroundBlur: nds.backgroundBlur } : {}),
           ...(nds.backgroundSize ? { backgroundSize: nds.backgroundSize } : {}),
           ...(nds.backgroundOverlay ? { backgroundOverlay: nds.backgroundOverlay } : {}),
+          ...(typeof nds.backgroundOverlayOpacity === 'number'
+            ? { backgroundOverlayOpacity: nds.backgroundOverlayOpacity }
+            : {}),
         };
         state.saved = false;
       }),
@@ -339,6 +398,29 @@ export const useTemplateStore = create<TemplateState>()(
           section.style = { ...section.style, ...style };
           state.saved = false;
         }
+      }),
+
+    // Anchor = atribut `id` di DOM yang jadi target link `#...` di menu.
+    // Nilai dinormalisasi (lihat sanitizeAnchor) lalu dijaga unik terhadap
+    // section lain — duplikat akan menjadi id HTML yang tidak valid.
+    // String kosong = section tanpa anchor (tetap tanpa id, bukan error).
+    updateSectionAnchor: (id, anchorId) =>
+      set((state) => {
+        const section = state.sections.find((s) => s.id === id);
+        if (!section) return;
+        const wanted = sanitizeAnchor(anchorId);
+        if (!wanted) {
+          delete section.anchorId;
+          state.saved = false;
+          return;
+        }
+        const used = new Set<string>();
+        for (const other of state.sections) {
+          if (other.id === id) continue;
+          if (other.anchorId) used.add(other.anchorId);
+        }
+        section.anchorId = uniqueAnchorId(wanted, used);
+        state.saved = false;
       }),
 
     reorderSections: (fromIndex, toIndex) =>

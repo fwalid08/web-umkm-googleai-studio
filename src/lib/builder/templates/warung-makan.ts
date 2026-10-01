@@ -84,15 +84,13 @@ function createWarungMakanTemplate(): Template & { data: FullTemplateData } {
         ...v,
         defaultConfig: {
           ...v.defaultConfig,
-          ...(s.type === "hero" && v.id === "hero-bg-image"
+          ...(s.type === "hero" && v.id === "hero-full"
             ? {
                 headline: "Makanan Rumahan Enak & Sehat",
                 subheadline: "Bahan segar tiap hari, bumbu buatan sendiri, tanpa pengawet. Pesan sekarang, antar gratis radius 3km.",
                 cta_text: "Lihat Menu & Pesan",
                 cta_link: "#menu",
                 text_align: "center",
-                background_type: "image",
-                background_image: "",
               }
             : {}),
           ...(s.type === "features" && v.id === "features-3col"
@@ -197,8 +195,11 @@ function createWarungMakanTemplate(): Template & { data: FullTemplateData } {
         border: "#fde68a",
       },
       sections: [
-        { type: "hero", variant: "hero-bg-image", anchorId: "beranda", config: { headline: "Makanan Rumahan Enak & Sehat", subheadline: "Bahan segar tiap hari, bumbu buatan sendiri, tanpa pengawet. Pesan sekarang, antar gratis radius 3km.", cta_text: "Lihat Menu & Pesan", cta_link: "#menu", text_align: "center", background_type: "image", background_image: "" } },
+        { type: "hero", variant: "hero-full", anchorId: "beranda", config: { headline: "Makanan Rumahan Enak & Sehat", subheadline: "Bahan segar tiap hari, bumbu buatan sendiri, tanpa pengawet. Pesan sekarang, antar gratis radius 3km.", cta_text: "Lihat Menu & Pesan", cta_link: "#menu", text_align: "center" } },
         { type: "menu_board", variant: "menu-tabs", anchorId: "menu", config: { title: "Menu Warung", subtitle: "Pilih kategori untuk melihat daftar makanan & minuman", groups: [{ key: "makanan", label: "Makanan", items: [{ name: "Nasi Goreng Spesial", desc: "Nasi, ayam, telur, sayur, kerupuk", price: "Rp 18rb" }, { name: "Mie Goreng / Rebus", desc: "Mie, ayam, sayur, telur", price: "Rp 16rb" }, { name: "Nasi + Lauk Pauk", desc: "Nasi, ayam goreng, tempe, sayur, sambal", price: "Rp 20rb" }, { name: "Soto Ayam", desc: "Soto, mie, ayam, telur, kerupuk", price: "Rp 18rb" }] }, { key: "minuman", label: "Minuman", items: [{ name: "Es Teh Manis", desc: "Teh manis segar", price: "Rp 5rb" }, { name: "Es Jeruk", desc: "Jeruk peras segar", price: "Rp 7rb" }, { name: "Kopi Hitam / Susu", desc: "Kopi tubruk atau susu", price: "Rp 8rb" }, { name: "Air Mineral", desc: "Air mineral 600ml", price: "Rp 3rb" }] }, { key: "paket", label: "Paket Hemat", items: [{ name: "Paket Makan Siang", desc: "Nasi + lauk + sayur + sambal + es teh", price: "Rp 22rb" }, { name: "Paket Keluarga (4 porsi)", desc: "4x nasi + 4 lauk + sayur + sambal + 4 minum", price: "Rp 80rb" }] }] } },
+        { type: "features", variant: "features-3col", anchorId: "keunggulan", config: { title: "Kenapa Makan di Warung Kami", items: [{ icon: "🍲", title: "Masak Pagi Fresh", description: "Bahan segar dibeli tiap subuh, dimasak hari itu juga" }, { icon: "🔥", title: "Bumbu Racikan Sendiri", description: "Rempah tanpa pengawet, rasa khas keluarga" }, { icon: "🛵", title: "Antar Gratis", description: "Gratis ongkir radius 3km, bayar di tempat" }] } },
+        { type: "pricing", variant: "pricing-2tier", anchorId: "harga-paket", config: { title: "Paket Hemat Warung", items: [{ name: "Paket Makan Siang", price: "Rp 22rb", features: ["Nasi + lauk + sayur + sambal", "Es teh gratis", "Bisa pesan ahead"] }, { name: "Paket Keluarga (4 Porsi)", price: "Rp 80rb", features: ["4x nasi + 4 lauk", "Sayur & sambal", "4x minuman", "Gratis ongkir radius 3km"] }] } },
+        { type: "booking", variant: "booking-single", anchorId: "pesan", config: { title: "Pesan Sekarang", subtitle: "Amankan pesanamu — tidak perlu antre di tempat", services: [{ name: "Makan Siang (Nasi + Lauk + Sayur + Es Teh)", price: "Rp 22rb" }, { name: "Paket Keluarga (4 Porsi)", price: "Rp 80rb" }], address: "Jl. Merdeka No. 45, Jakarta", hours: "Setiap hari 09.00–21.00", success_message: "Pesanan diterima! Kami akan konfirmasi via WhatsApp.", forward_wa: "" } },
         { type: "gallery", variant: "gallery-grid", anchorId: "galeri", config: { title: "Galeri Makanan" } },
         { type: "location", variant: "location-hours", anchorId: "lokasi", config: { title: "Kunjungi Kami", address: "Jl. Raya No. 45, Kelurahan Makanan, Jakarta", note: "Dekat pasar, parkir motor luas", button_text: "Chat via WhatsApp", button_link: WA, hours: [{ days: "Senin–Minggu", time: "07.00–21.00" }] } },
         { type: "testimonials", variant: "testimonials-grid", anchorId: "testimoni", config: { title: "Kata Pelanggan", items: [{ name: "Ibu Sari", text: "Nasi gorengnya enak banget, porsi banyak, harga pas di kantong!", rating: 5 }, { name: "Bapak Joko", text: "Soto ayamnya segar, kuah gurih. Sudah langganan 2 tahun.", rating: 5 }, { name: "Mbak Rina", text: "Pesan via WA praktis, antar cepet. Makanan masih hangat sampe rumah.", rating: 5 }] } },

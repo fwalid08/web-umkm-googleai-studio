@@ -424,19 +424,39 @@ Gunakan format `theme:{key}` untuk reference warna dari theme:
 ```typescript
 {
   backgroundImage: 'https://...',  // URL gambar
-  backgroundBlur: 0,               // 0, 2, 4, 8, 16 (px)
+  backgroundBlur: 0,               // 0-16 px (slider). Hanya memblur GAMBAR, bukan konten
   backgroundSize: 'cover',         // 'cover' | 'contain' | 'auto'
   backgroundOverlay: 'none',       // 'none' | 'light' | 'dark' | 'primary'
+  backgroundOverlayOpacity: 50,    // 0-100% (slider). Kosong = default per jenis
 }
 ```
+
+**Overlay hanya berlaku untuk `background: 'image'`.** Nilai `backgroundOverlay: 'none'`
+tetap dijaga overlay gelap otomatis oleh renderer agar teks terang di atas foto apa pun
+tetap terbaca — jadi slider kekuatan nonaktif pada opsi tersebut (lihat
+`textBackgroundFor` di `section-contrast.ts`).
+
+Default opasitas per jenis: `light` 30%, `dark` 50%, `primary` 60%.
 
 ### Gradient Format
 
+Dua format diterima; renderer menyusunnya otomatis menjadi CSS `linear-gradient()`:
+
 ```typescript
-{
-  backgroundGradient: '#047857, #065f46, 135deg', // start, end, angle
-}
+// Format singkat (dipakai panel Gaya Blok):
+{ backgroundGradient: '#047857, #065f46, 135deg' }   // start, end, angle
+
+// CSS penuh (boleh dipakai template hasil AI) — diteruskan apa adanya:
+{ backgroundGradient: 'linear-gradient(135deg, #8B5A2B 0%, #D4A574 100%)' }
 ```
+
+Sudut boleh `deg` / `grad` / `rad` / `turn`; tanpa sudut memakai `135deg`. Nilai kosong
+jatuh ke gradasi palet tema (`palette.primary` → `palette.secondary`).
+Token `theme:*` tetap didukung di kedua format.
+
+Gunakan `parseGradientSpec()` / `composeGradientCss()` dari
+`src/lib/builder/design-styles.ts` bila perlu membaca/menulis nilai ini — jangan
+`split(',')` manual, karena kedua format punya jumlah bagian berbeda.
 
 ### Padding System
 
