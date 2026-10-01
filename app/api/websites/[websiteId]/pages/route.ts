@@ -2,46 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getActiveWebsite } from "@/lib/websites/active";
+import { checkRateLimit } from "@/lib/rate/limit";
+import { normalizeSlug, slugError } from "@/lib/pages/slug";
 
 interface SessionUser {
   id: string;
 }
 
-const RESERVED_SLUGS = new Set([
-  "home",
-  "checkout",
-  "blog",
-  "cart",
-  "p",
-  "api",
-  "dashboard",
-  "auth",
-  "login",
-  "produk",
-  "order",
-  "builder",
-  "customize",
-  "page-builder",
-]);
-
-function normalizeSlug(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function slugError(slug: string): string | null {
-  if (!slug) return "Slug wajib diisi";
-  if (slug.length > 200) return "Slug maksimal 200 karakter";
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-    return "Slug hanya boleh huruf kecil, angka, dan tanda -";
-  }
-  if (RESERVED_SLUGS.has(slug)) return `Slug "${slug}" dilindungi sistem`;
-  return null;
-}
+/** Batas pembuatan halaman: 30 halaman / 10 menit per user (anti-spam). */
+const CREATE_MAX = 30;
+const CREATE_WINDOW_MS = 10 * 60 * 1000;
 
 function getSessionUser(session: unknown): SessionUser | null {
   const user = (session as { user?: SessionUser } | null)?.user;
@@ -100,8 +70,17 @@ export async function POST(
       return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
     }
 
+    // Anti-spam: batasi jumlah halaman baru per user per window.
+    const rl = await checkRateLimit(`pages:create:${sessionUser.id}`, CREATE_MAX, CREATE_WINDOW_MS);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { success: false, error: "Terlalu banyak membuat halaman. Coba lagi nanti." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
-    const { title, slug: rawSlug, type = "custom", content = "" } = body;
+    const { title, slug: rawSlug, type = "custom", content = "", layout } = body;
 
     if (!title || typeof title !== "string" || title.trim().length < 3) {
       return NextResponse.json({ success: false, error: "Judul minimal 3 karakter" }, { status: 400 });
@@ -140,6 +119,9 @@ export async function POST(
         slug,
         type,
         content,
+        // Layout eksplisit (opsional). Halaman baru tanpa layout = kosong —
+        // TIDAK menyalin sections global (mencegah konten homepage bocor).
+        layout: layout && typeof layout === "object" ? layout : { sections: [] },
         is_published: true,
         is_homepage: false,
       })

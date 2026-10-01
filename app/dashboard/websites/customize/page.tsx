@@ -14,6 +14,7 @@ import { ActiveTemplateCard } from "@/components/customize/active-template-card"
 import { TemplatesTab } from "@/components/customize/templates-tab";
 import { SeoTab } from "@/components/customize/seo-tab";
 import { useBuilderStore } from "@/lib/builder/store";
+import type { StorePage } from "@/lib/builder/types";
 import { ToastProvider } from "@/components/ui/toast";
 
 interface ActiveSite {
@@ -22,12 +23,8 @@ interface ActiveSite {
   subdomain: string | null;
 }
 
-interface StorePage {
-  id: string;
-  title: string;
-  slug: string;
-  is_homepage: boolean;
-}
+// Pakai type bersama (src/lib/builder/types.ts) agar selaras dengan store_pages.
+type StorePageRef = Pick<StorePage, "id" | "title" | "slug" | "is_homepage">;
 
 const VALID_TABS = ["umum", "halaman", "navigasi", "seo"] as const;
 type TabKey = (typeof VALID_TABS)[number];
@@ -65,7 +62,7 @@ function CustomizeInner() {
         const pagesRes = await fetch(`/api/websites/${activeSite.id}/pages`);
         const pagesJson = await pagesRes.json();
         if (pagesJson.success) {
-          const pages = pagesJson.data as StorePage[];
+          const pages = pagesJson.data as StorePageRef[];
           const homepage = pages.find((p) => p.is_homepage);
           if (homepage) setHomepagePageId(homepage.id);
         }

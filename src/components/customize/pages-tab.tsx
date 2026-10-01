@@ -26,16 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { StorePage } from "@/lib/builder/types";
+import { normalizeSlug } from "@/lib/pages/slug";
 import { useToast } from "@/components/ui/toast";
 
 function slugify(v: string) {
-  return v
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+  return normalizeSlug(v);
 }
 
 function pageUrl(p: StorePage) {

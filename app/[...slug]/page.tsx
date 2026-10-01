@@ -1,43 +1,64 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getTenantSite } from "@/lib/builder/public";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
 import { PublicWebsite } from "@/components/website/renderer";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
+import { isReservedSlugPath } from "@/lib/pages/slug";
 import type { PublicSiteData } from "@/lib/builder/public";
 import type { TemplateSectionInstance } from "@/lib/builder/template-types";
 import type { DesignStylePalette, DesignStyleTypography } from "@/lib/builder/types";
 
-const RESERVED_SLUGS = new Set([
-  "api",
-  "dashboard",
-  "auth",
-  "login",
-  "signin",
-  "signup",
-  "builder",
-  "customize",
-  "page-builder",
-  "checkout",
-  "blog",
-  "cart",
-  "p",
-  "produk",
-  "order",
-  "preview",
-  "terms",
-  "privacy",
-]);
-
 interface PageProps {
   params: Promise<{ slug: string[] }>;
+}
+
+/**
+ * SEO per-halaman: pakai meta_title/meta_description/og_image_url dari
+ * store_pages. Fallback ke SEO situs (site.seo) bila kosong.
+ * Sebelumnya kolom ini tersimpan tapi tak pernah dipakai di publik.
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const slugPath = slug?.join("/") || "";
+  if (isReservedSlugPath(slugPath)) return {};
+
+  const tenant = await getTenantSite();
+  if (!tenant.isTenant || !tenant.site) return {};
+
+  const site = tenant.site;
+  const supabase = createServiceSupabaseClient();
+  const { data: page } = await supabase
+    .from("store_pages")
+    .select("title, meta_title, meta_description, og_image_url, is_published")
+    .eq("website_id", site.websiteId)
+    .eq("slug", slugPath)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (!page) return {};
+
+  const title = page.meta_title || page.title || site.seo.title;
+  const description = page.meta_description || site.seo.description;
+  return {
+    title,
+    description,
+    alternates: { canonical: site.subdomain ? `/${slugPath}` : undefined },
+    openGraph: {
+      title,
+      description,
+      images: page.og_image_url ? [{ url: page.og_image_url }] : undefined,
+    },
+    robots: { index: true, follow: true },
+  };
 }
 
 export default async function TenantPage({ params }: PageProps) {
   const { slug } = await params;
   const slugPath = slug?.join("/") || "";
 
-  if (!slugPath || RESERVED_SLUGS.has(slugPath)) {
+  if (isReservedSlugPath(slugPath)) {
     notFound();
   }
 

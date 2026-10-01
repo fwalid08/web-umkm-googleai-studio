@@ -112,12 +112,15 @@ export async function GET(
     }
 
     const supabase = await createServerSupabaseClient();
-    let { data: user, error: userError } = await supabase
+    // Pisahkan: hanya `user` yang di-reassign (fallback auto-create di bawah),
+    // `userError` hanya dibaca untuk logging.
+    const { data: userRow, error: userError } = await supabase
       .from("users")
       .select("tier, business_type")
       .eq("id", sessionUser.id)
       .maybeSingle();
-    
+    let user = userRow;
+
     console.log("[DEBUG] GET website - user:", user, "error:", userError?.message);
     
     if (!user) {
@@ -492,6 +495,17 @@ export async function PUT(
       // eksplisit; builder lama tidak mengirim (undefined) → perilaku lama dijaga.
       const homepageSections = custom_config.sections ?? [];
       if (homepageSections.length > 0 && body.is_homepage !== false) {
+        // Simpan dari builder GLOBAL (bukan page-builder per-halaman, yang
+        // selalu mengirim is_homepage boolean eksplisit) → homepage dikelola
+        // mode 'builder'. Reset homepage_type agar user tidak terjebak di
+        // mode 'page' setelah pernah memindah homepage.
+        if (body.is_homepage === undefined) {
+          await supabase
+            .from("website_settings")
+            .update({ homepage_type: "builder" })
+            .eq("website_id", websiteId);
+        }
+
         // First check if homepage exists
         const { data: existingHomepage } = await supabase
           .from("store_pages")

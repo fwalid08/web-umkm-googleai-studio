@@ -68,7 +68,28 @@ export interface StorePage {
   meta_title: string;
   meta_description: string;
   og_image_url: string;
+  /**
+   * @deprecated Konten teks legacy — renderer publik HANYA membaca `layout.sections`.
+   * Dipertahankan untuk kompatibilitas data lama; jangan tulis nilai baru.
+   */
   content: string;
+  /**
+   * Layout per-halaman (kolom JSONB `store_pages.layout`).
+   * Bentuk normal: `{ sections: Section[] }` — format builder.
+   * Dibiarkan opsional karena baris lama/legacy bisa kosong `{}`.
+   */
+  layout?: {
+    rows?: unknown[];
+    sections?: Array<{
+      id: string;
+      type: string;
+      variant: string;
+      anchorId?: string;
+      config?: Record<string, unknown>;
+      style?: Record<string, unknown>;
+      responsive?: Record<string, unknown>;
+    }>;
+  } | null;
   created_at: string;
   updated_at: string;
 }

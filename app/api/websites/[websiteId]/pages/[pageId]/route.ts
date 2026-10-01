@@ -3,35 +3,10 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getActiveWebsite } from "@/lib/websites/active";
+import { normalizeSlug, RESERVED_SLUGS } from "@/lib/pages/slug";
 
 interface SessionUser {
   id: string;
-}
-
-const RESERVED_SLUGS = new Set([
-  "home",
-  "checkout",
-  "blog",
-  "cart",
-  "p",
-  "api",
-  "dashboard",
-  "auth",
-  "login",
-  "produk",
-  "order",
-  "builder",
-  "customize",
-  "page-builder",
-]);
-
-function normalizeSlug(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 function getSessionUser(session: unknown): SessionUser | null {
@@ -145,6 +120,24 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Tipe halaman tidak valid" }, { status: 400 });
     }
 
+    // Validasi bentuk layout (JSONB): hanya terima objek dengan `sections` array.
+    // Mencegah sampah (string/array/objek raksasa) masuk DB & merusak render.
+    let safeLayout: Record<string, unknown> | undefined;
+    if (layout !== undefined) {
+      if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
+        return NextResponse.json({ success: false, error: "Layout tidak valid" }, { status: 400 });
+      }
+      const rawSections = (layout as { sections?: unknown }).sections;
+      if (rawSections !== undefined && !Array.isArray(rawSections)) {
+        return NextResponse.json({ success: false, error: "Layout.sections harus array" }, { status: 400 });
+      }
+      const sections = Array.isArray(rawSections) ? rawSections : [];
+      if (sections.length > 200) {
+        return NextResponse.json({ success: false, error: "Terlalu banyak section (maks 200)" }, { status: 400 });
+      }
+      safeLayout = { ...(layout as Record<string, unknown>), sections };
+    }
+
     if (is_homepage) {
       await supabase
         .from("store_pages")
@@ -166,7 +159,7 @@ export async function PATCH(
         ...(content !== undefined && { content }),
         ...(is_published !== undefined && { is_published }),
         ...(is_homepage !== undefined && { is_homepage }),
-        ...(layout !== undefined && { layout }),
+        ...(safeLayout !== undefined && { layout: safeLayout }),
         ...(meta_title !== undefined && { meta_title }),
         ...(meta_description !== undefined && { meta_description }),
         ...(og_image_url !== undefined && { og_image_url }),

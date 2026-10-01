@@ -21,7 +21,13 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
-        // URL lama halaman website (pindah ke /dashboard/websites)
+        // Halaman legacy (localStorage, tidak terhubung DB) — alihkan ke
+        // pengelola halaman resmi di tab Halaman.
+        source: "/dashboard/pages",
+        destination: "/dashboard/websites/customize?tab=halaman",
+        permanent: true,
+      },
+      {
         source: "/dashboard/stores",
         destination: "/dashboard/websites",
         permanent: true,
