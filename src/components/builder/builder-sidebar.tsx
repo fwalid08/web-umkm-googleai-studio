@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTemplateStore, getHeaderVariant, getFooterVariant } from '@/lib/builder/template-store';
 import { useBuilderStore } from '@/lib/builder/store';
 import { Button } from '@/components/ui/button';
@@ -42,8 +42,35 @@ import { StyleSelector } from './style-selector';
 import { TemplateGallery } from './template-gallery';
 import { ConfigForm } from '@/lib/builder/config-form';
 import { MockupPreview } from '@/lib/builder/mockup-preview';
+import { BUILT_IN_CATALOG, type BusinessCategory } from '@/lib/builder/templates/catalog';
+import { getSectionVariant } from '@/lib/builder/sections/registry';
 
 type SidebarLevel = 'main' | 'sections' | 'section-config' | 'header' | 'footer' | 'seo' | 'style' | 'template-info';
+
+/**
+ * Baca konten header/footer chrome tersimpan untuk varian aktif.
+ * Bila tersimpan di bawah key `config` (format instance) atau flat, dinormalkan.
+ * Hasil di-memo oleh pemanggil; fungsi ini murni.
+ */
+function normalizeChrome(
+  stored: unknown,
+  defaults: Record<string, unknown>,
+): Record<string, unknown> {
+  const flat = (stored ?? {}) as Record<string, unknown>;
+  const nested = (flat as { config?: unknown }).config;
+  const cfg = (nested !== null && typeof nested === 'object' && !Array.isArray(nested)
+    ? (nested as Record<string, unknown>)
+    : flat) as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(defaults)) {
+    if (cfg[key] !== undefined) out[key] = cfg[key];
+  }
+  // Pertahankan key tersimpan lain (mis. navItems kustom) agar tidak hilang.
+  for (const key of Object.keys(cfg)) {
+    if (!(key in out) && key !== 'variant' && key !== 'style') out[key] = cfg[key];
+  }
+  return out;
+}
 
 export function BuilderSidebar({ websiteId }: { websiteId: string }) {
   const [level, setLevel] = useState<SidebarLevel>('main');
@@ -56,6 +83,10 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
   const selectedSectionId = useTemplateStore((s) => s.selectedSectionId);
   const headerVariantId = useTemplateStore((s) => s.headerVariantId);
   const footerVariantId = useTemplateStore((s) => s.footerVariantId);
+  const headerChromeConfig = useTemplateStore((s) => s.headerConfig);
+  const footerChromeConfig = useTemplateStore((s) => s.footerConfig);
+  const updateHeaderChrome = useTemplateStore((s) => s.updateHeaderConfig);
+  const updateFooterChrome = useTemplateStore((s) => s.updateFooterConfig);
   const setHeaderVariant = useTemplateStore((s) => s.setHeaderVariant);
   const setFooterVariant = useTemplateStore((s) => s.setFooterVariant);
   const selectSection = useTemplateStore((s) => s.selectSection);
@@ -88,6 +119,15 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
 
   const headerVariant = getHeaderVariant(template, headerVariantId);
   const footerVariant = getFooterVariant(template, footerVariantId);
+
+  const headerConfig = useMemo(
+    () => normalizeChrome(headerChromeConfig, headerVariant.defaultConfig),
+    [headerChromeConfig, headerVariant],
+  );
+  const footerConfig = useMemo(
+    () => normalizeChrome(footerChromeConfig, footerVariant.defaultConfig),
+    [footerChromeConfig, footerVariant],
+  );
 
   const renderMainMenu = () => (
     <div className="space-y-3">
@@ -229,8 +269,8 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         <h4 className="text-sm font-semibold">Konten Header</h4>
         <ConfigForm
           fields={headerVariant.configFields}
-          config={headerVariant.defaultConfig}
-          onChange={() => {}}
+          config={{ ...headerVariant.defaultConfig, ...headerConfig }}
+          onChange={(key, value) => updateHeaderChrome({ [key]: value })}
         />
       </div>
     </div>
@@ -265,8 +305,8 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         <h4 className="text-sm font-semibold">Konten Footer</h4>
         <ConfigForm
           fields={footerVariant.configFields}
-          config={footerVariant.defaultConfig}
-          onChange={() => {}}
+          config={{ ...footerVariant.defaultConfig, ...footerConfig }}
+          onChange={(key, value) => updateFooterChrome({ [key]: value })}
         />
       </div>
     </div>
@@ -367,16 +407,73 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
             <TemplateGallery
               websiteId={websiteId}
               onApply={async (template: any) => {
-                const td = template.template_data as unknown as import('@/lib/builder/template-types').Template;
-                useTemplateStore.getState().setTemplate(td.id);
-                try {
-                  await useBuilderStore.getState().save(websiteId);
-                } catch (e) {
-                  console.error('Gagal simpan template:', e);
+                if (!template?.id) {
+                  console.error('Template is undefined or missing id:', template);
+                  return;
                 }
-                setShowTemplateGallery(false);
+                // template is UnifiedTemplate, strip 'builtin-' prefix for API
+                const templateId = template.id.startsWith('builtin-') ? template.id.slice(8) : template.id;
+                // Find the full template data from catalog
+                const catalogTemplate = BUILT_IN_CATALOG.find((t) => t.id === templateId);
+                if (!catalogTemplate) {
+                  console.error('Template not found in catalog:', templateId);
+                  return;
+                }
+                // Resolve sections to API format (same as TemplatesTab.resolveSections)
+                const resolvedSections = (catalogTemplate.data?.sections ?? []).map((s) => {
+                  const variant = getSectionVariant(s.type, s.variant);
+                  const base = variant?.defaultConfig ?? {};
+                  const override = (s.config ?? {}) as Record<string, unknown>;
+                  const styleBase = variant?.defaultStyle ?? {};
+                  const styleOverride = (s.style ?? {}) as Record<string, unknown>;
+                  return {
+                    id: crypto.randomUUID(),
+                    type: s.type,
+                    variant: s.variant,
+                    config: JSON.parse(JSON.stringify({ ...base, ...override })),
+                    style: {
+                      padding: { top: 64, right: 24, bottom: 64, left: 24 },
+                      background: 'transparent' as const,
+                      ...JSON.parse(JSON.stringify(styleBase)),
+                      ...JSON.parse(JSON.stringify(styleOverride)),
+                    },
+                    responsive: {},
+                  };
+                });
+                try {
+                  const res = await fetch(`/api/websites/${websiteId}/website`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      template_id: templateId,
+                      custom_config: {
+                        design_style_id: catalogTemplate.data?.designStyleId ?? 'minimalist',
+                        palette_override: catalogTemplate.data?.paletteOverride ?? {},
+                        sections: resolvedSections,
+                        header: catalogTemplate.data?.header ?? {},
+                        footer: catalogTemplate.data?.footer ?? {},
+                        layout: { rows: [] },
+                        core: catalogTemplate.data?.core ?? {},
+                        seo: catalogTemplate.data?.seo ?? {},
+                        theme: {},
+                      },
+                    }),
+                  });
+                  const json = await res.json();
+                  if (!json.success) {
+                    console.error('Gagal menerapkan template:', json.error);
+                    return;
+                  }
+                  // Update template store and reset builder palette override to use new template's theme
+                  useTemplateStore.getState().setTemplate(templateId);
+                  useBuilderStore.getState().resetPaletteOverride();
+                  setShowTemplateGallery(false);
+                } catch (e) {
+                  console.error('Gagal menerapkan template:', e);
+                }
               }}
               onPreview={(template: any) => {
+                if (!template?.id) return;
                 window.open(`/preview/${template.id}`, '_blank');
               }}
             />

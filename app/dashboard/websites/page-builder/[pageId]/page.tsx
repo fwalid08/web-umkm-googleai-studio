@@ -7,6 +7,27 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BuilderShell } from "@/components/builder/builder-shell";
 import { useBuilderStore } from "@/lib/builder/store";
+import { useTemplateStore } from "@/lib/builder/template-store";
+import { BUILT_IN_CATALOG, getTemplateIdByCategory, type BusinessCategory } from "@/lib/builder/templates/catalog";
+import {
+  buildWebsiteCustomConfig,
+  instanceToBuilderSection,
+  resolveChromeConfig,
+  seedTemplateSections,
+  templateIdForApiName,
+} from "@/lib/builder/migration";
+import { getTemplate } from "@/lib/builder/template-store";
+
+/** Daftar id+kategori katalog untuk memetakan nama template API -> template-store. */
+const BUILT_IN_TEMPLATES_FOR_LOOKUP = BUILT_IN_CATALOG.map((t) => ({ id: t.id, category: t.category }));
+
+function getTemplateByIdSafe(templateId: string) {
+  try {
+    return getTemplate(templateId);
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Page builder per-halaman: reuse BuilderShell + store yang sama.
@@ -19,10 +40,12 @@ export default function PageBuilderPage() {
   const pageId = params.pageId;
   const [websiteId, setWebsiteId] = useState<string | null>(null);
   const [pageTitle, setPageTitle] = useState("");
+  const [siteUrl, setSiteUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadConfig = useBuilderStore((s) => s.loadConfig);
   const globalRef = useRef<Record<string, unknown> | null>(null);
+  const pageMetaRef = useRef<{ is_homepage?: boolean; slug?: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,8 +79,15 @@ export default function PageBuilderPage() {
         }
         const config = cfgJson.data.custom_config;
         globalRef.current = config;
+        if (typeof cfgJson.data.subdomain_url === 'string' && cfgJson.data.subdomain_url.length > 0) {
+          setSiteUrl(cfgJson.data.subdomain_url);
+        }
         const layout = (pageJson.data.layout ?? {}) as { rows?: unknown[]; sections?: unknown[] };
         setPageTitle(pageJson.data.title ?? "");
+        pageMetaRef.current = {
+          is_homepage: pageJson.data.is_homepage === true,
+          slug: typeof pageJson.data.slug === "string" ? pageJson.data.slug : undefined,
+        };
         // Fallback: jika page layout kosong, pakai sections dari global config (template)
         const pageSections = (layout.sections ?? []).length > 0 
           ? (layout.sections ?? []) 
@@ -70,7 +100,47 @@ export default function PageBuilderPage() {
           sections: pageSections as never,
           header: config.header,
           footer: config.footer,
+          theme: config.theme,
         });
+        // PENTING (fix store ganda): seed kanvas/template-store dari sections
+        // tersimpan. Urutan: setTemplate dulu (reset), lalu seed sections —
+        // tanpa ini kanvas selalu kosong karena template-store tak pernah
+        // menerima data load, dan sebaliknya edit kanvas tidak pernah ke-save.
+        const templateId =
+          templateIdForApiName(cfgJson.data.template_name, BUILT_IN_TEMPLATES_FOR_LOOKUP) ??
+          getTemplateIdByCategory(cfgJson.data.template_name as BusinessCategory) ??
+          null;
+        const templateStore = useTemplateStore.getState();
+        if (templateId) templateStore.setTemplate(templateId);
+        // setTemplate() sinkron mengganti template; baca ulang state terbaru
+        // supaya seed memakai template yang benar (bukan template lama).
+        const freshTemplateStore = useTemplateStore.getState();
+        const seedTemplate =
+          freshTemplateStore.template ?? (templateId ? getTemplateByIdSafe(templateId) : undefined);
+        if (seedTemplate) {
+          freshTemplateStore.replaceSections(seedTemplateSections(seedTemplate, pageSections as never));
+          // Seed konten header/footer efektif (default varian + tersimpan)
+          // agar form sidebar & kanvas menampilkan nilai sebenarnya, bukan
+          // sekadar default template.
+          const effHeader = resolveChromeConfig(seedTemplate, config.header as Record<string, unknown> | undefined, 'header');
+          const effFooter = resolveChromeConfig(seedTemplate, config.footer as Record<string, unknown> | undefined, 'footer');
+          useTemplateStore.setState({
+            headerConfig: effHeader.config,
+            footerConfig: effFooter.config,
+            headerVariantId: effHeader.variantId,
+            footerVariantId: effFooter.variantId,
+            animations: Array.isArray((config as Record<string, unknown>).animations)
+              ? (config as Record<string, unknown>).animations as never
+              : [],
+            behaviours: Array.isArray((config as Record<string, unknown>).behaviours)
+              ? (config as Record<string, unknown>).behaviours as never
+              : [],
+            assets: Array.isArray((config as Record<string, unknown>).assets)
+              ? (config as Record<string, unknown>).assets as never
+              : [],
+            saved: true,
+          });
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Gagal memuat halaman");
       } finally {
@@ -86,21 +156,52 @@ export default function PageBuilderPage() {
   const handleSavePage = useCallback(async () => {
     if (!websiteId) throw new Error("Website belum siap");
     const s = useBuilderStore.getState();
+    const t = useTemplateStore.getState();
     const global = globalRef.current ?? {};
+    // Sections diambil dari template-store (sumber edit kanvas), BUKAN dari
+    // builder-store agar edit blok benar-benar tersimpan (fix store ganda).
+    // Header/footer/varian mengikuti template-store yang sedang aktif.
+    // Pakai konverter resmi agar anchorId & field style baru ikut tersimpan.
+    const liveSections = t.sections.map((sec) => instanceToBuilderSection(sec));
+    const template = t.template;
+    const baseHeader =
+      t.headerConfig && Object.keys(t.headerConfig).length > 0
+        ? t.headerConfig
+        : resolveChromeConfig(template, (s.header ?? {}) as unknown as Record<string, unknown>, 'header').config;
+    const baseFooter =
+      t.footerConfig && Object.keys(t.footerConfig).length > 0
+        ? t.footerConfig
+        : resolveChromeConfig(template, (s.footer ?? {}) as unknown as Record<string, unknown>, 'footer').config;
+    const chromeHeader = { variantId: t.headerVariantId, config: baseHeader };
+    const chromeFooter = { variantId: t.footerVariantId, config: baseFooter };
+    // Homepage adalah satu-satunya halaman yang sections-nya ikut menjadi
+    // sections global (sumber render homepage publik). Untuk halaman lain,
+    // sections global DIJAGA dari snapshot awal agar konten antar-halaman
+    // tidak saling menimpa (fix kebocoran lintas halaman).
+    const initialGlobalSections = Array.isArray((global as Record<string, unknown>).sections)
+      ? ((global as Record<string, unknown>).sections as unknown[])
+      : [];
+    const pageMeta = pageMetaRef.current;
+    const isHomepage = pageMeta?.is_homepage === true;
+    const sectionsForGlobal = (isHomepage ? liveSections : initialGlobalSections) as never;
+    const customConfig = buildWebsiteCustomConfig({
+      base: global as Record<string, unknown>,
+      sections: sectionsForGlobal,
+      header: { ...chromeHeader.config, variant: chromeHeader.variantId },
+      footer: { ...chromeFooter.config, variant: chromeFooter.variantId, style: chromeFooter.variantId },
+      designStyleId: s.designStyleId,
+      paletteOverride: s.paletteOverride,
+      typographyOverride: s.typographyOverride as Record<string, string>,
+      animations: t.animations as unknown[],
+      behaviours: t.behaviours as unknown[],
+      assets: t.assets as unknown[],
+      seo: s.seo,
+      core: (s.core ?? {}) as unknown as Record<string, unknown>,
+    });
     const globalRes = await fetch(`/api/websites/${websiteId}/website`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        custom_config: {
-          ...(global as Record<string, unknown>),
-          design_style_id: s.designStyleId,
-          palette_override: s.paletteOverride,
-          header: s.header,
-          footer: s.footer,
-          seo: s.seo,
-          sections: s.sections,
-        },
-      }),
+      body: JSON.stringify({ custom_config: customConfig, template_id: t.template.id, is_homepage: isHomepage }),
     });
     const globalJson = await globalRes.json();
     if (!globalJson.success) throw new Error(globalJson.error ?? "Gagal menyimpan global");
@@ -109,10 +210,14 @@ export default function PageBuilderPage() {
     const pageRes = await fetch(`/api/websites/${websiteId}/pages/${pageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ layout: { sections: s.sections } }),
+      body: JSON.stringify({ layout: { sections: liveSections } }),
     });
     const pageJson = await pageRes.json();
     if (!pageJson.success) throw new Error(pageJson.error ?? "Gagal menyimpan halaman");
+    // Sinkronkan kembali builder-store (sumber payload bottom-bar/topbar)
+    // dengan konten live agar indikator sesudah-save konsisten.
+    useBuilderStore.setState({ sections: liveSections as never, saved: true });
+    useTemplateStore.setState({ saved: true });
   }, [websiteId, pageId]);
 
   const handlePublishPage = useCallback(async () => {
@@ -196,6 +301,7 @@ export default function PageBuilderPage() {
     <BuilderShell
       websiteId={websiteId}
       pageTitle={pageTitle || 'Halaman toko'}
+      siteUrl={siteUrl}
       onSaveOverride={handleSavePage}
       onPublishOverride={handlePublishPage}
       exitHref="/dashboard/websites/customize?tab=halaman"

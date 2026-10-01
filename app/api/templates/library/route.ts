@@ -46,21 +46,73 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { name, description, thumbnail_url, template_data } = body;
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ success: false, error: "Body JSON tidak valid" }, { status: 400 });
+    }
+    const rawName = (body as Record<string, unknown>).name;
+    const { description, thumbnail_url, template_data } = body as {
+      description?: unknown;
+      thumbnail_url?: unknown;
+      template_data?: unknown;
+    };
+    const name = typeof rawName === "string" ? rawName.trim().slice(0, 200) : "";
 
     if (!name || !template_data) {
       return NextResponse.json({ success: false, error: "Name dan template_data wajib diisi" }, { status: 400 });
     }
 
+    if (name.length < 3) {
+      return NextResponse.json({ success: false, error: "Nama template minimal 3 karakter" }, { status: 400 });
+    }
+
+    if (!template_data || typeof template_data !== "object" || Array.isArray(template_data)) {
+      return NextResponse.json({ success: false, error: "Format template tidak valid" }, { status: 400 });
+    }
+
+    const td = template_data as Record<string, unknown>;
+    const inner =
+      td.template && typeof td.template === "object" && !Array.isArray(td.template)
+        ? (td.template as Record<string, unknown>)
+        : td;
+    const hasTheme = !!inner.theme && typeof inner.theme === "object";
+    const layout = td.layout as Record<string, unknown> | undefined;
+    const hasLegacy = Array.isArray(layout?.rows) && !!td.core && typeof td.core === "object";
+    if (!hasTheme && !hasLegacy) {
+      return NextResponse.json(
+        { success: false, error: "Format template tidak valid: wajib punya \"theme\" atau \"layout.rows\" + \"core\"" },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createServerSupabaseClient();
+
+    const { data: existing } = await supabase
+      .from("templates_library")
+      .select("id")
+      .eq("user_id", sessionUser.id)
+      .eq("name", name)
+      .limit(1);
+    if (existing && existing.length > 0) {
+      return NextResponse.json({ success: false, error: "Nama template sudah digunakan" }, { status: 409 });
+    }
+
+    const safeThumbnail =
+      typeof thumbnail_url === "string" && /^https?:\/\//.test(thumbnail_url)
+        ? thumbnail_url.slice(0, 500)
+        : "";
+    const safeDescription =
+      typeof description === "string" && description.trim()
+        ? description.trim().slice(0, 2000)
+        : "";
+
     const { data: template, error } = await supabase
       .from("templates_library")
       .insert({
         user_id: sessionUser.id,
         name,
-        description: description || "",
-        thumbnail_url: thumbnail_url || "",
+        description: safeDescription,
+        thumbnail_url: safeThumbnail,
         template_data: template_data as BuilderConfig,
         scope: "user",
       })

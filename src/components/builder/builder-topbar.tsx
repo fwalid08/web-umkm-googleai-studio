@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowLeft, Undo2, Redo2, Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2 } from 'lucide-react';
+import { ArrowLeft, Undo2, Redo2, Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useBuilderStore } from '@/lib/builder/store';
+import { useTemplateStore } from '@/lib/builder/template-store';
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +25,7 @@ interface BuilderTopbarProps {
   onShowPages?: () => void;
   onShowTemplates?: () => void;
   exitHref?: string;
+  siteUrl?: string | null;
 }
 
 function BarButton({
@@ -75,12 +77,19 @@ export function BuilderTopbar({
   onShowPages,
   onShowTemplates,
   exitHref = '/dashboard',
+  siteUrl,
 }: BuilderTopbarProps) {
   const router = useRouter();
-  const undo = useBuilderStore((s) => s.undo);
-  const redo = useBuilderStore((s) => s.redo);
-  const canUndo = useBuilderStore((s) => s.past.length > 0);
-  const canRedo = useBuilderStore((s) => s.future.length > 0);
+  const undo = () => {
+    useTemplateStore.getState().undo();
+    useBuilderStore.getState().undo();
+  };
+  const redo = () => {
+    useTemplateStore.getState().redo();
+    useBuilderStore.getState().redo();
+  };
+  const canUndo = useBuilderStore((s) => s.past.length > 0) || useTemplateStore((s) => s.past.length > 0);
+  const canRedo = useBuilderStore((s) => s.future.length > 0) || useTemplateStore((s) => s.future.length > 0);
 
   const handleExit = () => {
     if (!saved) {
@@ -184,6 +193,17 @@ export function BuilderTopbar({
           <BarButton title="Preview website" hint="Lihat tampilan asli (Esc untuk keluar)" onClick={onPreview} label="Preview">
             <Eye className="w-[18px] h-[18px]" />
           </BarButton>
+
+          {siteUrl && (
+            <BarButton
+              title="Lihat website"
+              hint={`${siteUrl} — buka di tab baru`}
+              onClick={() => window.open(siteUrl, '_blank', 'noopener,noreferrer')}
+              label="Lihat Web"
+            >
+              <ExternalLink className="w-[18px] h-[18px]" />
+            </BarButton>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>

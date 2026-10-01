@@ -6,14 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Copy } from 'lucide-react';
+import { Trash2, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 import type { TemplateSectionInstance } from '@/lib/builder/template-types';
 
 const UMKM_SWATCHES = ['#ffffff', '#f8fafc', '#fef3c7', '#dcfce7', '#dbeafe', '#fce7f3', '#ffedd5', '#111827'];
 
 export function SectionConfig({ section }: { section: TemplateSectionInstance }) {
+  const [copied, setCopied] = useState(false);
   const template = useTemplateStore((s) => s.template);
   const updateSection = useTemplateStore((s) => s.updateSection);
+  const setSectionVariant = useTemplateStore((s) => s.setSectionVariant);
   const updateSectionConfig = useTemplateStore((s) => s.updateSectionConfig);
   const updateSectionStyle = useTemplateStore((s) => s.updateSectionStyle);
   const deleteSection = useTemplateStore((s) => s.deleteSection);
@@ -50,10 +53,48 @@ export function SectionConfig({ section }: { section: TemplateSectionInstance })
           </div>
 
           <div className="space-y-1.5">
+            <Label className="text-xs font-bold">Section ID</Label>
+            <div className="flex items-center gap-1.5">
+              <div
+                className="flex-1 h-9 flex items-center px-3 rounded-xl bg-white/80 dark:bg-slate-900 text-[11px] font-mono text-muted-foreground truncate"
+                title={section.id}
+              >
+                {section.id}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 p-0 rounded-xl shrink-0"
+                title={copied ? 'ID tersalin!' : 'Salin Section ID'}
+                onClick={() => {
+                  try {
+                    const done = navigator.clipboard?.writeText(section.id);
+                    if (done) {
+                      void done
+                        .then(() => {
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 1200);
+                        })
+                        .catch(() => undefined);
+                    }
+                  } catch {
+                    // Clipboard tak tersedia — abaikan.
+                  }
+                }}
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Dipakai untuk link anchor (mis. <span className="font-mono">#beranda</span> via anchorId) dan debugging.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
             <Label className="text-xs font-bold">Gaya tampilan</Label>
             <Select
               value={section.variantId}
-              onValueChange={(value) => updateSection(section.id, { variantId: value })}
+              onValueChange={(value) => setSectionVariant(section.id, value)}
             >
               <SelectTrigger className="h-9 text-[13px] rounded-xl bg-white dark:bg-slate-900 font-medium">
                 <SelectValue />

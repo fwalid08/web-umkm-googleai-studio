@@ -16,9 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, Store, AlertTriangle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
+import { getSectionVariant } from "@/lib/builder/sections/registry";
 
 export default function BuilderPage() {
   const [websiteId, setWebsiteId] = useState<string | null>(null);
+  const [siteUrl, setSiteUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPages, setShowPages] = useState(false);
@@ -49,6 +52,9 @@ export default function BuilderPage() {
         if (cancelled) return;
         if (json.success) {
           const config = json.data.custom_config;
+          if (typeof json.data.subdomain_url === 'string' && json.data.subdomain_url.length > 0) {
+            setSiteUrl(json.data.subdomain_url);
+          }
           loadConfig({
             core: config.core,
             designStyleId: config.design_style_id,
@@ -56,6 +62,7 @@ export default function BuilderPage() {
             sections: config.sections,
             header: config.header,
             footer: config.footer,
+            theme: config.theme,
           });
         } else {
           setError(json.error || "Gagal memuat konfigurasi");
@@ -123,6 +130,7 @@ export default function BuilderPage() {
     <>
       <BuilderShell
         websiteId={websiteId}
+        siteUrl={siteUrl}
         onShowPages={() => setShowPages(true)}
         onShowTemplates={() => setShowTemplates(true)}
       />
@@ -160,14 +168,71 @@ export default function BuilderPage() {
           </DialogHeader>
           <TemplateGallery
             websiteId={websiteId}
-            onApply={async (template: import('@/lib/builder/template-types').Template) => {
-              useTemplateStore.getState().setTemplate(template.id);
-              try {
-                await useBuilderStore.getState().save(websiteId);
-              } catch (e) {
-                console.error('Gagal simpan template:', e);
+            onApply={async (template: any) => {
+              if (!template?.id) {
+                console.error('Template is undefined or missing id:', template);
+                return;
               }
-              setShowTemplates(false);
+              // template is UnifiedTemplate, strip 'builtin-' prefix for API
+              const templateId = template.id.startsWith('builtin-') ? template.id.slice(8) : template.id;
+              // Find the full template data from catalog
+              const catalogTemplate = BUILT_IN_CATALOG.find((t) => t.id === templateId);
+              if (!catalogTemplate) {
+                console.error('Template not found in catalog:', templateId);
+                return;
+              }
+              // Resolve sections to API format
+              const resolvedSections = (catalogTemplate.data?.sections ?? []).map((s) => {
+                const variant = getSectionVariant(s.type, s.variant);
+                const base = variant?.defaultConfig ?? {};
+                const override = (s.config ?? {}) as Record<string, unknown>;
+                const styleBase = variant?.defaultStyle ?? {};
+                const styleOverride = (s.style ?? {}) as Record<string, unknown>;
+                return {
+                  id: crypto.randomUUID(),
+                  type: s.type,
+                  variant: s.variant,
+                  config: JSON.parse(JSON.stringify({ ...base, ...override })),
+                  style: {
+                    padding: { top: 64, right: 24, bottom: 64, left: 24 },
+                    background: 'transparent' as const,
+                    ...JSON.parse(JSON.stringify(styleBase)),
+                    ...JSON.parse(JSON.stringify(styleOverride)),
+                  },
+                  responsive: {},
+                };
+              });
+              try {
+                const res = await fetch(`/api/websites/${websiteId}/website`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    template_id: templateId,
+                    custom_config: {
+                      design_style_id: catalogTemplate.data?.designStyleId ?? 'minimalist',
+                      palette_override: catalogTemplate.data?.paletteOverride ?? {},
+                      sections: resolvedSections,
+                      header: catalogTemplate.data?.header ?? {},
+                      footer: catalogTemplate.data?.footer ?? {},
+                      layout: { rows: [] },
+                      core: catalogTemplate.data?.core ?? {},
+                      seo: catalogTemplate.data?.seo ?? {},
+                      theme: {},
+                    },
+                  }),
+                });
+                const json = await res.json();
+                if (!json.success) {
+                  console.error('Gagal menerapkan template:', json.error);
+                  return;
+                }
+                // Update template store and reset builder palette override to use new template's theme
+                useTemplateStore.getState().setTemplate(templateId);
+                useBuilderStore.getState().resetPaletteOverride();
+                setShowTemplates(false);
+              } catch (e) {
+                console.error('Gagal menerapkan template:', e);
+              }
             }}
           />
         </DialogContent>

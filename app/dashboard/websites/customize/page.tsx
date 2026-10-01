@@ -47,6 +47,7 @@ function CustomizeInner() {
   // Identitas template aktif untuk ActiveTemplateCard (hindari double-fetch).
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [activeStyleId, setActiveStyleId] = useState<string | null>(null);
+  const [activeTemplateCategory, setActiveTemplateCategory] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -78,6 +79,7 @@ function CustomizeInner() {
         if (configJson.success) {
           setActiveTemplateId(configJson.data?.template_id ?? null);
           setActiveStyleId(configJson.data?.custom_config?.design_style_id ?? null);
+          setActiveTemplateCategory(configJson.data?.template_name ?? null);
         }
       }
     } catch {
@@ -171,6 +173,7 @@ function CustomizeInner() {
         refreshKey={templateRefreshKey}
         initialTemplateId={activeTemplateId}
         initialStyleId={activeStyleId}
+        initialTemplateCategory={activeTemplateCategory}
       />
 
       {/* Tabs - Full Width Equal Width */}

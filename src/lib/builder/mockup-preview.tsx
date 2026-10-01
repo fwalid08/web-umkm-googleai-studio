@@ -228,7 +228,7 @@ function TestimonialsMockup({ variant }: { variant: string }) {
   if (variant === 'testimonials-single') {
     return (
       <div className="w-full h-full p-3 flex flex-col justify-center items-center gap-2">
-        <div className="text-2xl text-slate-300 dark:bg-white/20">"</div>
+        <div className="text-2xl text-slate-300 dark:bg-white/20">&quot;</div>
         <div className="h-2 w-3/4 rounded-full bg-slate-300 dark:bg-white/20" />
         <div className="h-2 w-1/2 rounded-full bg-slate-200 dark:bg-white/10" />
         <div className="flex items-center gap-1 mt-1">
@@ -830,6 +830,153 @@ function DefaultMockup() {
           <div className="h-1.5 rounded-full bg-slate-300 dark:bg-white/20" />
         </div>
       ))}
+    </div>
+  );
+}
+
+export function TemplatePreview({ templateId }: { templateId: string }) {
+  switch (templateId) {
+    case 'pangkas-rapi':
+      return <PangkasRapiPreview />;
+    case 'warung-makan':
+      return <WarungMakanPreview />;
+    case 'butik-hijab':
+      return <ButikHijabPreview />;
+    case 'toko-kelontong':
+      return <TokoKelontongPreview />;
+    case 'kerajinan-tangan':
+      return <KerajinanTanganPreview />;
+    default:
+      return <DefaultMockup />;
+  }
+}
+
+function PangkasRapiPreview() {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#050B14] to-[#0F172A] p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-8 h-8 rounded bg-[#00A3FF]" />
+        <div className="flex gap-2">
+          <div className="h-2 w-12 rounded-full bg-[#00A3FF]/30" />
+          <div className="h-2 w-12 rounded-full bg-[#00A3FF]/30" />
+          <div className="h-6 w-16 rounded-full bg-[#00A3FF]" />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col justify-center items-center gap-2">
+        <div className="h-3 w-3/4 rounded-full bg-[#00A3FF]/40" />
+        <div className="h-2 w-1/2 rounded-full bg-[#00E5FF]/30" />
+        <div className="h-2 w-2/3 rounded-full bg-white/20" />
+        <div className="h-8 w-24 rounded border-2 border-[#00A3FF] mt-2" />
+      </div>
+      <div className="flex justify-center gap-2">
+        <div className="w-16 h-12 rounded bg-[#0F172A] border border-[#1E293B]" />
+        <div className="w-16 h-12 rounded bg-[#0F172A] border border-[#1E293B]" />
+        <div className="w-16 h-12 rounded bg-[#0F172A] border border-[#1E293B]" />
+      </div>
+    </div>
+  );
+}
+
+function WarungMakanPreview() {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#FFF7ED] to-[#FED7AA] p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-8 h-8 rounded-full bg-[#EA580C]" />
+        <div className="flex gap-2">
+          <div className="h-2 w-12 rounded-full bg-[#EA580C]/30" />
+          <div className="h-2 w-12 rounded-full bg-[#EA580C]/30" />
+          <div className="h-6 w-16 rounded-full bg-[#EA580C]" />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col justify-center items-center gap-2">
+        <div className="h-3 w-3/4 rounded-full bg-[#EA580C]/40" />
+        <div className="h-2 w-1/2 rounded-full bg-[#9A3412]/30" />
+        <div className="h-2 w-2/3 rounded-full bg-[#431407]/20" />
+        <div className="h-8 w-24 rounded-full bg-[#EA580C] mt-2" />
+      </div>
+      <div className="flex justify-center gap-2">
+        <div className="w-16 h-12 rounded bg-white border border-[#FED7AA]" />
+        <div className="w-16 h-12 rounded bg-white border border-[#FED7AA]" />
+        <div className="w-16 h-12 rounded bg-white border border-[#FED7AA]" />
+      </div>
+    </div>
+  );
+}
+
+function ButikHijabPreview() {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#FFF1F2] to-[#FECDD3] p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-8 h-8 rounded-full bg-[#E11D48]" />
+        <div className="flex gap-2">
+          <div className="h-2 w-12 rounded-full bg-[#E11D48]/30" />
+          <div className="h-2 w-12 rounded-full bg-[#E11D48]/30" />
+          <div className="h-6 w-16 rounded-full bg-gradient-to-r from-[#E11D48] to-[#FB7185]" />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col justify-center items-center gap-2">
+        <div className="h-3 w-3/4 rounded-full bg-[#E11D48]/40" />
+        <div className="h-2 w-1/2 rounded-full bg-[#9F1239]/30" />
+        <div className="h-2 w-2/3 rounded-full bg-[#4C0519]/20" />
+        <div className="h-8 w-24 rounded-full bg-gradient-to-r from-[#E11D48] to-[#FB7185] mt-2" />
+      </div>
+      <div className="flex justify-center gap-2">
+        <div className="w-16 h-12 rounded-2xl bg-white border border-[#FECDD3]" />
+        <div className="w-16 h-12 rounded-2xl bg-white border border-[#FECDD3]" />
+        <div className="w-16 h-12 rounded-2xl bg-white border border-[#FECDD3]" />
+      </div>
+    </div>
+  );
+}
+
+function TokoKelontongPreview() {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#F0F9FF] to-[#BAE6FD] p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-8 h-8 rounded bg-[#0369A1]" />
+        <div className="flex gap-2">
+          <div className="h-2 w-12 rounded-full bg-[#0369A1]/30" />
+          <div className="h-2 w-12 rounded-full bg-[#0369A1]/30" />
+          <div className="h-6 w-16 rounded bg-[#0369A1]" />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col justify-center items-center gap-2">
+        <div className="h-3 w-3/4 rounded-full bg-[#0369A1]/40" />
+        <div className="h-2 w-1/2 rounded-full bg-[#0C4A6E]/30" />
+        <div className="h-2 w-2/3 rounded-full bg-[#0C4A6E]/20" />
+        <div className="h-8 w-24 rounded bg-[#0369A1] mt-2" />
+      </div>
+      <div className="flex justify-center gap-2">
+        <div className="w-16 h-12 rounded-lg bg-white border border-[#BAE6FD]" />
+        <div className="w-16 h-12 rounded-lg bg-white border border-[#BAE6FD]" />
+        <div className="w-16 h-12 rounded-lg bg-white border border-[#BAE6FD]" />
+      </div>
+    </div>
+  );
+}
+
+function KerajinanTanganPreview() {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#F5F5EC] to-[#D1D5DB] p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-8 h-8 rounded-full bg-[#557153]" />
+        <div className="flex gap-2">
+          <div className="h-2 w-12 rounded-full bg-[#557153]/30" />
+          <div className="h-2 w-12 rounded-full bg-[#557153]/30" />
+          <div className="h-6 w-16 rounded-full border-2 border-[#557153]" />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col justify-center items-center gap-2">
+        <div className="h-3 w-3/4 rounded-full bg-[#557153]/40" />
+        <div className="h-2 w-1/2 rounded-full bg-[#3F6212]/30" />
+        <div className="h-2 w-2/3 rounded-full bg-[#2F3A2F]/20" />
+        <div className="h-8 w-24 rounded-full border-2 border-[#557153] mt-2" />
+      </div>
+      <div className="flex justify-center gap-2">
+        <div className="w-16 h-12 rounded-3xl bg-white border border-[#D1D5DB]" />
+        <div className="w-16 h-12 rounded-3xl bg-white border border-[#D1D5DB]" />
+        <div className="w-16 h-12 rounded-3xl bg-white border border-[#D1D5DB]" />
+      </div>
     </div>
   );
 }

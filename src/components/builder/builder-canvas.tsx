@@ -5,12 +5,16 @@ import { useTemplateStore, getSectionVariant, getHeaderVariant, getFooterVariant
 import { useBuilderStore } from '@/lib/builder/store';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, ChevronUp, ChevronDown, Copy, Menu, X } from 'lucide-react';
-import { SectionRendererV3 } from '@/lib/builder/section-renderer-v3';
+import { SectionRenderer } from '@/components/builder/section-renderer';
+import { getDesignStyle } from '@/lib/builder/design-styles';
 import { getOnColor } from '@/lib/builder/design-styles';
 import { SectionPicker } from './section-picker';
+import { GoogleFonts } from './google-fonts';
 import type { SectionVariant } from '@/lib/builder/template-types';
+import type { Section } from '@/lib/builder/types';
+import type { DesignStyle } from '@/lib/builder/types';
 
-export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?: boolean; fullBleed?: boolean }) {
+export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }: { preview?: boolean; fullBleed?: boolean; websiteId?: string }) {
   const template = useTemplateStore((s) => s.template);
   const sections = useTemplateStore((s) => s.sections);
   const selectedSectionId = useTemplateStore((s) => s.selectedSectionId);
@@ -26,6 +30,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [showInsertPicker, setShowInsertPicker] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const palette = { ...template.theme.palette, ...themeOverride };
   const onPrimary = getOnColor(palette.primary);
@@ -33,6 +38,10 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
 
   const viewportWidth = useBuilderStore((s) => s.viewportWidth);
   const isMobileFrame = viewportWidth <= 480;
+  // Konten header/footer efektif: default varian + override tersimpan agar
+  // hasil edit user di sidebar terlihat langsung di kanvas.
+  const savedHeader = useTemplateStore((s) => s.headerConfig);
+  const savedFooter = useTemplateStore((s) => s.footerConfig);
 
   const openPicker = () => {
     window.dispatchEvent(new CustomEvent('open-section-picker'));
@@ -49,10 +58,40 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
   const headerVariant = getHeaderVariant(template, headerVariantId);
   const footerVariant = getFooterVariant(template, footerVariantId);
 
+  // Sumber tunggal warna = tema bawaan template (+ override user).
+  // Disamakan dengan renderer-v3 (live-site/preview) agar varian yang baru
+  // ditambahkan ke kanvas langsung tampil dengan warna template tanpa edit
+  // manual. Fallback DESIGN_STYLES hanya untuk tipografi/komponen bila
+  // template tidak menyediakannya.
+  const designStyleId = useBuilderStore((s) => s.designStyleId);
+  const paletteOverride = useBuilderStore((s) => s.paletteOverride);
+  const typographyOverride = useBuilderStore((s) => s.typographyOverride);
+  const baseDesignStyle = getDesignStyle(designStyleId) ?? getDesignStyle('minimalist')!;
+  // Urutan merge: bawaan template → override user (dua store disinkronkan
+  // di StyleSelector) → pastikan token theme:* selalu resolve ke warna aktif.
+  const mergedPalette = { ...template.theme.palette, ...themeOverride, ...paletteOverride };
+  const baseTypography = template.theme.typography ?? baseDesignStyle.typography;
+  const designStyle: DesignStyle = {
+    ...baseDesignStyle,
+    id: template.id,
+    name: template.name,
+    palette: mergedPalette,
+    typography: {
+      ...baseTypography,
+      ...(typographyOverride.headingFont ? { headingFont: typographyOverride.headingFont } : {}),
+      ...(typographyOverride.bodyFont ? { bodyFont: typographyOverride.bodyFont } : {}),
+    },
+    components: template.theme.components ?? baseDesignStyle.components,
+    effects: template.theme.effects ?? baseDesignStyle.effects,
+  };
+
   const bleed = preview && fullBleed;
+  // overflow-clip (bukan hidden): tetap memotong sudut rounded bingkai,
+  // tapi tidak membuat scroll-container sehingga header sticky di dalam
+  // kanvas tetap bisa menempel saat kanvas di-scroll.
   const frameChrome = bleed
-    ? 'flex-1 overflow-hidden builder-cq'
-    : `flex-1 overflow-hidden builder-cq border-4 border-white dark:border-slate-800 ${
+    ? 'flex-1 overflow-clip builder-cq'
+    : `flex-1 overflow-clip builder-cq border-4 border-white dark:border-slate-800 ${
         isMobileFrame
           ? 'rounded-[2rem] border-slate-900 shadow-2xl shadow-emerald-900/20'
           : 'rounded-2xl sm:rounded-3xl shadow-xl shadow-emerald-900/10'
@@ -79,6 +118,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
         if (!preview && e.target === e.currentTarget) selectSection(null);
       }}
     >
+      <GoogleFonts fonts={[designStyle.typography.headingFont, designStyle.typography.bodyFont]} />
       <div
         className={`${bleed ? 'w-full' : 'mx-auto'} min-h-full flex flex-col transition-all duration-300`}
         style={bleed ? undefined : { maxWidth: `min(${viewportWidth}px, 100%)` }}
@@ -96,7 +136,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
               <div className="w-24 h-1.5 rounded-full bg-white/20" />
             </div>
           )}
-          <CanvasHeader variant={headerVariant} config={headerVariant.defaultConfig} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} navSolid={navSolid} />
+          <CanvasHeader variant={headerVariant} config={savedHeader as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} navSolid={navSolid} />
 
           <div className="relative min-h-[320px]">
             {sections.length === 0 ? (
@@ -126,7 +166,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
                   const isSelected = selectedSectionId === section.id;
 
                   return (
-                    <div key={section.id}>
+                    <div key={section.id} id={section.anchorId}>
                       <div
                         role={!preview ? 'button' : undefined}
                         tabIndex={!preview ? 0 : undefined}
@@ -149,7 +189,32 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
                         onMouseLeave={() => setHoveredIndex(null)}
                       >
                         {variant && (
-                          <SectionRendererV3 section={section} variant={variant} theme={effectiveTheme} />
+                          (() => {
+                            const rendererSection: Section = {
+                              id: section.id,
+                              type: section.type as Section['type'],
+                              variant: section.variantId,
+                              config: section.config,
+                              style: {
+                                padding: section.style.padding,
+                                background: section.style.background,
+                                backgroundColor: section.style.backgroundColor,
+                                backgroundImage: section.style.backgroundImage,
+                                backgroundGradient: section.style.backgroundGradient,
+                                backgroundBlur: section.style.backgroundBlur,
+                                backgroundSize: section.style.backgroundSize,
+                                backgroundOverlay: section.style.backgroundOverlay,
+                              },
+                              responsive: section.responsive,
+                            };
+                            return (
+                              <SectionRenderer
+                                section={rendererSection}
+                                designStyle={designStyle}
+                                websiteId={websiteId}
+                              />
+                            );
+                          })()
                         )}
 
                         {!preview && (
@@ -160,6 +225,30 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
                                   {index + 1}
                                 </span>
                                 {variant?.name || section.type}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      const done = navigator.clipboard?.writeText(section.id);
+                                      if (done) {
+                                        void done
+                                          .then(() => {
+                                            setCopiedId(section.id);
+                                            setTimeout(() => {
+                                              setCopiedId((c) => (c === section.id ? null : c));
+                                            }, 1200);
+                                          })
+                                          .catch(() => undefined);
+                                      }
+                                    } catch {
+                                      // Clipboard tak tersedia — abaikan.
+                                    }
+                                  }}
+                                  title={`Section ID: ${section.id} — klik untuk salin`}
+                                  className="font-mono font-normal text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-200 transition-colors"
+                                >
+                                  {copiedId === section.id ? '✓ disalin' : `id:${section.id.slice(0, 8)}`}
+                                </button>
                               </span>
                             </div>
 
@@ -244,7 +333,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false }: { preview?
             )}
           </div>
 
-          <CanvasFooter variant={footerVariant} config={footerVariant.defaultConfig} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
+          <CanvasFooter variant={footerVariant} config={savedFooter as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
         </div>
         {!preview && (
           <p className="text-center text-[11px] font-medium text-muted-foreground mt-3 bg-white/70 dark:bg-slate-900/70 backdrop-blur inline-block mx-auto px-3 py-1 rounded-full border border-white dark:border-slate-800 shadow-sm">
@@ -281,16 +370,22 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
   const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as Array<{ id: string; label: string; url: string; enabled: boolean }>;
   const links = navItems.filter((item) => item.enabled);
   const layout = variant.layout;
+  const isTransparent = layout === 'hero-overlay' && !navSolid;
+  // Hormati opsi "Header menempel" seperti di live site (default menempel).
+  const sticky = config.sticky !== false;
+  const textShadow = isTransparent
+    ? '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)'
+    : undefined;
 
   const headerStyle: React.CSSProperties = {
-    background: layout === 'hero-overlay' && !navSolid ? 'transparent' : palette.surface,
-    borderBottom: layout === 'hero-overlay' && !navSolid ? '1px solid transparent' : `1px solid ${palette.border}`,
+    background: isTransparent ? 'transparent' : palette.surface,
+    borderBottom: isTransparent ? '1px solid transparent' : `1px solid ${palette.border}`,
     transition: 'background .3s',
   };
 
   if (layout === 'floating') {
     return (
-      <div className="px-3 pt-2.5">
+      <div className={sticky ? 'px-3 pt-2.5 sticky top-0 z-20' : 'px-3 pt-2.5'}>
         <div
           className="flex items-center justify-between gap-3 px-3.5 py-2.5 shadow-lg"
           style={{
@@ -306,14 +401,14 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
             >
               {((config.siteTitle as string) || 'T').charAt(0).toUpperCase()}
             </div>
-            <h1 className="text-[13px] font-bold truncate" style={{ color: palette.text }}>
+            <h1 className="text-[13px] font-bold truncate" style={{ color: palette.text, textShadow }}>
               {(config.siteTitle as string) || 'Nama Toko'}
             </h1>
           </div>
           {(config.showCta as boolean) && (
             <button
               className="px-3 py-1.5 text-xs font-bold shrink-0"
-              style={{ background: palette.primary, color: onPrimary, borderRadius: '999px' }}
+              style={{ background: palette.primary, color: onPrimary, borderRadius: '999px', textShadow }}
             >
               {(config.ctaText as string) || 'Hubungi Kami'}
             </button>
@@ -326,7 +421,7 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
 
   if (layout === 'minimal') {
     return (
-      <header className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5" style={headerStyle}>
+      <header className={`flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 ${sticky ? 'sticky top-0 z-20' : ''}`} style={headerStyle}>
         <div className="flex items-center gap-2.5 min-w-0">
           {(config.logoUrl as string) ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -339,7 +434,7 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
               {((config.siteTitle as string) || 'T').charAt(0).toUpperCase()}
             </div>
           )}
-          <h1 className="text-sm font-semibold truncate" style={{ color: palette.text }}>
+          <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
             {(config.siteTitle as string) || 'Nama Toko'}
           </h1>
         </div>
@@ -349,7 +444,7 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
             aria-label={menuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
             aria-expanded={menuOpen}
             className="p-2 -mr-1 rounded-lg"
-            style={{ color: palette.text }}
+            style={{ color: palette.text, textShadow }}
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -359,13 +454,15 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
               style={{ background: palette.surface, borderColor: palette.border }}
             >
               {links.slice(0, 7).map((item) => (
-                <span
+                <a
                   key={item.id}
-                  className="block px-3 py-2 text-sm font-medium rounded-lg"
+                  href={item.url}
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2 text-sm font-medium rounded-lg hover:opacity-80"
                   style={{ color: palette.text }}
                 >
                   {item.label || 'Link'}
-                </span>
+                </a>
               ))}
             </div>
           )}
@@ -375,7 +472,7 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
   }
 
   return (
-    <header className={layout !== 'hero-overlay' ? 'sticky top-0 z-20' : 'relative'} style={headerStyle}>
+    <header className={layout !== 'hero-overlay' && sticky ? 'sticky top-0 z-20' : 'relative'} style={headerStyle}>
       <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5">
         <div className="flex items-center gap-2.5 min-w-0">
           {(config.logoUrl as string) ? (
@@ -390,11 +487,11 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold truncate" style={{ color: palette.text }}>
+            <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
               {(config.siteTitle as string) || 'Nama Toko'}
             </h1>
             {(config.tagline as string) && (
-              <p className="text-xs truncate" style={{ color: palette.textMuted }}>
+              <p className="text-xs truncate" style={{ color: palette.textMuted, textShadow }}>
                 {config.tagline as string}
               </p>
             )}
@@ -409,7 +506,7 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
                 aria-label={menuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
                 aria-expanded={menuOpen}
                 className="p-2 -mr-1 rounded-lg"
-                style={{ color: palette.text }}
+                style={{ color: palette.text, textShadow }}
               >
                 {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -419,13 +516,15 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
                   style={{ background: palette.surface, borderColor: palette.border }}
                 >
                   {links.slice(0, 7).map((item) => (
-                    <span
+                    <a
                       key={item.id}
-                      className="block px-3 py-2 text-sm font-medium rounded-lg"
+                      href={item.url}
+                      onClick={() => setMenuOpen(false)}
+                      className="block px-3 py-2 text-sm font-medium rounded-lg hover:opacity-80"
                       style={{ color: palette.text }}
                     >
                       {item.label || 'Link'}
-                    </span>
+                    </a>
                   ))}
                 </div>
               )}
@@ -434,9 +533,14 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
         ) : (
           <nav className="hidden @[640px]:flex items-center gap-5 shrink-0" aria-label="Navigasi website">
             {links.slice(0, 5).map((item) => (
-              <span key={item.id} className="text-sm font-medium" style={{ color: palette.text }}>
+              <a
+                key={item.id}
+                href={item.url}
+                className="text-sm font-medium hover:opacity-80 transition-opacity"
+                style={{ color: palette.text, textShadow }}
+              >
                 {item.label || 'Link'}
-              </span>
+              </a>
             ))}
           </nav>
         )}
@@ -444,7 +548,7 @@ function CanvasHeader({ variant, config, template, compact = false, navSolid = f
         {(config.showCta as boolean) && (
           <button
             className="px-3.5 py-2 text-[13px] font-medium shrink-0"
-            style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px` }}
+            style={{ background: palette.primary, color: onPrimary, borderRadius: `${template.theme.components.borderRadius}px`, textShadow }}
           >
             {(config.ctaText as string) || 'Hubungi Kami'}
           </button>
@@ -507,9 +611,14 @@ function CanvasFooter({ variant, config, template, compact = false }: {
           {nav.length > 0 && (
             <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
               {nav.map((item) => (
-                <span key={item.id} className="text-[13px] font-medium" style={{ color: palette.textMuted }}>
+                <a
+                  key={item.id}
+                  href={item.url}
+                  className="text-[13px] font-medium hover:opacity-80 transition-opacity"
+                  style={{ color: palette.textMuted }}
+                >
                   {item.label}
-                </span>
+                </a>
               ))}
             </nav>
           )}
@@ -532,8 +641,14 @@ function CanvasFooter({ variant, config, template, compact = false }: {
               </p>
               <ul className="space-y-1.5">
                 {nav.map((item) => (
-                  <li key={item.id} className="text-[13px]" style={{ color: palette.text }}>
-                    {item.label}
+                  <li key={item.id}>
+                    <a
+                      href={item.url}
+                      className="text-[13px] hover:opacity-80 transition-opacity"
+                      style={{ color: palette.text }}
+                    >
+                      {item.label}
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -590,9 +705,14 @@ function CanvasFooter({ variant, config, template, compact = false }: {
           {nav.length > 0 && (
             <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
               {nav.map((item) => (
-                <span key={item.id} className="text-[13px]" style={{ color: palette.textMuted }}>
+                <a
+                  key={item.id}
+                  href={item.url}
+                  className="text-[13px] hover:opacity-80 transition-opacity"
+                  style={{ color: palette.textMuted }}
+                >
                   {item.label}
-                </span>
+                </a>
               ))}
             </nav>
           )}

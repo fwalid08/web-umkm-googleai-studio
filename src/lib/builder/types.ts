@@ -103,6 +103,7 @@ export interface FullTemplateData {
     variant: string;
     config?: Record<string, unknown>;
     style?: Partial<SectionStyle>;
+    anchorId?: string;
   }>;
   header?: Partial<HeaderConfig>;
   footer?: Partial<FooterConfig>;
@@ -225,6 +226,9 @@ export interface SectionStyle {
   backgroundColor?: string;
   backgroundImage?: string;
   backgroundGradient?: string;
+  backgroundBlur?: number;
+  backgroundSize?: 'cover' | 'contain' | 'auto';
+  backgroundOverlay?: 'none' | 'light' | 'dark' | 'primary';
 }
 
 export interface Section {
@@ -238,6 +242,7 @@ export interface Section {
     hideOnTablet?: boolean;
     hideOnDesktop?: boolean;
   };
+  anchorId?: string;
 }
 
 export interface HeaderConfig {

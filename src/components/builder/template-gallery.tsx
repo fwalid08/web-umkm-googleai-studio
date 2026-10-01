@@ -24,8 +24,8 @@ const ITEMS_PER_PAGE = 9;
 
 interface TemplateGalleryProps {
   websiteId: string;
-  onApply: (template: Template) => void;
-  onPreview?: (template: Template) => void;
+  onApply: (template: UnifiedTemplate) => void;
+  onPreview?: (template: UnifiedTemplate) => void;
   onClose?: () => void;
   userTier?: string;
 }
@@ -52,8 +52,12 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   const [activeTab, setActiveTab] = useState<TemplateSource>('builtin');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importName, setImportName] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
   const [resolvedTier, setResolvedTier] = useState<string | null>(null);
+
+  const MAX_IMPORT_SIZE = 25 * 1024 * 1024;
 
   useEffect(() => {
     if (userTier) {
@@ -143,12 +147,17 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   const handleExport = async (templateId: string) => {
     try {
       const res = await fetch(`/api/templates/library/${templateId}/export`);
-      if (!res.ok) throw new Error('Export failed');
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error || 'Export failed');
+      }
+      const contentType = res.headers.get('content-type') || '';
+      const isZip = contentType.includes('zip');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `template-${templateId}.json`;
+      a.download = `template-${templateId}.${isZip ? 'zip' : 'json'}`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -157,24 +166,77 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   };
 
   const handleImport = async () => {
-    if (!importFile || !importName) return;
+    const trimmedName = importName.trim();
+    if (!importFile || !trimmedName || isImporting) return;
+    setImportError(null);
+
+    const fileName = importFile.name.toLowerCase();
+    const isZip = fileName.endsWith('.zip');
+    const isJson = fileName.endsWith('.json');
+    if (!isZip && !isJson) {
+      setImportError('File harus berformat .json atau .zip');
+      return;
+    }
+    if (importFile.size > MAX_IMPORT_SIZE) {
+      setImportError('Ukuran file melebihi batas 25 MB');
+      return;
+    }
+
+    setIsImporting(true);
     try {
-      const text = await importFile.text();
-      const data = JSON.parse(text);
-      const res = await fetch('/api/templates/library/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: importName, template_data: data.data || data }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.success) {
+      if (isZip) {
+        // ZIP file upload - use multipart/form-data
+        const formData = new FormData();
+        formData.append('file', importFile);
+        formData.append('name', trimmedName);
+
+        const res = await fetch('/api/templates/library/import', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || `Import gagal (HTTP ${res.status})`);
+        }
+        setImportFile(null);
+        setImportName('');
+        loadSavedTemplates();
+      } else {
+        // JSON file upload
+        let data: unknown;
+        try {
+          const text = await importFile.text();
+          data = JSON.parse(text);
+        } catch {
+          throw new Error('File JSON tidak valid');
+        }
+
+        const res = await fetch('/api/templates/library/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: trimmedName,
+            template_data:
+              data && typeof data === 'object' && !Array.isArray(data) && 'data' in (data as Record<string, unknown>)
+                ? (data as Record<string, unknown>).data
+                : data,
+          }),
+        });
+
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || `Import gagal (HTTP ${res.status})`);
+        }
         setImportFile(null);
         setImportName('');
         loadSavedTemplates();
       }
     } catch (err) {
       console.error('Failed to import template:', err);
+      setImportError(err instanceof Error ? err.message : 'Import gagal, coba lagi');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -193,7 +255,7 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   const handleApply = async (template: UnifiedTemplate) => {
     setApplyingTemplateId(template.id);
     try {
-      await onApply(template.data);
+      await onApply(template);
       await new Promise(resolve => setTimeout(resolve, 500));
     } finally {
       setApplyingTemplateId(null);
@@ -354,7 +416,17 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           <Button size="sm" variant="outline" onClick={() => document.getElementById('import-file')?.click()}>
             <Upload className="w-4 h-4 mr-1" /> Import
           </Button>
-          <input id="import-file" type="file" accept=".json" className="hidden" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+          <input
+            id="import-file"
+            type="file"
+            accept=".json,.zip"
+            className="hidden"
+            onChange={(e) => {
+              setImportError(null);
+              setImportFile(e.target.files?.[0] || null);
+              e.target.value = '';
+            }}
+          />
         </div>
       </div>
 
@@ -427,20 +499,61 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         </div>
       )}
 
-      <Dialog open={!!importFile} onOpenChange={() => setImportFile(null)}>
+      <Dialog
+        open={!!importFile}
+        onOpenChange={(open) => {
+          if (!open && !isImporting) {
+            setImportFile(null);
+            setImportError(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Import Template</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              File: <span className="font-medium">{importFile?.name}</span> (
+              {importFile ? `${(importFile.size / 1024 / 1024).toFixed(2)} MB` : ''})
+            </p>
             <div className="space-y-2">
               <Label htmlFor="import-name">Nama Template</Label>
-              <Input id="import-name" value={importName} onChange={(e) => setImportName(e.target.value)} placeholder="Template imported" />
+              <Input
+                id="import-name"
+                value={importName}
+                onChange={(e) => setImportName(e.target.value)}
+                placeholder="Template imported"
+                maxLength={200}
+              />
             </div>
+            {importError && (
+              <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+                {importError}
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportFile(null)}>Batal</Button>
-            <Button onClick={handleImport}>Import</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (isImporting) return;
+                setImportFile(null);
+                setImportError(null);
+              }}
+              disabled={isImporting}
+            >
+              Batal
+            </Button>
+            <Button onClick={handleImport} disabled={isImporting || !importName.trim()}>
+              {isImporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Mengimpor...
+                </>
+              ) : (
+                'Import'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

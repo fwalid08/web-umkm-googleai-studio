@@ -6,15 +6,18 @@ import { BuilderSidebar } from './builder-sidebar';
 import { BuilderCanvas } from './builder-canvas';
 import { BuilderBottomBar } from './builder-bottom-bar';
 import { useBuilderStore } from '@/lib/builder/store';
+import { useTemplateStore } from '@/lib/builder/template-store';
 import { Toaster, toast } from 'sonner';
 import { X, Monitor, Tablet, Smartphone } from 'lucide-react';
 
-export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, exitHref }: { websiteId: string; pageTitle?: string; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: () => Promise<void>; onPublishOverride?: () => Promise<void>; exitHref?: string }) {
+export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, exitHref }: { websiteId: string; pageTitle?: string; siteUrl?: string | null; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: () => Promise<void>; onPublishOverride?: () => Promise<void>; exitHref?: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const saved = useBuilderStore((s) => s.saved);
-  const sectionsCount = useBuilderStore((s) => s.sections.length);
+  const templateSaved = useTemplateStore((s) => s.saved);
+  const isSaved = saved && templateSaved;
+  const sectionsCount = useTemplateStore((s) => s.sections.length);
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -51,13 +54,17 @@ export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplate
         void handleSave();
       } else if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
+        // Urutan: undo kanvas (template-store) dulu, lalu state global.
+        // Kedua store di-undo agar histori konsisten bila keduanya berubah.
+        useTemplateStore.getState().undo();
         useBuilderStore.getState().undo();
       } else if ((mod && e.key.toLowerCase() === 'y') || (mod && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
+        useTemplateStore.getState().redo();
         useBuilderStore.getState().redo();
       } else if (e.key === 'Escape') {
         if (isPreview) setIsPreview(false);
-        else useBuilderStore.getState().selectSection(null);
+        else useTemplateStore.getState().selectSection(null);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -67,7 +74,7 @@ export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplate
   // Peringatan saat keluar dengan perubahan belum disimpan
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!useBuilderStore.getState().saved) {
+      if (!useBuilderStore.getState().saved || !useTemplateStore.getState().saved) {
         e.preventDefault();
       }
     };
@@ -81,7 +88,7 @@ export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplate
         <PreviewBar onExit={() => setIsPreview(false)} />
         {/* Kanvas tampil full-page: desktop selebar viewport (full-bleed),
             tablet/HP di tengah selebar device — tanpa bingkai kartu. */}
-        <PreviewCanvas />
+        <PreviewCanvas websiteId={websiteId} />
         <Toaster position="bottom-center" richColors closeButton />
       </div>
     );
@@ -91,7 +98,7 @@ export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplate
     <div className="flex flex-col h-dvh w-full bg-gradient-to-br from-slate-100 via-emerald-100/40 to-amber-100/30 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 overflow-hidden">
       <BuilderTopbar
         websiteId={websiteId}
-        saved={saved}
+        saved={isSaved}
         isSaving={isSaving}
         pageTitle={pageTitle}
         sectionsCount={sectionsCount}
@@ -102,6 +109,7 @@ export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplate
         onShowPages={onShowPages}
         onShowTemplates={onShowTemplates}
         exitHref={exitHref}
+        siteUrl={siteUrl}
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
@@ -126,7 +134,7 @@ export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplate
         </div>
 
         <div className="flex-1 min-w-0 min-h-0 flex">
-          <BuilderCanvas />
+          <BuilderCanvas websiteId={websiteId} />
         </div>
       </div>
 
@@ -136,11 +144,11 @@ export function BuilderShell({ websiteId, pageTitle, onShowPages, onShowTemplate
   );
 }
 
-function PreviewCanvas() {
+function PreviewCanvas({ websiteId }: { websiteId: string }) {
   const viewportWidth = useBuilderStore((s) => s.viewportWidth);
   return (
     <div className={viewportWidth >= 1024 ? 'flex-1 min-h-0 flex' : 'flex-1 min-h-0 overflow-auto bg-slate-900'}>
-      <BuilderCanvas preview fullBleed={viewportWidth >= 1024} />
+      <BuilderCanvas preview fullBleed={viewportWidth >= 1024} websiteId={websiteId} />
     </div>
   );
 }

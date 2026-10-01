@@ -5,12 +5,18 @@ import type { PaletteOverride } from './design-styles';
 import { getSectionVariant } from './sections/registry';
 import { builderConfigSchema } from '@/types';
 
+export interface TypographyOverride {
+  headingFont?: string;
+  bodyFont?: string;
+}
+
 interface Snapshot {
   sections: Section[];
   core: CoreConfig;
   seo: { title: string; description: string };
   designStyleId: string;
   paletteOverride: PaletteOverride;
+  typographyOverride: TypographyOverride;
   header: HeaderConfig;
   footer: FooterConfig;
 }
@@ -20,6 +26,7 @@ export interface BuilderState {
   seo: { title: string; description: string };
   designStyleId: string;
   paletteOverride: PaletteOverride;
+  typographyOverride: TypographyOverride;
   sections: Section[];
   header: HeaderConfig;
   footer: FooterConfig;
@@ -44,6 +51,8 @@ export interface BuilderState {
   setDesignStyle: (styleId: string) => void;
   updatePaletteOverride: (patch: PaletteOverride) => void;
   resetPaletteOverride: () => void;
+  updateTypographyOverride: (patch: TypographyOverride) => void;
+  resetTypographyOverride: () => void;
   addSection: (type: Section['type'], variant: string) => void;
   insertSectionAt: (type: Section['type'], variant: string, index: number) => void;
   deleteSection: (id: string) => void;
@@ -54,7 +63,7 @@ export interface BuilderState {
   updateHeader: (updates: Partial<HeaderConfig>) => void;
   updateFooter: (updates: Partial<FooterConfig>) => void;
 
-  loadConfig: (config: { core?: Partial<CoreConfig> | Record<string, unknown>; designStyleId?: string; paletteOverride?: PaletteOverride; palette_override?: PaletteOverride; sections?: Section[]; header?: Partial<HeaderConfig>; footer?: Partial<FooterConfig> }) => void;
+  loadConfig: (config: { core?: Partial<CoreConfig> | Record<string, unknown>; designStyleId?: string; design_style_id?: string; paletteOverride?: PaletteOverride; palette_override?: PaletteOverride; sections?: Section[]; header?: Partial<HeaderConfig>; footer?: Partial<FooterConfig>; theme?: Record<string, unknown> }) => void;
   save: (websiteId: string) => Promise<void>;
   publish: (websiteId: string) => Promise<void>;
 
@@ -143,6 +152,7 @@ export const useBuilderStore = create<BuilderState>()(
     seo: { title: "", description: "" },
     designStyleId: 'minimalist',
     paletteOverride: {},
+    typographyOverride: {},
     sections: [],
     header: createDefaultHeader(),
     footer: createDefaultFooter(),
@@ -239,6 +249,26 @@ export const useBuilderStore = create<BuilderState>()(
     resetPaletteOverride: () =>
       set((state) => {
         state.paletteOverride = {};
+        state.saved = false;
+      }),
+
+    updateTypographyOverride: (patch) =>
+      set((state) => {
+        const next: TypographyOverride = { ...state.typographyOverride };
+        for (const [k, v] of Object.entries(patch)) {
+          if (typeof v === 'string' && v.trim().length > 0) {
+            (next as Record<string, string>)[k] = v.trim();
+          } else {
+            delete (next as Record<string, unknown>)[k];
+          }
+        }
+        state.typographyOverride = next;
+        state.saved = false;
+      }),
+
+    resetTypographyOverride: () =>
+      set((state) => {
+        state.typographyOverride = {};
         state.saved = false;
       }),
 
@@ -385,7 +415,20 @@ export const useBuilderStore = create<BuilderState>()(
           state.footer = { ...createDefaultFooter(), ...state.footer };
         }
         if (config.theme) {
-          // theme is stored but not directly used in state - could add if needed
+          const typo = (config.theme as Record<string, unknown>)?.typography;
+          if (typo && typeof typo === 'object' && !Array.isArray(typo)) {
+            const next: TypographyOverride = {};
+            for (const [k, v] of Object.entries(typo as Record<string, unknown>)) {
+              if ((k === 'headingFont' || k === 'bodyFont') && typeof v === 'string' && v.trim().length > 0) {
+                next[k as 'headingFont' | 'bodyFont'] = v.trim();
+              }
+            }
+            state.typographyOverride = next;
+          } else {
+            state.typographyOverride = {};
+          }
+        } else {
+          state.typographyOverride = {};
         }
         if (config.seo) {
           state.seo = { ...state.seo, ...config.seo };
@@ -397,7 +440,7 @@ export const useBuilderStore = create<BuilderState>()(
 
     applyTemplate: (template) =>
       set((state) => {
-        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, designStyleId: state.designStyleId, paletteOverride: { ...state.paletteOverride }, header: { ...state.header }, footer: { ...state.footer } });
+        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, designStyleId: state.designStyleId, paletteOverride: { ...state.paletteOverride }, typographyOverride: { ...state.typographyOverride }, header: { ...state.header }, footer: { ...state.footer } });
         state.future = [];
         if (template.core) {
           state.core = { ...createDefaultCore(), ...template.core };
@@ -407,7 +450,7 @@ export const useBuilderStore = create<BuilderState>()(
 
     applyFullTemplate: (template) =>
       set((state) => {
-        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, designStyleId: state.designStyleId, paletteOverride: { ...state.paletteOverride }, header: { ...state.header }, footer: { ...state.footer } });
+        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, designStyleId: state.designStyleId, paletteOverride: { ...state.paletteOverride }, typographyOverride: { ...state.typographyOverride }, header: { ...state.header }, footer: { ...state.footer } });
         state.future = [];
         const styleId = template.designStyleId ?? template.design_style_id;
         if (styleId) state.designStyleId = styleId;
@@ -435,6 +478,8 @@ export const useBuilderStore = create<BuilderState>()(
         // Tanpa reset, override kustom template lama menempel di template baru.
         const tplOverride = template.paletteOverride ?? template.palette_override;
         state.paletteOverride = tplOverride ? { ...tplOverride } : {};
+        // Font kustom ikut direset seperti palet: template baru = mulai segar.
+        state.typographyOverride = {};
         if (template.seo) state.seo = { ...state.seo, ...template.seo };
         if (template.core) state.core = { ...createDefaultCore(), ...template.core };
         state.selectedSectionId = null;
@@ -518,6 +563,7 @@ export const useBuilderStore = create<BuilderState>()(
         const customConfig = {
           design_style_id: str(state.designStyleId, 'minimalist') || 'minimalist',
           palette_override: sanitizeStringMap(state.paletteOverride),
+          theme: { typography: sanitizeStringMap(state.typographyOverride) },
           sections: normalizeSections(state.sections),
           header: {
             ...defaultHeader,
@@ -595,6 +641,7 @@ export const useBuilderStore = create<BuilderState>()(
           seo: { ...state.seo },
           designStyleId: state.designStyleId,
           paletteOverride: { ...state.paletteOverride },
+          typographyOverride: { ...state.typographyOverride },
           header: { ...state.header },
           footer: { ...state.footer },
         };
@@ -605,6 +652,7 @@ export const useBuilderStore = create<BuilderState>()(
         state.seo = snapshot.seo;
         state.designStyleId = snapshot.designStyleId;
         state.paletteOverride = snapshot.paletteOverride ?? {};
+        state.typographyOverride = snapshot.typographyOverride ?? {};
         state.header = snapshot.header;
         state.footer = snapshot.footer;
         state.saved = false;
@@ -619,6 +667,7 @@ export const useBuilderStore = create<BuilderState>()(
           seo: { ...state.seo },
           designStyleId: state.designStyleId,
           paletteOverride: { ...state.paletteOverride },
+          typographyOverride: { ...state.typographyOverride },
           header: { ...state.header },
           footer: { ...state.footer },
         };
@@ -629,6 +678,7 @@ export const useBuilderStore = create<BuilderState>()(
         state.seo = snapshot.seo;
         state.designStyleId = snapshot.designStyleId;
         state.paletteOverride = snapshot.paletteOverride ?? {};
+        state.typographyOverride = snapshot.typographyOverride ?? {};
         state.header = snapshot.header;
         state.footer = snapshot.footer;
         state.saved = false;

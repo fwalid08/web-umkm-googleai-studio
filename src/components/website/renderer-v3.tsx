@@ -1,8 +1,11 @@
 import type { Template, TemplateSectionInstance } from '@/lib/builder/template-types';
 import { getOnColor } from '@/lib/builder/design-styles';
-import { SiteHeader } from './site-header';
-import { SectionRendererV3 } from '@/lib/builder/section-renderer-v3';
+import { getGoogleFontsUrl } from '@/lib/builder/font-categories';
+import { MobileDrawer } from './mobile-drawer';
+import { SectionRenderer } from '@/components/builder/section-renderer';
 import { getSectionVariant } from '@/lib/builder/template-store';
+import type { Section } from '@/lib/builder/types';
+import type { DesignStyle } from '@/lib/builder/types';
 
 export interface PublicSiteDataV3 {
   template: Template;
@@ -11,16 +14,45 @@ export interface PublicSiteDataV3 {
   sections: TemplateSectionInstance[];
   websiteId?: string;
   themeOverride?: Record<string, string>;
+  typographyOverride?: { headingFont?: string; bodyFont?: string };
+  /** Config header/footer efektif (default varian + simpanan user). */
+  headerConfig?: Record<string, unknown>;
+  footerConfig?: Record<string, unknown>;
   seo: {
     title: string;
     description: string;
   };
 }
 
+interface ChromeNavItem {
+  id: string;
+  label: string;
+  url: string;
+  enabled: boolean;
+  children?: ChromeNavItem[];
+}
+
 export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
-  const { template, sections, seo, websiteId, themeOverride } = site;
+  const { template, sections, seo, websiteId, themeOverride, typographyOverride } = site;
   const palette = { ...template.theme.palette, ...themeOverride };
   const onPrimary = getOnColor(palette.primary);
+  const typography = {
+    ...template.theme.typography,
+    ...(typographyOverride?.headingFont ? { headingFont: typographyOverride.headingFont } : {}),
+    ...(typographyOverride?.bodyFont ? { bodyFont: typographyOverride.bodyFont } : {}),
+  };
+
+  // Build DesignStyle from template theme for SectionRenderer
+  const designStyle: DesignStyle = {
+    id: 'custom',
+    name: 'Custom',
+    description: 'Custom theme from template',
+    palette,
+    typography,
+    components: template.theme.components,
+    effects: template.theme.effects || {},
+    thumbnailUrl: '',
+  };
 
   const tokens = {
     '--color-primary': palette.primary,
@@ -32,10 +64,12 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
     '--color-text-muted': palette.textMuted,
     '--color-border': palette.border,
     '--color-on-primary': onPrimary,
-    '--font-heading': template.theme.typography.headingFont,
-    '--font-body': template.theme.typography.bodyFont,
+    '--font-heading': typography.headingFont,
+    '--font-body': typography.bodyFont,
     '--radius': `${template.theme.components.borderRadius}px`,
   } as React.CSSProperties;
+
+  const fontFamilies = [...new Set([typography.headingFont, typography.bodyFont].map((f) => (f ?? '').trim()).filter(Boolean))];
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -47,14 +81,20 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
 
   return (
     <div
-      className="min-h-screen"
+      // builder-cq: konteks container-query agar layout responsif section
+      // (@md:grid-cols-3 dsb.) merespons lebar halaman — sama seperti kanvas.
+      // Tanpa ini semua grid ambruk ke 1 kolom di live site.
+      className="min-h-screen builder-cq"
       style={{
         ...tokens,
         background: palette.background,
         color: palette.text,
-        fontFamily: template.theme.typography.bodyFont,
+        fontFamily: typography.bodyFont,
       }}
     >
+      {fontFamilies.length > 0 && (
+        <link rel="stylesheet" href={getGoogleFontsUrl(fontFamilies)} />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -66,13 +106,33 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
         {sections.map((section) => {
           const variant = getSectionVariant(template, section.type, section.variantId);
           if (!variant) return null;
+          // Convert TemplateSectionInstance to Section type for SectionRenderer
+          // (token theme:* diteruskan mentah — SectionRenderer yang me-resolve
+          // ke palet template aktif agar preview/canvas/live selalu sama).
+          const rendererSection: Section = {
+            id: section.id,
+            type: section.type as Section['type'],
+            variant: section.variantId,
+            config: section.config,
+            style: {
+              padding: section.style.padding,
+              background: section.style.background,
+              backgroundColor: section.style.backgroundColor,
+              backgroundImage: section.style.backgroundImage,
+              backgroundGradient: section.style.backgroundGradient,
+              backgroundBlur: section.style.backgroundBlur,
+              backgroundSize: section.style.backgroundSize,
+              backgroundOverlay: section.style.backgroundOverlay,
+            },
+            responsive: section.responsive,
+          };
           return (
-            <SectionRendererV3
+            <SectionRenderer
               key={section.id}
-              section={section}
-              variant={variant}
-              theme={template.theme}
+              section={rendererSection}
+              designStyle={designStyle}
               websiteId={websiteId}
+              anchorId={section.anchorId}
             />
           );
         })}
@@ -86,16 +146,36 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
 function SiteHeaderV3({ site, tokens }: { site: PublicSiteDataV3; tokens: React.CSSProperties }) {
   const { template, headerVariantId } = site;
   const headerVariant = template.headers.find((h) => h.id === headerVariantId) || template.headers[0];
-  const config = headerVariant.defaultConfig;
-  const palette = template.theme.palette;
+  // Config efektif: default varian + simpanan user, agar live = kanvas.
+  const config = { ...(headerVariant.defaultConfig ?? {}), ...(site.headerConfig ?? {}) };
+  // Palet efektif: skema pilihan user ikut berlaku di chrome.
+  const palette = { ...template.theme.palette, ...(site.themeOverride ?? {}) };
   const onPrimary = getOnColor(palette.primary);
   const layout = headerVariant.layout;
-  const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as Array<{ id: string; label: string; url: string; enabled: boolean }>;
+  const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as ChromeNavItem[];
   const links = navItems.filter((item) => item.enabled);
+  const sticky = config.sticky !== false;
+  const drawerStyle = headerVariant.mobileMenu?.style === 'drawer-top' ? 'drawer-top' : 'drawer-sidebar';
+  const showCta = Boolean(config.showCta);
+  const drawer = (
+    <MobileDrawer
+      items={links}
+      style={drawerStyle}
+      showCta={showCta}
+      ctaText={(config.ctaText as string) || 'Hubungi Kami'}
+      ctaLink={(config.ctaLink as string) || '#'}
+      text={palette.text}
+      surface={palette.surface}
+      border={palette.border}
+      primary={palette.primary}
+      onPrimary={onPrimary}
+      radius={template.theme.components.borderRadius}
+    />
+  );
 
   if (layout === 'floating') {
     return (
-      <div className="px-3 pt-2.5">
+      <div className={sticky ? 'px-3 pt-2.5 sticky top-0 z-20' : 'px-3 pt-2.5'}>
         <div
           className="flex items-center justify-between gap-3 px-3.5 py-2.5 shadow-lg"
           style={{
@@ -115,15 +195,18 @@ function SiteHeaderV3({ site, tokens }: { site: PublicSiteDataV3; tokens: React.
               {(config.siteTitle as string) || 'Nama Toko'}
             </h1>
           </div>
-          {(config.showCta as boolean) && (
-            <a
-              href={(config.ctaLink as string) || '#'}
-              className="px-3 py-1.5 text-xs font-bold shrink-0"
-              style={{ background: palette.primary, color: onPrimary, borderRadius: '999px' }}
-            >
-              {(config.ctaText as string) || 'Hubungi Kami'}
-            </a>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {drawer}
+            {(config.showCta as boolean) && (
+              <a
+                href={(config.ctaLink as string) || '#'}
+                className="px-3 py-1.5 text-xs font-bold shrink-0"
+                style={{ background: palette.primary, color: onPrimary, borderRadius: '999px' }}
+              >
+                {(config.ctaText as string) || 'Hubungi Kami'}
+              </a>
+            )}
+          </div>
         </div>
         <div className="h-2" />
       </div>
@@ -132,7 +215,7 @@ function SiteHeaderV3({ site, tokens }: { site: PublicSiteDataV3; tokens: React.
 
   if (layout === 'minimal') {
     return (
-      <header className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5" style={{ borderBottom: `1px solid ${palette.border}` }}>
+      <header className={`flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 ${sticky ? 'sticky top-0 z-20' : ''}`} style={{ background: palette.surface, borderBottom: `1px solid ${palette.border}` }}>
         <div className="flex items-center gap-2.5 min-w-0">
           {(config.logoUrl as string) ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -156,12 +239,13 @@ function SiteHeaderV3({ site, tokens }: { site: PublicSiteDataV3; tokens: React.
             </a>
           ))}
         </nav>
+        {drawer}
       </header>
     );
   }
 
   return (
-    <header className="sticky top-0 z-20" style={{ background: palette.surface, borderBottom: `1px solid ${palette.border}` }}>
+    <header className={sticky ? 'sticky top-0 z-20' : 'relative'} style={{ background: palette.surface, borderBottom: `1px solid ${palette.border}` }}>
       <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5">
         <div className="flex items-center gap-2.5 min-w-0">
           {(config.logoUrl as string) ? (
@@ -195,6 +279,8 @@ function SiteHeaderV3({ site, tokens }: { site: PublicSiteDataV3; tokens: React.
           ))}
         </nav>
 
+        {drawer}
+
         {(config.showCta as boolean) && (
           <a
             href={(config.ctaLink as string) || '#'}
@@ -212,8 +298,10 @@ function SiteHeaderV3({ site, tokens }: { site: PublicSiteDataV3; tokens: React.
 function SiteFooterV3({ site, tokens }: { site: PublicSiteDataV3; tokens: React.CSSProperties }) {
   const { template, footerVariantId } = site;
   const footerVariant = template.footers.find((f) => f.id === footerVariantId) || template.footers[0];
-  const config = footerVariant.defaultConfig;
-  const palette = template.theme.palette;
+  // Config efektif: default varian + simpanan user, agar live = kanvas.
+  const config = { ...(footerVariant.defaultConfig ?? {}), ...(site.footerConfig ?? {}) };
+  // Palet efektif: skema pilihan user ikut berlaku di chrome.
+  const palette = { ...template.theme.palette, ...(site.themeOverride ?? {}) };
   const onPrimary = getOnColor(palette.primary);
   const footerText = ((config.text as string) || '').replace('{year}', String(new Date().getFullYear()));
   const layout = footerVariant.layout;

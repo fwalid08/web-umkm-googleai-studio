@@ -5,6 +5,8 @@ import { getTenantSite } from "@/lib/builder/public";
 import { PublicWebsite } from "@/components/website/renderer";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
 import { getDesignStyle } from "@/lib/builder/design-styles";
+import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
+import { getSectionVariant } from "@/lib/builder/sections/registry";
 
 import { LandingPricing } from "@/components/pricing/landing-pricing";
 import { InteractiveStorePreview } from "@/components/website/interactive-preview";
@@ -46,34 +48,44 @@ export default async function Home() {
   const tenant = await getTenantSite();
 
   if (tenant.isTenant && tenant.site) {
-    const customConfig = (tenant.site as unknown as { design_style_id?: string; sections?: unknown[] });
-    if (customConfig.design_style_id && customConfig.sections) {
-      const designStyle = getDesignStyle(customConfig.design_style_id);
-      if (designStyle) {
+    const site = tenant.site;
+    // Use V3 renderer if we have the required data
+    if (site.templateId && site.builderSections && site.builderSections.length > 0) {
+      const catalogTemplate = BUILT_IN_CATALOG.find((t) => t.id === site.templateId);
+      if (catalogTemplate) {
+        const templateData = catalogTemplate.data;
+        // Resolve header variant - use root-level headers from catalogTemplate
+        const headerVariantId = site.header?.variant as string || templateData.header?.variant || catalogTemplate.headers?.[0]?.id || '';
+        const headerVariant = catalogTemplate.headers?.find((h) => h.id === headerVariantId) || catalogTemplate.headers?.[0];
+        
+        // Resolve footer variant - use root-level footers from catalogTemplate
+        const footerVariantId = site.footer?.style as string || templateData.footer?.style || catalogTemplate.footers?.[0]?.id || '';
+        const footerVariant = catalogTemplate.footers?.find((f) => f.id === footerVariantId) || catalogTemplate.footers?.[0];
+
         return (
           <PublicWebsiteV3
             site={{
               template: {
-                id: 'legacy',
-                name: 'Legacy',
-                description: '',
-                category: 'retail',
+                id: catalogTemplate.id,
+                name: catalogTemplate.name,
+                description: catalogTemplate.description,
+                category: catalogTemplate.category,
                 theme: {
-                  palette: designStyle.palette,
-                  typography: designStyle.typography,
-                  components: designStyle.components,
-                  effects: designStyle.effects,
+                  ...catalogTemplate.theme,
+                  typography: site.v3Typography ?? catalogTemplate.theme.typography,
                 },
-                headers: [],
-                footers: [],
-                sections: [],
+                headers: catalogTemplate.headers,
+                footers: catalogTemplate.footers,
+                sections: catalogTemplate.sections,
               },
-              headerVariantId: '',
-              footerVariantId: '',
-              sections: customConfig.sections as unknown as import("@/lib/builder/template-types").TemplateSectionInstance[],
-              themeOverride: (customConfig as unknown as { palette_override?: Record<string, string> }).palette_override,
-              websiteId: tenant.site.websiteId,
-              seo: tenant.site.seo,
+              headerVariantId,
+              footerVariantId,
+              sections: site.builderSections,
+              themeOverride: site.paletteOverride || {},
+              websiteId: site.websiteId,
+              headerConfig: { ...(headerVariant?.defaultConfig ?? {}), ...((site.header ?? {}) as Record<string, unknown>) },
+              footerConfig: { ...(footerVariant?.defaultConfig ?? {}), ...((site.footer ?? {}) as Record<string, unknown>) },
+              seo: site.seo,
             }}
           />
         );

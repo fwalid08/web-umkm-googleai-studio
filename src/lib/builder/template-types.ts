@@ -1,5 +1,8 @@
 import type { DesignStylePalette, DesignStyleTypography, DesignStyleComponents, DesignStyleEffects } from './types';
 
+// Re-export agar impor lama dari template-types tetap jalan (mis. public.ts).
+export type { DesignStylePalette, DesignStyleTypography } from './types';
+
 export type BusinessCategory = 'food' | 'fashion' | 'retail' | 'handicraft' | 'services';
 
 export type Tier = 'free' | 'starter' | 'growth' | 'enterprise';
@@ -53,8 +56,19 @@ export interface SectionVariant {
     backgroundColor?: string;
     backgroundImage?: string;
     backgroundGradient?: string;
+    backgroundBlur?: number;
+    backgroundSize?: 'cover' | 'contain' | 'auto';
+    backgroundOverlay?: 'none' | 'light' | 'dark' | 'primary';
   };
   mockup: string;
+}
+
+export interface MobileMenuConfig {
+  style: 'drawer-top' | 'drawer-sidebar';
+  showCta: boolean;
+  ctaText?: string;
+  ctaLink?: string;
+  subMenuSupport: boolean;
 }
 
 export interface SectionTypeDefinition {
@@ -62,6 +76,7 @@ export interface SectionTypeDefinition {
   name: string;
   icon: string;
   variants: SectionVariant[];
+  mobileMenu?: MobileMenuConfig;
 }
 
 export interface HeaderVariant {
@@ -72,6 +87,7 @@ export interface HeaderVariant {
   configFields: ConfigField[];
   defaultConfig: Record<string, unknown>;
   mockup: string;
+  mobileMenu?: MobileMenuConfig;
 }
 
 export interface FooterVariant {
@@ -84,6 +100,35 @@ export interface FooterVariant {
   mockup: string;
 }
 
+export interface AnimationConfig {
+  id: string;
+  name: string;
+  type: 'fade' | 'slide' | 'zoom' | 'bounce' | 'custom';
+  duration: number;
+  delay: number;
+  easing: string;
+  trigger: 'onLoad' | 'onScroll' | 'onClick' | 'onHover';
+  keyframes?: string;
+  target?: string;
+}
+
+export interface BehaviourConfig {
+  id: string;
+  name: string;
+  script: string;
+  trigger: 'onLoad' | 'onScroll' | 'onClick' | 'onHover' | 'onSubmit';
+  target: string;
+}
+
+export interface AssetMetadata {
+  id: string;
+  name: string;
+  path: string;
+  url: string;
+  type: 'image' | 'script' | 'style';
+  size: number;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -94,6 +139,9 @@ export interface Template {
   headers: HeaderVariant[];
   footers: FooterVariant[];
   sections: SectionTypeDefinition[];
+  animations?: AnimationConfig[];
+  behaviours?: BehaviourConfig[];
+  assets?: AssetMetadata[];
 }
 
 export interface TemplateInstance {
@@ -124,4 +172,5 @@ export interface TemplateSectionInstance {
     hideOnTablet?: boolean;
     hideOnDesktop?: boolean;
   };
+  anchorId?: string;
 }

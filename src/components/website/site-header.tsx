@@ -28,6 +28,10 @@ export function SiteHeader({ header, designStyle }: { header: HeaderConfig; desi
 
   const transparentNow = transparentFx && !scrolled;
 
+  const textShadow = transparentNow
+    ? '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)'
+    : undefined;
+
   const headerStyle: React.CSSProperties = {
     background: transparentNow
       ? 'transparent'
@@ -59,11 +63,11 @@ export function SiteHeader({ header, designStyle }: { header: HeaderConfig; desi
               </div>
             )}
             <div>
-              <h1 className="text-xl font-bold" style={{ fontFamily: designStyle.typography.headingFont, color: designStyle.palette.text }}>
+              <h1 className="text-xl font-bold" style={{ fontFamily: designStyle.typography.headingFont, color: designStyle.palette.text, textShadow }}>
                 {header.siteTitle}
               </h1>
               {header.tagline && (
-                <p className="text-sm" style={{ color: designStyle.palette.textMuted }}>
+                <p className="text-sm" style={{ color: designStyle.palette.textMuted, textShadow }}>
                   {header.tagline}
                 </p>
               )}
@@ -82,6 +86,7 @@ export function SiteHeader({ header, designStyle }: { header: HeaderConfig; desi
                     background: designStyle.palette.surface,
                     borderColor: designStyle.palette.border,
                     borderRadius: '999px',
+                    textShadow,
                   }}
                   target={item.url.startsWith('http') ? '_blank' : undefined}
                   rel={item.url.startsWith('http') ? 'noopener noreferrer' : undefined}
@@ -157,6 +162,15 @@ export function SiteHeader({ header, designStyle }: { header: HeaderConfig; desi
 }
 
 function Brand({ header, designStyle }: { header: HeaderConfig; designStyle: DesignStyle }) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  const textShadow = !scrolled ? '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)' : undefined;
+
   return (
     <div className="flex items-center gap-3">
       {header.logoUrl ? (
@@ -171,11 +185,11 @@ function Brand({ header, designStyle }: { header: HeaderConfig; designStyle: Des
         </div>
       )}
       <div>
-        <h1 className="text-lg font-bold" style={{ fontFamily: designStyle.typography.headingFont, color: designStyle.palette.text }}>
+        <h1 className="text-lg font-bold" style={{ fontFamily: designStyle.typography.headingFont, color: designStyle.palette.text, textShadow }}>
           {header.siteTitle}
         </h1>
         {header.tagline && (
-          <p className="text-sm" style={{ color: designStyle.palette.textMuted }}>
+          <p className="text-sm" style={{ color: designStyle.palette.textMuted, textShadow }}>
             {header.tagline}
           </p>
         )}
@@ -185,6 +199,15 @@ function Brand({ header, designStyle }: { header: HeaderConfig; designStyle: Des
 }
 
 function NavLinks({ header, designStyle }: { header: HeaderConfig; designStyle: DesignStyle }) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  const textShadow = !scrolled ? '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)' : undefined;
+
   return (
     <>
       {header.navItems
@@ -197,7 +220,7 @@ function NavLinks({ header, designStyle }: { header: HeaderConfig; designStyle: 
                 key={item.id}
                 href={item.url}
                 className="text-sm font-medium hover:opacity-80 transition-opacity"
-                style={{ color: designStyle.palette.text }}
+                style={{ color: designStyle.palette.text, textShadow }}
                 target={item.url.startsWith('http') ? '_blank' : undefined}
                 rel={item.url.startsWith('http') ? 'noopener noreferrer' : undefined}
               >
@@ -210,7 +233,7 @@ function NavLinks({ header, designStyle }: { header: HeaderConfig; designStyle: 
               <a
                 href={item.url}
                 className="inline-flex items-center gap-1 text-sm font-medium hover:opacity-80 transition-opacity"
-                style={{ color: designStyle.palette.text }}
+                style={{ color: designStyle.palette.text, textShadow }}
                 aria-haspopup="true"
               >
                 {item.label}

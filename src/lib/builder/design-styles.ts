@@ -477,6 +477,45 @@ export function resolvePalette(
 }
 
 /**
+ * Resolve satu nilai warna yang boleh berupa token tema (`theme:primary`,
+ * `theme:surface`, dst) menjadi hex efektif dari palet. Hex / nilai lain
+ * (gradient, url, dsb) dilewatkan apa adanya; `undefined`/kosong → `undefined`.
+ * Dipakai kanvas, preview, dan live-site agar varian baru yang menyimpan
+ * `theme:*` selalu mengikuti warna bawaan template.
+ */
+export function resolveThemeColor(
+  value: string | undefined | null,
+  palette: DesignStylePalette,
+): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const v = value.trim();
+  if (v.length === 0) return undefined;
+  if (!v.startsWith('theme:')) return v;
+  const key = v.slice('theme:'.length) as keyof DesignStylePalette;
+  const resolved = (palette as unknown as Record<string, string>)[key];
+  return typeof resolved === 'string' && resolved.trim().length > 0 ? resolved.trim() : undefined;
+}
+
+/**
+ * Resolve semua kemunculan token `theme:*` di dalam string bebas
+ * (mis. gradient `theme:primary, theme:secondary`). Token tak dikenal
+ * dibiarkan apa adanya agar tidak merusak CSS kustom.
+ */
+export function resolveThemeTokensInString(
+  value: string | undefined | null,
+  palette: DesignStylePalette,
+): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const v = value.trim();
+  if (v.length === 0) return undefined;
+  if (!v.includes('theme:')) return v;
+  return v.replace(/theme:([A-Za-z]+)/g, (m, k) => {
+    const resolved = (palette as unknown as Record<string, string>)[k];
+    return typeof resolved === 'string' && resolved.trim().length > 0 ? resolved.trim() : m;
+  });
+}
+
+/**
  * Skema warna siap pakai — kombinasi terkurasi yang sudah lolos kontras
  * WCAG AA (cek design-styles.test.ts). Satu klik menerapkan seluruh palet
  * sehingga ganti skema tidak merusak keterbacaan.

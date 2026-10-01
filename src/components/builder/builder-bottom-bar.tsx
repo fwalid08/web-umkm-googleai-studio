@@ -3,12 +3,17 @@
 import { Monitor, Tablet, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBuilderStore } from '@/lib/builder/store';
+import { useTemplateStore } from '@/lib/builder/template-store';
 
 export function BuilderBottomBar() {
   const viewportWidth = useBuilderStore((s) => s.viewportWidth);
   const setViewportWidth = useBuilderStore((s) => s.setViewportWidth);
-  const sectionsCount = useBuilderStore((s) => s.sections.length);
-  const saved = useBuilderStore((s) => s.saved);
+  // Jumlah blok diambil dari template-store (sumber render kanvas), BUKAN
+  // builder-store, agar angka di footer sama dengan yang terlihat di kanvas.
+  const sectionsCount = useTemplateStore((s) => s.sections.length);
+  const builderSaved = useBuilderStore((s) => s.saved);
+  const templateSaved = useTemplateStore((s) => s.saved);
+  const saved = builderSaved && templateSaved;
 
   const widths = { desktop: 1024, tablet: 768, mobile: 375 } as const;
 

@@ -20,7 +20,7 @@ import { useBuilderStore } from "@/lib/builder/store";
 import { TemplateGallery } from "@/components/builder/template-gallery";
 
 function resolveSections(tpl: (typeof BUILT_IN_CATALOG)[number]) {
-  return (tpl.data.sections ?? []).map((s) => {
+  return (tpl.data?.sections ?? []).map((s) => {
     const variant = getSectionVariant(s.type, s.variant);
     const base = variant?.defaultConfig ?? {};
     const override = (s.config ?? {}) as Record<string, unknown>;
@@ -75,10 +75,11 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
           const config = json.data.custom_config;
           setCurrentStyleId(config.design_style_id ?? null);
           if (typeof json.data.tier === "string") setUserTier(json.data.tier);
-          // Cari template yang cocok
-          const matched = BUILT_IN_CATALOG.find(
-            (t) => t.data.designStyleId === config.design_style_id
-          );
+          // Cari template yang cocok via template_name (category) dari API
+          const templateCategory = json.data.template_name ?? null;
+          const matched = templateCategory
+            ? BUILT_IN_CATALOG.find((t) => t.category === templateCategory)
+            : BUILT_IN_CATALOG.find((t) => t.designStyleId === config.design_style_id);
           if (matched) setCurrentTemplateId(matched.id);
         }
       } catch {
@@ -110,14 +111,14 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
         body: JSON.stringify({
           template_id: tpl.id,
           custom_config: {
-            design_style_id: tpl.data.designStyleId,
-            palette_override: tpl.data.paletteOverride ?? {},
+            design_style_id: tpl.data?.designStyleId ?? "minimalist",
+            palette_override: tpl.data?.paletteOverride ?? {},
             sections: resolveSections(tpl),
-            header: tpl.data.header ?? {},
-            footer: tpl.data.footer ?? {},
+            header: tpl.data?.header ?? {},
+            footer: tpl.data?.footer ?? {},
             layout: { rows: [] },
-            core: tpl.data.core ?? {},
-            seo: tpl.data.seo ?? {},
+            core: tpl.data?.core ?? {},
+            seo: tpl.data?.seo ?? {},
             theme: {},
           },
         }),
@@ -127,8 +128,9 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
         setError(json.error ?? "Gagal menerapkan template");
         return;
       }
-      setCurrentStyleId(tpl.data.designStyleId ?? null);
+      setCurrentStyleId(tpl.data?.designStyleId ?? null);
       setCurrentTemplateId(tpl.id);
+      onTemplateApplied?.();
       setNotice(
         `Template "${tpl.name}" aktif. Warna, font, navigasi, footer, & layout ikut di semua halaman.`,
       );
@@ -170,38 +172,37 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
               websiteId={websiteId}
               userTier={userTier ?? undefined}
               onApply={async (template: any) => {
+                if (!template?.id) {
+                  console.error('Template is undefined or missing id:', template);
+                  return;
+                }
+                // template is UnifiedTemplate
+                // Strip "builtin-" prefix for API
+                const templateId = template.id.startsWith('builtin-') ? template.id.slice(8) : template.id;
                 const res = await fetch(`/api/websites/${websiteId}/website`, {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    template_id: template.id.startsWith("built-in-") ? template.id.replace("built-in-", "") : template.id,
+                    template_id: templateId,
                     custom_config: {
-                      template_id: template.id,
-                      header_variant_id: template.headers?.[0]?.id,
-                      footer_variant_id: template.footers?.[0]?.id,
-                      sections: template.sections?.flatMap((st: any) =>
-                        st.variants.slice(0, 1).map((v: any) => ({
-                          id: crypto.randomUUID(),
-                          type: st.type,
-                          variant_id: v.id,
-                          config: v.defaultConfig,
-                          style: {
-                            padding: { top: 64, right: 24, bottom: 64, left: 24 },
-                            background: 'transparent',
-                            ...(v.defaultStyle?.padding ? { padding: { top: 64, right: 24, bottom: 64, left: 24, ...v.defaultStyle.padding } } : {}),
-                            ...(v.defaultStyle?.background ? { background: v.defaultStyle.background } : {}),
-                            ...(v.defaultStyle?.backgroundColor ? { backgroundColor: v.defaultStyle.backgroundColor } : {}),
-                          },
-                          responsive: {},
-                        }))
-                      ) ?? [],
+                      design_style_id: template.data?.designStyleId ?? template.designStyleId ?? "minimalist",
+                      palette_override: template.data?.paletteOverride ?? template.paletteOverride ?? {},
+                      sections: resolveSections(template),
+                      header: template.data?.header ?? template.header ?? {},
+                      footer: template.data?.footer ?? template.footer ?? {},
+                      layout: { rows: [] },
+                      core: template.data?.core ?? template.core ?? {},
+                      seo: template.data?.seo ?? template.seo ?? {},
+                      theme: {},
                     },
                   }),
                 });
                 const json = await res.json();
                 if (json.success) {
-                  setCurrentStyleId(template.id);
-                  setCurrentTemplateId(template.id);
+                  setCurrentStyleId(template.data?.designStyleId ?? template.designStyleId ?? null);
+                  // Strip 'builtin-' prefix from template ID
+                  const templateId = template.id.startsWith('builtin-') ? template.id.slice(8) : template.id;
+                  setCurrentTemplateId(templateId);
                   setNotice(`Template "${template.name}" berhasil diterapkan!`);
                   onTemplateApplied?.();
                   handleGalleryClose();
@@ -210,6 +211,7 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
                 }
               }}
               onPreview={(template: any) => {
+                if (!template?.id) return;
                 window.open(`/preview/${template.id}`, '_blank');
               }}
             />
@@ -238,9 +240,9 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
                     <div className="text-sm space-y-1">
                       <p className="font-semibold">Perubahan yang akan terjadi:</p>
                       <ul className="list-disc list-inside space-y-0.5">
-                        <li>Warna, font, & komponen style diganti ke <strong>{DESIGN_STYLES.find((s) => s.id === previewTemplate.data.designStyleId)?.name ?? previewTemplate.data.designStyleId}</strong></li>
+                        <li>Warna, font, & komponen style diganti ke <strong>{DESIGN_STYLES.find((s) => s.id === previewTemplate.data?.designStyleId)?.name ?? previewTemplate.data?.designStyleId}</strong></li>
                         <li>Navigasi header & footer diganti ke bawaan template (link anchor ke section homepage)</li>
-                        <li>Layout homepage diganti: <strong>{(previewTemplate.data.sections ?? []).length} section</strong> (section lama dihapus)</li>
+                        <li>Layout homepage diganti: <strong>{(previewTemplate.data?.sections ?? []).length} section</strong> (section lama dihapus)</li>
                         <li>SEO title & description diganti</li>
                         <li><strong>Halaman custom (store_pages) TIDAK terhapus</strong> — hanya style global & homepage yang berubah</li>
                       </ul>
@@ -249,10 +251,10 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
                 </div>
                 <div className="space-y-2 text-sm">
                   <p><strong>Kategori:</strong> {CATEGORY_LABELS[previewTemplate.category]}</p>
-                  <p><strong>Style:</strong> {DESIGN_STYLES.find((s) => s.id === previewTemplate.data.designStyleId)?.name ?? previewTemplate.data.designStyleId}</p>
-                  <p><strong>Section:</strong> {(previewTemplate.data.sections ?? []).map((s) => `${s.type}:${s.variant}`).join(", ")}</p>
-                  <p><strong>Header CTA:</strong> {previewTemplate.data.header?.ctaText ?? "—"} → {previewTemplate.data.header?.ctaLink ?? "—"}</p>
-                  <p><strong>Footer style:</strong> {previewTemplate.data.footer?.style ?? "simple"}</p>
+                  <p><strong>Style:</strong> {DESIGN_STYLES.find((s) => s.id === previewTemplate.data?.designStyleId)?.name ?? previewTemplate.data?.designStyleId}</p>
+                  <p><strong>Section:</strong> {(previewTemplate.data?.sections ?? []).map((s) => `${s.type}:${s.variant}`).join(", ")}</p>
+                  <p><strong>Header CTA:</strong> {previewTemplate.data?.header?.ctaText ?? "—"} → {previewTemplate.data?.header?.ctaLink ?? "—"}</p>
+                  <p><strong>Footer style:</strong> {previewTemplate.data?.footer?.style ?? "simple"}</p>
                 </div>
               </div>
               <DialogFooter className="gap-2">

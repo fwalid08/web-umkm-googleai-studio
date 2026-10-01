@@ -2,9 +2,38 @@ import { headers } from "next/headers";
 import { cache } from "react";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { mergeAndValidateSections, type MergedSection } from "@/lib/builder/validation";
-import type { ColorPalette, TypographyConfig } from "@/types";
+import type { ColorPalette, TypographyConfig, SectionConfig, SectionType } from "@/types";
+import type { TemplateSectionInstance } from "@/lib/builder/template-types";
+import type { DesignStylePalette, DesignStyleTypography } from "@/lib/builder/types";
 import { getDemoPublicSite } from "@/lib/mock/store";
 import { isValidSubdomain, normalizeHost, rootHost, isRootHost } from "@/lib/tenant";
+import { BUILT_IN_CATALOG, type BusinessCategory } from "@/lib/builder/templates/catalog";
+import { defaultAnchorId, uniqueAnchorId } from "@/lib/builder/migration";
+
+/** Convert builder section format to MergedSection format for public rendering. */
+function builderToMergedSection(
+  builderSection: {
+    id: string;
+    type: string;
+    variant: string;
+    anchorId?: string;
+    config?: Record<string, unknown>;
+    style?: Record<string, unknown>;
+    responsive?: Record<string, unknown>;
+  },
+  templateSection: SectionConfig
+): MergedSection {
+  return {
+    id: builderSection.id,
+    type: builderSection.type,
+    label: templateSection.label,
+    enabled: true,
+    required: templateSection.required ?? false,
+    order: templateSection.order ?? 0,
+    style: builderSection.style ?? {},
+    content: builderSection.config ?? {},
+  };
+}
 
 /**
  * Sprint 01 US-04 — Public tenant lookup + merge.
@@ -24,6 +53,34 @@ export interface PublicSiteData {
   sections: MergedSection[];
   seo: { title: string; description: string };
   whatsapp: string;
+  /** Template ID (slug katalog, mis. 'pangkas-rapi') untuk V3 renderer. */
+  templateId?: string;
+  /** Design style ID (mis. 'minimalist') untuk V3 renderer. */
+  designStyleId?: string;
+  /** Builder format sections untuk V3 renderer (TemplateSectionInstance[]). */
+  builderSections?: TemplateSectionInstance[];
+  /** Header config untuk V3 renderer. */
+  header?: Record<string, unknown>;
+  /** Footer config untuk V3 renderer. */
+  footer?: Record<string, unknown>;
+  /** Palette override untuk V3 renderer. */
+  paletteOverride?: Record<string, string>;
+  /** Catalog template's palette for V3 renderer (when different from database template). */
+  v3Palette?: DesignStylePalette;
+  /** Catalog template's typography for V3 renderer (when different from database template). */
+  v3Typography?: DesignStyleTypography;
+  /** Slug halaman yang sedang dirender (untuk routing). */
+  pageSlug?: string;
+  /** ID halaman yang sedang dirender. */
+  pageId?: string;
+  /** Apakah halaman ini adalah homepage. */
+  isHomepage?: boolean;
+  /** Meta title halaman. */
+  metaTitle?: string;
+  /** Meta description halaman. */
+  metaDescription?: string;
+  /** OG image URL halaman. */
+  ogImageUrl?: string;
 }
 
 const TEMPLATE_FIELDS =
@@ -161,21 +218,142 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     .maybeSingle();
 
   const stored = (row?.custom_config ?? null) as {
+    design_style_id?: string;
+    designStyleId?: string;
+    sections?: Array<{
+      id: string;
+      type: string;
+      variant: string;
+      anchorId?: string;
+      config?: Record<string, unknown>;
+      style?: Record<string, unknown>;
+      responsive?: Record<string, unknown>;
+    }>;
+    header?: Record<string, unknown>;
+    footer?: Record<string, unknown>;
     theme?: Record<string, unknown>;
-    sections?: MergedSection[];
+    palette_override?: Record<string, string>;
+    paletteOverride?: Record<string, string>;
+    core?: Record<string, unknown>;
     seo?: { title?: string; description?: string };
+    catalog_template_id?: string;
   } | null;
+
+  // Determine which template to use for section mapping
+  // If catalog_template_id is stored, use that catalog template (since sections match it)
+  // Otherwise fall back to database template
+  let sectionMappingTemplate = template;
+  let catalogTemplateId: string | null = null;
+  
+  if (stored?.catalog_template_id) {
+    const catalogTemplate = BUILT_IN_CATALOG.find((t) => t.id === stored.catalog_template_id);
+    if (catalogTemplate) {
+      sectionMappingTemplate = {
+        ...template,
+        sections_config: catalogTemplate.sections,
+      } as typeof template;
+      catalogTemplateId = catalogTemplate.id;
+    }
+  }
+
+  // Read website_settings to determine homepage type
+  const { data: websiteSettings } = await supabase
+    .from("website_settings")
+    .select("homepage_type, homepage_page_id")
+    .eq("website_id", user.id)
+    .maybeSingle();
+
+  const homepageType = websiteSettings?.homepage_type ?? 'builder';
+  const homepagePageId = websiteSettings?.homepage_page_id ?? null;
+
+  // Mode builder: hormati flag publish baris homepage bila ada.
+  // Tanpa baris (situs lama) dianggap published agar tidak 404 mendadak.
+  if (homepageType !== 'page') {
+    const { data: homepageRow } = await supabase
+      .from("store_pages")
+      .select("id, is_published")
+      .eq("website_id", user.id)
+      .eq("is_homepage", true)
+      .maybeSingle();
+    if (homepageRow && homepageRow.is_published === false) return null;
+  }
+
+  // If homepage_type is 'page', read sections from store_pages.layout
+  let pageSections: Array<{
+    id: string;
+    type: string;
+    variant: string;
+    anchorId?: string;
+    config?: Record<string, unknown>;
+    style?: Record<string, unknown>;
+    responsive?: Record<string, unknown>;
+  }> | null = null;
+  let pageMeta: { title?: string; description?: string; ogImageUrl?: string } = {};
+
+  if (homepageType === 'page' && homepagePageId) {
+    const { data: homepagePage } = await supabase
+      .from("store_pages")
+      .select("id, title, slug, layout, meta_title, meta_description, og_image_url, is_published")
+      .eq("id", homepagePageId)
+      .eq("website_id", user.id)
+      .maybeSingle();
+
+    // Publish = halaman bisa diakses: homepage yang belum dipublish
+    // tidak dirender (404), bukan fallback ke konten basi.
+    if (!homepagePage || homepagePage.is_published !== true) return null;
+
+    if (homepagePage) {
+      const layout = homepagePage.layout as { sections?: Array<{
+        id: string;
+        type: string;
+        variant: string;
+        anchorId?: string;
+        config?: Record<string, unknown>;
+        style?: Record<string, unknown>;
+        responsive?: Record<string, unknown>;
+      }> } | null;
+      if (layout?.sections && Array.isArray(layout.sections) && layout.sections.length > 0) {
+        pageSections = layout.sections;
+      }
+      pageMeta = {
+        title: homepagePage.meta_title ?? undefined,
+        description: homepagePage.meta_description ?? undefined,
+        ogImageUrl: homepagePage.og_image_url ?? undefined,
+      };
+    }
+  }
 
   let sections: MergedSection[];
   let theme: Record<string, unknown> = {};
   let seo: { title?: string; description?: string } = {};
-  if (stored && Array.isArray(stored.sections) && stored.sections.length > 0) {
-    sections = stored.sections;
-    theme = stored.theme ?? {};
-    seo = stored.seo ?? {};
+
+  // Use page sections if homepage_type is 'page', otherwise use global config
+  const sectionsToRender = pageSections ?? (stored && Array.isArray(stored.sections) && stored.sections.length > 0 ? stored.sections : null);
+
+  if (sectionsToRender && sectionsToRender.length > 0) {
+    // Convert builder format sections to MergedSection format
+    const templateSectionMap = new Map<string, SectionConfig>(
+      (sectionMappingTemplate.sections_config ?? []).map((s: SectionConfig) => [s.id, s])
+    );
+    sections = sectionsToRender.map((bs) => {
+      const ts: SectionConfig | undefined = templateSectionMap.get(bs.type);
+      if (ts) return builderToMergedSection(bs, ts);
+      // Fallback: create minimal SectionConfig for unknown types
+      const fallback = {
+        id: bs.type,
+        type: bs.type as SectionType,
+        label: bs.type,
+        default_props: {},
+        required: false,
+        order: 0,
+      } as SectionConfig;
+      return builderToMergedSection(bs, fallback);
+    });
+    theme = stored?.theme ?? {};
+    seo = stored?.seo ?? {};
   } else {
     const merged = mergeAndValidateSections(
-      (template.sections_config ?? []) as Parameters<typeof mergeAndValidateSections>[0],
+      (sectionMappingTemplate.sections_config ?? []) as Parameters<typeof mergeAndValidateSections>[0],
       []
     );
     sections = merged.ok ? merged.sections : [];
@@ -221,8 +399,98 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     ...(template.typography_config as TypographyConfig),
     ...((theme.typography ?? {}) as Partial<TypographyConfig>),
   } as TypographyConfig;
+const name = user.name || "Toko Kami";
+  // Use catalog template ID if available (for V3 renderer), otherwise determine from businessType
+  const templateId = catalogTemplateId || (() => {
+    const cat = (user.business_type ?? "retail") as BusinessCategory;
+    const t = BUILT_IN_CATALOG.find((x) => x.category === cat);
+    return t?.id;
+  })();
+  const designStyleId = (stored?.design_style_id as string) || (stored?.designStyleId as string) || 'minimalist';
+  const storedSections = stored?.sections as Array<{
+    id: string;
+    type: string;
+    variant: string;
+    anchorId?: string;
+    config?: Record<string, unknown>;
+    style?: Record<string, unknown>;
+    responsive?: Record<string, unknown>;
+  }> | undefined;
+  // Template katalog untuk mapping variant & anchor default. Dipindah ke atas
+  // agar dipakai juga saat membangun builderSections di bawah.
+  const catalogTemplateForSections = catalogTemplateId
+    ? (BUILT_IN_CATALOG.find((t) => t.id === catalogTemplateId) ?? null)
+    : null;
+  const variantSource =
+    catalogTemplateForSections?.sections ??
+    BUILT_IN_CATALOG.find((t) => t.id === templateId)?.sections ??
+    BUILT_IN_CATALOG[0]?.sections ??
+    [];
+  const resolveVariantId = (type: string, variant: unknown): string => {
+    const typeDef = variantSource.find((t) => t.type === type);
+    if (typeof variant === 'string' && variant.length > 0 && typeDef?.variants.some((v) => v.id === variant)) {
+      return variant;
+    }
+    return typeDef?.variants[0]?.id ?? 'hero-full';
+  };
+  // Samakan dengan seed kanvas: tipe tak dikenal dipetakan ke hero agar
+  // section tidak hilang diam-diam di live site.
+  const resolveType = (type: unknown): string =>
+    typeof type === 'string' && type.length > 0 && variantSource.some((t) => t.type === type)
+      ? type
+      : 'hero';
+  // Use page sections for builderSections if homepage_type is 'page'
+  const sectionsForBuilder = pageSections ?? storedSections;
+  const usedAnchors = new Set<string>();
+  const builderSections = sectionsForBuilder?.map((s) => {
+    const resolvedType = resolveType(s.type);
+    const variantId = resolveVariantId(
+      resolvedType,
+      resolvedType === s.type ? s.variant : undefined,
+    );
+    const anchorId =
+      typeof s.anchorId === 'string' && s.anchorId.length > 0
+        ? uniqueAnchorId(s.anchorId, usedAnchors)
+        : uniqueAnchorId(
+            defaultAnchorId(catalogTemplateForSections?.id ?? templateId, resolvedType, variantId),
+            usedAnchors,
+          );
+    return {
+      id: s.id,
+      type: resolvedType,
+      variantId,
+      anchorId,
+      config: s.config ?? {},
+      style: {
+        padding: { top: 48, right: 24, bottom: 48, left: 24 },
+        background: 'transparent' as const,
+        ...(s.style ?? {}),
+      } as TemplateSectionInstance['style'],
+      responsive: s.responsive ?? {},
+    };
+  }) as TemplateSectionInstance[] | undefined;
 
-  const name = user.name || "Toko Kami";
+  const header = stored?.header as Record<string, unknown> | undefined;
+  const footer = stored?.footer as Record<string, unknown> | undefined;
+  const paletteOverride = ((stored?.palette_override as Record<string, string>) || (stored?.paletteOverride as Record<string, string>) || undefined) as Record<string, string> | undefined;
+
+  // Use catalog template's theme/typography for V3 renderer if available.
+  // Font pilihan user (theme.typography tersimpan) selalu menang.
+  // (Lookup katalog dipakai ulang dari atas agar satu sumber kebenaran.)
+  const catalogTemplate = catalogTemplateForSections;
+  const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePalette;
+  const storedTypography = ((stored?.theme as Record<string, unknown> | undefined)?.typography ?? {}) as Record<string, string>;
+  const v3Typography = {
+    ...((catalogTemplate?.theme?.typography ?? typography) as DesignStyleTypography),
+    ...(typeof storedTypography.headingFont === 'string' && storedTypography.headingFont.trim() ? { headingFont: storedTypography.headingFont.trim() } : {}),
+    ...(typeof storedTypography.bodyFont === 'string' && storedTypography.bodyFont.trim() ? { bodyFont: storedTypography.bodyFont.trim() } : {}),
+  } as DesignStyleTypography;
+
+  // Determine page slug and meta
+  const isHomepage = homepageType === 'page' || !homepagePageId;
+  const pageSlug = homepageType === 'page' && homepagePageId ? 'home' : undefined;
+  const pageId = homepageType === 'page' ? homepagePageId ?? undefined : undefined;
+
   return {
     websiteId: user.id,
     subdomain: user.subdomain ?? "",
@@ -232,10 +500,25 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     typography,
     sections,
     seo: {
-      title: seo.title || `${name} — Toko Online`,
-      description: seo.description || (template.description as string) || `Belanja online di ${name}.`,
+      title: pageMeta.title || seo.title || `${name} — Toko Online`,
+      description: pageMeta.description || seo.description || (template.description as string) || `Belanja online di ${name}.`,
     },
     whatsapp: findWhatsapp(sections),
+    templateId,
+    designStyleId,
+    builderSections,
+    header,
+    footer,
+    paletteOverride,
+    // V3 renderer needs catalog template's theme
+    v3Palette,
+    v3Typography,
+    pageSlug,
+    pageId,
+    isHomepage,
+    metaTitle: pageMeta.title,
+    metaDescription: pageMeta.description,
+    ogImageUrl: pageMeta.ogImageUrl,
   };
 }
 

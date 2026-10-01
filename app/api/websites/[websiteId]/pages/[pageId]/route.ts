@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getActiveWebsite } from "@/lib/websites/active";
@@ -180,6 +181,9 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Gagal memperbarui halaman" }, { status: 500 });
     }
 
+    // Publish = halaman bisa diakses: pastikan live site baca data terbaru.
+    revalidatePath("/", "layout");
+
     return NextResponse.json({ success: true, data: page, message: "Halaman berhasil diperbarui" });
   } catch {
     return NextResponse.json({ success: false, error: "Terjadi kesalahan server" }, { status: 500 });
@@ -228,6 +232,8 @@ export async function DELETE(
     if (error) {
       return NextResponse.json({ success: false, error: "Gagal menghapus halaman" }, { status: 500 });
     }
+
+    revalidatePath("/", "layout");
 
     return NextResponse.json({ success: true, message: "Halaman berhasil dihapus" });
   } catch {

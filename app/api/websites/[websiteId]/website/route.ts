@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { FREE_PRODUCT_MAX, websiteConfigSchema } from "@/types";
@@ -12,6 +13,7 @@ import {
   type MergedSection,
 } from "@/lib/builder/validation";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
+import { ensureSectionIdentities } from "@/lib/builder/migration";
 import { getOwnedWebsite } from "@/lib/websites/active";
 import { tenantUrl } from "@/lib/urls";
 import {
@@ -393,11 +395,19 @@ export async function PUT(
       let dbTemplate: { id: string; name: string } | null = null;
 
       if (isBuiltinTemplate) {
-        // Map builtin template to database template by category (anchor FK).
-        const category = builtinEntry!.category;
-        console.log('[DEBUG] builtin category:', category);
-        dbTemplate = allTemplates?.find(t => t.name === category) ?? allTemplates?.[0] ?? null;
-        console.log('[DEBUG] dbTemplate found:', dbTemplate);
+        // Map builtin template to database template by direct ID match.
+        // Avoids category-name matching dependency entirely.
+        const templateRows = allTemplates ?? [];
+        const dbTemplateById = templateRows.find((t) => t.id === normalizedTemplateId) ?? null;
+        if (dbTemplateById) {
+          dbTemplate = dbTemplateById;
+        } else {
+          // Fallback: find by category name (original logic, now more reliable after DB category fix)
+          const builtinById = new Map(BUILT_IN_CATALOG.map((t) => [t.id, t])).get(normalizedTemplateId ?? "") || null;
+          if (builtinById) {
+            dbTemplate = templateRows.find((t) => t.name === builtinById.category) ?? null;
+          }
+        }
         dbTemplateId = dbTemplate?.id ?? normalizedTemplateId;
       } else {
         // Regular database template lookup
@@ -435,14 +445,28 @@ export async function PUT(
         }
       }
 
+      // Normalisasi identitas sections di server: client lama / baris lama
+      // bisa menyimpan tanpa variant+anchorId sehingga section hilang di live.
+      // Aturan sama dengan seed kanvas & render publik → ketiganya sepakat.
+      const sectionTemplateRef =
+        (typeof body.template_id === 'string' && body.template_id.length > 0
+          ? body.template_id
+          : undefined) ??
+        (typeof custom_config.catalog_template_id === 'string'
+          ? (custom_config.catalog_template_id as string)
+          : undefined);
       const toStore = {
         design_style_id: custom_config.design_style_id ?? 'minimalist',
-        sections: custom_config.sections ?? [],
+        // Jangan buang skema warna user: tanpanya live site selalu
+        // kembali ke warna bawaan template walau kanvas sudah diganti.
+        palette_override: custom_config.palette_override ?? {},
+        sections: ensureSectionIdentities(custom_config.sections ?? [], sectionTemplateRef),
         header: custom_config.header ?? {},
         footer: custom_config.footer ?? {},
         theme: custom_config.theme ?? {},
         core: custom_config.core ?? {},
         seo: custom_config.seo ?? {},
+        catalog_template_id: body.template_id ?? undefined,
       };
 
       const { error: upsertError } = await supabase.from("user_templates").upsert(
@@ -461,9 +485,13 @@ export async function PUT(
       }
 
       // Apply template sections to homepage (store_pages with is_homepage=true)
-      // Upsert: create if not exists, update if exists
+      // Upsert: create if not exists, update if exists.
+      // PENTING: hanya sync bila yang disimpan memang homepage. Tanpa gate ini,
+      // menyimpan halaman lain (sections global = snapshot basi) akan menimpa
+      // layout homepage asli di store_pages. Page-builder mengirim is_homepage
+      // eksplisit; builder lama tidak mengirim (undefined) → perilaku lama dijaga.
       const homepageSections = custom_config.sections ?? [];
-      if (homepageSections.length > 0) {
+      if (homepageSections.length > 0 && body.is_homepage !== false) {
         // First check if homepage exists
         const { data: existingHomepage } = await supabase
           .from("store_pages")
@@ -509,6 +537,8 @@ export async function PUT(
         .update({ current_template_id: dbTemplateId, updated_at: new Date().toISOString() })
         .eq("id", websiteId)
         .eq("user_id", sessionUser.id);
+
+      revalidatePath("/", "layout");
 
       return NextResponse.json({
         success: true,

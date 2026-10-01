@@ -1,9 +1,20 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { Template, SectionTypeDefinition, SectionVariant, TemplateSectionInstance } from './template-types';
+import type { Template, SectionTypeDefinition, SectionVariant, TemplateSectionInstance, AnimationConfig, BehaviourConfig, AssetMetadata, TemplateTheme } from './template-types';
 import { PANGKAS_RAPI_TEMPLATE } from './templates/pangkas-rapi';
+import { WARUNG_MAKAN_TEMPLATE } from './templates/warung-makan';
+import { BUTIK_HIJAB_TEMPLATE } from './templates/butik-hijab';
+import { TOKO_KELONTONG_TEMPLATE } from './templates/toko-kelontong';
+import { KERAJINAN_TANGAN_TEMPLATE } from './templates/kerajinan-tangan';
+import { seedTemplateSections } from './migration';
 
-export const BUILTIN_TEMPLATES: Template[] = [PANGKAS_RAPI_TEMPLATE];
+export const BUILTIN_TEMPLATES: Template[] = [
+  PANGKAS_RAPI_TEMPLATE,
+  WARUNG_MAKAN_TEMPLATE,
+  BUTIK_HIJAB_TEMPLATE,
+  TOKO_KELONTONG_TEMPLATE,
+  KERAJINAN_TANGAN_TEMPLATE,
+];
 
 export function getTemplate(id: string): Template | undefined {
   return BUILTIN_TEMPLATES.find((t) => t.id === id);
@@ -34,21 +45,86 @@ function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+/** Satu entri histori template (sections + chrome + tema + aset). */
+type TemplateHistoryEntry = {
+  sections: TemplateSectionInstance[];
+  headerVariantId: string;
+  footerVariantId: string;
+  themeOverride: Record<string, string>;
+  animations: AnimationConfig[];
+  behaviours: BehaviourConfig[];
+  assets: AssetMetadata[];
+  headerConfig: Record<string, unknown>;
+  footerConfig: Record<string, unknown>;
+};
+
+type TemplateDraft = {
+  sections: TemplateSectionInstance[];
+  headerVariantId: string;
+  footerVariantId: string;
+  headerConfig: Record<string, unknown>;
+  footerConfig: Record<string, unknown>;
+  themeOverride: Record<string, string>;
+  animations: AnimationConfig[];
+  behaviours: BehaviourConfig[];
+  assets: AssetMetadata[];
+  past: TemplateHistoryEntry[];
+  future: TemplateHistoryEntry[];
+};
+
+function snapshotTemplate(state: TemplateDraft) {
+  return {
+    sections: deepClone(state.sections),
+    headerVariantId: state.headerVariantId,
+    footerVariantId: state.footerVariantId,
+    headerConfig: deepClone(state.headerConfig ?? {}),
+    footerConfig: deepClone(state.footerConfig ?? {}),
+    themeOverride: deepClone(state.themeOverride),
+    animations: deepClone(state.animations),
+    behaviours: deepClone(state.behaviours),
+    assets: deepClone(state.assets),
+  };
+}
+
+/** Dorong histori lengkap (sections + chrome + tema + aset). */
+function pushTemplateHistory(state: TemplateDraft) {
+  state.past.push(snapshotTemplate(state));
+}
+
+function restoreTemplateSnapshot(
+  state: TemplateDraft,
+  snapshot: ReturnType<typeof snapshotTemplate>,
+) {
+  state.sections = snapshot.sections;
+  state.headerVariantId = snapshot.headerVariantId;
+  state.footerVariantId = snapshot.footerVariantId;
+  state.headerConfig = snapshot.headerConfig ?? {};
+  state.footerConfig = snapshot.footerConfig ?? {};
+  state.themeOverride = snapshot.themeOverride ?? {};
+  state.animations = snapshot.animations ?? [];
+  state.behaviours = snapshot.behaviours ?? [];
+  state.assets = snapshot.assets ?? [];
+}
+
 function createDefaultSectionInstance(template: Template, type: string, variantId: string): TemplateSectionInstance {
   const variant = getSectionVariant(template, type, variantId);
+  const ds = variant?.defaultStyle ?? {};
   return {
     id: generateId(),
     type,
     variantId,
     config: deepClone(variant?.defaultConfig ?? {}),
     style: {
-      padding: { top: 48, right: 24, bottom: 48, left: 24 },
-      background: 'transparent',
-      ...(variant?.defaultStyle?.padding ? { padding: { top: 48, right: 24, bottom: 48, left: 24, ...variant.defaultStyle.padding } } : {}),
-      ...(variant?.defaultStyle?.background ? { background: variant.defaultStyle.background } : {}),
-      ...(variant?.defaultStyle?.backgroundColor ? { backgroundColor: variant.defaultStyle.backgroundColor } : {}),
-      ...(variant?.defaultStyle?.backgroundImage ? { backgroundImage: variant.defaultStyle.backgroundImage } : {}),
-      ...(variant?.defaultStyle?.backgroundGradient ? { backgroundGradient: variant.defaultStyle.backgroundGradient } : {}),
+      padding: { top: 48, right: 24, bottom: 48, left: 24, ...(ds.padding ?? {}) },
+      background: ds.background ?? 'transparent',
+      // Pertahankan token theme:* apa adanya — di-resolve saat render ke
+      // warna template aktif sehingga varian baru langsung ikut tema.
+      ...(ds.backgroundColor ? { backgroundColor: ds.backgroundColor } : {}),
+      ...(ds.backgroundImage ? { backgroundImage: ds.backgroundImage } : {}),
+      ...(ds.backgroundGradient ? { backgroundGradient: ds.backgroundGradient } : {}),
+      ...(typeof ds.backgroundBlur === 'number' ? { backgroundBlur: ds.backgroundBlur } : {}),
+      ...(ds.backgroundSize ? { backgroundSize: ds.backgroundSize } : {}),
+      ...(ds.backgroundOverlay ? { backgroundOverlay: ds.backgroundOverlay } : {}),
     },
     responsive: {},
   };
@@ -58,24 +134,21 @@ interface TemplateState {
   template: Template;
   headerVariantId: string;
   footerVariantId: string;
+  headerConfig: Record<string, unknown>;
+  footerConfig: Record<string, unknown>;
   sections: TemplateSectionInstance[];
   selectedSectionId: string | null;
   saved: boolean;
   themeOverride: Record<string, string>;
-  past: Array<{
-    sections: TemplateSectionInstance[];
-    headerVariantId: string;
-    footerVariantId: string;
-    themeOverride: Record<string, string>;
-  }>;
-  future: Array<{
-    sections: TemplateSectionInstance[];
-    headerVariantId: string;
-    footerVariantId: string;
-    themeOverride: Record<string, string>;
-  }>;
+  animations: AnimationConfig[];
+  behaviours: BehaviourConfig[];
+  assets: AssetMetadata[];
+  past: TemplateHistoryEntry[];
+  future: TemplateHistoryEntry[];
 
   setTemplate: (templateId: string) => void;
+  /** Timpa sections tanpa reset undo-user (dipakai seed dari data tersimpan). */
+  replaceSections: (sections: TemplateSectionInstance[]) => void;
   setHeaderVariant: (variantId: string) => void;
   setFooterVariant: (variantId: string) => void;
   addSection: (type: string, variantId: string) => void;
@@ -83,12 +156,20 @@ interface TemplateState {
   deleteSection: (id: string) => void;
   duplicateSection: (id: string) => void;
   updateSection: (id: string, updates: Partial<TemplateSectionInstance>) => void;
+  setSectionVariant: (id: string, variantId: string) => void;
   updateSectionConfig: (id: string, config: Record<string, unknown>) => void;
   updateSectionStyle: (id: string, style: Partial<TemplateSectionInstance['style']>) => void;
   reorderSections: (fromIndex: number, toIndex: number) => void;
   selectSection: (id: string | null) => void;
   updateThemeOverride: (patch: Record<string, string>) => void;
   resetThemeOverride: () => void;
+  updateAnimations: (animations: AnimationConfig[]) => void;
+  updateBehaviours: (behaviours: BehaviourConfig[]) => void;
+  updateAssets: (assets: AssetMetadata[]) => void;
+  /** Ubah satu key konten header (ikut undo + tandai belum tersimpan). */
+  updateHeaderConfig: (patch: Record<string, unknown>) => void;
+  /** Ubah satu key konten footer (ikut undo + tandai belum tersimpan). */
+  updateFooterConfig: (patch: Record<string, unknown>) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -102,10 +183,15 @@ export const useTemplateStore = create<TemplateState>()(
     template: PANGKAS_RAPI_TEMPLATE,
     headerVariantId: PANGKAS_RAPI_TEMPLATE.headers[0].id,
     footerVariantId: PANGKAS_RAPI_TEMPLATE.footers[0].id,
+    headerConfig: { ...(PANGKAS_RAPI_TEMPLATE.headers[0]?.defaultConfig ?? {}) },
+    footerConfig: { ...(PANGKAS_RAPI_TEMPLATE.footers[0]?.defaultConfig ?? {}) },
     sections: [],
     selectedSectionId: null,
     saved: true,
     themeOverride: {},
+    animations: [],
+    behaviours: [],
+    assets: [],
     past: [],
     future: [],
 
@@ -116,32 +202,55 @@ export const useTemplateStore = create<TemplateState>()(
         state.template = template;
         state.headerVariantId = template.headers[0].id;
         state.footerVariantId = template.footers[0].id;
+        state.headerConfig = { ...(template.headers[0]?.defaultConfig ?? {}) };
+        state.footerConfig = { ...(template.footers[0]?.defaultConfig ?? {}) };
         state.sections = [];
         state.selectedSectionId = null;
         state.themeOverride = {};
+        state.animations = template.animations || [];
+        state.behaviours = template.behaviours || [];
+        state.assets = template.assets || [];
         state.saved = false;
+      }),
+
+    replaceSections: (sections) =>
+      set((state) => {
+        state.sections = deepClone(sections ?? []);
+        state.selectedSectionId = null;
+        state.past = [];
+        state.future = [];
+        // Konten hasil seed dianggap "tersimpan" agar indikator atas tidak
+        // menyala palsu saat halaman baru dibuka.
+        state.saved = true;
       }),
 
     setHeaderVariant: (variantId) =>
       set((state) => {
+        if (state.headerVariantId === variantId) return;
+        pushTemplateHistory(state);
         state.headerVariantId = variantId;
+        state.headerConfig = {
+          ...(getHeaderVariant(state.template, variantId)?.defaultConfig ?? {}),
+        };
+        state.future = [];
         state.saved = false;
       }),
 
     setFooterVariant: (variantId) =>
       set((state) => {
+        if (state.footerVariantId === variantId) return;
+        pushTemplateHistory(state);
         state.footerVariantId = variantId;
+        state.footerConfig = {
+          ...(getFooterVariant(state.template, variantId)?.defaultConfig ?? {}),
+        };
+        state.future = [];
         state.saved = false;
       }),
 
     addSection: (type, variantId) =>
       set((state) => {
-        state.past.push({
-          sections: deepClone(state.sections),
-          headerVariantId: state.headerVariantId,
-          footerVariantId: state.footerVariantId,
-          themeOverride: deepClone(state.themeOverride),
-        });
+        pushTemplateHistory(state);
         state.future = [];
         state.sections.push(createDefaultSectionInstance(state.template, type, variantId));
         state.saved = false;
@@ -149,12 +258,7 @@ export const useTemplateStore = create<TemplateState>()(
 
     insertSectionAt: (type, variantId, index) =>
       set((state) => {
-        state.past.push({
-          sections: deepClone(state.sections),
-          headerVariantId: state.headerVariantId,
-          footerVariantId: state.footerVariantId,
-          themeOverride: deepClone(state.themeOverride),
-        });
+        pushTemplateHistory(state);
         state.future = [];
         state.sections.splice(index, 0, createDefaultSectionInstance(state.template, type, variantId));
         state.saved = false;
@@ -162,12 +266,7 @@ export const useTemplateStore = create<TemplateState>()(
 
     deleteSection: (id) =>
       set((state) => {
-        state.past.push({
-          sections: deepClone(state.sections),
-          headerVariantId: state.headerVariantId,
-          footerVariantId: state.footerVariantId,
-          themeOverride: deepClone(state.themeOverride),
-        });
+        pushTemplateHistory(state);
         state.future = [];
         state.sections = state.sections.filter((s) => s.id !== id);
         if (state.selectedSectionId === id) {
@@ -185,12 +284,7 @@ export const useTemplateStore = create<TemplateState>()(
           ...deepClone(original),
           id: generateId(),
         };
-        state.past.push({
-          sections: deepClone(state.sections),
-          headerVariantId: state.headerVariantId,
-          footerVariantId: state.footerVariantId,
-          themeOverride: deepClone(state.themeOverride),
-        });
+        pushTemplateHistory(state);
         state.future = [];
         state.sections.splice(index + 1, 0, duplicate);
         state.saved = false;
@@ -203,6 +297,30 @@ export const useTemplateStore = create<TemplateState>()(
           Object.assign(section, updates);
           state.saved = false;
         }
+      }),
+
+    setSectionVariant: (id, variantId) =>
+      set((state) => {
+        const section = state.sections.find((s) => s.id === id);
+        if (!section) return;
+        const template = state.template;
+        const sectionType = template.sections.find((s) => s.type === section.type);
+        const newVariant = sectionType?.variants.find((v) => v.id === variantId);
+        if (!newVariant) return;
+        section.variantId = variantId;
+        section.config = deepClone(newVariant.defaultConfig ?? {});
+        const nds = newVariant.defaultStyle ?? {};
+        section.style = {
+          padding: { top: 48, right: 24, bottom: 48, left: 24, ...(nds.padding ?? {}) },
+          background: nds.background ?? 'transparent',
+          ...(nds.backgroundColor ? { backgroundColor: nds.backgroundColor } : {}),
+          ...(nds.backgroundImage ? { backgroundImage: nds.backgroundImage } : {}),
+          ...(nds.backgroundGradient ? { backgroundGradient: nds.backgroundGradient } : {}),
+          ...(typeof nds.backgroundBlur === 'number' ? { backgroundBlur: nds.backgroundBlur } : {}),
+          ...(nds.backgroundSize ? { backgroundSize: nds.backgroundSize } : {}),
+          ...(nds.backgroundOverlay ? { backgroundOverlay: nds.backgroundOverlay } : {}),
+        };
+        state.saved = false;
       }),
 
     updateSectionConfig: (id, config) =>
@@ -247,39 +365,55 @@ export const useTemplateStore = create<TemplateState>()(
         state.saved = false;
       }),
 
+    updateAnimations: (animations) =>
+      set((state) => {
+        state.animations = animations;
+        state.saved = false;
+      }),
+
+    updateBehaviours: (behaviours) =>
+      set((state) => {
+        state.behaviours = behaviours;
+        state.saved = false;
+      }),
+
+    updateAssets: (assets) =>
+      set((state) => {
+        state.assets = assets;
+        state.saved = false;
+      }),
+
+    updateHeaderConfig: (patch) =>
+      set((state) => {
+        pushTemplateHistory(state);
+        state.headerConfig = { ...(state.headerConfig ?? {}), ...patch };
+        state.future = [];
+        state.saved = false;
+      }),
+
+    updateFooterConfig: (patch) =>
+      set((state) => {
+        pushTemplateHistory(state);
+        state.footerConfig = { ...(state.footerConfig ?? {}), ...patch };
+        state.future = [];
+        state.saved = false;
+      }),
+
     undo: () =>
       set((state) => {
         if (state.past.length === 0) return;
-        const currentSnapshot = {
-          sections: deepClone(state.sections),
-          headerVariantId: state.headerVariantId,
-          footerVariantId: state.footerVariantId,
-          themeOverride: deepClone(state.themeOverride),
-        };
-        state.future.push(currentSnapshot);
+        state.future.push(snapshotTemplate(state));
         const snapshot = state.past.pop()!;
-        state.sections = snapshot.sections;
-        state.headerVariantId = snapshot.headerVariantId;
-        state.footerVariantId = snapshot.footerVariantId;
-        state.themeOverride = snapshot.themeOverride ?? {};
+        restoreTemplateSnapshot(state, snapshot);
         state.saved = false;
       }),
 
     redo: () =>
       set((state) => {
         if (state.future.length === 0) return;
-        const currentSnapshot = {
-          sections: deepClone(state.sections),
-          headerVariantId: state.headerVariantId,
-          footerVariantId: state.footerVariantId,
-          themeOverride: deepClone(state.themeOverride),
-        };
-        state.past.push(currentSnapshot);
+        state.past.push(snapshotTemplate(state));
         const snapshot = state.future.pop()!;
-        state.sections = snapshot.sections;
-        state.headerVariantId = snapshot.headerVariantId;
-        state.footerVariantId = snapshot.footerVariantId;
-        state.themeOverride = snapshot.themeOverride ?? {};
+        restoreTemplateSnapshot(state, snapshot);
         state.saved = false;
       }),
 
@@ -291,30 +425,27 @@ export const useTemplateStore = create<TemplateState>()(
         const templateId = (config.template_id as string) || 'pangkas-rapi';
         const template = getTemplate(templateId) || PANGKAS_RAPI_TEMPLATE;
         state.template = template;
-        state.headerVariantId = (config.header_variant_id as string) || template.headers[0].id;
-        state.footerVariantId = (config.footer_variant_id as string) || template.footers[0].id;
+        const headerVariantId = (config.header_variant_id as string) || template.headers[0].id;
+        const footerVariantId = (config.footer_variant_id as string) || template.footers[0].id;
+        state.headerVariantId = headerVariantId;
+        state.footerVariantId = footerVariantId;
+        state.headerConfig = {
+          ...(getHeaderVariant(template, headerVariantId)?.defaultConfig ?? {}),
+        };
+        state.footerConfig = {
+          ...(getFooterVariant(template, footerVariantId)?.defaultConfig ?? {}),
+        };
 
         if (Array.isArray(config.sections)) {
-          state.sections = config.sections.map((s: Record<string, unknown>) => {
-            const type = s.type as string;
-            const variantId = s.variant_id as string;
-            const variant = getSectionVariant(template, type, variantId);
-            return {
-              id: (s.id as string) || generateId(),
-              type,
-              variantId,
-              config: { ...(variant?.defaultConfig ?? {}), ...(s.config as Record<string, unknown> ?? {}) },
-              style: {
-                padding: { top: 48, right: 24, bottom: 48, left: 24, ...(s.style as Record<string, unknown>)?.padding as object },
-                background: ((s.style as Record<string, unknown>)?.background as 'color' | 'image' | 'gradient' | 'transparent') || 'transparent',
-                backgroundColor: (s.style as Record<string, unknown>)?.backgroundColor as string | undefined,
-                backgroundImage: (s.style as Record<string, unknown>)?.backgroundImage as string | undefined,
-                backgroundGradient: (s.style as Record<string, unknown>)?.backgroundGradient as string | undefined,
-              },
-              responsive: (s.responsive as Record<string, boolean>) ?? {},
-            };
-          });
+          state.sections = seedTemplateSections(
+            template,
+            config.sections as Array<Record<string, unknown>>,
+          );
         }
+
+        state.animations = Array.isArray(config.animations) ? config.animations as AnimationConfig[] : [];
+        state.behaviours = Array.isArray(config.behaviours) ? config.behaviours as BehaviourConfig[] : [];
+        state.assets = Array.isArray(config.assets) ? config.assets as AssetMetadata[] : [];
 
         state.selectedSectionId = null;
         state.past = [];
@@ -328,7 +459,12 @@ export const useTemplateStore = create<TemplateState>()(
         template_id: state.template.id,
         header_variant_id: state.headerVariantId,
         footer_variant_id: state.footerVariantId,
+        header_config: { ...state.headerConfig },
+        footer_config: { ...state.footerConfig },
         sections: state.sections,
+        animations: state.animations,
+        behaviours: state.behaviours,
+        assets: state.assets,
       };
     },
   }))

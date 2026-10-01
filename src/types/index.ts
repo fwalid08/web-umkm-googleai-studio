@@ -320,6 +320,9 @@ const navItemSchema = z.object({
 export const builderConfigSchema = z.object({
   design_style_id: z.string().min(1, "Design style wajib diisi"),
   palette_override: z.record(z.string(), z.string()).optional(),
+  theme: z.object({
+    typography: z.record(z.string(), z.string()).optional(),
+  }).passthrough().optional(),
   sections: z.array(z.object({
     id: z.string().min(1),
     type: z.string().min(1),

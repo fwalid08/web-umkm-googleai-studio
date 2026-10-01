@@ -1,6 +1,9 @@
 import type { Template } from '../template-types';
+import type { FullTemplateData } from '../types';
 
-export const PANGKAS_RAPI_TEMPLATE: Template = {
+const WA = "https://wa.me/6281234567890";
+
+export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
   id: 'pangkas-rapi',
   name: 'Pangkas Rapi — Barbershop & Jasa',
   description:
@@ -9,31 +12,34 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
   tiers: ['free', 'starter', 'growth', 'enterprise'],
   theme: {
     palette: {
-      primary: '#047857',
-      secondary: '#065f46',
-      accent: '#f59e0b',
-      background: '#ffffff',
-      surface: '#ecfdf5',
-      text: '#111827',
-      textMuted: '#4b5563',
-      border: '#a7f3d0',
+      primary: '#00A3FF',
+      secondary: '#00E5FF',
+      accent: '#FF6B35',
+      background: '#050B14',
+      surface: '#0F172A',
+      text: '#E0F2FE',
+      textMuted: '#7DD3FC',
+      border: '#1E293B',
     },
     typography: {
-      headingFont: 'Space Grotesk',
+      headingFont: 'Bebas Neue',
       bodyFont: 'Inter',
       baseSize: 16,
       scaleRatio: 1.25,
-      headingWeight: 700,
+      headingWeight: 400,
       bodyWeight: 400,
     },
     components: {
-      borderRadius: 12,
-      buttonStyle: 'solid',
-      shadowStyle: 'md',
+      borderRadius: 0,
+      buttonStyle: 'outline',
+      shadowStyle: 'none',
       navStyle: 'solid',
       footerStyle: 'simple',
     },
-    effects: {},
+    effects: {
+      uppercaseHeadings: true,
+      borderWidth: 2,
+    },
   },
   headers: [
     {
@@ -312,6 +318,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'hero',
       name: 'Hero',
       icon: 'Layout',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'hero-full',
@@ -341,7 +354,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
             background_image: '',
             background_color: 'theme:primary',
           },
-          defaultStyle: { padding: { top: 120, right: 24, bottom: 120, left: 24 } },
+          defaultStyle: { padding: { top: 120, right: 24, bottom: 120, left: 24 }, background: 'color', backgroundColor: 'theme:primary', backgroundBlur: 0, backgroundSize: 'cover', backgroundOverlay: 'none' },
         },
         {
           id: 'hero-split',
@@ -363,7 +376,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
             cta_link: '#booking',
             image: '',
           },
-          defaultStyle: { padding: { top: 80, right: 24, bottom: 80, left: 24 } },
+          defaultStyle: { padding: { top: 80, right: 24, bottom: 80, left: 24 }, background: 'transparent', backgroundBlur: 0, backgroundSize: 'cover', backgroundOverlay: 'none' },
         },
         {
           id: 'hero-card',
@@ -391,7 +404,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
             background_type: 'color',
             background_image: '',
           },
-          defaultStyle: { padding: { top: 80, right: 24, bottom: 80, left: 24 } },
+          defaultStyle: { padding: { top: 80, right: 24, bottom: 80, left: 24 }, background: 'color', backgroundColor: 'theme:primary', backgroundBlur: 0, backgroundSize: 'cover', backgroundOverlay: 'none' },
         },
         {
           id: 'hero-video-bg',
@@ -413,7 +426,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
             cta_link: '#booking',
             video_url: '',
           },
-          defaultStyle: { padding: { top: 120, right: 24, bottom: 120, left: 24 } },
+          defaultStyle: { padding: { top: 120, right: 24, bottom: 120, left: 24 }, background: 'color', backgroundColor: '#000000', backgroundBlur: 0, backgroundSize: 'cover', backgroundOverlay: 'dark' },
         },
       ],
     },
@@ -421,6 +434,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'features',
       name: 'Fitur',
       icon: 'Grid',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'features-3col',
@@ -539,6 +559,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'product_grid',
       name: 'Produk',
       icon: 'ShoppingBag',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'product-4col',
@@ -593,6 +620,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'testimonials',
       name: 'Testimoni',
       icon: 'Quote',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'testimonials-grid',
@@ -680,6 +714,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'faq',
       name: 'FAQ',
       icon: 'HelpCircle',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'faq-accordion',
@@ -765,6 +806,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'cta',
       name: 'CTA',
       icon: 'Megaphone',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'cta-banner',
@@ -829,6 +877,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'contact',
       name: 'Kontak',
       icon: 'Mail',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'contact-form',
@@ -899,6 +954,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'booking',
       name: 'Booking',
       icon: 'CalendarCheck',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'booking-single',
@@ -976,6 +1038,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'about',
       name: 'Tentang',
       icon: 'Info',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'about-left',
@@ -1034,6 +1103,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'gallery',
       name: 'Galeri',
       icon: 'Image',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'gallery-grid',
@@ -1077,6 +1153,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'video',
       name: 'Video',
       icon: 'Play',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'video-full',
@@ -1108,6 +1191,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'team',
       name: 'Tim',
       icon: 'Users',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'team-grid',
@@ -1168,6 +1258,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'pricing',
       name: 'Harga',
       icon: 'DollarSign',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'pricing-3tier',
@@ -1230,6 +1327,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'newsletter',
       name: 'Newsletter',
       icon: 'Send',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'newsletter-inline',
@@ -1275,6 +1379,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'divider',
       name: 'Divider',
       icon: 'Minus',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'divider-line',
@@ -1309,6 +1420,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'marquee',
       name: 'Teks Berjalan',
       icon: 'MoveHorizontal',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'marquee-band',
@@ -1333,7 +1451,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
               { text: 'Buka Setiap Hari' },
             ],
           },
-          defaultStyle: { padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+          defaultStyle: { padding: { top: 0, right: 0, bottom: 0, left: 0 }, background: 'color', backgroundColor: 'theme:primary', backgroundBlur: 0, backgroundSize: 'cover', backgroundOverlay: 'none' },
         },
       ],
     },
@@ -1341,6 +1459,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'menu_board',
       name: 'Menu / Harga',
       icon: 'Coffee',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'menu-tabs',
@@ -1418,6 +1543,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'steps',
       name: 'Langkah',
       icon: 'ListOrdered',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'steps-3col',
@@ -1454,6 +1586,13 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       type: 'location',
       name: 'Lokasi',
       icon: 'MapPin',
+      mobileMenu: {
+        style: 'drawer-sidebar',
+        showCta: true,
+        ctaText: 'Booking via WA',
+        ctaLink: 'https://wa.me/6281234567890',
+        subMenuSupport: true,
+      },
       variants: [
         {
           id: 'location-hours',
@@ -1492,4 +1631,74 @@ export const PANGKAS_RAPI_TEMPLATE: Template = {
       ],
     },
   ],
+  data: {
+    designStyleId: "minimalist",
+    paletteOverride: {
+      primary: '#047857',
+      secondary: '#065f46',
+      accent: '#f59e0b',
+      background: '#ffffff',
+      surface: '#ecfdf5',
+      text: '#111827',
+      textMuted: '#4b5563',
+      border: '#a7f3d0',
+    },
+    sections: [
+      { type: 'hero', variant: 'hero-bg-image', anchorId: 'beranda', config: { headline: 'Tampil Rapi, Percaya Diri', subheadline: 'Barber berpengalaman, alat steril, hasil konsisten. Booking dulu, datang langsung dilayani.', cta_text: 'Booking Sekarang', cta_link: '#booking', text_align: 'center', background_type: 'image', background_image: '' } },
+      { type: 'features', variant: 'features-3col', anchorId: 'layanan', config: { title: 'Kenapa Pangkas di Kami', items: [{ icon: '✂️', title: 'Barber Berpengalaman', description: 'Tim barber dengan pengalaman 5+ tahun' }, { icon: '🧼', title: 'Alat Steril', description: 'Alat didesinfeksi setiap selesai dipakai' }, { icon: '⏱️', title: 'Tanpa Antre Lama', description: 'Booking online, datang langsung dilayani' }] } },
+      { type: 'pricing', variant: 'pricing-3tier', anchorId: 'tarif', config: { title: 'Tarif Cukur', items: [{ name: 'Reguler', price: 'Rp 25rb', features: ['Potong rambut', 'Cuci rambut', 'Styling'] }, { name: 'Premium', price: 'Rp 40rb', features: ['Potong rambut', 'Cukur jenggot', 'Cuci + pijat', 'Styling premium'] }, { name: 'Paket Bulanan', price: 'Rp 90rb', features: ['4x potong rambut', 'Prioritas booking', 'Gratis styling'] }] } },
+      { type: 'booking', variant: 'booking-split', anchorId: 'booking', config: { title: 'Booking Sekarang', subtitle: 'Amankan jadwal Anda — tanpa antre lama', services: [{ name: 'Potong Rambut', duration: '30 menit', price: 'Rp 25rb' }, { name: 'Potong + Cukur Jenggot', duration: '45 menit', price: 'Rp 40rb' }, { name: 'Creambath + Pijat', duration: '60 menit', price: 'Rp 75rb' }], address: 'Jl. Merdeka No. 12, Jakarta', hours: 'Senin–Sabtu, 09.00–20.00', success_message: 'Terima kasih! Booking Anda diterima. Kami akan konfirmasi via WhatsApp.', forward_wa: '' } },
+      { type: 'testimonials', variant: 'testimonials-grid', anchorId: 'testimoni', config: { title: 'Kata Pelanggan', items: [{ name: 'Andi', text: 'Potongannya rapi banget, booking online juga gampang!', rating: 5 }, { name: 'Budi', text: 'Tempatnya bersih, barber-nya ramah. Langganan tetap.', rating: 5 }, { name: 'Candra', text: 'Datang sesuai jadwal langsung dilayani. Mantap.', rating: 5 }] } },
+      { type: 'gallery', variant: 'gallery-grid', anchorId: 'galeri', config: { title: 'Galeri Hasil' } },
+      { type: 'location', variant: 'location-hours', anchorId: 'lokasi', config: { title: 'Kunjungi Kami', address: 'Jl. Merdeka No. 12, Jakarta', note: 'Mudah dijangkau, parkir luas.', button_text: 'Chat via WhatsApp', button_link: WA, hours: [{ days: 'Senin–Sabtu', time: '09.00–20.00' }, { days: 'Minggu', time: 'Tutup' }] } },
+      { type: 'faq', variant: 'faq-accordion', anchorId: 'faq', config: { title: 'Sering Ditanyakan', items: [{ question: 'Apakah harus booking dulu?', answer: 'Tidak wajib, tapi booking memastikan Anda langsung dilayani tanpa antre.' }, { question: 'Bagaimana cara booking?', answer: 'Isi form booking di atas, kami konfirmasi via WhatsApp dalam 1 jam kerja.' }, { question: 'Bisa reschedule?', answer: 'Bisa, hubungi kami via WhatsApp minimal 2 jam sebelumnya.' }] } },
+      { type: 'contact', variant: 'contact-form-map', anchorId: 'kontak', config: { title: 'Hubungi Kami', subtitle: 'Ada pertanyaan? Kirim pesan atau mampir langsung', show_map: true, address: 'Jl. Merdeka No. 12, Jakarta' } },
+    ],
+    header: {
+      variant: 'standard',
+      logoUrl: '',
+      siteTitle: 'Pangkas Rapi',
+      tagline: 'Rapi, Bersih, Percaya Diri',
+      navItems: [
+        { id: 'pr-layanan', label: 'Layanan', url: '#layanan', isExternal: false, enabled: true },
+        { id: 'pr-tarif', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+        { id: 'pr-booking', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+        { id: 'pr-lokasi', label: 'Lokasi', url: '#lokasi', isExternal: false, enabled: true },
+      ],
+      ctaText: 'Booking via WA',
+      ctaLink: WA,
+      showCta: true,
+      sticky: true,
+    },
+    footer: {
+      style: 'simple',
+      text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+      navItems: [
+        { id: 'pr-f-tarif', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+        { id: 'pr-f-booking', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+        { id: 'pr-f-lokasi', label: 'Lokasi', url: '#lokasi', isExternal: false, enabled: true },
+      ],
+      showSocial: true,
+    },
+    seo: {
+      title: 'Pangkas Rapi — Barbershop Terpercaya',
+      description: 'Potong rambut rapi tanpa antre lama. Booking online, konfirmasi via WhatsApp.',
+    },
+    core: {
+      site_title: 'Pangkas Rapi',
+      tagline: 'Rapi, Bersih, Percaya Diri',
+      favicon_url: '',
+      logo_url: '',
+      header_nav: [
+        { id: 'pr-layanan', label: 'Layanan', url: '#layanan', isExternal: false, enabled: true },
+        { id: 'pr-tarif', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+        { id: 'pr-booking', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+      ],
+      footer_nav: [
+        { id: 'pr-f-tarif', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
+        { id: 'pr-f-booking', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
+      ],
+      footer_text: '© {year} Pangkas Rapi. Rapi setiap hari.',
+    },
+  },
 };

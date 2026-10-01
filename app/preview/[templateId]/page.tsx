@@ -20,13 +20,14 @@ function toSection(s: any, template: Template): TemplateSectionInstance {
     variantId: variant?.id ?? 'default',
     config: { ...(variant?.defaultConfig ?? {}), ...(s.config ?? {}) },
     style: {
-      padding: { top: 64, right: 24, bottom: 64, left: 24 },
-      background: 'transparent' as const,
-      ...(variant?.defaultStyle?.padding ? { padding: { top: 64, right: 24, bottom: 64, left: 24, ...variant.defaultStyle.padding } } : {}),
-      ...(variant?.defaultStyle?.background ? { background: variant.defaultStyle.background } : {}),
+      padding: { top: 64, right: 24, bottom: 64, left: 24, ...(variant?.defaultStyle?.padding ?? {}) },
+      background: variant?.defaultStyle?.background ?? ('transparent' as const),
       ...(variant?.defaultStyle?.backgroundColor ? { backgroundColor: variant.defaultStyle.backgroundColor } : {}),
       ...(variant?.defaultStyle?.backgroundImage ? { backgroundImage: variant.defaultStyle.backgroundImage } : {}),
       ...(variant?.defaultStyle?.backgroundGradient ? { backgroundGradient: variant.defaultStyle.backgroundGradient } : {}),
+      ...(typeof variant?.defaultStyle?.backgroundBlur === 'number' ? { backgroundBlur: variant.defaultStyle.backgroundBlur } : {}),
+      ...(variant?.defaultStyle?.backgroundSize ? { backgroundSize: variant.defaultStyle.backgroundSize } : {}),
+      ...(variant?.defaultStyle?.backgroundOverlay ? { backgroundOverlay: variant.defaultStyle.backgroundOverlay } : {}),
     },
     responsive: {},
   };
