@@ -64,8 +64,9 @@ export interface BuilderState {
   updateFooter: (updates: Partial<FooterConfig>) => void;
 
   loadConfig: (config: { core?: Partial<CoreConfig> | Record<string, unknown>; designStyleId?: string; design_style_id?: string; paletteOverride?: PaletteOverride; palette_override?: PaletteOverride; sections?: Section[]; header?: Partial<HeaderConfig>; footer?: Partial<FooterConfig>; theme?: Record<string, unknown> }) => void;
-  save: (websiteId: string) => Promise<void>;
-  publish: (websiteId: string) => Promise<void>;
+  // `save`/`publish` dihapus: Builder Global (/dashboard/builder) dipensiunkan.
+  // Penyimpanan sekarang milik page-builder (lihat app/dashboard/websites/
+  // page-builder/[pageId]/page.tsx) yang memakai builderConfigSchema langsung.
 
   applyTemplate: (template: { core?: Partial<CoreConfig> }) => void;
   applyFullTemplate: (template: import('./types').FullTemplateData) => void;
@@ -486,151 +487,6 @@ export const useBuilderStore = create<BuilderState>()(
         state.saved = false;
       }),
 
-    save: async (websiteId) => {
-      const state = get();
-      try {
-        // Deep merge with defaults to ensure no undefined values in nested objects
-        const defaultHeader = createDefaultHeader();
-        const defaultFooter = createDefaultFooter();
-        const defaultCore = createDefaultCore();
-
-        const str = (v: unknown, fallback = ''): string =>
-          typeof v === 'string' ? v : fallback;
-
-        // Helper to normalize nav items (ensure children arrays and fields have defaults)
-        // NOTE: spread `{...defaults, ...state}` can overwrite defaults with
-        // explicit `undefined`, so every required string gets a fallback here.
-        const normalizeNavItems = (items: NavItem[]): NavItem[] => {
-          return (items ?? []).map((item) => ({
-            id: str(item?.id, generateId()) || generateId(),
-            label: str(item?.label, ''),
-            url: str(item?.url, '/') || '/',
-            isExternal: item?.isExternal ?? false,
-            enabled: item?.enabled ?? true,
-            children: ((item?.children ?? []) as NavItem[]).map((child) => ({
-              id: str(child?.id, generateId()) || generateId(),
-              label: str(child?.label, ''),
-              url: str(child?.url, '/') || '/',
-              isExternal: child?.isExternal ?? false,
-              enabled: child?.enabled ?? true,
-            })),
-          }));
-        };
-
-        // Helper to normalize sections
-        const normalizeSections = (sections: Section[]): Section[] => {
-          return (sections ?? []).map((s) => {
-            const variant = getSectionVariant(s?.type, s?.variant);
-            const defaultConfig = variant?.defaultConfig ?? {};
-            const defaultStyle = variant?.defaultStyle ?? {};
-            return {
-              id: str(s?.id, generateId()) || generateId(),
-              type: (typeof s?.type === 'string' && s.type ? s.type : 'hero') as Section['type'],
-              variant: str(s?.variant, 'default') || 'default',
-              config: { ...defaultConfig, ...(s?.config ?? {}) },
-              style: {
-                padding: {
-                  top: s?.style?.padding?.top ?? 64,
-                  right: s?.style?.padding?.right ?? 24,
-                  bottom: s?.style?.padding?.bottom ?? 64,
-                  left: s?.style?.padding?.left ?? 24,
-                },
-                background: (s?.style?.background ?? defaultStyle.background ?? 'transparent') as 'color' | 'image' | 'gradient' | 'transparent',
-                backgroundColor: s?.style?.backgroundColor ?? defaultStyle.backgroundColor,
-                backgroundImage: s?.style?.backgroundImage ?? defaultStyle.backgroundImage,
-                backgroundGradient: s?.style?.backgroundGradient ?? defaultStyle.backgroundGradient,
-              },
-              responsive: { ...(s?.responsive ?? {}) },
-            };
-          });
-        };
-
-        // Strip non-string values (undefined/null/numbers) from string maps.
-        // z.record(z.string(), z.string()) rejects undefined with
-        // "expected string, received undefined".
-        const sanitizeStringMap = (input: unknown): Record<string, string> => {
-          if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
-          const out: Record<string, string> = {};
-          for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-            if (typeof v === 'string') out[k] = v;
-          }
-          return out;
-        };
-
-        const headerSeo = (state.header as HeaderConfig | undefined)?.seo;
-        const footerSocial = (state.footer as FooterConfig | undefined)?.socialLinks;
-
-        const customConfig = {
-          design_style_id: str(state.designStyleId, 'minimalist') || 'minimalist',
-          palette_override: sanitizeStringMap(state.paletteOverride),
-          theme: { typography: sanitizeStringMap(state.typographyOverride) },
-          sections: normalizeSections(state.sections),
-          header: {
-            ...defaultHeader,
-            ...state.header,
-            logoUrl: str(state.header?.logoUrl, ''),
-            faviconUrl: str(state.header?.faviconUrl, ''),
-            siteTitle: str(state.header?.siteTitle, ''),
-            tagline: str(state.header?.tagline, ''),
-            ctaText: str(state.header?.ctaText, ''),
-            ctaLink: str(state.header?.ctaLink, '/') || '/',
-            showCta: state.header?.showCta ?? false,
-            sticky: state.header?.sticky ?? true,
-            seo: {
-              title: str(headerSeo?.title, ''),
-              description: str(headerSeo?.description, ''),
-            },
-            navItems: normalizeNavItems(state.header?.navItems),
-          },
-          footer: {
-            ...defaultFooter,
-            ...state.footer,
-            style: (['simple', 'columns', 'centered', 'minimal'] as const).includes(
-              state.footer?.style as FooterConfig['style']
-            )
-              ? state.footer.style
-              : 'simple',
-            text: str(state.footer?.text, ''),
-            showSocial: state.footer?.showSocial ?? false,
-            socialLinks: sanitizeStringMap(footerSocial),
-            address: str(state.footer?.address, ''),
-            phone: str(state.footer?.phone, ''),
-            email: str(state.footer?.email, ''),
-            whatsapp: str(state.footer?.whatsapp, ''),
-            showWhatsApp: state.footer?.showWhatsApp ?? true,
-            navItems: normalizeNavItems(state.footer?.navItems),
-          },
-          core: { ...defaultCore, ...state.core },
-          seo: { title: str(state.seo?.title, ""), description: str(state.seo?.description, "") },
-        };
-
-        const validation = builderConfigSchema.safeParse(customConfig);
-        if (!validation.success) {
-          const first = validation.error.issues[0];
-          const path = first?.path?.length ? ` (${first.path.join('.')})` : '';
-          const errorMsg = first ? `${first.message}${path}` : 'Validasi gagal';
-          console.error('Save validation issues:', validation.error.issues);
-          throw new Error(`Validasi konfigurasi gagal: ${errorMsg}`);
-        }
-
-        const response = await fetch(`/api/websites/${websiteId}/website`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ custom_config: validation.data }),
-        });
-        if (!response.ok) throw new Error('Save failed');
-        set((s) => {
-          s.saved = true;
-        });
-      } catch (error) {
-        console.error('Save error:', error);
-        throw error;
-      }
-    },
-
-    publish: async (websiteId) => {
-      await get().save(websiteId);
-    },
 
     undo: () =>
       set((state) => {

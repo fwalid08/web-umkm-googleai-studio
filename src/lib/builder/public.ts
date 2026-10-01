@@ -256,29 +256,9 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     }
   }
 
-  // Read website_settings to determine homepage type
-  const { data: websiteSettings } = await supabase
-    .from("website_settings")
-    .select("homepage_type, homepage_page_id")
-    .eq("website_id", user.id)
-    .maybeSingle();
-
-  const homepageType = websiteSettings?.homepage_type ?? 'builder';
-  const homepagePageId = websiteSettings?.homepage_page_id ?? null;
-
-  // Mode builder: hormati flag publish baris homepage bila ada.
-  // Tanpa baris (situs lama) dianggap published agar tidak 404 mendadak.
-  if (homepageType !== 'page') {
-    const { data: homepageRow } = await supabase
-      .from("store_pages")
-      .select("id, is_published")
-      .eq("website_id", user.id)
-      .eq("is_homepage", true)
-      .maybeSingle();
-    if (homepageRow && homepageRow.is_published === false) return null;
-  }
-
-  // If homepage_type is 'page', read sections from store_pages.layout
+  // Page Builder adalah satu-satunya sumber kebenaran homepage: homepage
+  // selalu baris store_pages dengan is_homepage = true. Mode 'builder'
+  // (homepage_type) sudah dipensiunkan — lihat 033_page_builder_only.sql.
   let pageSections: Array<{
     id: string;
     type: string;
@@ -290,45 +270,46 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
   }> | null = null;
   let pageMeta: { title?: string; description?: string; ogImageUrl?: string } = {};
 
-  if (homepageType === 'page' && homepagePageId) {
-    const { data: homepagePage } = await supabase
-      .from("store_pages")
-      .select("id, title, slug, layout, meta_title, meta_description, og_image_url, is_published")
-      .eq("id", homepagePageId)
-      .eq("website_id", user.id)
-      .maybeSingle();
+  const { data: homepagePage } = await supabase
+    .from("store_pages")
+    .select("id, title, slug, layout, meta_title, meta_description, og_image_url, is_published")
+    .eq("website_id", user.id)
+    .eq("is_homepage", true)
+    .maybeSingle();
 
-    // Publish = halaman bisa diakses: homepage yang belum dipublish
-    // tidak dirender (404), bukan fallback ke konten basi.
-    if (!homepagePage || homepagePage.is_published !== true) return null;
+  // Publish = halaman bisa diakses: homepage yang belum dipublish tidak
+  // dirender (404), bukan fallback ke konten basi.
+  if (homepagePage && homepagePage.is_published !== true) return null;
 
-    if (homepagePage) {
-      const layout = homepagePage.layout as { sections?: Array<{
-        id: string;
-        type: string;
-        variant: string;
-        anchorId?: string;
-        config?: Record<string, unknown>;
-        style?: Record<string, unknown>;
-        responsive?: Record<string, unknown>;
-      }> } | null;
-      if (layout?.sections && Array.isArray(layout.sections) && layout.sections.length > 0) {
-        pageSections = layout.sections;
-      }
-      pageMeta = {
-        title: homepagePage.meta_title ?? undefined,
-        description: homepagePage.meta_description ?? undefined,
-        ogImageUrl: homepagePage.og_image_url ?? undefined,
-      };
+  if (homepagePage) {
+    const layout = homepagePage.layout as { sections?: Array<{
+      id: string;
+      type: string;
+      variant: string;
+      anchorId?: string;
+      config?: Record<string, unknown>;
+      style?: Record<string, unknown>;
+      responsive?: Record<string, unknown>;
+    }> } | null;
+    if (layout?.sections && Array.isArray(layout.sections) && layout.sections.length > 0) {
+      pageSections = layout.sections;
     }
+    pageMeta = {
+      title: homepagePage.meta_title ?? undefined,
+      description: homepagePage.meta_description ?? undefined,
+      ogImageUrl: homepagePage.og_image_url ?? undefined,
+    };
   }
 
   let sections: MergedSection[];
   let theme: Record<string, unknown> = {};
   let seo: { title?: string; description?: string } = {};
 
-  // Use page sections if homepage_type is 'page', otherwise use global config
-  const sectionsToRender = pageSections ?? (stored && Array.isArray(stored.sections) && stored.sections.length > 0 ? stored.sections : null);
+  // Sumber render homepage: hanya dari baris homepage di store_pages.
+  // Sumber konten homepage hanya dari baris homepage (page-builder).
+  // custom_config.sections tidak lagi dipakai sebagai fallback — homepage
+  // selalu punya barisnya sendiri di store_pages.
+  const sectionsToRender = pageSections;
 
   if (sectionsToRender && sectionsToRender.length > 0) {
     // Convert builder format sections to MergedSection format
@@ -439,8 +420,8 @@ const name = user.name || "Toko Kami";
     typeof type === 'string' && type.length > 0 && variantSource.some((t) => t.type === type)
       ? type
       : 'hero';
-  // Use page sections for builderSections if homepage_type is 'page'
-  const sectionsForBuilder = pageSections ?? storedSections;
+  // Sections homepage hanya dari baris page-builder (sama seperti sectionsToRender).
+  const sectionsForBuilder = pageSections;
   const usedAnchors = new Set<string>();
   const builderSections = sectionsForBuilder?.map((s) => {
     const resolvedType = resolveType(s.type);
@@ -487,9 +468,12 @@ const name = user.name || "Toko Kami";
   } as DesignStyleTypography;
 
   // Determine page slug and meta
-  const isHomepage = homepageType === 'page' || !homepagePageId;
-  const pageSlug = homepageType === 'page' && homepagePageId ? 'home' : undefined;
-  const pageId = homepageType === 'page' ? homepagePageId ?? undefined : undefined;
+  // Homepage selalu adalah baris is_homepage (page-builder). Tanpa baris
+  // → diperlakukan sebagai homepage agar URL root tetap masuk ke renderer
+  // (yang lalu memakai sections default template).
+  const isHomepage = true;
+  const pageSlug = homepagePage ? 'home' : undefined;
+  const pageId = homepagePage?.id;
 
   return {
     websiteId: user.id,

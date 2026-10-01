@@ -22,26 +22,25 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      if (onSaveOverride) await onSaveOverride();
-      else await useBuilderStore.getState().save(websiteId);
+      // Wajib ada override: penyimpanan configs.section pindah ke page-builder
+      // (Builder Global dipensiunkan, store.save() dihapus).
+      if (!onSaveOverride) throw new Error('Simpan hanya tersedia di page-builder');
+      await onSaveOverride();
       toast.success('Perubahan tersimpan');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal menyimpan');
     } finally {
       setIsSaving(false);
     }
-  }, [websiteId, onSaveOverride]);
+  }, [onSaveOverride]);
 
   const handlePublish = useCallback(async () => {
     setIsSaving(true);
     try {
-      // Tanpa override = builder tanpa konsep publish. Fallback ke `save`
-      // (bukan `publish`) supaya tidak pernah memanggil aksi yang sama
-      // dengan Simpan lewat jalur bernama "publish".
-      if (onPublishOverride) await onPublishOverride();
-      else await useBuilderStore.getState().save(websiteId);
-      // Sebut nama halaman supaya jelas apa yang baru tayang (handler ini
-      // hanya terpanggil di builder yang benar-benar punya publish).
+      // Tombol ini hanya dirender bila onPublishOverride ada (lihat topbar).
+      if (!onPublishOverride) throw new Error('Publish hanya tersedia di page-builder');
+      await onPublishOverride();
+      // Sebut nama halaman supaya jelas apa yang baru tayang.
       toast.success(
         pageTitle ? `Halaman "${pageTitle}" berhasil ditayangkan 🎉` : 'Halaman berhasil ditayangkan 🎉',
       );
@@ -50,7 +49,7 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
     } finally {
       setIsSaving(false);
     }
-  }, [websiteId, pageTitle, onPublishOverride]);
+  }, [pageTitle, onPublishOverride]);
 
   // Keyboard shortcuts: Ctrl+S simpan, Ctrl+Z / Ctrl+Shift+Z undo-redo, Esc keluar preview / deselect
   useEffect(() => {

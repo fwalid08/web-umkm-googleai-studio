@@ -40,24 +40,28 @@ Template terintegrasi dengan page builder melalui:
 - `builder-canvas.tsx` — canvas preview
 - `template-gallery.tsx` — template picker
 
-### Page Builder per-Halaman vs Builder Global
+### Page Builder (satu-satunya editor)
 
-Penting untuk tidak tertukar antara dua mode edit:
+Builder Global (`/dashboard/builder`) **sudah dipensiunkan** (lihat `033_page_builder_only.sql`).
+Semua editing layout kini lewat Page Builder:
 
-| Aspek | Builder Global (`/dashboard/builder`) | Page Builder (`/dashboard/websites/page-builder/[pageId]`) |
-|---|---|---|
-| Konfigurasi | `user_templates.custom_config` (sections, header, footer, style, SEO) | Layout per-halaman di `store_pages.layout` |
-| Cakupan | Seluruh website (homepage) | Satu halaman (`store_pages` baris) |
-| Penyimpanan | `PUT /api/websites/{id}/website` | `PUT …/website` (global) + `PATCH …/pages/{pageId}` (per-halaman) |
-| Header/footer/style | Global (berlaku semua halaman) | Global juga — page-builder mengirim `is_homepage` eksplisit |
+| Aspek | Nilai |
+|---|---|
+| Route | `/dashboard/websites/page-builder/[pageId]` |
+| Layout per-halaman | `store_pages.layout` |
+| Chrome global | `user_templates.custom_config` (header, footer, style, SEO) |
+| Penyimpanan | `PUT …/website` (chrome global) + `PATCH …/pages/{pageId}` (layout halaman) |
+| Publish | `is_published` per halaman; homepage yang draft → 404 |
 
 **Aturan kunci (jangan diubah tanpa test):**
-1. Sections global (`custom_config.sections`) HANYA diganti oleh halaman yang ber-flag `is_homepage`. Halaman lain mempertahankan snapshot awal agar konten antar-halaman tidak saling menimpa.
-2. `website_settings.homepage_type` (`builder` | `page`) menentukan sumber render homepage publik:
-   - `builder` → `custom_config.sections`
-   - `page` → `store_pages.layout` milik `homepage_page_id`
-   - Simpan dari builder global (tanpa field `is_homepage`) me-reset tipe kembali ke `builder`.
-3. Slug halaman tervalidasi terpusat di `src/lib/pages/slug.ts` (`RESERVED_SLUGS`, `normalizeSlug`, `slugError`).
+1. **Homepage = baris `store_pages` dengan `is_homepage = true`.** Tidak ada lagi
+   percabangan `homepage_type` (`builder` | `page`) di kode render — kolomnya masih
+   ada di DB tapi tidak menentukan apa pun.
+2. `custom_config.sections` **tidak lagi dipakai sebagai sumber render**. Homepage
+   selalu membaca `store_pages.layout` miliknya sendiri.
+3. Halaman tanpa layout (mis. baru dibuat) di-seed dari **sections template**, bukan
+   dari sections global — supaya halaman baru tidak mewarisi isi homepage.
+4. Slug halaman tervalidasi terpusat di `src/lib/pages/slug.ts` (`RESERVED_SLUGS`, `normalizeSlug`, `slugError`).
 4. `store_pages.content` (TEXT) **deprecated** — renderer hanya membaca `layout.sections`.
 
 ### Struktur Folder

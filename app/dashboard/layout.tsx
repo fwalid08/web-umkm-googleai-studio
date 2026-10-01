@@ -160,7 +160,9 @@ export default function DashboardLayout({
   }
 
   function navigateToBuilder() {
-    window.location.href = "/dashboard/builder";
+    // Builder Global (/dashboard/builder) dipensiunkan; page-builder yang
+    // jadi satu-satunya editor. Arahkan ke panel Kelola Website.
+    window.location.href = "/dashboard/websites";
   }
 
   const user = session?.user;
@@ -219,7 +221,7 @@ export default function DashboardLayout({
 
   // Builder memakai mode full-page: tanpa sidebar/topbar dashboard agar
   // seluruh viewport dipakai untuk kanvas editing (seperti Canva/Webflow).
-  const isBuilderFullPage = pathname.startsWith("/dashboard/builder") || pathname.startsWith("/dashboard/websites/page-builder");
+  const isBuilderFullPage = pathname.startsWith("/dashboard/websites/page-builder");
   if (isBuilderFullPage) {
     return (
       <div className="h-dvh w-full bg-slate-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden">

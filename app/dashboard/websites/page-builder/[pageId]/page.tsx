@@ -94,10 +94,18 @@ export default function PageBuilderPage() {
         if (typeof pageJson.data.is_published === "boolean") {
           if (!cancelled) setIsPublished(pageJson.data.is_published);
         }
-        // Fallback: jika page layout kosong, pakai sections dari global config (template)
-        const pageSections = (layout.sections ?? []).length > 0 
-          ? (layout.sections ?? []) 
-          : (config.sections ?? []);
+        // Halaman kosong (mis. "Tentang" baru dibuat) tidak punya layout.
+        // Seed dari sections TEMPLATE, bukan custom_config.sections: sections
+        // global sudah tidak lagi menjadi sumber kebenaran (homepage kini
+        // milik baris page-builder), jadi mewarisinya justru membuat kanvas
+        // halaman baru isinya sama dengan homepage.
+        const savedPageSections = (layout.sections ?? []) as unknown[];
+        const templateSections =
+          (BUILT_IN_CATALOG.find((t) => t.id === cfgJson.data.catalog_template_id)?.data?.sections ??
+            (config as Record<string, unknown>).template_sections ??
+            []) as unknown[];
+        const pageSections =
+          savedPageSections.length > 0 ? savedPageSections : templateSections;
         loadConfig({
           // Layout per-halaman; global (header/footer/style) dari website.
           core: config.core,

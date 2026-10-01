@@ -56,8 +56,10 @@ export function WebsitePanelMenu() {
       desc: t("workspace.mDomainDesc"),
     },
     {
+      // Builder Global dipensiunkan — panel Websites (Halaman/Template) yang
+      // jadi pintu masuk ke page-builder.
       name: t("workspace.mConfig"),
-      href: `/dashboard/builder`,
+      href: `/dashboard/websites/customize`,
       icon: Palette,
       desc: t("workspace.mConfigDesc"),
     },

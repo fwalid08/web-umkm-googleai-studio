@@ -491,21 +491,14 @@ export async function PUT(
       // Upsert: create if not exists, update if exists.
       // PENTING: hanya sync bila yang disimpan memang homepage. Tanpa gate ini,
       // menyimpan halaman lain (sections global = snapshot basi) akan menimpa
-      // layout homepage asli di store_pages. Page-builder mengirim is_homepage
-      // eksplisit; builder lama tidak mengirim (undefined) → perilaku lama dijaga.
+      // layout homepage asli di store_pages.
+      //
+      // CATATAN: hanya page-builder yang memakai jalur ini dan dia selalu mengirim
+      // is_homepage boolean eksplisit — jadi blok reset homepage_type lama sudah
+      // dihapus (homepage_page_id/homepage_type tak lagi menentukan sumber render;
+      // lihat 033_page_builder_only.sql).
       const homepageSections = custom_config.sections ?? [];
-      if (homepageSections.length > 0 && body.is_homepage !== false) {
-        // Simpan dari builder GLOBAL (bukan page-builder per-halaman, yang
-        // selalu mengirim is_homepage boolean eksplisit) → homepage dikelola
-        // mode 'builder'. Reset homepage_type agar user tidak terjebak di
-        // mode 'page' setelah pernah memindah homepage.
-        if (body.is_homepage === undefined) {
-          await supabase
-            .from("website_settings")
-            .update({ homepage_type: "builder" })
-            .eq("website_id", websiteId);
-        }
-
+      if (homepageSections.length > 0 && body.is_homepage === true) {
         // First check if homepage exists
         const { data: existingHomepage } = await supabase
           .from("store_pages")

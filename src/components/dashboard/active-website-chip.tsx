@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Chip konteks lintas panel: di /dashboard/builder & /dashboard/settings
+ * Chip konteks lintas panel: di /dashboard/websites & /dashboard/settings
  * tampil "Website: {nama} (ganti)" yang link balik ke workspace website aktif.
  * Bu Toni tidak pernah tersesat saat panel melemparnya keluar workspace.
  */

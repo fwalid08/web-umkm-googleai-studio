@@ -27,8 +27,7 @@ export function GeneralTab({ websiteId }: { websiteId: string }) {
   const header = useBuilderStore((s) => s.header);
   const footer = useBuilderStore((s) => s.footer);
   const updateHeader = useBuilderStore((s) => s.updateHeader);
-  const updateFooter = useBuilderStore((s) => s.updateFooter);
-  const save = useBuilderStore((s) => s.save);
+  const updateFooterStore = useBuilderStore((s) => s.updateFooter);
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
@@ -128,15 +127,36 @@ export function GeneralTab({ websiteId }: { websiteId: string }) {
 
     setSaving(true);
     try {
-      updateFooter({
+      const patch = {
         socialLinks,
         address,
         phone,
         email,
         whatsapp,
         showWhatsApp,
+      };
+      updateFooterStore(patch);
+      // Tab ini hanya mengubah chrome (footer), bukan sections — jadi cukup
+      // patch custom_config tanpa payload kanvas. Builder Global yang dulu
+      // menyediakan store.save() sudah dipensiunkan.
+      const res = await fetch(`/api/websites/${websiteId}/website`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          custom_config: {
+            header: useBuilderStore.getState().header,
+            footer: { ...useBuilderStore.getState().footer, ...patch },
+            core: useBuilderStore.getState().core,
+            design_style_id: useBuilderStore.getState().designStyleId,
+            palette_override: useBuilderStore.getState().paletteOverride,
+            theme: { typography: useBuilderStore.getState().typographyOverride },
+          },
+          //-sections tidak dikirim: mode page-builder, homepage dipegang baris
+          // store_pages-nya sendiri (lihat 033_page_builder_only.sql).
+        }),
       });
-      await save(websiteId);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Gagal menyimpan");
       toast("success", "Perubahan tersimpan");
     } catch (err) {
       console.error("Gagal menyimpan:", err);

@@ -13,14 +13,20 @@ export function MobileBottomNav() {
     { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard, exact: true },
     { name: t("nav.products"), href: "/dashboard/products", icon: Store },
     { name: t("nav.orders"), href: "/dashboard/orders", icon: ShoppingBag },
-    { name: t("nav.builder"), href: "/dashboard/builder", icon: Palette },
-    { name: t("nav.stores"), href: "/dashboard/websites", icon: Layers },
+    // Tab Builder mengarah ke Kelola Website (page-builder = editor tunggal).
+    { name: t("nav.builder"), href: "/dashboard/websites", icon: Palette },
+    { name: t("nav.stores"), href: "/dashboard/websites/customize", icon: Layers },
   ];
 
   const isTabActive = (tab: { href: string; exact?: boolean }) => {
     if (tab.exact) return pathname === tab.href;
-    if (tab.href === "/dashboard/builder") {
-      return pathname.startsWith("/dashboard/builder");
+    // Tab builder & stores sama-sama di bawah /dashboard/websites.
+    if (tab.href === "/dashboard/websites") {
+      return (
+        pathname === "/dashboard/websites" ||
+        pathname.startsWith("/dashboard/websites/customize") ||
+        pathname.startsWith("/dashboard/websites/page-builder")
+      );
     }
     return pathname === tab.href || pathname.startsWith(tab.href + "/");
   };
