@@ -11,6 +11,8 @@ export const BUTIK_HIJAB_TEMPLATE = ({
   description:
     "Hero koleksi, grid produk, keunggulan, testimoni, CTA, kontak. Gaya elegan anggur cocok fashion hijab.",
   category: "fashion",
+  // Butik hijab: elegan, serif, banyak ruang kosong — luxury.
+  designType: "luxury",
   tiers: ["free", "starter", "growth", "enterprise"],
   theme: {
     palette: {

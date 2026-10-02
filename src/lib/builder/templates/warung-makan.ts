@@ -16,6 +16,8 @@ function createWarungMakanTemplate(): Template & { data: FullTemplateData } {
     description:
       "Hero makanan, menu bertab, galeri foto, jam buka & lokasi, testimoni, FAQ, kontak. Gaya hangat terakota cocok kuliner.",
     category: "food",
+    // Warung makan: hangat, ramah, radius besar — organic.
+    designType: "organic",
     tiers: ["free", "starter", "growth", "enterprise"],
     theme: {
       palette: {

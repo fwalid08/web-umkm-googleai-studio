@@ -70,6 +70,7 @@ export default async function Home() {
                 name: catalogTemplate.name,
                 description: catalogTemplate.description,
                 category: catalogTemplate.category,
+                designType: catalogTemplate.designType,
                 theme: {
                   ...catalogTemplate.theme,
                   typography: site.v3Typography ?? catalogTemplate.theme.typography,
@@ -85,6 +86,9 @@ export default async function Home() {
               websiteId: site.websiteId,
               headerConfig: { ...(headerVariant?.defaultConfig ?? {}), ...((site.header ?? {}) as Record<string, unknown>) },
               footerConfig: { ...(footerVariant?.defaultConfig ?? {}), ...((site.footer ?? {}) as Record<string, unknown>) },
+              animations: site.templateAnimations,
+              behaviours: site.templateBehaviours,
+              customCss: site.templateCustomCss,
               seo: site.seo,
             }}
           />

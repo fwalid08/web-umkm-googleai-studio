@@ -11,6 +11,8 @@ export const KERAJINAN_TANGAN_TEMPLATE = ({
   description:
     "Hero brand, tentang kami, galeri karya, tim pengrajin, harga custom, FAQ, kontak. Gaya organik alami cocok kerajinan.",
   category: "handicraft",
+  // Kerajinan: bentuk organic, warna hangat, kesan tangan — organic.
+  designType: "organic",
   tiers: ["free", "starter", "growth", "enterprise"],
   theme: {
     palette: {

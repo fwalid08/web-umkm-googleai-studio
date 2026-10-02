@@ -11,6 +11,8 @@ export const TOKO_KELONTONG_TEMPLATE = ({
   description:
     "Hero promo, grid produk, tabel harga, newsletter, lokasi, FAQ, kontak. Gaya biru laut profesional untuk retail.",
   category: "retail",
+  // Kelontong: grid tegas, warna dingin, praktis — tech.
+  designType: "tech",
   tiers: ["free", "starter", "growth", "enterprise"],
   theme: {
     palette: {

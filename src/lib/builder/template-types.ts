@@ -7,6 +7,36 @@ export type BusinessCategory = 'food' | 'fashion' | 'retail' | 'handicraft' | 's
 
 export type Tier = 'free' | 'starter' | 'growth' | 'enterprise';
 
+/**
+ * Bahasa desain yang dideklarasikan sebuah template.
+ *
+ * Setiap template WAJIB punya satu nilai di sini — inilah yang membedakan
+ * "template dengan bahasa desain sendiri" dari sekadar "template dengan
+ * palet berbeda". Dipakai galeri sebagai badge.
+ */
+export type DesignType =
+  /** Tipografi besar, banyak ruang kosong, garis tipis, kontras tinggi. */
+  | 'editorial'
+  /** Sudut tajam, border tebal, blok warna rata, tanpa gradasi lembut. */
+  | 'brutalist'
+  /** Bentuk organic, radius besar, warna hangat, kesan kerajinan tangan. */
+  | 'organic'
+  /** Tipografi serif/display, banyak whitespace, aksen mewah. */
+  | 'luxury'
+  /** Grid tegas, monospace, warna dingin, efek utilitarian. */
+  | 'tech';
+
+/** Label Bahasa manusia untuk badge di galeri template. */
+export const DESIGN_TYPE_LABELS: Record<DesignType, string> = {
+  editorial: 'Editorial',
+  brutalist: 'Brutalist',
+  organic: 'Organic',
+  luxury: 'Luxury',
+  tech: 'Tech',
+};
+
+export const ALL_DESIGN_TYPES = Object.keys(DESIGN_TYPE_LABELS) as DesignType[];
+
 export interface TemplateTheme {
   palette: DesignStylePalette;
   typography: DesignStyleTypography;
@@ -147,6 +177,11 @@ export interface Template {
   description: string;
   category: BusinessCategory;
   tiers?: Tier[];
+  /**
+   * Bahasa desain template (lihat `DesignType`). Wajib diisi — template
+   * tanpa karakter desain sendiri hanya jadi "ganti warna".
+   */
+  designType: DesignType;
   theme: TemplateTheme;
   headers: HeaderVariant[];
   footers: FooterVariant[];

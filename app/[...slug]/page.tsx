@@ -127,6 +127,7 @@ export default async function TenantPage({ params }: PageProps) {
               name: catalogTemplate.name,
               description: catalogTemplate.description,
               category: catalogTemplate.category,
+              designType: catalogTemplate.designType,
               theme: {
                 ...catalogTemplate.theme,
                 typography: site.v3Typography ?? catalogTemplate.theme.typography,
@@ -142,6 +143,9 @@ export default async function TenantPage({ params }: PageProps) {
             websiteId: site.websiteId,
             headerConfig: { ...(headerVariant?.defaultConfig ?? {}), ...((site.header ?? {}) as Record<string, unknown>) },
             footerConfig: { ...(footerVariant?.defaultConfig ?? {}), ...((site.footer ?? {}) as Record<string, unknown>) },
+            animations: site.templateAnimations,
+            behaviours: site.templateBehaviours,
+            customCss: site.templateCustomCss,
             seo: {
               title: page.meta_title || site.seo.title,
               description: page.meta_description || site.seo.description,

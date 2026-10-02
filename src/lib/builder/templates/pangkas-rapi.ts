@@ -1,7 +1,29 @@
-import type { Template } from '../template-types';
+import type { ConfigField, Template } from '../template-types';
 import type { FullTemplateData } from '../types';
 
 const WA = "https://wa.me/6281234567890";
+
+/**
+ * Field "Lebar Konten" — dipakai seluruh varian header di bawah.
+ *
+ * Isi header (nama web, menu navigasi, CTA) dibox supaya tidak terdistribusi
+ * ke tepi layar pada monitor lebar, dan tetap sebaris dengan isi section
+ * serta footer. Default `6xl` (1152px) = lebar footer.
+ *
+ * Nilai `full` mengembalikan perilaku lama (mengikuti lebar layar).
+ */
+const CONTENT_WIDTH_FIELD: ConfigField = {
+  key: 'contentWidth',
+  label: 'Lebar Konten',
+  type: 'select',
+  defaultValue: '6xl',
+  options: [
+    { label: 'Penuh (mengikuti layar)', value: 'full' },
+    { label: 'Lebar — 1152px (disarankan)', value: '6xl' },
+    { label: 'Sedang — 1024px', value: '5xl' },
+    { label: 'Sempit — 896px', value: '4xl' },
+  ],
+};
 
 export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
   id: 'pangkas-rapi',
@@ -9,6 +31,8 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
   description:
     'Template barbershop modern dengan hero foto, keunggulan, tarif, booking, testimoni, galeri, lokasi, FAQ, dan kontak.',
   category: 'services',
+  // Pangkas rapi: kontras tinggi, garis tebal, tipografi display — brutalist.
+  designType: 'brutalist',
   tiers: ['free', 'starter', 'growth', 'enterprise'],
   theme: {
     palette: {
@@ -76,6 +100,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
         { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
         { key: 'sticky', label: 'Header menempel', type: 'switch' },
+        CONTENT_WIDTH_FIELD,
       ],
       defaultConfig: {
         logoUrl: '',
@@ -90,6 +115,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         ctaLink: 'https://wa.me/6281234567890',
         showCta: true,
         sticky: true,
+        contentWidth: '6xl',
       },
     },
     {
@@ -125,6 +151,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
         { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
         { key: 'sticky', label: 'Header menempel', type: 'switch' },
+        CONTENT_WIDTH_FIELD,
       ],
       defaultConfig: {
         logoUrl: '',
@@ -138,6 +165,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         ctaLink: 'https://wa.me/6281234567890',
         showCta: true,
         sticky: true,
+        contentWidth: '6xl',
       },
     },
     {
@@ -169,6 +197,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
             },
           ],
         },
+        CONTENT_WIDTH_FIELD,
       ],
       defaultConfig: {
         logoUrl: '',
@@ -178,6 +207,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
           { id: 'nav-2', label: 'Tarif', url: '#tarif', isExternal: false, enabled: true },
           { id: 'nav-3', label: 'Booking', url: '#booking', isExternal: false, enabled: true },
         ],
+        contentWidth: '6xl',
       },
     },
     {
@@ -212,6 +242,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         { key: 'ctaText', label: 'Teks CTA', type: 'text', placeholder: 'Booking via WA' },
         { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
         { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
+        CONTENT_WIDTH_FIELD,
       ],
       defaultConfig: {
         logoUrl: '',
@@ -223,6 +254,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         ctaText: 'Booking via WA',
         ctaLink: 'https://wa.me/6281234567890',
         showCta: true,
+        contentWidth: '6xl',
       },
     },
     {
@@ -259,6 +291,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
         { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
         { key: 'sticky', label: 'Header menempel', type: 'switch' },
+        CONTENT_WIDTH_FIELD,
       ],
       defaultConfig: {
         logoUrl: '',
@@ -273,6 +306,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         ctaLink: 'https://wa.me/6281234567890',
         showCta: true,
         sticky: true,
+        contentWidth: '6xl',
       },
     },
     {
@@ -311,6 +345,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
         { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
         { key: 'sticky', label: 'Header menempel', type: 'switch' },
+        CONTENT_WIDTH_FIELD,
       ],
       defaultConfig: {
         topbarText: 'Buka setiap hari 09.00–20.00 · Gratis ongkir min. Rp 150rb',
@@ -327,6 +362,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         ctaLink: 'https://wa.me/6281234567890',
         showCta: true,
         sticky: true,
+        contentWidth: '6xl',
       },
     },
     {
@@ -362,6 +398,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         { key: 'ctaLink', label: 'Link CTA', type: 'text', placeholder: 'https://wa.me/...' },
         { key: 'showCta', label: 'Tampilkan CTA', type: 'switch' },
         { key: 'sticky', label: 'Header menempel', type: 'switch' },
+        CONTENT_WIDTH_FIELD,
       ],
       defaultConfig: {
         logoUrl: '',
@@ -375,6 +412,7 @@ export const PANGKAS_RAPI_TEMPLATE: Template & { data: FullTemplateData } = {
         ctaLink: 'https://wa.me/6281234567890',
         showCta: true,
         sticky: true,
+        contentWidth: '6xl',
       },
     },
   ],
