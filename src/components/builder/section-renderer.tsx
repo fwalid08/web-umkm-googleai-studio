@@ -42,6 +42,27 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
     (!section.style.backgroundOverlay || section.style.backgroundOverlay === 'none')
       ? 'dark'
       : (section.style.backgroundOverlay ?? 'none');
+
+  /**
+   * `theme.effects` yang BENAR-BENAR diimplementasikan.
+   *
+   * Schema `effects` mendeklarasikan 4 kunci, tapi `glassmorphism` dan
+   * `gradientBackgrounds` tidak pernah dibaca renderer mana pun — deprecated.
+   * Hanya 2 ini yang punya perilaku; sisanya sengaja tidak ada supaya tidak
+   * menipu (dulu keenam template men-set kunci mati).
+   *
+   * Aturannya di `globals.css`:
+   *   [data-tpl-fx~="uppercase"] :is(h1,h2,h3,h4) { text-transform: uppercase }
+   *   [data-tpl-fx~="border"] div[style*="--color-surface"] { border: … }
+   */
+  const effects = designStyle.effects ?? {};
+  const borderWidth = typeof effects.borderWidth === 'number' ? effects.borderWidth : 0;
+  const activeEffects = [
+    effects.uppercaseHeadings ? 'uppercase' : null,
+    borderWidth > 0 ? 'border' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
   const tokens = {
     '--color-primary': palette.primary,
     '--color-secondary': palette.secondary,
@@ -74,6 +95,9 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
     background: section.style.background === 'color' ? resolvedBgColor : undefined,
     fontFamily: 'var(--font-body)',
     color: 'var(--color-text)',
+    // Tebalkan effects.borderWidth agar aturan `globals.css` bisa memakai
+    // `var(--tpl-border-width)` untuk kartu section.
+    ...(borderWidth > 0 ? { ['--tpl-border-width' as string]: `${borderWidth}px` } : {}),
   };
 
   if (section.style.background === 'gradient') {
@@ -176,7 +200,19 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
   };
 
   return (
-    <div id={anchorId || section.anchorId} style={sectionStyle} className="transition-all">
+    <div
+      id={anchorId || section.anchorId}
+      // Hook styling yang STABIL untuk `customCss` template. CSS kustom tidak
+      // boleh menyasar class Tailwind (`@md:grid-cols-3` dst) karena itu bisa
+      // berubah tiap build; `data-tpl-*` ini dijamin selalu ada.
+      data-tpl-type={section.type}
+      data-tpl-variant={section.variant}
+      // Flag `theme.effects` yang benar-benar diimplementasikan. Rule-nya ada
+      // di `globals.css`; lihat `EFFECTS_SUPPORTED`.
+      data-tpl-fx={activeEffects || undefined}
+      style={sectionStyle}
+      className="transition-all"
+    >
       {/* Layer latar: gambar (+ blur) lalu overlay di atasnya. Keduanya
           diposisikan absolut di belakang konten, jadi tidak pernah memblur
           atau menutup teks, tombol, maupun gambar di dalam section. */}
@@ -1537,12 +1573,71 @@ interface MenuBoardGroup {
 
 function MenuBoardSection({ section }: { section: Section }) {
   const c = section.config;
-  const isTabs = section.variant !== 'menu-list';
+  const variant = section.variant;
+  const isTabs = variant !== 'menu-list' && variant !== 'menu-grid';
   const groups = (Array.isArray(c.groups) ? c.groups : []) as MenuBoardGroup[];
   const flatItems = (Array.isArray(c.items) ? c.items : []) as MenuBoardItem[];
   const [active, setActive] = useState<string>(groups[0]?.key || 'menu');
   const current = isTabs ? (groups.find((g) => g.key === active) ?? groups[0]) : undefined;
   const list: MenuBoardItem[] = isTabs ? ((current?.items as MenuBoardItem[]) || []) : flatItems;
+
+  // Varian grid: semua kategori ditampilkan sebagai kartu 2 kolom sekaligus,
+  // bukan tab interaktif dan bukan daftar baris. Bentuknya benar-benar beda.
+  if (variant === 'menu-grid') {
+    const hasGroups = groups.length > 0;
+    return (
+      <div className="py-12 px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-2" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-on-section)' }}>
+            {(c.title as string) || 'Daftar Harga'}
+          </h2>
+          {(c.subtitle as string) && (
+            <p className="text-center mb-8" style={{ color: 'var(--color-on-section-muted)' }}>{c.subtitle as string}</p>
+          )}
+          {hasGroups ? (
+            <div className="space-y-8">
+              {groups.map((g) => (
+                <div key={g.key || g.label || 'menu'}>
+                  <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--color-on-section-muted)' }}>
+                    {g.label || g.key}
+                  </p>
+                  <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
+                    {(((g.items as MenuBoardItem[]) || [])).map((it, i) => (
+                      <div
+                        key={`${g.key}-${i}`}
+                        className="p-5 rounded-lg"
+                        style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)' }}
+                      >
+                        <div className="flex items-baseline gap-3">
+                          <h3 className="font-semibold" style={{ color: 'var(--color-text)' }}>{it.name || `Item ${i + 1}`}</h3>
+                          <span className="flex-1" aria-hidden="true" />
+                          <span className="font-bold whitespace-nowrap" style={{ color: 'var(--color-primary-on-section)' }}>{it.price || ''}</span>
+                        </div>
+                        {it.desc && <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>{it.desc}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
+              {flatItems.map((it, i) => (
+                <div key={i} className="p-5 rounded-lg" style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)' }}>
+                  <div className="flex items-baseline gap-3">
+                    <h3 className="font-semibold" style={{ color: 'var(--color-text)' }}>{it.name || `Item ${i + 1}`}</h3>
+                    <span className="flex-1" aria-hidden="true" />
+                    <span className="font-bold whitespace-nowrap" style={{ color: 'var(--color-primary-on-section)' }}>{it.price || ''}</span>
+                  </div>
+                  {it.desc && <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>{it.desc}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="py-12 px-6">
@@ -1602,6 +1697,84 @@ function MenuBoardSection({ section }: { section: Section }) {
 function StepsSection({ section }: { section: Section }) {
   const c = section.config;
   const items = (Array.isArray(c.items) ? c.items : []) as Array<{ title?: string; description?: string }>;
+  const variant = section.variant;
+
+  // Varian numbered: daftar baris dengan nomor besar di kiri. Berbeda dari
+  // grid 3 kolom (kartu) dan horizontal (lingkaran + garis penghubung).
+  if (variant === 'steps-numbered') {
+    return (
+      <div className="py-12 px-6">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-2" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-on-section)' }}>
+            {(c.title as string) || 'Cara Pesan'}
+          </h2>
+          {(c.subtitle as string) && (
+            <p className="text-center mb-8" style={{ color: 'var(--color-on-section-muted)' }}>{c.subtitle as string}</p>
+          )}
+          <ol className="list-none p-0 m-0 space-y-4">
+            {items.map((s, i) => (
+              <li key={i} className="flex items-start gap-4">
+                <span
+                  className="shrink-0 w-9 h-9 grid place-items-center text-lg font-bold"
+                  style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)', borderRadius: 'var(--radius)' }}
+                >
+                  {i + 1}
+                </span>
+                <div>
+                  <h3 className="font-semibold mb-0.5" style={{ color: 'var(--color-text)' }}>
+                    {s.title || `Langkah ${i + 1}`}
+                  </h3>
+                  <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{s.description || ''}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
+  // Varian horizontal: satu baris penuh dengan garis penghubung, bukan grid 3 kolom.
+  // Branch ini nyata (bukan hanya nama) — DOM-nya berbeda dari `steps-3col`.
+  if (variant === 'steps-horizontal') {
+    return (
+      <div className="py-12 px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-2" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-on-section)' }}>
+            {(c.title as string) || 'Cara Pesan'}
+          </h2>
+          {(c.subtitle as string) && (
+            <p className="text-center mb-10" style={{ color: 'var(--color-on-section-muted)' }}>{c.subtitle as string}</p>
+          )}
+          <ol className="grid grid-cols-1 @md:grid-cols-3 gap-8 list-none p-0 m-0">
+            {items.map((s, i) => (
+              <li key={i} className="relative flex flex-col items-center text-center">
+                <span
+                  className="inline-grid place-items-center w-10 h-10 rounded-full text-sm font-bold"
+                  style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
+                >
+                  {i + 1}
+                </span>
+                {/* Garis penghubung antar langkah (hanya di tengah ke kanan). */}
+                {i < items.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="hidden @md:block absolute left-[calc(50%+2rem)] right-[-2rem] top-5 h-0.5"
+                    style={{ background: 'var(--color-border)' }}
+                  />
+                )}
+                <h3 className="font-semibold mt-4 mb-1.5" style={{ color: 'var(--color-text)' }}>
+                  {s.title || `Langkah ${i + 1}`}
+                </h3>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{s.description || ''}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="py-12 px-6">
       <div className="max-w-4xl mx-auto">
@@ -1634,6 +1807,102 @@ function LocationSection({ section }: { section: Section }) {
   const c = section.config;
   const hours = (Array.isArray(c.hours) ? c.hours : []) as Array<{ days?: string; time?: string }>;
   const buttonLink = (c.button_link as string) || '';
+  const variant = section.variant;
+
+  // Variant "kartu": alamat + jam disatukan dalam satu kartu besar terpusat,
+  // bukan dua kolom terpisah seperti di bawah dan bukan blok jam selebar.
+  if (variant === 'location-card') {
+    return (
+      <div className="py-12 px-6">
+        <div className="max-w-2xl mx-auto">
+          <div
+            className="p-8 text-center rounded-2xl"
+            style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)' }}
+          >
+            <h2 className="text-2xl font-bold mb-3" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-text)' }}>
+              {(c.title as string) || 'Kunjungi Kami'}
+            </h2>
+            {(c.address as string) && (
+              <p className="mb-2" style={{ color: 'var(--color-text)' }}>📍 {c.address as string}</p>
+            )}
+            {(c.note as string) && (
+              <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>{c.note as string}</p>
+            )}
+            {hours.length > 0 && (
+              <ul className="text-left max-w-xs mx-auto space-y-1.5">
+                {hours.map((h, i) => (
+                  <li key={i} className="flex justify-between gap-4 text-sm" style={{ color: 'var(--color-text)' }}>
+                    <span>{h.days || `Hari ${i + 1}`}</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>{h.time || ''}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(c.button_text as string) && buttonLink && (
+              <a
+                href={buttonLink}
+                target={buttonLink.startsWith('http') ? '_blank' : undefined}
+                rel={buttonLink.startsWith('http') ? 'noopener' : undefined}
+                className="inline-block mt-6 px-6 py-2.5 font-semibold"
+                style={{ background: 'var(--color-button)', color: 'var(--color-on-button)', borderRadius: 'var(--radius)' }}
+              >
+                {c.button_text as string}
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Variant "jam saja": jam operasional jadi blok lebar penuh, alamat dipindah
+  // ke bawah. Bentuknya jelas berbeda dari layout 2 kolom di bawah.
+  if (variant === 'location-hours-wide') {
+    return (
+      <div className="py-12 px-6">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-2" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-on-section)' }}>
+            {(c.title as string) || 'Jam Operasional'}
+          </h2>
+          {(c.address as string) && (
+            <p className="text-center mb-6 text-sm" style={{ color: 'var(--color-on-section-muted)' }}>
+              📍 {c.address as string}
+            </p>
+          )}
+          {hours.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {hours.map((h, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-center px-5 py-4 rounded-lg"
+                  style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)' }}
+                >
+                  <span className="font-semibold" style={{ color: 'var(--color-text)' }}>
+                    {h.days || `Hari ${i + 1}`}
+                  </span>
+                  <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    {h.time || ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {(c.button_text as string) && buttonLink && (
+            <a
+              href={buttonLink}
+              target={buttonLink.startsWith('http') ? '_blank' : undefined}
+              rel={buttonLink.startsWith('http') ? 'noopener' : undefined}
+              className="inline-block mt-6 px-6 py-2.5 font-semibold"
+              style={{ background: 'var(--color-button)', color: 'var(--color-on-button)', borderRadius: 'var(--radius)' }}
+            >
+              {c.button_text as string}
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="py-12 px-6">
       <div className="max-w-4xl mx-auto grid grid-cols-1 @md:grid-cols-2 gap-8 items-start">
