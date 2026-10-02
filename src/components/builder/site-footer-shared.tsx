@@ -216,7 +216,197 @@ export function SiteFooter({ variant, config, palette, radius, compact = false }
     );
   }
 
-  /* Layout inline: brand, nav datar, sosmed, lalu copyright. */
+  /* Layout brand-tengah: logo + nama besar di tengah, navigasi & sosmed
+     menjadi baris simetris di bawahnya. */
+  if (layout === 'centered') {
+    return shell(
+      <>
+        <div className="flex flex-col items-center text-center gap-3">
+          {brand}
+          <p className="text-[12px] max-w-md" style={{ color: palette.textMuted }}>
+            {footerText}
+          </p>
+        </div>
+        {groups.length > 0 ? (
+          <div className="flex justify-center">{groupNav()}</div>
+        ) : (
+          <div className="flex justify-center">{inlineNav()}</div>
+        )}
+        {showSocial && <div className="flex justify-center">{socialRow()}</div>}
+        {hasContact && (
+          <div className="flex justify-center text-center">{contactBlock()}</div>
+        )}
+      </>,
+    );
+  }
+
+  /* Layout mini: satu baris super ringkas. Hanya brand + copyright — blok
+     lain sengaja disembunyikan supaya footer tetap "tidak terlihat". */
+  if (layout === 'minimal') {
+    return shell(
+      <div className="flex flex-col items-center justify-center gap-2 text-center">
+        {brand}
+        {copyright}
+      </div>,
+    );
+  }
+
+  /* Layout newsletter: pita signup di atas, footer ringkas di bawahnya. */
+  if (layout === 'newsletter') {
+    const nlTitle = str(config.newsletterTitle);
+    const nlText = str(config.newsletterText);
+    const nlButton = str(config.newsletterButtonText, 'Daftar');
+    const nlPlaceholder = str(config.newsletterPlaceholder, 'Email Anda');
+    return shell(
+      <>
+        {(nlTitle || nlText) && (
+          <div
+            className="rounded-2xl px-5 py-6 sm:px-8 sm:py-7 flex flex-col @md:flex-row @md:items-center @md:justify-between gap-4"
+            style={{ background: palette.background, border: `1px solid ${palette.border}` }}
+          >
+            <div className="min-w-0">
+              {nlTitle && (
+                <p className="text-base font-bold" style={{ color: palette.text }}>
+                  {nlTitle}
+                </p>
+              )}
+              {nlText && (
+                <p className="text-[13px] mt-1" style={{ color: palette.textMuted }}>
+                  {nlText}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col @md:flex-row gap-2 shrink-0">
+              <input
+                type="email"
+                readOnly
+                placeholder={nlPlaceholder}
+                className="px-3 py-2 text-[13px] outline-none min-w-[200px]"
+                style={{
+                  background: palette.background,
+                  border: `1px solid ${palette.border}`,
+                  borderRadius: `${radius}px`,
+                  color: palette.text,
+                }}
+              />
+              <button
+                type="button"
+                className="px-4 py-2 text-[13px] font-semibold"
+                style={{ background: palette.primary, color: onPrimary, borderRadius: `${radius}px` }}
+              >
+                {nlButton}
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col @md:flex-row @md:items-center @md:justify-between gap-4">
+          {brand}
+          {inlineNav()}
+          {showSocial && socialRow()}
+        </div>
+        {copyright}
+      </>,
+    );
+  }
+
+  /* Layout fokus sosial: blok sosial besar di tengah, navigasi rapat di bawah. */
+  if (layout === 'social') {
+    return shell(
+      <>
+        <div className="flex flex-col items-center text-center gap-3">
+          {brand}
+          <p className="text-[11px] uppercase tracking-wider" style={{ color: palette.textMuted }}>
+            Ikuti Kami
+          </p>
+          <div className="flex items-center gap-2.5">
+            {socials.map((s) => (
+              <div
+                key={s}
+                className="w-10 h-10 flex items-center justify-center text-[11px] font-semibold"
+                style={{
+                  background: palette.background,
+                  color: palette.primary,
+                  border: `1px solid ${palette.border}`,
+                  borderRadius: '9999px',
+                }}
+              >
+                {s}
+              </div>
+            ))}
+          </div>
+        </div>
+        <nav
+          className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+          aria-label="Navigasi footer"
+        >
+          {nav
+            .filter((n) => showNav)
+            .map((item) => (
+              <a
+                key={item.id}
+                href={item.url}
+                className="text-[13px] hover:opacity-80 transition-opacity"
+                style={{ color: palette.text }}
+              >
+                {item.label}
+              </a>
+            ))}
+        </nav>
+        {copyright}
+      </>,
+    );
+  }
+
+  /* Layout CTA besar: blok ajakan(full-width) dengan tombol besar, lalu
+     baris informasi ringkas. */
+  if (layout === 'cta-overlap') {
+    const ctaTitle = str(config.ctaTitle);
+    const ctaText = str(config.ctaText);
+    const ctaButton = str(config.ctaButtonText, 'Hubungi Kami');
+    const ctaLink = str(config.ctaButtonLink, '#');
+    return shell(
+      <>
+        <div
+          className="px-6 py-10 sm:px-10 sm:py-14 text-center"
+          style={{
+            background: palette.primary,
+            color: onPrimary,
+            borderRadius: `${radius * 2}px`,
+          }}
+        >
+          {ctaTitle && (
+            <p className="text-xl sm:text-2xl font-bold" style={{ color: onPrimary }}>
+              {ctaTitle}
+            </p>
+          )}
+          {ctaText && (
+            <p className="text-[13px] mt-2 mx-auto max-w-lg" style={{ color: onPrimary, opacity: 0.9 }}>
+              {ctaText}
+            </p>
+          )}
+          <a
+            href={ctaLink}
+            className="inline-block mt-5 px-6 py-3 text-sm font-semibold"
+            style={{
+              background: palette.background,
+              color: palette.text,
+              borderRadius: `${radius}px`,
+            }}
+          >
+            {ctaButton}
+          </a>
+        </div>
+        <div className="flex flex-col @md:flex-row @md:items-center @md:justify-between gap-4">
+          {brand}
+          {inlineNav()}
+          {showSocial && socialRow()}
+        </div>
+        {copyright}
+      </>,
+    );
+  }
+
+  /* Layout inline (default / `simple`): brand, nav datar, sosmed, copyright. */
   return shell(
     <div
       className={`flex ${compact ? 'flex-col' : 'flex-col @md:flex-row'} items-center justify-between gap-4`}

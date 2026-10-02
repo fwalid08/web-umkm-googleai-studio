@@ -85,10 +85,58 @@ export const FOOTER_VARIANTS: ChromeVariant[] = [
     name: "Mini",
     description: "Super ringkas: hanya teks hak cipta",
   },
+  {
+    id: "newsletter",
+    name: "Pita Newsletter",
+    description: "Pita signup email lebar di atas baris info",
+  },
+  {
+    id: "social",
+    name: "Fokus Sosial",
+    description: "Blok sosial besar di tengah, navigasi rapat di bawah",
+  },
+  {
+    id: "cta-overlap",
+    name: "CTA Besar",
+    description: "Blok panggilan bertindak dengan tombol besar, penuh lebar",
+  },
 ];
 
 export const DEFAULT_HEADER_VARIANT = "standard";
 export const DEFAULT_FOOTER_VARIANT = "simple";
+
+/**
+ * Opsi "Lebar Konten" untuk header — memetakan nilai config `contentWidth`
+ * ke kelas Tailwind.
+ *
+ * Isi header (nama web, menu, CTA) dibox supaya tidak terdistribusi ke tepi
+ * layar pada monitor lebar, dan tetap sebaris dengan isi section + footer.
+ * `full` mengembalikan perilaku lama (mengikuti lebar layar).
+ *
+ * Default `6xl` (1152px) sengaja — sama dengan lebar footer (`site-footer-shared.tsx`)
+ * dan section hero/produk.
+ *
+ * Kelas WAJIB ditulis literal: Tailwind memindai string sumber, jadi
+ * `max-w-${n}` tidak akan pernah ter-generate.
+ */
+export const DEFAULT_CONTENT_WIDTH = "6xl";
+
+export const CONTENT_WIDTH_CLASSES: Record<string, string> = {
+  full: "w-full",
+  "6xl": "max-w-6xl",
+  "5xl": "max-w-5xl",
+  "4xl": "max-w-4xl",
+};
+
+/**
+ * Resolve config user → kelas wrapper. Nilai tak dikenal / belum tersimpan
+ * (mis. situs lama yang menyimpan config sebelum field ini ada) jatuh ke
+ * lebar default, bukan ikut melebar layar.
+ */
+export function resolveContentWidthClass(value: unknown): string {
+  const key = typeof value === "string" ? value : DEFAULT_CONTENT_WIDTH;
+  return CONTENT_WIDTH_CLASSES[key] ?? CONTENT_WIDTH_CLASSES[DEFAULT_CONTENT_WIDTH];
+}
 
 export function getHeaderVariant(id: string | undefined): ChromeVariant {
   return HEADER_VARIANTS.find((v) => v.id === id) ?? HEADER_VARIANTS[0];
