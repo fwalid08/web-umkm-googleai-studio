@@ -1,0 +1,22 @@
+-- 034_template_thumbnail_text.sql
+-- Perlebar `templates_library.thumbnail_url` dari VARCHAR(500) ke TEXT.
+--
+-- Latar belakang: kolom ini menerima signed URL dari Supabase Storage.
+-- JWT-nya sendiri ~420 karakter, sehingga URL utuh melewati 600 karakter.
+-- Saat import ZIP yang berisi `thumbnail.png`, INSERT ditolak Postgres
+-- ("value too long for type character varying(500)") dan UI hanya
+-- menampilkan "Gagal mengimpor template" tanpa petunjuk.
+--
+-- Catatan: signed URL juga kedaluwarsa setelah 7 hari, jadi thumbnail
+-- yang tersimpan hanya valid selama itu. Ini perilaku yang sudah ada
+-- sebelumnya (bucket `product-images` bersifat private, sehingga public URL
+-- akan 404) dan sengaja TIDAK diubah di migrasi ini:
+-- apakah thumbnail boleh disajikan publik atau bucket dibuat publik adalah
+-- keputusan tersendiri.
+--
+-- Kolom tetap dilebarkan supaya migrasi ini aman untuk URL panjang apa pun
+-- dan tidak perlu diulang.
+--
+-- Non-destruktif: VARCHAR -> TEXT hanya melonggarkan batas, data lama utuh.
+ALTER TABLE templates_library
+  ALTER COLUMN thumbnail_url TYPE TEXT;

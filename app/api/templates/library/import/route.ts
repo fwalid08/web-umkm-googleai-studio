@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStorageProvider } from "@/lib/storage";
 import { unzipSync, strFromU8 } from "fflate";
+import { sanitizeBehaviourScript } from "@/lib/builder/behaviour-script";
 
 interface SessionUser {
   id: string;
@@ -25,6 +26,14 @@ const MAX_SINGLE_ASSET_SIZE = 10 * 1024 * 1024; // 10 MB per asset
 const MAX_ASSETS = 50;
 const MAX_TEMPLATE_JSON_SIZE = 5 * 1024 * 1024; // 5 MB untuk template.json
 const MAX_BEHAVIOURS = 50;
+
+/**
+ * Panjang maksimum `thumbnail_url` yang disimpan ke DB. Bucket private →
+ * nilainya signed URL Supabase yang panjangnya ~600 karakter, bukan URL
+ * pendek. Kolomnya sudah TEXT (migrasi 034); batas ini cuma jaring
+ * pengaman supaya URL yang tidak masuk akal tetap tertahan.
+ */
+const MAX_THUMBNAIL_URL_LENGTH = 2000;
 
 const ALLOWED_ASSET_EXTS = new Set([
   "jpg",
@@ -119,6 +128,19 @@ function sanitizeName(input: unknown): string {
   return typeof input === "string" ? input.trim().slice(0, 200) : "";
 }
 
+/**
+ * Unggah satu aset ke storage.
+ *
+ * Bucket `product-images` bersifat PRIVATE, jadi URL hasil upload selalu
+ * signed URL (berganti jadi public URL akan 404). Signed URL inilah yang
+ * membuat `thumbnail_url` panjangnya ~600 karakter — itu sebabnya kolomnya
+ * dilonggarkan ke TEXT di migrasi 034.
+ *
+ * Catatan nama file: `SupabaseStorageProvider.generateFileName()` SELALU
+ * menempelkan ekstensi dari `metadata.originalName`. Karena itu `fileName`
+ * harus dikirim TANPA ekstensi — kalau tidak, "logo.png" menjadi
+ * "logo.png.png" dan path storage-nya rusak.
+ */
 async function uploadAsset(
   storage: ReturnType<typeof getStorageProvider>,
   userId: string,
@@ -126,11 +148,11 @@ async function uploadAsset(
   filePath: string,
   content: Uint8Array
 ): Promise<{ url: string; fileSize: number; storagePath: string }> {
-  const fileName = filePath.split("/").pop() || "asset";
   const folder = `template-assets/${userId}/${templateFolderId}`;
+  const baseName = (filePath.split("/").pop() || "asset").replace(/\.[^.]+$/, "");
   const result = await storage.upload(new Uint8Array(content), {
     folder,
-    fileName,
+    fileName: baseName || "asset",
     signedUrl: true,
     signedUrlExpiresIn: 604800,
     metadata: { originalName: filePath },
@@ -183,27 +205,13 @@ function extractAssetsFromConfig(config: unknown, assetPaths: Set<string>): void
   }
 }
 
+/**
+ * Sanitasi script pakai modul bersama (`lib/builder/behaviour-script.ts`) —
+ * daftar polanya sama dengan yang dipakai client saat runtime, supaya tidak
+ * ada dua denylist yang bisa berbeda.
+ */
 function sanitizeScript(script: string): string {
-  const dangerousPatterns = [
-    /\beval\s*\(/g,
-    /\bFunction\s*\(/g,
-    /\bsetTimeout\s*\(\s*["'`]/g,
-    /\bsetInterval\s*\(\s*["'`]/g,
-    /\bdocument\.write\s*\(/g,
-    /\bdocument\.writeln\s*\(/g,
-    /new\s+Function\s*\(/g,
-    /\bwindow\.location\s*=/g,
-    /\blocation\.href\s*=/g,
-    /<script[\s>]/gi,
-    /<\/script\s*>/gi,
-    /\bon\w+\s*=/gi,
-  ];
-
-  let sanitized = script;
-  for (const pattern of dangerousPatterns) {
-    sanitized = sanitized.replace(pattern, "// BLOCKED");
-  }
-  return sanitized;
+  return sanitizeBehaviourScript(script);
 }
 
 function sanitizeBehaviours(input: unknown): unknown[] {
@@ -348,7 +356,11 @@ export async function POST(request: NextRequest) {
       const storage = getStorageProvider();
       const assetMap = new Map<string, string>();
 
-      // Thumbnail (opsional): upload lalu pakai sebagai thumbnail_url
+      // Thumbnail (opsional): upload lalu pakai sebagai thumbnail_url.
+      // Bucket private → hasilnya signed URL (~600 karakter, lihat catatan di
+      // `uploadAsset`). Panjang itu aman karena kolom `thumbnail_url` sudah
+      // TEXT sejak migrasi 034; sebelumnya VARCHAR(500) menolaknya dan INSERT
+      // gagal dengan "Gagal mengimpor template".
       for (const thumbName of ALLOWED_THUMBNAIL_NAMES) {
         const thumb = zip[thumbName];
         if (!thumb || thumb.length === 0 || thumb.length > MAX_SINGLE_ASSET_SIZE) continue;
@@ -361,7 +373,7 @@ export async function POST(request: NextRequest) {
             new Uint8Array(thumb)
           );
           uploadedStoragePaths.push(storagePath);
-          thumbnailUrl = url;
+          thumbnailUrl = url.slice(0, MAX_THUMBNAIL_URL_LENGTH);
         } catch (e) {
           console.error("Thumbnail upload failed:", e);
         }
@@ -523,7 +535,7 @@ export async function POST(request: NextRequest) {
       }
       const rawThumb = (body as Record<string, unknown>).thumbnail_url;
       if (typeof rawThumb === "string" && /^https?:\/\//.test(rawThumb)) {
-        thumbnailUrl = rawThumb.slice(0, 500);
+        thumbnailUrl = rawThumb.slice(0, MAX_THUMBNAIL_URL_LENGTH);
       }
     }
 
@@ -585,7 +597,13 @@ export async function POST(request: NextRequest) {
         }
       }
       return NextResponse.json(
-        { success: false, error: "Gagal mengimpor template" },
+        {
+          success: false,
+          // Pesan Postgres asli dibiarkan tampil (dipotong) supaya kegagalan
+          // constraint tidak tersamar. String generik dulu menyembunyikan
+          // "value too long for type character varying(500)".
+          error: `Gagal mengimpor template: ${String(error.message || error).slice(0, 300)}`,
+        },
         { status: 500 }
       );
     }
