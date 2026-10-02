@@ -902,6 +902,8 @@ export function TemplatePreview({ templateId }: { templateId: string }) {
   switch (templateId) {
     case 'pangkas-rapi':
       return <PangkasRapiPreview />;
+    case 'bengkel':
+      return <BengkelPreview />;
     case 'warung-makan':
       return <WarungMakanPreview />;
     case 'butik-hijab':
@@ -936,6 +938,32 @@ function PangkasRapiPreview() {
         <div className="w-16 h-12 rounded bg-[#0F172A] border border-[#1E293B]" />
         <div className="w-16 h-12 rounded bg-[#0F172A] border border-[#1E293B]" />
         <div className="w-16 h-12 rounded bg-[#0F172A] border border-[#1E293B]" />
+      </div>
+    </div>
+  );
+}
+
+function BengkelPreview() {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#F8FAFC] to-[#E2E8F0] p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-8 h-8 rounded bg-[#C2410C]" />
+        <div className="flex gap-2">
+          <div className="h-2 w-12 rounded-full bg-[#C2410C]/30" />
+          <div className="h-2 w-12 rounded-full bg-[#C2410C]/30" />
+          <div className="h-6 w-16 rounded bg-[#C2410C]" />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col justify-center items-center gap-2">
+        <div className="h-3 w-3/4 rounded-full bg-[#C2410C]/40" />
+        <div className="h-2 w-1/2 rounded-full bg-[#1E293B]/30" />
+        <div className="h-2 w-2/3 rounded-full bg-[#475569]/25" />
+        <div className="h-8 w-24 rounded bg-[#C2410C] mt-2" />
+      </div>
+      <div className="flex gap-2">
+        <div className="flex-1 h-12 rounded bg-white border border-[#CBD5E1]" />
+        <div className="flex-1 h-12 rounded bg-white border border-[#CBD5E1]" />
+        <div className="flex-1 h-12 rounded bg-white border border-[#CBD5E1]" />
       </div>
     </div>
   );

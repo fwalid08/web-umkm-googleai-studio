@@ -43,8 +43,15 @@ import { TemplateGallery } from './template-gallery';
 import { ConfigForm } from '@/lib/builder/config-form';
 import { MockupPreview } from '@/lib/builder/mockup-preview';
 import { BUILT_IN_CATALOG, type BusinessCategory } from '@/lib/builder/templates/catalog';
-import { getSectionVariant } from '@/lib/builder/sections/registry';
-import { applySectionAssets } from '@/lib/builder/template-assets';
+import {
+  applyTemplateToWebsite,
+  isLibraryTemplate,
+  resolveTemplateId,
+  synthesizeLibraryTemplate,
+  type ApplyableTemplate,
+} from '@/lib/builder/apply-template';
+import { getTemplate } from '@/lib/builder/template-store';
+import type { Template } from '@/lib/builder/template-types';
 
 type SidebarLevel = 'main' | 'sections' | 'section-config' | 'header' | 'footer' | 'seo' | 'style' | 'template-info';
 
@@ -78,6 +85,9 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
   const [showSectionPicker, setShowSectionPicker] = useState(false);
   const [sectionSearch, setSectionSearch] = useState('');
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+  // Error apply template ditampilkan ke user. Versi lama hanya console.error +
+  // return senyap, jadi kegagalan total terlihat seperti "tidak terjadi apa-apa".
+  const [applyError, setApplyError] = useState('');
 
   const template = useTemplateStore((s) => s.template);
   const sections = useTemplateStore((s) => s.sections);
@@ -459,79 +469,58 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
                 berlaku di homepage, blog, checkout, dan halaman custom.
               </DialogDescription>
             </DialogHeader>
+            {applyError && (
+              <div className="mx-4 mt-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {applyError}
+              </div>
+            )}
             <TemplateGallery
               websiteId={websiteId}
               onApply={async (template: any) => {
                 if (!template?.id) {
-                  console.error('Template is undefined or missing id:', template);
+                  setApplyError('Template tidak valid.');
                   return;
                 }
-                // template is UnifiedTemplate, strip 'builtin-' prefix for API
-                const templateId = template.id.startsWith('builtin-') ? template.id.slice(8) : template.id;
-                // Find the full template data from catalog
-                const catalogTemplate = BUILT_IN_CATALOG.find((t) => t.id === templateId);
-                if (!catalogTemplate) {
-                  console.error('Template not found in catalog:', templateId);
-                  return;
-                }
-                // Resolve sections to API format (same as TemplatesTab.resolveSections)
-                const resolvedSections = (catalogTemplate.data?.sections ?? []).map((s) => {
-                  const variant = getSectionVariant(s.type, s.variant);
-                  const base = variant?.defaultConfig ?? {};
-                  const override = (s.config ?? {}) as Record<string, unknown>;
-                  const styleBase = variant?.defaultStyle ?? {};
-                  const styleOverride = (s.style ?? {}) as Record<string, unknown>;
-                  // Foto bawaan per-niche ikut tersimpan ke API, bukan hanya kanvas.
-                  const merged = applySectionAssets(
-                    { ...base, ...override } as Record<string, unknown>,
-                    catalogTemplate.category,
-                  );
-                  return {
-                    id: crypto.randomUUID(),
-                    type: s.type,
-                    variant: s.variant,
-                    config: JSON.parse(JSON.stringify(merged)),
-                    style: {
-                      padding: { top: 64, right: 24, bottom: 64, left: 24 },
-                      background: 'transparent' as const,
-                      ...JSON.parse(JSON.stringify(styleBase)),
-                      ...JSON.parse(JSON.stringify(styleOverride)),
-                    },
-                    responsive: {},
-                  };
-                });
+                setApplyError('');
+
+                // Apply ditangani modul bersama (`lib/builder/apply-template`) —
+                // jangan diduplikasi di sini. Versi lama memakai
+                // `BUILT_IN_CATALOG.find(...)` yang gagal untuk template library
+                // (id-nya UUID dari `templates_library`) dan hanya diam-diam
+                // menulis ke console.
+                const applyable = template as ApplyableTemplate;
+
+                // Ke store/kanvas: template library perlu disintesis karena
+                // `getTemplate()` hanya tahu template bawaan. Tanpa ini kanvas
+                // tidak berubah meski API-nya sukses.
+                let storeTemplate: Template | undefined;
                 try {
-                  const res = await fetch(`/api/websites/${websiteId}/website`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      template_id: templateId,
-                      custom_config: {
-                        design_style_id: catalogTemplate.data?.designStyleId ?? 'minimalist',
-                        palette_override: catalogTemplate.data?.paletteOverride ?? {},
-                        sections: resolvedSections,
-                        header: catalogTemplate.data?.header ?? {},
-                        footer: catalogTemplate.data?.footer ?? {},
-                        layout: { rows: [] },
-                        core: catalogTemplate.data?.core ?? {},
-                        seo: catalogTemplate.data?.seo ?? {},
-                        theme: {},
-                      },
-                    }),
-                  });
-                  const json = await res.json();
-                  if (!json.success) {
-                    console.error('Gagal menerapkan template:', json.error);
-                    return;
-                  }
-                  // Terapkan template: theme/palette/header/footer ikut berganti dan
-                  // kanvas diisi section bawaan + aset foto per-bisnis.
-                  useTemplateStore.getState().applyTemplate(templateId);
-                  useBuilderStore.getState().resetPaletteOverride();
-                  setShowTemplateGallery(false);
+                  storeTemplate = isLibraryTemplate(applyable)
+                    ? synthesizeLibraryTemplate(applyable.data ?? {}, {
+                        id: resolveTemplateId(applyable.id),
+                        name: applyable.name ?? 'Template',
+                        description: applyable.description,
+                        category: applyable.category,
+                      })
+                    : getTemplate(resolveTemplateId(applyable.id));
                 } catch (e) {
-                  console.error('Gagal menerapkan template:', e);
+                  setApplyError(e instanceof Error ? e.message : 'Gagal menyiapkan template');
+                  return;
                 }
+                if (!storeTemplate) {
+                  setApplyError('Template tidak ditemukan. Coba muat ulang halaman.');
+                  return;
+                }
+
+                const result = await applyTemplateToWebsite({ websiteId, template: applyable });
+                if (!result.ok) {
+                  setApplyError(result.error ?? 'Gagal menerapkan template');
+                  return;
+                }
+
+                useTemplateStore.getState().applyTemplate(result.templateId, storeTemplate);
+                useBuilderStore.getState().resetPaletteOverride();
+                setShowTemplateGallery(false);
               }}
               onPreview={(template: any) => {
                 if (!template?.id) return;

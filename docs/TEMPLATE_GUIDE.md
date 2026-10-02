@@ -1,8 +1,13 @@
 # Template Guide — Page Builder
 
 > **Target Audience**: Developer, Designer, AI Assistant
-> **Version**: 1.1
-> **Last Updated**: 2026-10-01
+> **Version**: 1.2
+> **Last Updated**: 2026-10-02
+>
+> **Untuk AI eksternal yang hanya bisa menghasilkan file ZIP**, pakai
+> [`AI_TEMPLATE_PROMPT.md`](./AI_TEMPLATE_PROMPT.md) — dokumen itu berdiri sendiri
+> dan tidak mengharuskan pengetahuan codebase. Dokumen ini untuk developer yang
+> bekerja langsung di repository.
 
 ---
 
@@ -36,7 +41,7 @@ Template adalah **self-contained package** yang berisi:
 
 Template terintegrasi dengan page builder melalui:
 - `template-store.ts` — state management
-- `section-renderer-v3.tsx` — rendering sections
+- `src/components/builder/section-renderer.tsx` — rendering sections
 - `builder-canvas.tsx` — canvas preview
 - `template-gallery.tsx` — template picker
 
@@ -68,17 +73,27 @@ Semua editing layout kini lewat Page Builder:
 
 ```
 src/lib/builder/
-├── template-types.ts          # Schema definitions
-├── template-store.ts          # State management
-├── section-renderer-v3.tsx    # Section renderer
+├── template-types.ts          # Schema definitions (Template, HeaderVariant, …)
+├── chrome.ts                  # Registry varian header/footer + lebar konten
+├── template-store.ts          # State zustand + BUILTIN_TEMPLATES
+├── section-renderer.tsx       # Section renderer   (di components/builder/)
 ├── config-form.tsx            # Dynamic config form
 ├── mockup-preview.tsx         # Mockup visual per variant
-├── migration.ts               # Config migration
+├── behaviour-runtime.tsx      # Runner animations[] & behaviours[] + customCss
+├── behaviour-script.ts        # Denylist script & CSS (server + client)
+├── migration.ts               # Normalisasi section & identitas anchor
 ├── templates/
-│   ├── pangkas-rapi.ts        # Blueprint template
-│   └── catalog.ts             # Template catalog
+│   ├── pangkas-rapi.ts        # Blueprint template (sumber semua varian)
+│   ├── bengkel.ts             # Contoh turunan terbaru
+│   └── catalog.ts             # BUILT_IN_CATALOG
+├── sections/registry.ts       # Registry section LAMA (lihat catatan di bawah)
 └── design-styles.ts           # Design style definitions
 ```
+
+> **Catatan penting soal `sections/registry.ts`.** Registry ini **legacy** dan
+> daftar variannya **tidak sama** dengan katalog varian di `template.sections`.
+> Yang dipakai renderer, kanvas, sidebar, dan test kontrak adalah
+> `template.sections`. Jangan memvalidasi seed section terhadap registry lama.
 
 ---
 
@@ -92,13 +107,89 @@ interface Template {
   name: string;                  // Display name (Title Case)
   description: string;           // Short description
   category: BusinessCategory;    // 'food' | 'fashion' | 'retail' | 'handicraft' | 'services'
-  tiers?: Tier[];                // ['free', 'starter', 'growth', 'enterprise'] — optional
+  tiers?: Tier[];                // ['free', 'starter', 'growth', 'enterprise']
   theme: TemplateTheme;          // Theme configuration
   headers: HeaderVariant[];      // Header variants (min 1)
   footers: FooterVariant[];      // Footer variants (min 1)
   sections: SectionTypeDefinition[]; // Section types (min 1)
 }
 ```
+
+### Bentuk yang WAJIB dipakai katalog: `CatalogTemplate`
+
+```typescript
+// src/lib/builder/templates/catalog.ts
+export interface CatalogTemplate extends Template {
+  data: FullTemplateData;        // WAJIB — seed siap-tayang
+}
+```
+
+`Template` saja **tidak cukup**. Tanpa `data`, enam test kontrak gagal. Isi
+`FullTemplateData` minimum:
+
+```typescript
+interface FullTemplateData {
+  designStyleId?: string;        // WAJIB — id di DESIGN_STYLES, lolos kontras
+  paletteOverride?: Partial<DesignStylePalette>;
+  sections?: Array<{             // Seed section
+    type: SectionType;
+    variant: string;             // WAJIB ada di template.sections → tipe tsb
+    config?: Record<string, unknown>;
+    style?: Partial<SectionStyle>;
+    anchorId?: string;
+  }>;
+  header?: Partial<HeaderConfig>;   // navItems & ctaText WAJIB
+  footer?: Partial<FooterConfig>;   // text WAJIB memuat "{year}"
+  seo?: { title?: string; description?: string };
+  core?: Partial<CoreConfig>;
+  /** CSS bebas template — lihat §16. */
+  customCss?: string;
+}
+```
+
+### Kontrak test (sumber kebenaran)
+
+`templates/catalog.test.ts` adalah penentu — bukan daftar signup di dokumen ini.
+Template baru **wajib** memenuhi:
+
+1. `data.designStyleId` terdaftar di `DESIGN_STYLES` **dan** lolos
+   `validateStyleContrast()`.
+2. Setiap `data.sections[].type` ada di `template.sections`.
+3. Setiap `data.sections[].variant` ada di varian tipe tersebut **dan**
+   `builderSectionToInstance()` resolve ke varian yang sama (tanpa fallback diam-diam).
+4. **Sembilan section inti ada**: `hero`, `features`, `pricing`, `booking`,
+   `testimonials`, `gallery`, `location`, `faq`, `contact`.
+5. `data.header.navItems` non-kosong; `data.header.ctaText` terisi.
+6. `data.seo.title` terisi; `data.footer.text` memuat `{year}`.
+7. Config `booking`: `title` string, `services` array non-kosong (tiap item punya
+   `name`), `success_message` string.
+8. `tiers` hanya berisi tier yang dikenal **dan** terbuka untuk keempat tier.
+9. `data.header.variant` terdaftar di `HEADER_VARIANTS`;
+   `data.footer.style` di `FOOTER_VARIANTS`.
+10. Palet hasil override + design style-nya lolos kontras.
+
+### Registrasi GANDA (lupa salah satu = template tidak jalan)
+
+```typescript
+// 1) src/lib/builder/templates/catalog.ts  → dipakai sidebar, customize,
+//    migration, renderer publik, page-builder, dan API website
+export const BUILT_IN_CATALOG: CatalogTemplate[] = [
+  PANGKAS_RAPI_TEMPLATE as CatalogTemplate,
+  BENGKEL_TEMPLATE as CatalogTemplate,     // ← tambahkan di sini
+  /* … */
+];
+
+// 2) src/lib/builder/template-store.ts  → dipakai template-gallery.tsx
+//    dan route /preview/[templateId]
+export const BUILTIN_TEMPLATES: Template[] = [
+  PANGKAS_RAPI_TEMPLATE,
+  BENGKEL_TEMPLATE,                        // ← dan di sini
+  /* … */
+];
+```
+
+Menambah thumbnail galeri butuh satu case tambahan di `TemplatePreview`
+(`mockup-preview.tsx`). Tanpa itu thumbnail jatuh ke `DefaultMockup`.
 
 ### TemplateTheme Interface
 
@@ -173,42 +264,83 @@ interface HeaderVariant {
   id: string;                    // Unique identifier (kebab-case)
   name: string;                  // Display name
   description: string;           // Short description
-  layout: string;                // Layout identifier (must match renderer)
+  layout: string;                // WAJIB salah satu dari 7 layout di bawah
   configFields: ConfigField[];   // Form fields for header config
-  defaultConfig: Record<string, unknown>; // Default values
+  defaultConfig: Record<string, unknown>;
   mockup: string;                // Mockup visual identifier
+  mobileMenu?: MobileMenuConfig;
+  /**
+   * Kedalaman menu: 1 (default, datar) atau 2 (boleh dropdown 1 tingkat).
+   * WAJIB konsisten di seluruh varian header satu template — kalau satu varian
+   * 1 dan tiga varian lain 2, form sidebar berubah-ubah saat user ganti gaya.
+   * Dijaga `template.test.ts`.
+   */
+  maxNavDepth?: 1 | 2;
 }
 ```
 
-### Supported Layouts
+### Supported Layouts — TEPAT 7
 
-| Layout | Description |
-|--------|-------------|
-| `standard` | Logo kiri, menu tengah, CTA kanan |
-| `floating` | Bar mengambang rounded dengan blur & shadow |
-| `minimal` | Logo + hamburger menu saja |
-| `hero-overlay` | Transparan di atas hero, solid saat scroll |
+Semuanya diimplementasikan `site-header-shared.tsx` dan didaftarkan di
+`HEADER_VARIANTS` (`chrome.ts`):
+
+| Layout | Id varian | Description |
+|--------|-----------|-------------|
+| `standard` | `header-klasik` | Logo kiri, menu tengah, CTA kanan |
+| `floating` | `header-melayang` | Bar mengambang rounded dengan shadow |
+| `hero-overlay` | `header-hero` | Transparan di atas hero, solid saat scroll |
+| `split-nav` | `header-split` | Blok brand besar di kiri, menu + CTA di kanan |
+| `with-topbar` | `header-topbar` | Bar kontak/promo di atas bar utama |
+| `glass` | `header-kaca` | frosted, konten di belakang tetap terlihat |
+| `minimal` | `header-minimal` | Logo + hamburger saja |
+
+> Test `template.test.ts` memblokir daftar ini: panjang dan isi `HEADER_VARIANTS`
+> harus persis cocok. Menambah layout = isi juga `site-header-shared.tsx` dan
+> `chrome.ts`.
 
 ### Default Config Keys
 
 ```typescript
 {
-  logoUrl: string;      // URL logo
-  siteTitle: string;    // Nama toko
-  tagline: string;      // Tagline
-  navItems: Array<{     // Menu navigasi
+  logoUrl: string;        // URL logo (boleh 'assets/logo.png' di template ZIP)
+  siteTitle: string;      // Nama toko
+  tagline: string;        // Tagline
+  navItems: Array<{       // Menu navigasi; `children` opsional (1 tingkat)
     id: string;
     label: string;
-    url: string;
+    url: string;          // '#anchor' untuk section, URL penuh bila isExternal
     isExternal: boolean;
     enabled: boolean;
+    children?: NavItem[];
   }>;
-  ctaText: string;      // Teks CTA button
-  ctaLink: string;      // Link CTA
-  showCta: boolean;     // Tampilkan CTA
-  sticky: boolean;      // Header menempel
+  ctaText: string;
+  ctaLink: string;
+  showCta: boolean;
+  sticky: boolean;        // Header menempel (default: true)
+  contentWidth: 'full' | '6xl' | '5xl' | '4xl';   // default '6xl'
+  topbarText?: string;    // hanya untuk layout with-topbar
+  topbarPhone?: string;
+  topbarEmail?: string;
 }
 ```
+
+### `contentWidth` — lebar isi header
+
+Isi header (nama web, menu, CTA) dibox dengan `max-width` + centering supaya
+tidak terdistribusi ke tepi layar pada monitor lebar. Default `6xl` (1152px)
+sebaris dengan footer dan section hero/produk.
+
+| Nilai | Kelas | Lebar |
+|---|---|---|
+| `full` | `w-full` | Mengikuti lebar layar (perilaku lama) |
+| `6xl` | `max-w-6xl` | 1152px — default |
+| `5xl` | `max-w-5xl` | 1024px |
+| `4xl` | `max-w-4xl` | 896px |
+
+> **Aturan alignment saat mengubah layout header:** padding horizontal
+> (`px-4 sm:px-6`) tetap di elemen **luar** (`<header>`), yang di-box hanya
+> baris isinya. Kalau padding ikut masuk ke dalam wrapper, konten bergeser
+> 24px ke kanan dan tidak rata dengan section/footer.
 
 ---
 
@@ -228,36 +360,39 @@ interface FooterVariant {
 }
 ```
 
-### Supported Layouts
+### Supported Layouts — TEPAT 4
 
-| Layout | Description |
-|--------|-------------|
-| `simple` | Baris tunggal bersih |
-| `columns` | Tiga kolom dengan aksen gradasi |
-| `centered` | Inisial brand besar + ornamen |
-| `minimal` | Super ringkas: hanya teks hak cipta |
-| `newsletter` | Footer dengan newsletter signup |
-| `social` | Footer dengan social links menonjol |
+| Layout | Id varian | Description |
+|--------|-----------|-------------|
+| `simple` | `footer-satu-baris` | Baris tunggal: brand, menu datar, sosmed, copyright |
+| `columns` | `footer-kolom-aksen` | Tiga kolom dengan aksen gradasi |
+| `centered` | `footer-brand-tengah` | Inisial brand besar + ornamen, bertumpuk tengah |
+| `minimal` | `footer-mini` | Super ringkas: hanya teks hak cipta |
+
+> **Peringatan kompatibilitas.** `pangkas-rapi.ts` masih mendeklarasikan varian
+> `footer-newsletter` (layout `newsletter`) dan `footer-social` (layout `social`).
+> Keduanya **tidak terdaftar** di `FOOTER_VARIANTS` (`chrome.ts`) dan
+> `site-footer-shared.tsx` hanya punya percabangan khusus untuk `columns` —
+> sisanya jatuh ke render default yang identik dengan `simple`.
+>
+> Artinya: `newsletter`/`social` saat ini **dead config**. Jangan dipakai di
+> template baru. Mengaktifkannya berarti menambah layout di
+> `site-footer-shared.tsx` + `FOOTER_VARIANTS` + test.
 
 ### Default Config Keys
 
 ```typescript
 {
-  text: string;         // Teks footer (support {year})
-  navItems: Array<{     // Menu footer
-    id: string;
-    label: string;
-    url: string;
-    isExternal: boolean;
-    enabled: boolean;
-  }>;
-  showSocial: boolean;  // Tampilkan ikon sosial
-  address?: string;     // Alamat
-  phone?: string;       // Telepon
-  email?: string;       // Email
-  newsletterTitle?: string;    // Judul newsletter
-  newsletterPlaceholder?: string; // Placeholder input
-  newsletterButton?: string;   // Teks tombol newsletter
+  text: string;           // WAJIB memuat "{year}"
+  navItems: NavItem[];    // Navigasi datar (layout inline)
+  navGroups?: NavGroup[]; // Navigasi terkelompok (layout columns)
+  showSocial: boolean;
+  showNav?: boolean;
+  address?: string;
+  phone?: string;
+  email?: string;
+  whatsapp?: string;
+  showWhatsApp?: boolean;
 }
 ```
 
@@ -269,12 +404,25 @@ interface FooterVariant {
 
 ```typescript
 interface SectionTypeDefinition {
-  type: string;          // Section type identifier (kebab-case)
-  name: string;          // Display name
-  icon: string;          // Icon identifier
-  variants: SectionVariant[]; // Variants (min 2)
+  type: SectionType;      // BUKAN string bebas — union 19 nilai, lihat Tabel 2
+  name: string;
+  icon: string;
+  variants: SectionVariant[];
+  mobileMenu?: MobileMenuConfig;
 }
 ```
+
+`SectionType` adalah union tertutup berisi **19 nilai**:
+
+```
+hero · features · product_grid · pricing · booking · testimonials · gallery
+location · faq · contact · about · video · team · newsletter · divider
+marquee · menu_board · steps
+```
+
+Menambah tipe baru berarti menambah ke union ini **dan** ke
+`PANGKAS_RAPI_TEMPLATE.sections` (blueprint) — seluruh template turunan
+mewarisi lewat `.map()`.
 
 ### SectionVariant Interface
 
@@ -546,17 +694,37 @@ Gunakan `parseGradientSpec()` / `composeGradientCss()` dari
 
 ---
 
-## 9. Template Upload System
+## 9. Template Upload System (ZIP import/export)
 
-### Status: Fully Implemented (ZIP Import/Export + Animations + Behaviours)
+> Ringkas untuk AI eksternal: lihat
+> [`AI_TEMPLATE_PROMPT.md`](./AI_TEMPLATE_PROMPT.md) — dokumen itu berdiri
+> sendiri dan memuat seluruh kontrak ZIP.
+
+### Status: aktif, end-to-end
+
+`import` → `library` → `apply` → `preview` sudah terhubung. Perbaikan berikut
+baru masuk di versi dokumen ini:
+
+- Template hasil import **tidak lagi menghasilkan halaman kosong**. Dulu
+  `template-gallery.tsx` memakai baris DB utuh sebagai `data`, sehingga
+  `data.sections/header/footer` selalu `undefined`. Sekarang `template_data`
+  dibongkar lebih dulu.
+- Apply template library tidak lagi **404**. ID library bukan baris tabel
+  `templates`, jadi route memakai `template_source: "saved"` dan meminjam
+  anchor FK dari template aktif website.
+- `ensureSectionIdentities()` tidak lagi diam-diam mengubah semua section jadi
+  `hero-full` untuk template library.
+- `/preview/[templateId]` sekarang bisa preview template library.
+- `animations[]` dan `behaviours[]` **benar-benar dijalankan** lewat
+  `behaviour-runtime.tsx` (sebelumnya hanya disimpan).
 
 ### Import API
 
 **Endpoint**: `POST /api/templates/library/import`
 
 **Supported Formats**:
-1. **JSON** — Format lama (backward compatible)
-2. **ZIP** — Format baru dengan assets, animations, behaviours
+1. **ZIP** (multipart) — `file` + `name`
+2. **JSON** (backward compatible) — `name` + `template_data`
 
 **Request (ZIP - multipart/form-data)**:
 ```
@@ -945,59 +1113,47 @@ variant.configFields.forEach(field => {
 
 ### Cara Membuat Template Baru
 
-1. **Buat file template** di `src/lib/builder/templates/`
-2. **Define template schema** sesuai dengan interface
-3. **Register template** di `template-store.ts`
-4. **Tambahkan mockup** di `mockup-preview.tsx`
-5. **Tambahkan layout renderer** di `section-renderer-v3.tsx`
-6. **Test template** di builder
+1. **Buat file** di `src/lib/builder/templates/` (turunkan dari
+   `PANGKAS_RAPI_TEMPLATE` — lihat `bengkel.ts` sebagai contoh terbaru).
+2. **Isi `theme` + `headers` + `footers` + `sections` + `data`** sesuai kontrak §2.
+3. **Registrasi ganda**: `templates/catalog.ts` **dan** `template-store.ts`.
+4. **Thumbnail**: tambah case di `TemplatePreview` (`mockup-preview.tsx`).
+5. **Jalankan `bun run test`** — `catalog.test.ts` + `template.test.ts` +
+   `section-variants.test.ts` adalah penjaga kontrak.
+6. **Uji manual** di `/preview/bengkel` (atau id template kamu).
+
+> Untuk tipe/variant section **baru** (bukan mewarisi blueprint), perlu
+> tambahan: union `SectionType`, renderer di `section-renderer.tsx`, dan mockup.
 
 ### Cara Memvalidasi Template
 
-```typescript
-import { getTemplate } from '@/lib/builder/template-store';
+Tidak ada fungsi `validateTemplate()` di codebase — versi lama dokumen ini
+menyebutnya, padahal tidak pernah ada. Yang nyata:
 
-function validateTemplate(templateId: string): string[] {
-  const errors: string[] = [];
-  const template = getTemplate(templateId);
-  
-  if (!template) {
-    errors.push('Template not found');
-    return errors;
-  }
-  
-  // Validate headers
-  if (template.headers.length === 0) {
-    errors.push('Template must have at least 1 header variant');
-  }
-  
-  // Validate footers
-  if (template.footers.length === 0) {
-    errors.push('Template must have at least 1 footer variant');
-  }
-  
-  // Validate sections
-  if (template.sections.length === 0) {
-    errors.push('Template must have at least 1 section type');
-  }
-  
-  // Validate each section
-  template.sections.forEach(section => {
-    if (section.variants.length < 2) {
-      errors.push(`Section ${section.type} must have at least 2 variants`);
-    }
-    
-    section.variants.forEach(variant => {
-      if (!variant.mockup) {
-        errors.push(`Variant ${variant.id} missing mockup`);
-      }
-      if (variant.configFields.length === 0) {
-        errors.push(`Variant ${variant.id} has no config fields`);
-      }
-    });
-  });
-  
-  return errors;
+```bash
+bun run test     # catalog.test.ts + template.test.ts + section-variants.test.ts
+bun run typecheck
+bun run lint
+```
+
+Test yang berlaku:
+
+| File | Yang dijaga |
+|---|---|
+| `templates/catalog.test.ts` | Kontrak template katalog (9 section inti, kontras, booking, `{year}`, tier, chrome terdaftar) |
+| `template.test.ts` | 7 varian header, `maxNavDepth` konsisten, `contentWidth` lengkap, jumlah tipe section, configFields |
+| `section-variants.test.ts` | Tiap varian me-render markup berbeda (282 varian dicek) |
+| `section-contrast.test.ts` | Skema warna tidak merusak kontras |
+
+Untuk pengecekan cepat di console:
+
+```typescript
+import { BUILT_IN_CATALOG } from '@/lib/builder/templates/catalog';
+import { validateStyleContrast, DESIGN_STYLES } from '@/lib/builder/design-styles';
+
+for (const t of BUILT_IN_CATALOG) {
+  const style = DESIGN_STYLES.find(s => s.id === (t.data.designStyleId ?? t.data.design_style_id))!;
+  console.log(t.id, validateStyleContrast(style));
 }
 ```
 
@@ -1005,12 +1161,16 @@ function validateTemplate(templateId: string): string[] {
 
 | Error | Solusi |
 |-------|--------|
-| `Layout not found` | Pastikan `layout` identifier match dengan renderer |
-| `Mockup not found` | Tambahkan mockup di `mockup-preview.tsx` |
-| `Config field missing` | Lengkapi `configFields` untuk setiap variant |
-| `Default config incomplete` | Pastikan `defaultConfig` cover semua `configFields` |
-| `Theme color not resolving` | Gunakan format `theme:primary` bukan `#047857` |
-| `Text contrast issue` | Gunakan `getOnColor(background)` untuk warna teks |
+| `section inti "<type>" wajib ada` | Tambahkan tipe itu ke `data.sections` |
+| `varian <v> tak ada di template` | Samakan `variant` dengan id di `template.sections` |
+| `resolve jadi <v2> (fallback)` | Id varian salah ketik — akan ditulis ulang diam-diam |
+| `designStyleId tak terdaftar` | Pakai id dari `DESIGN_STYLES` |
+| `kontras gagal` | Gelapkan `textMuted` (abu-abu 500–700) |
+| `Layout not found` | `layout` harus salah satu dari 7 header / 4 footer |
+| `Mockup not found` | Pakai id dengan prefix yang terdaftar, atau tambah case baru |
+| `tidak konsisten antar varian header` | Samakan `maxNavDepth` di seluruh varian header |
+| `Template tidak ditemukan` (saat apply) | Website belum punya template dasar — pilih template bawaan dulu |
+| `Field "contentWidth" tidak ada` | Tambahkan `CONTENT_WIDTH_FIELD` ke `configFields` varian itu |
 
 ### Template Upload Flow
 
@@ -1129,28 +1289,50 @@ variants: [
 ]
 ```
 
-**Daftar mockup yang tersedia:**
-- `hero-full`, `hero-split`, `hero-card`, `hero-video`
-- `features-3col`, `features-list`, `features-stacked`, `features-masonry`
-- `product-2col`, `product-3col`, `product-4col`, `product-carousel`
-- `testimonials-single`, `testimonials-carousel`
-- `faq-accordion`, `faq-list`
-- `cta-banner`, `cta-card`
-- `contact-form`, `contact-split`, `contact-form-map`
-- `booking-split`, `booking-form`
-- `about-left`, `about-right`, `about-centered`
-- `gallery-grid`, `gallery-masonry`, `gallery-carousel`
-- `video-default`, `video-centered`
-- `team-grid`, `team-list`
-- `pricing-2tier`, `pricing-3tier`
-- `newsletter-inline`, `newsletter-card`
-- `divider-line`, `divider-spacer`
-- `marquee-default`
-- `menu-classic`, `menu-tabs`
-- `steps-default`
-- `location-default`
-- `header-standard`, `header-floating`, `header-minimal`, `header-hero-overlay`
-- `footer-simple`, `footer-columns`, `footer-centered`, `footer-minimal`, `footer-newsletter`, `footer-social`
+**Cara kerja `renderMockup()` (`mockup-preview.tsx`)** — ia mencocokkan
+**prefix**, bukan nama persis:
+
+```typescript
+if (mockup.startsWith('hero-')) return <HeroMockup variant={mockup} />;
+if (mockup.startsWith('booking-')) return <BookingMockup variant={mockup} />;
+// … dan seterusnya untuk: features- product- testimonials- faq- cta-
+// contact- booking- about- gallery- video- team- pricing- newsletter-
+// divider- marquee- menu- steps- location- header- footer-
+```
+
+Artinya: **varian baru dengan prefix yang sudah terdaftar otomatis dapat
+mockup**, tanpa tambah kode. Yang salah prefix jatuh ke `DefaultMockup`.
+
+**Mockup yang benar-benar dipakai template bawaan** (hasil aktual dari
+`pangkas-rapi.ts`):
+
+| Prefix | Id yang dipakai |
+|---|---|
+| `hero-` | `hero-full`, `hero-split`, `hero-card`, `hero-video-bg` |
+| `features-` | `features-3col`, `features-list`, `features-stacked`, `features-masonry` |
+| `product-` | `product-2col`, `product-3col`, `product-4col`, `product-carousel` |
+| `pricing-` | `pricing-2tier`, `pricing-3tier` |
+| `booking-` | `booking-single`, `booking-split` |
+| `testimonials-` | `testimonials-grid`, `testimonials-carousel`, `testimonials-single` |
+| `gallery-` | `gallery-grid`, `gallery-masonry`, `gallery-carousel` |
+| `contact-` | `contact-form`, `contact-form-map`, `contact-split` |
+| `about-` | `about-left`, `about-right`, `about-centered` |
+| `faq-` | `faq-accordion`, `faq-list`, `faq-grid` |
+| `cta-` | `cta-banner`, `cta-card`, `cta-split` |
+| `video-` | `video-full`, `video-centered` |
+| `team-` | `team-grid`, `team-list` |
+| `menu-` | `menu-tabs`, `menu-list` |
+| `newsletter-` | `newsletter-inline`, `newsletter-card` |
+| `divider-` | `divider-line`, `divider-spacer` |
+| `marquee-` | `marquee-band` |
+| `steps-` | `steps-3col` |
+| `location-` | `location-hours` |
+| `header-` | `header-standard`, `header-floating`, `header-hero-overlay`, `header-split`, `header-with-topbar`, `header-glass`, `header-minimal` |
+| `footer-` | `footer-simple`, `footer-columns`, `footer-centered`, `footer-minimal` |
+
+> Id yang lebih dulu tertulis di versi dokumen ini — `video-default`,
+> `booking-form`, `marquee-default`, `steps-default`, `location-default`,
+> `menu-classic` — **tidak pernah ada**. Gunakan id pada tabel.
 
 #### Opsi 2: Buat Mockup Custom
 
@@ -1223,7 +1405,7 @@ Untuk memastikan preview bekerja:
 |------|---------|
 | `src/lib/builder/template-types.ts` | Schema definitions |
 | `src/lib/builder/template-store.ts` | State management |
-| `src/lib/builder/section-renderer-v3.tsx` | Section renderer |
+| `src/components/builder/section-renderer.tsx` | Section renderer |
 | `src/lib/builder/config-form.tsx` | Dynamic config form |
 | `src/lib/builder/mockup-preview.tsx` | Mockup visual |
 | `src/lib/builder/templates/*.ts` | Template definitions |
@@ -1338,3 +1520,137 @@ Menu mobile **harus** salah satu dari dua opsi berikut — **dilarang memakai dr
 ### 15.6 Font Categories
 - 5 kategori font, semuanya dari Google Fonts (`src/lib/builder/font-categories.ts`):
   Modern, Tech, Luxury / Elegant, Creative, Handwritten
+
+---
+
+## 16. Creative Layer — `customCss`, hook, dan `theme.effects`
+
+Bagian ini yang membuat desain template **tidak monoton**. Tanpa ini, seluruh
+variasi visual hanya sebatas palet + font + 47 layout bawaan.
+
+### 16.1 Kenapa lever ini ada
+
+Fakta yang terukur di `section-renderer.tsx`:
+
+```
+grep -cE "boxShadow|border:" section-renderer.tsx   →  0
+grep    "effects."        section-renderer.tsx     →  (kosong, dulu)
+```
+
+Artinya renderer **tidak pernah** menghasilkan border, shadow, `backdrop-filter`,
+`clip-path`, `mask-image`, atau `filter` pada kartu section. Glassmorphism,
+neo-brutalism, neumorphism, claymorphism, bento grid, wave divider — semuanya
+mustahil lewat `theme` atau `style` per-section.
+
+### 16.2 Hook styling
+
+Wrapper setiap section membawa:
+
+```html
+<div id="keunggulan"
+     data-tpl-type="features"
+     data-tpl-variant="features-3col"
+     data-tpl-fx="uppercase border"
+     style="--tpl-border-width: 2px">
+```
+
+| Atribut | Isi |
+|---|---|
+| `data-tpl-type` | `section.type` |
+| `data-tpl-variant` | `section.variant` |
+| `data-tpl-fx` | Flag `theme.effects` yang aktif: `uppercase`, `border` |
+
+**Selalu menyasar `data-tpl-*`.** Class Tailwind (`@md:grid-cols-3`, `rounded-lg`)
+bisa berubah tiap build — CSS yang menyasarnya berhenti jalan tanpa error.
+
+Struktur dalam yang dipakai `customCss`:
+
+| Menuju | Selector |
+|---|---|
+| Judul section | `[data-tpl-type="X"] > div > h2` |
+| Kartu ke-N | `[data-tpl-type="X"] > div > div > div:nth-child(N)` |
+
+### 16.3 `customCss` — rantai lengkap
+
+```
+template.json (data.customCss)
+  → templates-tab.tsx  (kirim saat apply)
+  → PUT …/website      (simpan ke custom_config.customCss)
+  → public.ts          (baca → templateCustomCss)
+  → renderer-v3.tsx    (live site)
+  → builder-canvas.tsx (kanvas preview)
+  → behaviour-runtime.tsx → <style>
+```
+
+Rantainya sama persis dengan `behaviours[]`, yang sudah end-to-end.
+
+Batas & sanitasi (`sanitizeTemplateCss()` di `behaviour-script.ts`):
+
+| Aturan | Nilai |
+|---|---|
+| Ukuran maks | 200.000 karakter |
+| Diblokir | `</style>`, `<style`, `@import`, `url()` non-`data:`, `expression(`, `-moz-binding`, `behavior:` |
+| Diizinkan | `position: fixed`, `box-shadow`, `filter`, `backdrop-filter`, `clip-path`, animasi |
+
+> **Keamanan.** Ini **bukan sandbox**. CSS bisa dipakai untuk UI-redressing
+> (overlay palsu/phishing). Aman selama template hanya masuk lewat akun
+> pemiliknya sendiri — sama seperti `behaviours[].script` yang sudah tersedia.
+> Kalau nanti ada template yang dibagikan antar-user, CSS **wajib** dipindah
+> ke iframe terisolasi.
+
+### 16.4 `theme.effects` — mana yang benar-benar jalan
+
+| Kunci | Status |
+|---|---|
+| `uppercaseHeadings` | ✅ — flag `uppercase` → `text-transform` pada `h1`–`h4` |
+| `borderWidth` | ✅ — flag `border` + `--tpl-border-width` → border kartu |
+| `glassmorphism` | ❌ **tidak diimplementasikan** |
+| `gradientBackgrounds` | ❌ **tidak diimplementasikan** |
+
+Aturan CSS-nya ada di `app/globals.css`:
+
+```css
+[data-tpl-fx~="uppercase"] :is(h1,h2,h3,h4){ text-transform:uppercase; letter-spacing:.02em }
+[data-tpl-fx~="border"] div[style*="--color-surface"]{ border:var(--tpl-border-width,1px) solid var(--color-border) }
+```
+
+Selector kartu menyasar inline style `background: var(--color-surface)` yang
+dipakai semua kartu — jauh lebih tahan perubahan daripada menyasar class.
+
+> Enam template bawaan dulu menyet keempat kunci itu; yang mati tidak terlihat
+> efeknya. Sekarang hanya 2 yang punya perilaku, sisanya **jangan diset**.
+
+### 16.5 Cookbook gaya modern
+
+Resep lengkap per gaya (Glassmorphism, Neo-Brutalism, Minimalist, Claymorphism,
+Outline/Skeletal, Bento Grid, Dark Mode/Cyberpunk, Neomorphism) ada di
+[`AI_TEMPLATE_PROMPT.md` §8](./AI_TEMPLATE_PROMPT.md). Contoh minimal:
+
+```css
+/* Neo-Brutalism */
+[data-tpl-type="features"] > div > div > div {
+  border: 3px solid var(--color-text);
+  border-radius: 0;
+  box-shadow: 8px 8px 0 var(--color-accent);
+}
+
+/* Wave divider */
+[data-tpl-type="hero"] {
+  clip-path: ellipse(78% 88% at 50% 0%);
+  margin-bottom: -58px;
+}
+```
+
+### 16.6 Bukti bahwa lever ini bekerja
+
+`src/lib/builder/bengkel-creative.test.ts` (15 test) memverifikasi lewat
+`renderToStaticMarkup`:
+
+- `data-tpl-type` / `data-tpl-variant` benar-benar muncul di wrapper
+- `effects.uppercaseHeadings` + `borderWidth` → `data-tpl-fx="uppercase border"`
+  dan `--tpl-border-width:2px`
+- Gradasi, `url(gambar)`, `rgba(0,0,0,0.700)`, `blur(3px)` benar-benar keluar
+- Selector stagger cocok dengan DOM nyata `#keunggulan .grid > div:nth-child(N)`
+- `sanitizeTemplateCss()` memblokir pola berbahaya dan **tidak merusak**
+  `backdrop-filter` / `clip-path` / `box-shadow` / `url(data:…)`
+

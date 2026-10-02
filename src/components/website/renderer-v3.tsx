@@ -1,9 +1,10 @@
-import type { Template, TemplateSectionInstance } from '@/lib/builder/template-types';
+import type { Template, TemplateSectionInstance, AnimationConfig, BehaviourConfig } from '@/lib/builder/template-types';
 import { getOnColor } from '@/lib/builder/design-styles';
 import { getGoogleFontsUrl } from '@/lib/builder/font-categories';
 import { MobileDrawer } from './mobile-drawer';
 import { SectionRenderer } from '@/components/builder/section-renderer';
 import { SiteHeader } from '@/components/builder/site-header-shared';
+import { BehaviourRuntime } from '@/components/builder/behaviour-runtime';
 import { SiteFooter } from '@/components/builder/site-footer-shared';
 import { getSectionVariant } from '@/lib/builder/template-store';
 import type { Section } from '@/lib/builder/types';
@@ -20,6 +21,11 @@ export interface PublicSiteDataV3 {
   /** Config header/footer efektif (default varian + simpanan user). */
   headerConfig?: Record<string, unknown>;
   footerConfig?: Record<string, unknown>;
+  /** Animasi & behaviour template — dijalankan oleh `BehaviourRuntime`. */
+  animations?: AnimationConfig[];
+  behaviours?: BehaviourConfig[];
+  /** CSS kustom template — bebaskan desain dari 47 layout bawaan. */
+  customCss?: string;
   seo: {
     title: string;
     description: string;
@@ -35,7 +41,7 @@ interface ChromeNavItem {
 }
 
 export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
-  const { template, sections, seo, websiteId, themeOverride, typographyOverride } = site;
+  const { template, sections, seo, websiteId, themeOverride, typographyOverride, animations, behaviours, customCss } = site;
   const palette = { ...template.theme.palette, ...themeOverride };
   const onPrimary = getOnColor(palette.primary);
   const typography = {
@@ -97,6 +103,10 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
       {fontFamilies.length > 0 && (
         <link rel="stylesheet" href={getGoogleFontsUrl(fontFamilies)} />
       )}
+      {/* Animasi/behaviour template (client component) — menyuntikkan
+          @keyframes + menjalankan script tersanitasi supaya animasi dari
+          template ZIP benar-benar hidup di live site, bukan sekadar tersimpan. */}
+      <BehaviourRuntime animations={animations} behaviours={behaviours} customCss={customCss} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

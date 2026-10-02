@@ -15,39 +15,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from "@/lib/builder/templates/catalog";
 import { DESIGN_STYLES } from "@/lib/builder/design-styles";
-import { getSectionVariant } from "@/lib/builder/sections/registry";
-import { applySectionAssets } from "@/lib/builder/template-assets";
+import { applyTemplateToWebsite, type ApplyableTemplate } from "@/lib/builder/apply-template";
 import { useBuilderStore } from "@/lib/builder/store";
 import { TemplateGallery } from "@/components/builder/template-gallery";
-
-function resolveSections(tpl: (typeof BUILT_IN_CATALOG)[number]) {
-  return (tpl.data?.sections ?? []).map((s) => {
-    const variant = getSectionVariant(s.type, s.variant);
-    const base = variant?.defaultConfig ?? {};
-    const override = (s.config ?? {}) as Record<string, unknown>;
-    const styleBase = variant?.defaultStyle ?? {};
-    const styleOverride = (s.style ?? {}) as Record<string, unknown>;
-    // Foto bawaan per-niche dilepas di sini (bukan hanya di kanvas) supaya
-    // hasil apply template di API/live site ikut punya aset yang sama.
-    const merged = applySectionAssets(
-      { ...base, ...override } as Record<string, unknown>,
-      tpl.category,
-    );
-    return {
-      id: crypto.randomUUID(),
-      type: s.type,
-      variant: s.variant,
-      config: JSON.parse(JSON.stringify(merged)),
-      style: {
-        padding: { top: 64, right: 24, bottom: 64, left: 24 },
-        background: "transparent" as const,
-        ...JSON.parse(JSON.stringify(styleBase)),
-        ...JSON.parse(JSON.stringify(styleOverride)),
-      },
-      responsive: {},
-    };
-  });
-}
 
 export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false, onGalleryClose, onTemplateApplied }: { websiteId: string; homepagePageId: string | null; isGalleryOpen?: boolean; onGalleryClose?: () => void; onTemplateApplied?: () => void }) {
   const [currentStyleId, setCurrentStyleId] = useState<string | null>(null);
@@ -111,28 +81,22 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
     setError("");
     setNotice("");
     setPreviewTemplate(null);
+    // Jalur yang sama dengan galeri — sebelumnya masih salinan sendiri yang
+    // sudah tertinggal satu field (belum mengirim customCss/animations).
     try {
-      const res = await fetch(`/api/websites/${websiteId}/website`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template_id: tpl.id,
-          custom_config: {
-            design_style_id: tpl.data?.designStyleId ?? "minimalist",
-            palette_override: tpl.data?.paletteOverride ?? {},
-            sections: resolveSections(tpl),
-            header: tpl.data?.header ?? {},
-            footer: tpl.data?.footer ?? {},
-            layout: { rows: [] },
-            core: tpl.data?.core ?? {},
-            seo: tpl.data?.seo ?? {},
-            theme: {},
-          },
-        }),
+      const result = await applyTemplateToWebsite({
+        websiteId,
+        template: {
+          id: tpl.id,
+          name: tpl.name,
+          description: tpl.description,
+          source: 'builtin',
+          category: tpl.category,
+          data: tpl.data ?? {},
+        } as ApplyableTemplate,
       });
-      const json = await res.json();
-      if (!json.success) {
-        setError(json.error ?? "Gagal menerapkan template");
+      if (!result.ok) {
+        setError(result.error ?? "Gagal menerapkan template");
         return;
       }
       setCurrentStyleId(tpl.data?.designStyleId ?? null);
@@ -141,8 +105,6 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
       setNotice(
         `Template "${tpl.name}" aktif. Warna, font, navigasi, footer, & layout ikut di semua halaman.`,
       );
-    } catch {
-      setError("Gagal menerapkan template. Periksa koneksi Anda.");
     } finally {
       setBusyId(null);
     }
@@ -180,41 +142,22 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
               userTier={userTier ?? undefined}
               onApply={async (template: any) => {
                 if (!template?.id) {
-                  console.error('Template is undefined or missing id:', template);
+                  setError("Template tidak valid");
                   return;
                 }
-                // template is UnifiedTemplate
-                // Strip "builtin-" prefix for API
-                const templateId = template.id.startsWith('builtin-') ? template.id.slice(8) : template.id;
-                const res = await fetch(`/api/websites/${websiteId}/website`, {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    template_id: templateId,
-                    custom_config: {
-                      design_style_id: template.data?.designStyleId ?? template.designStyleId ?? "minimalist",
-                      palette_override: template.data?.paletteOverride ?? template.paletteOverride ?? {},
-                      sections: resolveSections(template),
-                      header: template.data?.header ?? template.header ?? {},
-                      footer: template.data?.footer ?? template.footer ?? {},
-                      layout: { rows: [] },
-                      core: template.data?.core ?? template.core ?? {},
-                      seo: template.data?.seo ?? template.seo ?? {},
-                      theme: {},
-                    },
-                  }),
-                });
-                const json = await res.json();
-                if (json.success) {
-                  setCurrentStyleId(template.data?.designStyleId ?? template.designStyleId ?? null);
-                  // Strip 'builtin-' prefix from template ID
-                  const templateId = template.id.startsWith('builtin-') ? template.id.slice(8) : template.id;
-                  setCurrentTemplateId(templateId);
+                // Satu-satunya jalur apply — `lib/builder/apply-template`.
+                // Jangan diduplikasi: dua call site pernah punya versi berbeda
+                // dan satu di antaranya tertinggal (bug template library).
+                const applyable = template as ApplyableTemplate;
+                const result = await applyTemplateToWebsite({ websiteId, template: applyable });
+                if (result.ok) {
+                  setCurrentStyleId(applyable.data?.designStyleId ?? null);
+                  setCurrentTemplateId(result.templateId);
                   setNotice(`Template "${template.name}" berhasil diterapkan!`);
                   onTemplateApplied?.();
                   handleGalleryClose();
                 } else {
-                  setError(json.error ?? "Gagal menerapkan template");
+                  setError(result.error ?? "Gagal menerapkan template");
                 }
               }}
               onPreview={(template: any) => {

@@ -2,6 +2,7 @@ import type { BuiltInTemplate, FullTemplateData } from "../types";
 import type { Tier } from "@/types";
 import type { Template } from "../template-types";
 import { PANGKAS_RAPI_TEMPLATE } from "./pangkas-rapi";
+import { BENGKEL_TEMPLATE } from "./bengkel";
 import { WARUNG_MAKAN_TEMPLATE } from "./warung-makan";
 import { BUTIK_HIJAB_TEMPLATE } from "./butik-hijab";
 import { TOKO_KELONTONG_TEMPLATE } from "./toko-kelontong";
@@ -36,6 +37,7 @@ export const CATEGORY_LABELS: Record<BusinessCategory | "all", string> = {
 
 export const BUILT_IN_CATALOG: CatalogTemplate[] = [
   PANGKAS_RAPI_TEMPLATE as CatalogTemplate,
+  BENGKEL_TEMPLATE as CatalogTemplate,
   WARUNG_MAKAN_TEMPLATE as CatalogTemplate,
   BUTIK_HIJAB_TEMPLATE as CatalogTemplate,
   TOKO_KELONTONG_TEMPLATE as CatalogTemplate,

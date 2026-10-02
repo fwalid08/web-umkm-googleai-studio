@@ -3,7 +3,7 @@ import { cache } from "react";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { mergeAndValidateSections, type MergedSection } from "@/lib/builder/validation";
 import type { ColorPalette, TypographyConfig, SectionConfig, SectionType } from "@/types";
-import type { TemplateSectionInstance } from "@/lib/builder/template-types";
+import type { AnimationConfig, BehaviourConfig, TemplateSectionInstance } from "@/lib/builder/template-types";
 import type { DesignStylePalette, DesignStyleTypography } from "@/lib/builder/types";
 import { getDemoPublicSite } from "@/lib/mock/store";
 import { isValidSubdomain, normalizeHost, rootHost, isRootHost } from "@/lib/tenant";
@@ -65,6 +65,15 @@ export interface PublicSiteData {
   footer?: Record<string, unknown>;
   /** Palette override untuk V3 renderer. */
   paletteOverride?: Record<string, string>;
+  /**
+   * Animasi & behaviour template, untuk V3 renderer. Disimpan di
+   * `custom_config` saat template diterapkan; `BehaviourRuntime` yang
+   * menjalankannya di live site.
+   */
+  templateAnimations?: AnimationConfig[];
+  templateBehaviours?: BehaviourConfig[];
+  /** CSS kustom template — diteruskan ke `BehaviourRuntime`. */
+  templateCustomCss?: string;
   /** Catalog template's palette for V3 renderer (when different from database template). */
   v3Palette?: DesignStylePalette;
   /** Catalog template's typography for V3 renderer (when different from database template). */
@@ -237,6 +246,11 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     core?: Record<string, unknown>;
     seo?: { title?: string; description?: string };
     catalog_template_id?: string;
+    /** Animasi & behaviour template — dijalankan `BehaviourRuntime`. */
+    animations?: AnimationConfig[];
+    behaviours?: BehaviourConfig[];
+    /** CSS kustom template — ditampilkan `BehaviourRuntime`. */
+    customCss?: string;
   } | null;
 
   // Determine which template to use for section mapping
@@ -454,6 +468,18 @@ const name = user.name || "Toko Kami";
   const header = stored?.header as Record<string, unknown> | undefined;
   const footer = stored?.footer as Record<string, unknown> | undefined;
   const paletteOverride = ((stored?.palette_override as Record<string, string>) || (stored?.paletteOverride as Record<string, string>) || undefined) as Record<string, string> | undefined;
+  // Animasi/behaviour ikut template. Disimpan utuh di custom_config; runtime
+  // yang menyalakannya, bukan data ini.
+  const templateAnimations = Array.isArray(stored?.animations)
+    ? (stored!.animations as AnimationConfig[])
+    : undefined;
+  const templateBehaviours = Array.isArray(stored?.behaviours)
+    ? (stored!.behaviours as BehaviourConfig[])
+    : undefined;
+  const templateCustomCss =
+    typeof stored?.customCss === 'string' && stored.customCss.trim().length > 0
+      ? stored.customCss
+      : undefined;
 
   // Use catalog template's theme/typography for V3 renderer if available.
   // Font pilihan user (theme.typography tersimpan) selalu menang.
@@ -494,6 +520,9 @@ const name = user.name || "Toko Kami";
     header,
     footer,
     paletteOverride,
+    templateAnimations,
+    templateBehaviours,
+    templateCustomCss,
     // V3 renderer needs catalog template's theme
     v3Palette,
     v3Typography,

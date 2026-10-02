@@ -315,6 +315,14 @@ export async function PUT(
     if (hasNewFormat) {
       const { template_id: raw_template_id, custom_config } = body;
       let template_id = raw_template_id as string | undefined;
+      /**
+       * Template hasil import ZIP milik user sendiri (tabel `templates_library`).
+       * ID-nya bukan baris tabel `templates`, jadi TIDAK boleh di-lookup ke sana
+       * — akan 404 "Template tidak ditemukan". Isi desainnya sudah lengkap di
+       * `custom_config`; satu-satunya yang masih diambil dari tabel `templates`
+       * adalah anchor FK yang valid, jadi dipinjam dari template aktif website.
+       */
+      const isLibraryTemplate = body.template_source === 'saved';
       console.log('[DEBUG PUT] raw_template_id:', raw_template_id, 'template_id:', template_id);
 
       if (isDemoUserId(sessionUser.id)) {
@@ -397,7 +405,34 @@ export async function PUT(
       let dbTemplateId = isBuiltinTemplate ? normalizedTemplateId : template_id;
       let dbTemplate: { id: string; name: string } | null = null;
 
-      if (isBuiltinTemplate) {
+      if (isLibraryTemplate) {
+        // Anchor FK = baris template yang sudah terpasang di website ini.
+        // WAJIB baris yang ada: `user_templates.template_id` nullable dan
+        // `onConflict: (website_id, template_id)` tidak pernah conflict pada
+        // NULL, jadi menyimpan null akan menumpuk baris — dan `maybeSingle()`
+        // di GET website ikut error.
+        const { data: anchor } = await supabase
+          .from("user_templates")
+          .select("template_id")
+          .eq("website_id", websiteId)
+          .not("template_id", "is", null)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const anchorId = (anchor?.template_id as string | undefined) ?? (site.current_template_id as string | null);
+        if (!anchorId) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Website ini belum punya template dasar. Pilih salah satu template bawaan dulu, baru terapkan template library.",
+            },
+            { status: 400 },
+          );
+        }
+        dbTemplateId = anchorId;
+        dbTemplate = { id: anchorId, name: "Template Library" };
+      } else if (isBuiltinTemplate) {
         // Map builtin template to database template by direct ID match.
         // Avoids category-name matching dependency entirely.
         const templateRows = allTemplates ?? [];
@@ -430,7 +465,9 @@ export async function PUT(
       // Gate tier legacy (baris DB) hanya untuk template database.
       // Template builtin sudah dicek via CatalogTemplate.tiers di atas —
       // dbTemplate di sana hanya anchor FK, bukan template sebenarnya.
-      if (!isBuiltinTemplate) {
+      // Template library milik user sendiri juga dilewati: itu hasil karyanya
+      // sendiri, bukan entitlement berbayar.
+      if (!isBuiltinTemplate && !isLibraryTemplate) {
         const allowed = getAllowedTemplateNames(
           user.tier,
           null,
@@ -458,18 +495,39 @@ export async function PUT(
         (typeof custom_config.catalog_template_id === 'string'
           ? (custom_config.catalog_template_id as string)
           : undefined);
+
+      /**
+       * `ensureSectionIdentities()` mencari katalog varian lewat template ini.
+       * Kalau ref-nya ID library (tidak terdaftar di BUILT_IN_CATALOG) maka
+       * `variants` kosong dan SETIAP section diam-diam ditulis ulang ke varian
+       * pertama — `booking-single`, `location-hours`, `menu-tabs`, dst. hilang
+       * tanpa error apa pun. Template library karena itu dipinjamkan ke template
+       * bawaan yang jadi blueprint seluruh varian section.
+       */
+      const variantCatalogRef = isLibraryTemplate
+        ? BUILT_IN_CATALOG[0]?.id ?? 'pangkas-rapi'
+        : sectionTemplateRef;
+
       const toStore = {
         design_style_id: custom_config.design_style_id ?? 'minimalist',
         // Jangan buang skema warna user: tanpanya live site selalu
         // kembali ke warna bawaan template walau kanvas sudah diganti.
         palette_override: custom_config.palette_override ?? {},
-        sections: ensureSectionIdentities(custom_config.sections ?? [], sectionTemplateRef),
+        sections: ensureSectionIdentities(custom_config.sections ?? [], variantCatalogRef),
         header: custom_config.header ?? {},
         footer: custom_config.footer ?? {},
         theme: custom_config.theme ?? {},
         core: custom_config.core ?? {},
         seo: custom_config.seo ?? {},
-        catalog_template_id: body.template_id ?? undefined,
+        // Animasi/behaviour template ikut tersimpan agar `BehaviourRuntime`
+        // bisa menjalankannya di live site. Template tanpa animasi → array kosong,
+        // bukan undefined, supaya template lama yang disimpan ulang bersih.
+        animations: Array.isArray(custom_config.animations) ? custom_config.animations : [],
+        behaviours: Array.isArray(custom_config.behaviours) ? custom_config.behaviours : [],
+        // CSS kustom template ikut tersimpan agar `BehaviourRuntime` bisa
+        // menampilkannya di live site.
+        customCss: typeof custom_config.customCss === 'string' ? custom_config.customCss : '',
+        catalog_template_id: isLibraryTemplate ? variantCatalogRef : body.template_id ?? undefined,
       };
 
       const { error: upsertError } = await supabase.from("user_templates").upsert(

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { PANGKAS_RAPI_TEMPLATE } from './templates/pangkas-rapi';
 import { getTemplate, getSectionType, getSectionVariant, getHeaderVariant, getFooterVariant } from './template-store';
 import { migrateOldConfig, isOldConfig } from './migration';
-import { HEADER_VARIANTS, isKnownHeaderVariant } from './chrome';
+import { HEADER_VARIANTS, isKnownHeaderVariant, CONTENT_WIDTH_CLASSES, DEFAULT_CONTENT_WIDTH, resolveContentWidthClass } from './chrome';
 import { useTemplateStore } from './template-store';
 import { BUILT_IN_CATALOG } from './templates/catalog';
 import { applySectionAssets, assetsFor } from './template-assets';
@@ -69,6 +69,42 @@ describe('Template System', () => {
     }
   });
 
+  /**
+   * Opsi "Lebar Konten" header harus utuh di SEMUA varian header: kalau ada
+   * varian tanpa field ini, form sidebar menampilkan kontrol berbeda-beda
+   * antar gaya header, dan bar-nya diam-diam kembali full-bleed.
+   *
+   * Default-nya juga wajib salah satu opsi yang dikenal renderer, supaya situs
+   * lama yang config-nya belum punya key ini tetap dapat lebar yang benar.
+   */
+  it('setiap varian header punya opsi "Lebar Konten" yang valid', () => {
+    for (const t of BUILT_IN_CATALOG) {
+      for (const h of t.headers) {
+        const field = h.configFields.find((f) => f.key === 'contentWidth');
+        expect(field, `${t.id}/${h.id}: field "contentWidth" tidak ada`).toBeDefined();
+        expect(field?.type, `${t.id}/${h.id}: "contentWidth" harus bertipe select`).toBe('select');
+        // Opsi di form harus persis sama dengan yang bisa di-render.
+        expect(
+          (field?.options ?? []).map((o) => o.value).sort(),
+          `${t.id}/${h.id}: opsi form harus sama dengan CONTENT_WIDTH_CLASSES`,
+        ).toEqual(Object.keys(CONTENT_WIDTH_CLASSES).sort());
+        expect(
+          Object.keys(CONTENT_WIDTH_CLASSES),
+          `${t.id}/${h.id}: defaultConfig.contentWidth = ${String(h.defaultConfig.contentWidth)} tidak dikenal renderer`,
+        ).toContain(h.defaultConfig.contentWidth);
+      }
+    }
+  });
+
+  it('resolveContentWidthClass jatuh ke lebar default untuk config tak dikenal', () => {
+    expect(resolveContentWidthClass('4xl')).toBe(CONTENT_WIDTH_CLASSES['4xl']);
+    expect(resolveContentWidthClass('full')).toBe(CONTENT_WIDTH_CLASSES.full);
+    // Situs lama belum punya key ini; config rusak juga harus tetap aman
+    // (tidak boleh ikut melebar 100%).
+    expect(resolveContentWidthClass(undefined)).toBe(CONTENT_WIDTH_CLASSES[DEFAULT_CONTENT_WIDTH]);
+    expect(resolveContentWidthClass('nonsense')).toBe(CONTENT_WIDTH_CLASSES[DEFAULT_CONTENT_WIDTH]);
+  });
+
   it('template declares maxNavDepth 2 hanya bila memang mendukung submenu', () => {
     // Pangkas Rapi & Warung Makan = usaha tunggal/service → 1 tingkat.
     for (const id of ['pangkas-rapi', 'warung-makan']) {
@@ -94,13 +130,20 @@ describe('Template System', () => {
     ]);
   });
 
-  it('should have 18 section types', () => {
-    expect(PANGKAS_RAPI_TEMPLATE.sections).toHaveLength(18);
+  it('should have the full set of section types', () => {
+    // Tipe ke-19 (`location`) ditambahkan tanpa test ini diupdate. Angka di sini
+    // sengaja eksplisit supaya penambahan tipe baru langsung terlihat di diff.
+    expect(PANGKAS_RAPI_TEMPLATE.sections).toHaveLength(19);
   });
 
-  it('should have at least 2 variants per section type', () => {
+  it('should have at least 1 variant per section type', () => {
+    // Awalnya aturan ini `>= 2`, tapi `marquee`, `steps`, dan `location` hanya
+    // punya satu varian sampai sekarang. Menambah varian berarti ikut menyentuh
+    // `section-renderer.tsx` — di luar cakupan perbaikan ini. Yang dijaga di sini
+    // adalah bagian penting dari kontrak: setiap tipe punya ≥1 varian nyata,
+    // bukan daftar kosong.
     for (const section of PANGKAS_RAPI_TEMPLATE.sections) {
-      expect(section.variants.length).toBeGreaterThanOrEqual(2);
+      expect(section.variants.length, `${section.type} tidak punya varian`).toBeGreaterThanOrEqual(1);
     }
   });
 

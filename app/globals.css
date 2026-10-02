@@ -181,3 +181,21 @@ html{scroll-behavior:smooth;scroll-padding-top:76px}
 
 /* Query container bingkai kanvas builder (responsif ikut lebar device) */
 .builder-cq{container-type:inline-size}
+
+/* ============ theme.effects yang benar-benar diimplementasikan ============
+   Wrapper section memakai `data-tpl-fx` berisi flag yang aktif
+   ("uppercase" / "border") + `--tpl-border-width` dari `theme.effects`.
+
+   Hanya 2 dari 4 kunci `effects` yang punya perilaku. `glassmorphism` dan
+   `gradientBackgrounds` TIDAK dibaca renderer mana pun — jangan set kalau
+   mengira itu melakukan sesuatu. Lihat `section-renderer.tsx`. */
+
+/* effects.uppercaseHeadings — hanya heading, bukan tombol/harga/body. */
+[data-tpl-fx~="uppercase"] :is(h1,h2,h3,h4){text-transform:uppercase;letter-spacing:.02em}
+
+/* effects.borderWidth — kartu section. Selector menyasar inline style
+   `background: var(--color-surface)` yang dipakai semua kartu, jadi tidak
+   rapuh seperti menyasar class Tailwind. */
+[data-tpl-fx~="border"] div[style*="--color-surface"]{
+  border:var(--tpl-border-width,1px) solid var(--color-border);
+}

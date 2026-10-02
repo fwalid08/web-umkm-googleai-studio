@@ -11,6 +11,7 @@ import { SiteFooter } from '@/components/builder/site-footer-shared';
 import { getDesignStyle } from '@/lib/builder/design-styles';
 import { SectionPicker } from './section-picker';
 import { GoogleFonts } from './google-fonts';
+import { BehaviourRuntime } from './behaviour-runtime';
 import type { SectionVariant } from '@/lib/builder/template-types';
 import type { Section } from '@/lib/builder/types';
 import type { DesignStyle } from '@/lib/builder/types';
@@ -42,6 +43,11 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   // hasil edit user di sidebar terlihat langsung di kanvas.
   const savedHeader = useTemplateStore((s) => s.headerConfig);
   const savedFooter = useTemplateStore((s) => s.footerConfig);
+  // Animasi template ikut dijalankan di kanvas supaya pratinjau di editor sama
+  // persis dengan live site (sebelumnya hanya tersimpan, tak pernah jalan).
+  const templateBehaviours = useTemplateStore((s) => s.behaviours);
+  const templateAnimations = useTemplateStore((s) => s.animations);
+  const templateCustomCss = useTemplateStore((s) => s.customCss);
 
   const openPicker = () => {
     window.dispatchEvent(new CustomEvent('open-section-picker'));
@@ -124,6 +130,13 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
       }}
     >
       <GoogleFonts fonts={[designStyle.typography.headingFont, designStyle.typography.bodyFont]} />
+      {preview && (
+        <BehaviourRuntime
+          animations={templateAnimations}
+          behaviours={templateBehaviours}
+          customCss={templateCustomCss}
+        />
+      )}
       <div
         className={`${bleed ? 'w-full' : 'mx-auto'} min-h-full flex flex-col transition-all duration-300`}
         style={bleed ? undefined : { maxWidth: `min(${viewportWidth}px, 100%)` }}

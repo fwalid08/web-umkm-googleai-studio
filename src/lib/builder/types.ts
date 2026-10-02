@@ -130,6 +130,16 @@ export interface FullTemplateData {
   footer?: Partial<FooterConfig>;
   seo?: { title?: string; description?: string };
   core?: Partial<CoreConfig>;
+  /**
+   * CSS bebas milik template. Ini yang memungkinkan desain yang tidak bisa
+   * dicapai lewat `theme` + `style` section — glassmorphism, neo-brutalism,
+   * neumorphism, claymorphism, bento grid, wave divider, gradient text.
+   *
+   * Sanitasi `sanitizeTemplateCss()` sebelum dipakai (blokir `</style>`,
+   * `@import`, `url()` non-`data:`). Targetkan section lewat `data-tpl-type`
+   * dan `data-tpl-variant` — jangan class Tailwind.
+   */
+  customCss?: string;
 }
 
 /** Definisi template bawaan siap terap (lihat templates/catalog.ts). */

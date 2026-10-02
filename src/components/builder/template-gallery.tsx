@@ -112,15 +112,39 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   }, []);
 
   const savedUnified = useMemo((): UnifiedTemplate[] => {
-    return savedTemplates.map((t) => ({
-      id: t.id,
-      name: t.name,
-      description: t.description || '',
-      category: (t as any).category || 'retail',
-      source: 'saved' as TemplateSource,
-      sectionsCount: (t as any).sections?.length ?? 0,
-      data: t as unknown as Template,
-    }));
+    return savedTemplates.map((row) => {
+      /**
+       * Baris `templates_library` membungkus seluruh isi template di dalam
+       * kolom `template_data`. Dulu `data` diisi baris DB utuh, sehingga
+       * `template.data.sections/header/footer/...` selalu `undefined` →
+       * menerapkan template library menghasilkan homepage kosong tanpa nav,
+       * footer, dan SEO. Di sini dibongkar dulu, lalu digabung kembali dengan
+       * metadata baris (nama/deskripsi/thumbnail) supaya bentuknya sama
+       * persis dengan template bawaan dan semua konsumen (`resolveSections`,
+       * form apply, preview) bisa memakai jalur yang sama.
+       */
+      const rowData = row as unknown as Record<string, unknown>;
+      const inner = (rowData.template_data ?? {}) as Record<string, unknown>;
+      const sections = Array.isArray(inner.sections) ? inner.sections : [];
+      const data = {
+        ...inner,
+        id: row.id,
+        name: row.name,
+        description: row.description || String(inner.description ?? ''),
+        category: (inner.category as BusinessCategory) ?? 'retail',
+        sections,
+      } as unknown as Template;
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        category: data.category,
+        source: 'saved' as TemplateSource,
+        sectionsCount: sections.length,
+        data,
+      };
+    });
   }, [savedTemplates]);
 
   const allTemplates = useMemo(() => [...builtinUnified, ...savedUnified], [builtinUnified, savedUnified]);

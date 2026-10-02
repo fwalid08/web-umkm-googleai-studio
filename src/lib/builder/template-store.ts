@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { Template, SectionTypeDefinition, SectionVariant, TemplateSectionInstance, AnimationConfig, BehaviourConfig, AssetMetadata, TemplateTheme } from './template-types';
 import { PANGKAS_RAPI_TEMPLATE } from './templates/pangkas-rapi';
+import { BENGKEL_TEMPLATE } from './templates/bengkel';
 import { WARUNG_MAKAN_TEMPLATE } from './templates/warung-makan';
 import { BUTIK_HIJAB_TEMPLATE } from './templates/butik-hijab';
 import { TOKO_KELONTONG_TEMPLATE } from './templates/toko-kelontong';
@@ -11,6 +12,7 @@ import { applySectionAssets } from './template-assets';
 
 export const BUILTIN_TEMPLATES: Template[] = [
   PANGKAS_RAPI_TEMPLATE,
+  BENGKEL_TEMPLATE,
   WARUNG_MAKAN_TEMPLATE,
   BUTIK_HIJAB_TEMPLATE,
   TOKO_KELONTONG_TEMPLATE,
@@ -53,6 +55,8 @@ type TemplateHistoryEntry = {
   footerVariantId: string;
   themeOverride: Record<string, string>;
   animations: AnimationConfig[];
+  /** CSS kustom template — lihat `FullTemplateData.customCss`. */
+  customCss: string;
   behaviours: BehaviourConfig[];
   assets: AssetMetadata[];
   headerConfig: Record<string, unknown>;
@@ -67,6 +71,8 @@ type TemplateDraft = {
   footerConfig: Record<string, unknown>;
   themeOverride: Record<string, string>;
   animations: AnimationConfig[];
+  /** CSS kustom template — lihat `FullTemplateData.customCss`. */
+  customCss: string;
   behaviours: BehaviourConfig[];
   assets: AssetMetadata[];
   past: TemplateHistoryEntry[];
@@ -82,6 +88,7 @@ function snapshotTemplate(state: TemplateDraft) {
     footerConfig: deepClone(state.footerConfig ?? {}),
     themeOverride: deepClone(state.themeOverride),
     animations: deepClone(state.animations),
+    customCss: state.customCss,
     behaviours: deepClone(state.behaviours),
     assets: deepClone(state.assets),
   };
@@ -103,6 +110,7 @@ function restoreTemplateSnapshot(
   state.footerConfig = snapshot.footerConfig ?? {};
   state.themeOverride = snapshot.themeOverride ?? {};
   state.animations = snapshot.animations ?? [];
+  state.customCss = snapshot.customCss ?? '';
   state.behaviours = snapshot.behaviours ?? [];
   state.assets = snapshot.assets ?? [];
 }
@@ -146,6 +154,8 @@ interface TemplateState {
   themeOverride: Record<string, string>;
   animations: AnimationConfig[];
   behaviours: BehaviourConfig[];
+  /** CSS kustom template — lihat `FullTemplateData.customCss`. */
+  customCss: string;
   assets: AssetMetadata[];
   past: TemplateHistoryEntry[];
   future: TemplateHistoryEntry[];
@@ -156,7 +166,15 @@ interface TemplateState {
    * header/footer ke varian pertama, DAN seed sections bawaan template lengkap
    * dengan aset foto per-niche. Section lama digantikan (bisa di-undo).
    */
-  applyTemplate: (templateId: string) => void;
+  /**
+   * Terapkan template ke store/kanvas.
+   *
+   * `override` dipakai untuk template library (hasil import ZIP): id-nya tidak
+   * ada di `BUILTIN_TEMPLATES`, jadi `getTemplate()` akan mengembalikan
+   * `undefined` dan pemanggilan diam-diam tidak berefek apa pun. Kirim objek
+   * `Template` hasil `synthesizeLibraryTemplate()` untuk menutup jalur itu.
+   */
+  applyTemplate: (templateId: string, override?: Template) => void;
   /** Timpa sections tanpa reset undo-user (dipakai seed dari data tersimpan). */
   replaceSections: (sections: TemplateSectionInstance[]) => void;
   setHeaderVariant: (variantId: string) => void;
@@ -202,6 +220,7 @@ export const useTemplateStore = create<TemplateState>()(
     saved: true,
     themeOverride: {},
     animations: [],
+    customCss: '',
     behaviours: [],
     assets: [],
     past: [],
@@ -220,14 +239,15 @@ export const useTemplateStore = create<TemplateState>()(
         state.selectedSectionId = null;
         state.themeOverride = {};
         state.animations = template.animations || [];
+        state.customCss = (template as { customCss?: string }).customCss ?? '';
         state.behaviours = template.behaviours || [];
         state.assets = template.assets || [];
         state.saved = false;
       }),
 
-    applyTemplate: (templateId) =>
+    applyTemplate: (templateId, override) =>
       set((state) => {
-        const template = getTemplate(templateId);
+        const template = override ?? getTemplate(templateId);
         if (!template) return;
         // Dorong histori dulu → "Ganti template" bisa di-undo seperti edit biasa.
         pushTemplateHistory(state);
@@ -263,6 +283,7 @@ export const useTemplateStore = create<TemplateState>()(
         // benar-benar tampil, bukan sisa template sebelumnya.
         state.themeOverride = {};
         state.animations = template.animations || [];
+        state.customCss = (template as { customCss?: string }).customCss ?? '';
         state.behaviours = template.behaviours || [];
         state.assets = template.assets || [];
         state.future = [];
@@ -526,6 +547,7 @@ export const useTemplateStore = create<TemplateState>()(
         }
 
         state.animations = Array.isArray(config.animations) ? config.animations as AnimationConfig[] : [];
+        state.customCss = typeof config.customCss === 'string' ? config.customCss : '';
         state.behaviours = Array.isArray(config.behaviours) ? config.behaviours as BehaviourConfig[] : [];
         state.assets = Array.isArray(config.assets) ? config.assets as AssetMetadata[] : [];
 
@@ -545,6 +567,7 @@ export const useTemplateStore = create<TemplateState>()(
         footer_config: { ...state.footerConfig },
         sections: state.sections,
         animations: state.animations,
+        customCss: state.customCss,
         behaviours: state.behaviours,
         assets: state.assets,
       };

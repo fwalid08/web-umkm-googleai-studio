@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { Menu, X, Phone, Mail, ChevronDown } from 'lucide-react';
 import { getOnColor } from '@/lib/builder/design-styles';
+import { resolveContentWidthClass } from '@/lib/builder/chrome';
 
 export interface HeaderPalette {
   primary: string;
@@ -79,6 +80,18 @@ export function SiteHeader({
   // Hormati opsi "Header menempel" seperti di live site (default menempel).
   const sticky = config.sticky !== false;
   const topbarText = str(config.topbarText);
+
+  /* ---------- Lebar konten ----------
+     Isi header (nama web, menu, CTA) dibox agar tidak terdistribusi ke tepi
+     layar pada monitor lebar — sama seperti isi section dan footer.
+
+     ATURAN ALIGNMENT (penting, jangan dibalik): padding horizontal tetap di
+     elemen LUAR (<header>), yang di-box hanya baris isinya. Dengan begitu
+     brand mulai persis satu garis dengan isi section & footer. Kalau padding
+     ikut masuk ke dalam wrapper, konten akan bergeser 24px ke kanan.
+
+     Latar/border <header> tetap edge-to-edge — itu memang tampilan bar. */
+  const box = resolveContentWidthClass(config.contentWidth);
 
   // Hanya hero-overlay yang transparan saat belum scroll (khusus kanvas).
   const isTransparent = layout === 'hero-overlay' && !navSolid;
@@ -262,8 +275,11 @@ export function SiteHeader({
   if (layout === 'floating') {
     return (
       <div className={sticky ? 'px-3 pt-2.5 sticky top-0 z-20' : 'px-3 pt-2.5'}>
+        {/* Kartu rounded-nya yang di-box, bukan isi di dalamnya: pada layar
+            lebar bar melayang tidak boleh melar 100% (pola yang sama dengan
+            renderer versi lama). */}
         <div
-          className="flex items-center justify-between gap-3 px-3.5 py-2.5 shadow-lg"
+          className={`mx-auto ${box} w-full flex items-center justify-between gap-3 px-3.5 py-2.5 shadow-lg`}
           style={{ background: palette.surface, border: `1px solid ${palette.border}`, borderRadius: '16px' }}
         >
           <div className="flex items-center gap-2 min-w-0">
@@ -288,17 +304,21 @@ export function SiteHeader({
   if (layout === 'minimal') {
     return (
       <header
-        className={`flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 ${sticky ? 'sticky top-0 z-20' : ''}`}
+        className={`px-4 sm:px-6 ${sticky ? 'sticky top-0 z-20' : ''}`}
         style={barStyle}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          {logoMark()}
-          <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
-            {siteTitle}
-          </h1>
+        {/* Baris isi dipisah dari <header> supaya bisa di-box; sebelumnya
+            flex + padding menempel langsung ke elemen yang sticky. */}
+        <div className={`mx-auto ${box} w-full flex items-center justify-between gap-3 py-3.5`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            {logoMark()}
+            <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
+              {siteTitle}
+            </h1>
+          </div>
+          {desktopNav()}
+          {mobileMenu()}
         </div>
-        {desktopNav()}
-        {mobileMenu()}
       </header>
     );
   }
@@ -307,8 +327,8 @@ export function SiteHeader({
      Bar penuh: logo kiri + menu tengah + CTA kanan. */
   if (layout === 'standard') {
     return (
-      <header className={sticky ? 'sticky top-0 z-20' : 'relative'} style={barStyle}>
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5">
+      <header className={`px-4 sm:px-6 ${sticky ? 'sticky top-0 z-20' : 'relative'}`} style={barStyle}>
+        <div className={`mx-auto ${box} w-full flex items-center justify-between gap-3 py-3.5`}>
           <div className="flex items-center gap-2.5 min-w-0">
             {logoMark()}
             <div className="min-w-0">
@@ -333,8 +353,8 @@ export function SiteHeader({
      Transparan di atas hero, solid begitu kanvas di-scroll. */
   if (layout === 'hero-overlay') {
     return (
-      <header className={sticky ? 'sticky top-0 z-20' : 'relative'} style={barStyle}>
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5">
+      <header className={`px-4 sm:px-6 ${sticky ? 'sticky top-0 z-20' : 'relative'}`} style={barStyle}>
+        <div className={`mx-auto ${box} w-full flex items-center justify-between gap-3 py-3.5`}>
           <div className="flex items-center gap-2.5 min-w-0">
             {logoMark()}
             <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
@@ -353,8 +373,8 @@ export function SiteHeader({
      daftar menu + CTA dirapatkan ke kanan. */
   if (layout === 'split-nav') {
     return (
-      <header className={sticky ? 'sticky top-0 z-20' : 'relative'} style={barStyle}>
-        <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5">
+      <header className={`px-4 sm:px-6 ${sticky ? 'sticky top-0 z-20' : 'relative'}`} style={barStyle}>
+        <div className={`mx-auto ${box} w-full flex items-center justify-between gap-4 py-3.5`}>
           <div className="flex items-center gap-3 min-w-0">
             {logoMark('lg')}
             <div className="min-w-0">
@@ -382,25 +402,29 @@ export function SiteHeader({
     return (
       <header className={sticky ? 'sticky top-0 z-20' : 'relative'}>
         {topbarText && (
+          /* Bar atas tetap full-bleed (warna primary-nya sengaja sampai tepi),
+             hanya isinya yang di-box agar rata dengan bar utama. */
           <div
-            className="px-4 sm:px-6 py-1.5 flex items-center justify-between gap-3 text-[11px]"
+            className="px-4 sm:px-6 py-1.5"
             style={{ background: palette.primary, color: onPrimary }}
           >
-            <span className="truncate">{topbarText}</span>
-            <span className="hidden @[640px]:flex items-center gap-3 shrink-0">
-              <a href={`tel:${str(config.topbarPhone)}`} className="inline-flex items-center gap-1 hover:opacity-80">
-                <Phone className="w-3 h-3" />
-                {str(config.topbarPhone, '0812-0000-0000')}
-              </a>
-              <a href={`mailto:${str(config.topbarEmail)}`} className="inline-flex items-center gap-1 hover:opacity-80">
-                <Mail className="w-3 h-3" />
-                {str(config.topbarEmail, 'halo@toko.id')}
-              </a>
-            </span>
+            <div className={`mx-auto ${box} w-full flex items-center justify-between gap-3 text-[11px]`}>
+              <span className="truncate">{topbarText}</span>
+              <span className="hidden @[640px]:flex items-center gap-3 shrink-0">
+                <a href={`tel:${str(config.topbarPhone)}`} className="inline-flex items-center gap-1 hover:opacity-80">
+                  <Phone className="w-3 h-3" />
+                  {str(config.topbarPhone, '0812-0000-0000')}
+                </a>
+                <a href={`mailto:${str(config.topbarEmail)}`} className="inline-flex items-center gap-1 hover:opacity-80">
+                  <Mail className="w-3 h-3" />
+                  {str(config.topbarEmail, 'halo@toko.id')}
+                </a>
+              </span>
+            </div>
           </div>
         )}
-        <div style={barStyle}>
-          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3">
+        <div className="px-4 sm:px-6" style={barStyle}>
+          <div className={`mx-auto ${box} w-full flex items-center justify-between gap-3 py-3`}>
             <div className="flex items-center gap-2.5 min-w-0">
               {logoMark('sm')}
               <h1 className="text-sm font-bold truncate" style={{ color: palette.text, textShadow }}>
@@ -421,13 +445,13 @@ export function SiteHeader({
   if (layout === 'glass') {
     return (
       <header
-        className={`backdrop-blur-md ${sticky ? 'sticky top-0 z-20' : 'relative'}`}
+        className={`backdrop-blur-md px-4 sm:px-6 ${sticky ? 'sticky top-0 z-20' : 'relative'}`}
         style={{
           background: isTransparent ? 'transparent' : `${palette.surface}cc`,
           borderBottom: isTransparent ? '1px solid transparent' : `1px solid ${palette.border}`,
         }}
       >
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3">
+        <div className={`mx-auto ${box} w-full flex items-center justify-between gap-3 py-3`}>
           <div className="flex items-center gap-2.5 min-w-0">
             {logoMark('sm')}
             <h1 className="text-sm font-semibold truncate" style={{ color: palette.text, textShadow }}>
@@ -443,8 +467,8 @@ export function SiteHeader({
 
   /* Fallback aman: layout tak dikenal (mis. template lama) → standard. */
   return (
-    <header className={sticky ? 'sticky top-0 z-20' : 'relative'} style={barStyle}>
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5">
+    <header className={`px-4 sm:px-6 ${sticky ? 'sticky top-0 z-20' : 'relative'}`} style={barStyle}>
+      <div className={`mx-auto ${box} w-full flex items-center justify-between gap-3 py-3.5`}>
         <div className="flex items-center gap-2.5 min-w-0">
           {logoMark()}
           <div className="min-w-0">
