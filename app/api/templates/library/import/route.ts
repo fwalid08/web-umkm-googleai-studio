@@ -3,7 +3,10 @@ import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStorageProvider } from "@/lib/storage";
 import { unzipSync, strFromU8 } from "fflate";
-import { sanitizeBehaviourScript } from "@/lib/builder/behaviour-script";
+import { sanitizeBehaviourScript, sanitizeTemplateHtml } from "@/lib/builder/behaviour-script";
+import { autoMapAssets, sniffImageContent } from "@/lib/builder/asset-automap";
+import { replaceAssetUrls } from "@/lib/builder/template-urls";
+import { findAssetCoverageIssues, validateTemplateV3, validateChromeHtml } from "@/lib/builder/template-schema";
 
 interface SessionUser {
   id: string;
@@ -163,32 +166,11 @@ async function uploadAsset(
   return { url: result.file.url ?? "", fileSize: content.length, storagePath: result.file.path };
 }
 
-function replaceAssetUrls(
-  obj: unknown,
-  assetMap: Map<string, string>
-): unknown {
-  if (typeof obj === "string") {
-    let out = obj;
-    // Ganti dari path terpanjang dulu agar tidak tertimpa prefix pendek.
-    const entries = [...assetMap.entries()].sort((a, b) => b[0].length - a[0].length);
-    for (const [localPath, url] of entries) {
-      if (!localPath || !url || !out.includes(localPath)) continue;
-      out = out.split(localPath).join(url);
-    }
-    return out;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => replaceAssetUrls(item, assetMap));
-  }
-  if (obj && typeof obj === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      result[key] = replaceAssetUrls(value, assetMap);
-    }
-    return result;
-  }
-  return obj;
-}
+/**
+ * Penggantian path aset → URL storage (single-pass, anti JWT ganda).
+ * Implementasi di lib agar bisa di-test tanpa menarik rantai auth:
+ * lihat `replaceAssetUrls` di `lib/builder/template-urls.ts`.
+ */
 
 function extractAssetsFromConfig(config: unknown, assetPaths: Set<string>): void {
   if (typeof config === "string") {
@@ -226,6 +208,79 @@ function sanitizeBehaviours(input: unknown): unknown[] {
   });
 }
 
+/**
+ * Sanitasi HTML kustom template v3.0 (ekspresi HTML).
+ *
+ * - `variant.html` di headers/footers/sections disanitasi (maks 50rb karakter).
+ * - Nilai config dari field bertipe `html` disanitasi rekursif.
+ * - `activeSections` divalidasi subset 19 tipe predefined (toleran: yang tak
+ *   dikenal dibuang, bukan gagal import — agar template lama tetap masuk).
+ */
+const ALL_SECTION_TYPES_SET = new Set([
+  "hero", "features", "product_grid", "testimonials", "faq", "cta",
+  "contact", "booking", "about", "gallery", "video", "team", "pricing",
+  "newsletter", "divider", "marquee", "menu_board", "steps", "location",
+]);
+
+function sanitizeHtmlValue(value: unknown, depth = 0): unknown {
+  if (depth > 6) return value;
+  if (typeof value === "string") {
+    // Heuristik: hanya sanitasi string yang tampak seperti HTML.
+    if (value.includes("<") && value.includes(">")) {
+      return sanitizeTemplateHtml(value);
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map((v) => sanitizeHtmlValue(v, depth + 1));
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = sanitizeHtmlValue(v, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
+
+function sanitizeTemplateHtmlFields(data: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...data };
+  const sanitizeVariants = (list: unknown) => {
+    if (!Array.isArray(list)) return;
+    for (const item of list) {
+      if (!item || typeof item !== "object") continue;
+      const rec = item as Record<string, unknown>;
+      if (typeof rec.html === "string" && rec.html.length > 0) {
+        rec.html = sanitizeTemplateHtml(rec.html.slice(0, 50_000));
+      }
+      if (Array.isArray(rec.variants)) sanitizeVariants(rec.variants);
+    }
+  };
+  sanitizeVariants(out.headers);
+  sanitizeVariants(out.footers);
+  sanitizeVariants(out.sections);
+  // activeSections: buang yang bukan tipe predefined (toleran, bukan error).
+  const active = (out.activeSections as unknown) ??
+    ((out.data as Record<string, unknown> | undefined)?.activeSections as unknown);
+  if (Array.isArray(active)) {
+    const cleaned = (active as unknown[]).filter((s) => ALL_SECTION_TYPES_SET.has(String(s)));
+    out.activeSections = cleaned;
+    if (out.data && typeof out.data === "object" && !Array.isArray(out.data)) {
+      (out.data as Record<string, unknown>).activeSections = cleaned;
+    }
+  }
+  // Validasi v3 ringan — hanya warning di log, tidak menggagalkan import
+  // agar template v2 lama tetap kompatibel.
+  try {
+    const result = validateTemplateV3(out);
+    if (!result.ok) {
+      console.warn("[template-import] v3 warnings:", result.errors.slice(0, 5).join("; "));
+    }
+  } catch {
+    // Abaikan — validasi dasar sudah dilakukan validateTemplateData.
+  }
+  return sanitizeHtmlValue(out) as Record<string, unknown>;
+}
+
 export async function POST(request: NextRequest) {
   const uploadedStoragePaths: string[] = [];
   try {
@@ -242,6 +297,10 @@ export async function POST(request: NextRequest) {
     const assets: AssetMetadata[] = [];
     let animations: unknown[] = [];
     let behaviours: unknown[] = [];
+    // Peringatan isi file (SVG berekstensi foto, file terlalu kecil, magic
+    // tak cocok) — dikumpulkan di branch ZIP, digabung ke warnings respons.
+    // Import tetap sukses; user memutuskan mengganti atau tidak.
+    const contentWarnings: string[] = [];
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -364,6 +423,8 @@ export async function POST(request: NextRequest) {
       for (const thumbName of ALLOWED_THUMBNAIL_NAMES) {
         const thumb = zip[thumbName];
         if (!thumb || thumb.length === 0 || thumb.length > MAX_SINGLE_ASSET_SIZE) continue;
+        const thumbWarn = sniffImageContent(thumbName, new Uint8Array(thumb));
+        if (thumbWarn) contentWarnings.push(`Thumbnail: ${thumbWarn}`);
         try {
           const { url, storagePath } = await uploadAsset(
             storage,
@@ -437,6 +498,9 @@ export async function POST(request: NextRequest) {
             );
           }
         }
+
+        const contentWarn = sniffImageContent(relativeName, new Uint8Array(content));
+        if (contentWarn) contentWarnings.push(contentWarn);
 
         const fileType = getFileType(relativeName);
         try {
@@ -541,6 +605,52 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServerSupabaseClient();
 
+    // Auto-map: isi field gambar kosong dengan file upload yang cocok
+    // konvensi nama (logo→logoUrl, hero→image, gallery-*→images, …).
+    // Tanpa ini field kosong tampil kosong di preview / diisi foto generik
+    // di kanvas. Hanya mengisi yang kosong; dicatat untuk ditampilkan.
+    let autofilled: string[] = [];
+    try {
+      const mapped = autoMapAssets(
+        templateData,
+        assets.map((a) => ({ name: a.name, url: a.url })),
+      );
+      templateData = mapped.templateData;
+      autofilled = mapped.filled;
+    } catch {
+      // Abaikan — template tetap valid tanpa auto-map.
+    }
+
+    // v3.0: sanitasi HTML kustom + normalisasi activeSections sebelum simpan.
+    templateData = sanitizeTemplateHtmlFields(templateData);
+
+    // Chrome validation: pastikan header/footer custom layout punya html
+    // (layout kustom tanpa html = error, layout bawaan tanpa html = warning)
+    const chromeValidation = validateChromeHtml({
+      headers: (templateData.headers as Array<Record<string, unknown>>) || [],
+      footers: (templateData.footers as Array<Record<string, unknown>>) || [],
+    });
+    const chromeErrors = chromeValidation.errors;
+    const chromeWarnings = chromeValidation.warnings;
+
+    if (chromeErrors.length > 0) {
+      return NextResponse.json(
+        { success: false, error: chromeErrors.join("; ") },
+        { status: 400 }
+      );
+    }
+
+    // Cakupan aset: file tak dirujuk + field gambar kosong di seed.
+    // Hanya warnings (tidak menggagalkan) agar template lama tetap masuk.
+    const coverageWarnings = [
+      ...contentWarnings,
+      ...chromeWarnings,
+      ...findAssetCoverageIssues(
+        templateData,
+        assets.map((a) => ({ name: a.name, url: a.url })),
+      ),
+    ];
+
     // Cegah nama duplikat per user
     const { data: existing } = await supabase
       .from("templates_library")
@@ -612,6 +722,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: template,
       message: "Template berhasil diimpor",
+      ...(coverageWarnings.length > 0 ? { warnings: coverageWarnings } : {}),
+      ...(autofilled.length > 0 ? { autofilled } : {}),
     });
   } catch (error) {
     console.error("Import error:", error);

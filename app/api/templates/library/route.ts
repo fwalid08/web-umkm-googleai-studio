@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getStorageProvider } from "@/lib/storage";
+import { refreshTemplateUrls, URL_REFRESH_EXPIRES_SECS } from "@/lib/builder/template-urls";
 import type { BuilderConfig } from "@/lib/builder/types";
 
 interface SessionUser {
@@ -32,7 +34,46 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Gagal memuat template" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: templates ?? [] });
+    // Self-healing thumbnail: signed URL 7 hari — refresh yang hampir
+    // kedaluwarsa agar kartu galeri tidak mati seminggu setelah import.
+    // Fail-soft: bila gagal, daftar apa adanya tetap dikembalikan.
+    let rows = templates ?? [];
+    try {
+      const storage = getStorageProvider();
+      const signer = async (storagePath: string): Promise<string | null> => {
+        const r = await storage.getSignedUrl({ path: storagePath, expiresIn: URL_REFRESH_EXPIRES_SECS });
+        return r.success && r.url ? r.url : null;
+      };
+      const refreshed = await Promise.all(
+        rows.map((t) =>
+          // Hanya thumbnail yang dipakai daftar galeri — template_data &
+          // assets di-refresh saat item dibuka (GET [id]).
+          refreshTemplateUrls({ thumbnail_url: (t as Record<string, unknown>).thumbnail_url }, signer).then((r) => ({
+            row: t,
+            thumb: (r.row.thumbnail_url as string | undefined) ?? (t as Record<string, unknown>).thumbnail_url,
+            changed: r.changed,
+          })),
+        ),
+      );
+      const updates = refreshed.filter((r) => r.changed);
+      rows = refreshed.map((r, i) =>
+        r.changed ? { ...(rows[i] as object), thumbnail_url: r.thumb } : rows[i],
+      );
+      // Simpan kembali thumbnail yang di-refresh (best-effort, satu per satu).
+      for (const u of updates) {
+        const t = u.row as Record<string, unknown>;
+        if (!t.id) continue;
+        await supabase
+          .from("templates_library")
+          .update({ thumbnail_url: u.thumb, updated_at: new Date().toISOString() })
+          .eq("id", t.id)
+          .eq("user_id", sessionUser.id);
+      }
+    } catch {
+      // Abaikan — daftar apa adanya tetap valid.
+    }
+
+    return NextResponse.json({ success: true, data: rows });
   } catch {
     return NextResponse.json({ success: false, error: "Terjadi kesalahan server" }, { status: 500 });
   }

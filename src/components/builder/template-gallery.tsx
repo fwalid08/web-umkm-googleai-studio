@@ -53,8 +53,14 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importName, setImportName] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [importAutofilled, setImportAutofilled] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
+  const [showApplyDialog, setShowApplyDialog] = useState<{ template: UnifiedTemplate | null; open: boolean }>({
+    template: null,
+    open: false,
+  });
   const [resolvedTier, setResolvedTier] = useState<string | null>(null);
 
   const MAX_IMPORT_SIZE = 25 * 1024 * 1024;
@@ -193,7 +199,8 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     const trimmedName = importName.trim();
     if (!importFile || !trimmedName || isImporting) return;
     setImportError(null);
-
+    setImportWarnings([]);
+    setImportAutofilled([]);
     const fileName = importFile.name.toLowerCase();
     const isZip = fileName.endsWith('.zip');
     const isJson = fileName.endsWith('.json');
@@ -223,8 +230,21 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         if (!res.ok || !json?.success) {
           throw new Error(json?.error || `Import gagal (HTTP ${res.status})`);
         }
-        setImportFile(null);
-        setImportName('');
+        // Warnings cakupan aset (file tak dirujuk / field gambar kosong):
+        // import tetap sukses. Bila ada warnings, dialog DIBIARKAN terbuka
+        // agar user sempat membaca catatan gambar yang bermasalah.
+        const zipWarnings = Array.isArray(json?.warnings)
+          ? json.warnings.filter((w: unknown) => typeof w === 'string').slice(0, 12)
+          : [];
+        const zipAutofilled = Array.isArray(json?.autofilled)
+          ? json.autofilled.filter((w: unknown) => typeof w === 'string').slice(0, 12)
+          : [];
+        setImportWarnings(zipWarnings);
+        setImportAutofilled(zipAutofilled);
+        if (zipWarnings.length === 0 && zipAutofilled.length === 0) {
+          setImportFile(null);
+          setImportName('');
+        }
         loadSavedTemplates();
       } else {
         // JSON file upload
@@ -252,8 +272,18 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         if (!res.ok || !json?.success) {
           throw new Error(json?.error || `Import gagal (HTTP ${res.status})`);
         }
-        setImportFile(null);
-        setImportName('');
+        const jsonWarnings = Array.isArray(json?.warnings)
+          ? json.warnings.filter((w: unknown) => typeof w === 'string').slice(0, 12)
+          : [];
+        const jsonAutofilled = Array.isArray(json?.autofilled)
+          ? json.autofilled.filter((w: unknown) => typeof w === 'string').slice(0, 12)
+          : [];
+        setImportWarnings(jsonWarnings);
+        setImportAutofilled(jsonAutofilled);
+        if (jsonWarnings.length === 0 && jsonAutofilled.length === 0) {
+          setImportFile(null);
+          setImportName('');
+        }
         loadSavedTemplates();
       }
     } catch (err) {
@@ -303,33 +333,25 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     onDelete: (id: string) => void;
     onPreview?: (template: UnifiedTemplate) => void;
   }) {
-    const colors = getStyleColors(template.data);
-    const isBuiltin = template.source === 'builtin';
-    const [showConfirm, setShowConfirm] = useState(false);
-    const [applying, setApplying] = useState(false);
-    const locked =
-      isBuiltin &&
-      Array.isArray(template.tiers) &&
-      template.tiers.length > 0 &&
-      !!resolvedTier &&
-      !isCatalogTemplateAllowedForTier(template.tiers, resolvedTier);
+const colors = getStyleColors(template.data);
+  const isBuiltin = template.source === 'builtin';
+  const locked =
+    isBuiltin &&
+    Array.isArray(template.tiers) &&
+    template.tiers.length > 0 &&
+    !!resolvedTier &&
+    !isCatalogTemplateAllowedForTier(template.tiers, resolvedTier);
 
-    const handleApply = async () => {
-      setApplying(true);
-      try {
-        await onApply(template);
-      } finally {
-        setApplying(false);
-        setShowConfirm(false);
-      }
-    };
+  const handleApply = () => {
+    setShowApplyDialog({ template, open: true });
+  };
 
     return (
       <div
         key={template.id}
         className={`group h-full flex flex-col p-3 gap-2.5 transition-all border-2 rounded-xl ${
           isBuiltin ? 'border-primary/20 bg-primary/5' : 'border-border bg-background'
-        } hover:border-primary/50 hover:shadow-md ${applying ? 'opacity-70 pointer-events-none' : ''}`}
+        } hover:border-primary/50 hover:shadow-md ${applyingTemplateId === template.id ? 'opacity-70 pointer-events-none' : ''}`}
         role="button"
         tabIndex={0}
       >
@@ -368,7 +390,7 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           </div>
         </div>
 
-        {template.source === 'saved' && (
+{template.source === 'saved' && (
           <div className="flex items-center gap-1 border-t pt-3 mt-2">
             <button className="h-7 w-7 p-1 rounded-md hover:bg-muted transition-colors" onClick={(e) => { e.stopPropagation(); onExport(template.id); }} title="Export">
               <Download className="w-3.5 h-3.5" />
@@ -379,47 +401,21 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
           </div>
         )}
 
-        <div className="border-t pt-3 mt-2">
-          {showConfirm ? (
-            <div className="space-y-2">
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Terapkan <span className="font-bold text-foreground">{template.name}</span>? Warna, font, header,
-                footer, dan seluruh section halaman akan diganti dengan layout bawaan template ini (lengkap dengan
-                foto contoh sesuai jenis bisnis). Bisa dibatalkan dengan Ctrl+Z.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }}>
-                  Batal
-                </Button>
-                <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(false); handleApply(); }} disabled={applying}>
-                  {applying ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
-                </Button>
-              </div>
-            </div>
-          ) : locked ? (
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            {locked && (
               <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40" onClick={(e) => { e.stopPropagation(); window.open('/dashboard/billing', '_blank'); }}>
                 <Lock className="w-3.5 h-3.5 mr-1" /> Upgrade untuk Buka
               </Button>
-              {onPreview && (
-                <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
-                  <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}>
-                <Check className="w-3.5 h-3.5 mr-1" /> Terapkan
+            )}
+            <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); handleApply(); }}>
+              <Check className="w-3.5 h-3.5 mr-1" /> Terapkan
+            </Button>
+            {onPreview && (
+              <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
+                <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
               </Button>
-              {onPreview && (
-                <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
-                  <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+</div>
       </div>
     );
   }
@@ -530,12 +526,30 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         </div>
       )}
 
+      <Dialog open={showApplyDialog.open} onOpenChange={(open) => setShowApplyDialog({ ...showApplyDialog, open })}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Terapkan Template</DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={() => setShowApplyDialog({ template: null, open: false })}>
+              Batal
+            </Button>
+            <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={() => { handleApply(showApplyDialog.template!); setShowApplyDialog({ template: null, open: false }); }} disabled={applyingTemplateId === showApplyDialog.template?.id}>
+              {applyingTemplateId === showApplyDialog.template?.id ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={!!importFile}
         onOpenChange={(open) => {
           if (!open && !isImporting) {
             setImportFile(null);
             setImportError(null);
+            setImportWarnings([]);
+            setImportAutofilled([]);
           }
         }}
       >
@@ -563,6 +577,26 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
                 {importError}
               </p>
             )}
+            {importAutofilled.length > 0 && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200" role="status">
+                <p className="font-bold mb-1">Gambar terisi otomatis dari file upload:</p>
+                <ul className="list-disc pl-4 space-y-0.5 max-h-40 overflow-y-auto">
+                  {importAutofilled.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {importWarnings.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200" role="status">
+                <p className="font-bold mb-1">Import berhasil dengan catatan — gambar berikut bermasalah:</p>
+                <ul className="list-disc pl-4 space-y-0.5 max-h-40 overflow-y-auto">
+                  {importWarnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -571,20 +605,37 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
                 if (isImporting) return;
                 setImportFile(null);
                 setImportError(null);
+                setImportWarnings([]);
+                setImportAutofilled([]);
+                setImportName('');
               }}
               disabled={isImporting}
             >
               Batal
             </Button>
-            <Button onClick={handleImport} disabled={isImporting || !importName.trim()}>
-              {isImporting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Mengimpor...
-                </>
-              ) : (
-                'Import'
-              )}
-            </Button>
+            {importWarnings.length > 0 || importAutofilled.length > 0 ? (
+              <Button
+                onClick={() => {
+                  setImportFile(null);
+                  setImportError(null);
+                  setImportWarnings([]);
+                  setImportAutofilled([]);
+                  setImportName('');
+                }}
+              >
+                Tutup
+              </Button>
+            ) : (
+              <Button onClick={handleImport} disabled={isImporting || !importName.trim()}>
+                {isImporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Mengimpor...
+                  </>
+                ) : (
+                  'Import'
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

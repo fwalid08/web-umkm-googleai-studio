@@ -1331,9 +1331,35 @@ function TeamSection({ section, tokens }: { section: Section; tokens: React.CSSP
   );
 }
 
+/**
+ * Normalisasi satu fitur paket menjadi string.
+ *
+ * Kontrak kanonis: `features` adalah `string[]`. Tapi template hasil AI/ZIP
+ * kadang mengisi objek (`{text}`, `{v}`, …) karena `ConfigField` tidak punya
+ * tipe "list of strings" — tanpa normalisasi, render melempar
+ * "Objects are not valid as a React child" dan SELURUH halaman putih.
+ * Pola yang sama dipakai `MarqueeSection` (string | {text}).
+ */
+function normalizeFeature(feature: unknown): string {
+  if (typeof feature === 'string') return feature;
+  if (feature && typeof feature === 'object') {
+    const o = feature as Record<string, unknown>;
+    for (const k of ['text', 'v', 'label', 'name'] as const) {
+      if (typeof o[k] === 'string' && (o[k] as string).trim()) return o[k] as string;
+    }
+  }
+  return '';
+}
+
 function PricingSection({ section, tokens }: { section: Section; tokens: React.CSSProperties }) {
   const config = section.config;
-  const items = (config.items as Array<{ name: string; price: string; features: string[] }>) || [];
+  const rawItems = (config.items as Array<{ name: string; price: string; features: Array<unknown> }>) || [];
+  // Pertahankan bentuk item, tapi normalisasi features agar objek {text}/{v}
+  // dari template AI tidak merobohkan render.
+  const items = rawItems.map((item) => ({
+    ...item,
+    features: (Array.isArray(item.features) ? item.features : []).map(normalizeFeature).filter(Boolean),
+  }));
   const variant = section.variant;
 
   const title = (

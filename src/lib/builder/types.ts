@@ -119,6 +119,13 @@ export interface FullTemplateData {
   /** Override warna tema (kunci camelCase atau snake_case). */
   paletteOverride?: Partial<DesignStylePalette>;
   palette_override?: Partial<DesignStylePalette>;
+  /**
+   * Section mana yang AKTIF untuk niche ini (v3.0, v3.4: boleh memuat tipe
+   * kustom milik template). Template tetap mendefinisikan SEMUA 19 tipe
+   * predefined di katalog `sections` (+ tipe kustom bila ada), tapi hanya
+   * yang di sini yang di-seed ke kanvas awal. Lihat `Template.activeSections`.
+   */
+  activeSections?: string[];
   sections?: Array<{
     type: SectionType;
     variant: string;

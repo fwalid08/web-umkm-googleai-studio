@@ -74,16 +74,22 @@ export async function GET(
     // Build ZIP package
     const files: Record<string, Uint8Array> = {};
 
-    // 1. template.json
+    // 1. template.json (v3.0 — kompatibel AI eksternal, lihat docs/AI_TEMPLATE_PROMPT.md)
+    const td = (template.template_data ?? {}) as Record<string, unknown>;
     const templateJson = {
-      version: "2.0",
+      version: "3.0",
       name: template.name,
       description: template.description,
-      category: template.template_data?.category || "services",
-      theme: template.template_data?.theme || {},
-      headers: template.template_data?.headers || [],
-      footers: template.template_data?.footers || [],
-      sections: template.template_data?.sections || [],
+      category: (td.category as string) || "services",
+      designType: (td.designType as string) || "organic",
+      theme: td.theme || {},
+      headers: td.headers || [],
+      footers: td.footers || [],
+      sections: td.sections || [],
+      // v3: section mana yang aktif untuk niche ini (subset 19 tipe predefined).
+      // Template tetap mendefinisikan SEMUA tipe di `sections`.
+      activeSections: td.activeSections ?? (td.data as Record<string, unknown> | undefined)?.activeSections ?? [],
+      data: td.data ?? td,
       animations: template.animations || [],
       behaviours: template.behaviours || [],
     };

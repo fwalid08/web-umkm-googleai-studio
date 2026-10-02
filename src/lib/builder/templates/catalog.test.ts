@@ -382,4 +382,55 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
       ).not.toEqual(pangkas.footers.map((f) => f.id));
     }
   });
+
+  /**
+   * v3.0 — `activeSections`: template menentukan section mana yang AKTIF
+   * untuk niche-nya (subset 19 tipe predefined). Katalog `sections` tetap
+   * memuat SEMUA tipe (diuji di atas); yang di sini adalah seed aktif.
+   *
+   * Template TS lama belum punya field ini — diambil dari tipe seed
+   * (`data.sections`) sebagai fallback. Template yang sudah mengisi
+   * `activeSections` eksplisit wajib subset valid + memuat 9 inti.
+   */
+  it("activeSections valid (subset predefined + memuat 9 inti)", () => {
+    const KNOWN = new Set(ALL_SECTION_TYPES as readonly string[]);
+    for (const t of migrated) {
+      const explicit = (t as { activeSections?: unknown }).activeSections;
+      const seedTypes = new Set((t.data.sections ?? []).map((s) => s.type));
+      const active = Array.isArray(explicit) ? (explicit as string[]) : [...seedTypes];
+      for (const s of active) {
+        expect(KNOWN.has(s), `${t.id}: activeSections "${s}" bukan tipe predefined`).toBe(true);
+      }
+      for (const core of CORE_TYPES) {
+        expect(
+          active.includes(core),
+          `${t.id}: activeSections wajib memuat section inti "${core}"`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  /**
+   * v3.0 — `html` varian & field `html` harus lolos sanitizer.
+   *
+   * Template yang memakai ekspresi HTML tidak boleh mengandung pola yang
+   * pasti diblokir saat import/render (script/style/iframe/form/on*),
+   * karena hasilnya akan tampil sebagai `<!-- BLOCKED` di halaman.
+   */
+  it("html kustom bebas pola terblokir", () => {
+    const BLOCKED = [/<\s*script[\s>]/i, /<\s*\/\s*script/i, /<\s*iframe[\s>]/i, /<\s*form[\s>]/i, /\bon\w+\s*=/i];
+    for (const t of BUILT_IN_CATALOG) {
+      const checkHtml = (label: string, html?: unknown) => {
+        if (typeof html !== 'string' || !html) return;
+        for (const p of BLOCKED) {
+          expect(p.test(html), `${t.id}/${label}: html mengandung pola terblokir ${p}`).toBe(false);
+        }
+      };
+      for (const h of t.headers) checkHtml(h.id, (h as { html?: unknown }).html);
+      for (const f of t.footers) checkHtml(f.id, (f as { html?: unknown }).html);
+      for (const s of t.sections) {
+        for (const v of s.variants) checkHtml(`${s.type}/${v.id}`, (v as { html?: unknown }).html);
+      }
+    }
+  });
 });

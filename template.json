@@ -1,0 +1,3467 @@
+{
+  "version": "3.0",
+  "name": "Warung Makan XXX",
+  "description": "Template Warung Makan XXX — isi deskripsi, palet, dan konten sesuai niche.",
+  "category": "food",
+  "designType": "organic",
+  "theme": {
+    "palette": {
+      "primary": "#111827",
+      "secondary": "#374151",
+      "accent": "#f59e0b",
+      "background": "#ffffff",
+      "surface": "#f9fafb",
+      "text": "#111827",
+      "textMuted": "#6b7280",
+      "border": "#e5e7eb"
+    },
+    "typography": {
+      "headingFont": "Inter",
+      "bodyFont": "Inter",
+      "baseSize": 16,
+      "scaleRatio": 1.25,
+      "headingWeight": 700,
+      "bodyWeight": 400
+    },
+    "components": {
+      "borderRadius": 12,
+      "buttonStyle": "solid",
+      "shadowStyle": "md",
+      "navStyle": "solid",
+      "footerStyle": "columns"
+    },
+    "effects": {
+      "borderWidth": 0,
+      "uppercaseHeadings": false
+    }
+  },
+  "headers": [
+    {
+      "id": "hdr-klasik",
+      "name": "Klasik",
+      "description": "Klasik — varian header standard",
+      "layout": "standard",
+      "mockup": "header-standard",
+      "maxNavDepth": 1,
+      "configFields": [
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image",
+          "placeholder": "https://..."
+        },
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text",
+          "placeholder": "Warung Makan XXX"
+        },
+        {
+          "key": "tagline",
+          "label": "Tagline",
+          "type": "text"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Navigasi",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "ctaText",
+          "label": "Teks CTA",
+          "type": "text"
+        },
+        {
+          "key": "ctaLink",
+          "label": "Link CTA",
+          "type": "text"
+        },
+        {
+          "key": "showCta",
+          "label": "Tampilkan CTA",
+          "type": "switch"
+        },
+        {
+          "key": "sticky",
+          "label": "Header menempel",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "logoUrl": "",
+        "siteTitle": "Warung Makan XXX",
+        "tagline": "",
+        "navItems": [],
+        "ctaText": "",
+        "ctaLink": "#kontak",
+        "showCta": true,
+        "sticky": true,
+        "contentWidth": "6xl"
+      }
+    },
+    {
+      "id": "hdr-melayang",
+      "name": "Melayang",
+      "description": "Melayang — varian header floating",
+      "layout": "floating",
+      "mockup": "header-floating",
+      "maxNavDepth": 1,
+      "configFields": [
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image",
+          "placeholder": "https://..."
+        },
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text",
+          "placeholder": "Warung Makan XXX"
+        },
+        {
+          "key": "tagline",
+          "label": "Tagline",
+          "type": "text"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Navigasi",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "ctaText",
+          "label": "Teks CTA",
+          "type": "text"
+        },
+        {
+          "key": "ctaLink",
+          "label": "Link CTA",
+          "type": "text"
+        },
+        {
+          "key": "showCta",
+          "label": "Tampilkan CTA",
+          "type": "switch"
+        },
+        {
+          "key": "sticky",
+          "label": "Header menempel",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "logoUrl": "",
+        "siteTitle": "Warung Makan XXX",
+        "tagline": "",
+        "navItems": [],
+        "ctaText": "",
+        "ctaLink": "#kontak",
+        "showCta": true,
+        "sticky": true,
+        "contentWidth": "6xl"
+      }
+    },
+    {
+      "id": "hdr-hero",
+      "name": "Hero",
+      "description": "Hero — varian header hero-overlay",
+      "layout": "hero-overlay",
+      "mockup": "header-hero-overlay",
+      "maxNavDepth": 1,
+      "configFields": [
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image",
+          "placeholder": "https://..."
+        },
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text",
+          "placeholder": "Warung Makan XXX"
+        },
+        {
+          "key": "tagline",
+          "label": "Tagline",
+          "type": "text"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Navigasi",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "ctaText",
+          "label": "Teks CTA",
+          "type": "text"
+        },
+        {
+          "key": "ctaLink",
+          "label": "Link CTA",
+          "type": "text"
+        },
+        {
+          "key": "showCta",
+          "label": "Tampilkan CTA",
+          "type": "switch"
+        },
+        {
+          "key": "sticky",
+          "label": "Header menempel",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "logoUrl": "",
+        "siteTitle": "Warung Makan XXX",
+        "tagline": "",
+        "navItems": [],
+        "ctaText": "",
+        "ctaLink": "#kontak",
+        "showCta": true,
+        "sticky": true,
+        "contentWidth": "6xl"
+      }
+    },
+    {
+      "id": "hdr-split",
+      "name": "Nav Kiri",
+      "description": "Nav Kiri — varian header split-nav",
+      "layout": "split-nav",
+      "mockup": "header-split-nav",
+      "maxNavDepth": 1,
+      "configFields": [
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image",
+          "placeholder": "https://..."
+        },
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text",
+          "placeholder": "Warung Makan XXX"
+        },
+        {
+          "key": "tagline",
+          "label": "Tagline",
+          "type": "text"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Navigasi",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "ctaText",
+          "label": "Teks CTA",
+          "type": "text"
+        },
+        {
+          "key": "ctaLink",
+          "label": "Link CTA",
+          "type": "text"
+        },
+        {
+          "key": "showCta",
+          "label": "Tampilkan CTA",
+          "type": "switch"
+        },
+        {
+          "key": "sticky",
+          "label": "Header menempel",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "logoUrl": "",
+        "siteTitle": "Warung Makan XXX",
+        "tagline": "",
+        "navItems": [],
+        "ctaText": "",
+        "ctaLink": "#kontak",
+        "showCta": true,
+        "sticky": true,
+        "contentWidth": "6xl"
+      }
+    },
+    {
+      "id": "hdr-topbar",
+      "name": "Promo Topbar",
+      "description": "Promo Topbar — varian header with-topbar",
+      "layout": "with-topbar",
+      "mockup": "header-with-topbar",
+      "maxNavDepth": 1,
+      "configFields": [
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image",
+          "placeholder": "https://..."
+        },
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text",
+          "placeholder": "Warung Makan XXX"
+        },
+        {
+          "key": "tagline",
+          "label": "Tagline",
+          "type": "text"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Navigasi",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "ctaText",
+          "label": "Teks CTA",
+          "type": "text"
+        },
+        {
+          "key": "ctaLink",
+          "label": "Link CTA",
+          "type": "text"
+        },
+        {
+          "key": "showCta",
+          "label": "Tampilkan CTA",
+          "type": "switch"
+        },
+        {
+          "key": "sticky",
+          "label": "Header menempel",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "logoUrl": "",
+        "siteTitle": "Warung Makan XXX",
+        "tagline": "",
+        "navItems": [],
+        "ctaText": "",
+        "ctaLink": "#kontak",
+        "showCta": true,
+        "sticky": true,
+        "contentWidth": "6xl"
+      }
+    }
+  ],
+  "footers": [
+    {
+      "id": "ftr-inline",
+      "name": "Inline",
+      "description": "Inline — varian footer simple",
+      "layout": "simple",
+      "mockup": "footer-simple",
+      "configFields": [
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text"
+        },
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image"
+        },
+        {
+          "key": "text",
+          "label": "Teks Copyright",
+          "type": "text",
+          "placeholder": "© {year} Warung Makan XXX"
+        },
+        {
+          "key": "showNav",
+          "label": "Tampilkan navigasi",
+          "type": "switch"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Footer",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "showSocial",
+          "label": "Tampilkan sosmed",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "siteTitle": "Warung Makan XXX",
+        "logoUrl": "",
+        "text": "© {year} Warung Makan XXX.",
+        "navItems": [],
+        "showNav": true,
+        "showSocial": true
+      }
+    },
+    {
+      "id": "ftr-kolom",
+      "name": "Kolom Aksen",
+      "description": "Kolom Aksen — varian footer columns",
+      "layout": "columns",
+      "mockup": "footer-columns",
+      "configFields": [
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text"
+        },
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image"
+        },
+        {
+          "key": "text",
+          "label": "Teks Copyright",
+          "type": "text",
+          "placeholder": "© {year} Warung Makan XXX"
+        },
+        {
+          "key": "showNav",
+          "label": "Tampilkan navigasi",
+          "type": "switch"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Footer",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "showSocial",
+          "label": "Tampilkan sosmed",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "siteTitle": "Warung Makan XXX",
+        "logoUrl": "",
+        "text": "© {year} Warung Makan XXX.",
+        "navItems": [],
+        "showNav": true,
+        "showSocial": true
+      }
+    },
+    {
+      "id": "ftr-tengah",
+      "name": "Brand Tengah",
+      "description": "Brand Tengah — varian footer centered",
+      "layout": "centered",
+      "mockup": "footer-centered",
+      "configFields": [
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text"
+        },
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image"
+        },
+        {
+          "key": "text",
+          "label": "Teks Copyright",
+          "type": "text",
+          "placeholder": "© {year} Warung Makan XXX"
+        },
+        {
+          "key": "showNav",
+          "label": "Tampilkan navigasi",
+          "type": "switch"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Footer",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "showSocial",
+          "label": "Tampilkan sosmed",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "siteTitle": "Warung Makan XXX",
+        "logoUrl": "",
+        "text": "© {year} Warung Makan XXX.",
+        "navItems": [],
+        "showNav": true,
+        "showSocial": true
+      }
+    },
+    {
+      "id": "ftr-mini",
+      "name": "Mini",
+      "description": "Mini — varian footer minimal",
+      "layout": "minimal",
+      "mockup": "footer-minimal",
+      "configFields": [
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text"
+        },
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image"
+        },
+        {
+          "key": "text",
+          "label": "Teks Copyright",
+          "type": "text",
+          "placeholder": "© {year} Warung Makan XXX"
+        },
+        {
+          "key": "showNav",
+          "label": "Tampilkan navigasi",
+          "type": "switch"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Footer",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "showSocial",
+          "label": "Tampilkan sosmed",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "siteTitle": "Warung Makan XXX",
+        "logoUrl": "",
+        "text": "© {year} Warung Makan XXX.",
+        "navItems": [],
+        "showNav": true,
+        "showSocial": true
+      }
+    },
+    {
+      "id": "ftr-news",
+      "name": "Newsletter",
+      "description": "Newsletter — varian footer newsletter",
+      "layout": "newsletter",
+      "mockup": "footer-newsletter",
+      "configFields": [
+        {
+          "key": "siteTitle",
+          "label": "Nama Toko",
+          "type": "text"
+        },
+        {
+          "key": "logoUrl",
+          "label": "Logo URL",
+          "type": "image"
+        },
+        {
+          "key": "text",
+          "label": "Teks Copyright",
+          "type": "text",
+          "placeholder": "© {year} Warung Makan XXX"
+        },
+        {
+          "key": "showNav",
+          "label": "Tampilkan navigasi",
+          "type": "switch"
+        },
+        {
+          "key": "navItems",
+          "label": "Menu Footer",
+          "type": "list",
+          "itemFields": [
+            {
+              "key": "label",
+              "label": "Label",
+              "type": "text"
+            },
+            {
+              "key": "url",
+              "label": "URL",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "showSocial",
+          "label": "Tampilkan sosmed",
+          "type": "switch"
+        }
+      ],
+      "defaultConfig": {
+        "siteTitle": "Warung Makan XXX",
+        "logoUrl": "",
+        "text": "© {year} Warung Makan XXX.",
+        "navItems": [],
+        "showNav": true,
+        "showSocial": true
+      }
+    }
+  ],
+  "sections": [
+    {
+      "type": "hero",
+      "name": "Hero",
+      "variants": [
+        {
+          "id": "hero-full",
+          "name": "Hero 1",
+          "description": "Hero 1 — varian hero",
+          "layout": "hero-full",
+          "mockup": "hero-full",
+          "configFields": [
+            {
+              "key": "headline",
+              "label": "Headline",
+              "type": "text"
+            },
+            {
+              "key": "subheadline",
+              "label": "Subheadline",
+              "type": "textarea"
+            },
+            {
+              "key": "cta_text",
+              "label": "Teks CTA",
+              "type": "text"
+            },
+            {
+              "key": "cta_link",
+              "label": "Link CTA",
+              "type": "text"
+            },
+            {
+              "key": "image",
+              "label": "Gambar",
+              "type": "image"
+            }
+          ],
+          "defaultConfig": {
+            "headline": "",
+            "subheadline": "",
+            "cta_text": "",
+            "cta_link": "#kontak",
+            "image": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "hero-split",
+          "name": "Hero 2",
+          "description": "Hero 2 — varian hero",
+          "layout": "hero-split",
+          "mockup": "hero-split",
+          "configFields": [
+            {
+              "key": "headline",
+              "label": "Headline",
+              "type": "text"
+            },
+            {
+              "key": "subheadline",
+              "label": "Subheadline",
+              "type": "textarea"
+            },
+            {
+              "key": "cta_text",
+              "label": "Teks CTA",
+              "type": "text"
+            },
+            {
+              "key": "cta_link",
+              "label": "Link CTA",
+              "type": "text"
+            },
+            {
+              "key": "image",
+              "label": "Gambar",
+              "type": "image"
+            }
+          ],
+          "defaultConfig": {
+            "headline": "",
+            "subheadline": "",
+            "cta_text": "",
+            "cta_link": "#kontak",
+            "image": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "hero-card",
+          "name": "Hero 3",
+          "description": "Hero 3 — varian hero",
+          "layout": "hero-card",
+          "mockup": "hero-card",
+          "html": "<section data-tpl-type=\"hero\" data-tpl-variant=\"hero-card\">\n  <!-- GANTI dengan HTML kreatifmu. Placeholder: {{key}} = teks aman, {{{key}}} = HTML. -->\n</section>",
+          "configFields": [
+            {
+              "key": "headline",
+              "label": "Headline",
+              "type": "text"
+            },
+            {
+              "key": "subheadline",
+              "label": "Subheadline",
+              "type": "textarea"
+            },
+            {
+              "key": "cta_text",
+              "label": "Teks CTA",
+              "type": "text"
+            },
+            {
+              "key": "cta_link",
+              "label": "Link CTA",
+              "type": "text"
+            },
+            {
+              "key": "image",
+              "label": "Gambar",
+              "type": "image"
+            }
+          ],
+          "defaultConfig": {
+            "headline": "",
+            "subheadline": "",
+            "cta_text": "",
+            "cta_link": "#kontak",
+            "image": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "features",
+      "name": "Fitur",
+      "variants": [
+        {
+          "id": "features-3col",
+          "name": "Fitur 1",
+          "description": "Fitur 1 — varian features",
+          "layout": "features-3col",
+          "mockup": "features-3col",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Items",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "icon",
+                  "label": "Icon",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "label": "Judul",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "label": "Deskripsi",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "features-list",
+          "name": "Fitur 2",
+          "description": "Fitur 2 — varian features",
+          "layout": "features-list",
+          "mockup": "features-list",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Items",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "icon",
+                  "label": "Icon",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "label": "Judul",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "label": "Deskripsi",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "features-masonry",
+          "name": "Fitur 3",
+          "description": "Fitur 3 — varian features",
+          "layout": "features-masonry",
+          "mockup": "features-masonry",
+          "html": "<section data-tpl-type=\"features\" data-tpl-variant=\"features-masonry\">\n  <!-- GANTI dengan HTML kreatifmu. Placeholder: {{key}} = teks aman, {{{key}}} = HTML. -->\n</section>",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Items",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "icon",
+                  "label": "Icon",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "label": "Judul",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "label": "Deskripsi",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "product_grid",
+      "name": "Produk",
+      "variants": [
+        {
+          "id": "product-4col",
+          "name": "product-4col",
+          "description": "product-4col — varian product_grid",
+          "layout": "product-4col",
+          "mockup": "product-4col",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "product-3col",
+          "name": "product-3col",
+          "description": "product-3col — varian product_grid",
+          "layout": "product-3col",
+          "mockup": "product-3col",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "product-carousel",
+          "name": "product-carousel",
+          "description": "product-carousel — varian product_grid",
+          "layout": "product-carousel",
+          "mockup": "product-carousel",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "testimonials",
+      "name": "Testimoni",
+      "variants": [
+        {
+          "id": "testimonials-grid",
+          "name": "testimonials-grid",
+          "description": "testimonials-grid — varian testimonials",
+          "layout": "testimonials-grid",
+          "mockup": "testimonials-grid",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Testimoni",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "text",
+                  "label": "Review",
+                  "type": "textarea"
+                },
+                {
+                  "key": "rating",
+                  "label": "Rating",
+                  "type": "number"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "testimonials-carousel",
+          "name": "testimonials-carousel",
+          "description": "testimonials-carousel — varian testimonials",
+          "layout": "testimonials-carousel",
+          "mockup": "testimonials-carousel",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Testimoni",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "text",
+                  "label": "Review",
+                  "type": "textarea"
+                },
+                {
+                  "key": "rating",
+                  "label": "Rating",
+                  "type": "number"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "testimonials-single",
+          "name": "testimonials-single",
+          "description": "testimonials-single — varian testimonials",
+          "layout": "testimonials-single",
+          "mockup": "testimonials-single",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Testimoni",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "text",
+                  "label": "Review",
+                  "type": "textarea"
+                },
+                {
+                  "key": "rating",
+                  "label": "Rating",
+                  "type": "number"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "faq",
+      "name": "FAQ",
+      "variants": [
+        {
+          "id": "faq-accordion",
+          "name": "faq-accordion",
+          "description": "faq-accordion — varian faq",
+          "layout": "faq-accordion",
+          "mockup": "faq-accordion",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "FAQ",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "question",
+                  "label": "Pertanyaan",
+                  "type": "text"
+                },
+                {
+                  "key": "answer",
+                  "label": "Jawaban",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "faq-list",
+          "name": "faq-list",
+          "description": "faq-list — varian faq",
+          "layout": "faq-list",
+          "mockup": "faq-list",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "FAQ",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "question",
+                  "label": "Pertanyaan",
+                  "type": "text"
+                },
+                {
+                  "key": "answer",
+                  "label": "Jawaban",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "faq-grid",
+          "name": "faq-grid",
+          "description": "faq-grid — varian faq",
+          "layout": "faq-grid",
+          "mockup": "faq-grid",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "FAQ",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "question",
+                  "label": "Pertanyaan",
+                  "type": "text"
+                },
+                {
+                  "key": "answer",
+                  "label": "Jawaban",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "cta",
+      "name": "CTA",
+      "variants": [
+        {
+          "id": "cta-banner",
+          "name": "cta-banner",
+          "description": "cta-banner — varian cta",
+          "layout": "cta-banner",
+          "mockup": "cta-banner",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "text",
+              "label": "Teks",
+              "type": "textarea"
+            },
+            {
+              "key": "cta_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            },
+            {
+              "key": "cta_link",
+              "label": "Link",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "text": "",
+            "cta_text": "",
+            "cta_link": "#kontak"
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "cta-card",
+          "name": "cta-card",
+          "description": "cta-card — varian cta",
+          "layout": "cta-card",
+          "mockup": "cta-card",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "text",
+              "label": "Teks",
+              "type": "textarea"
+            },
+            {
+              "key": "cta_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            },
+            {
+              "key": "cta_link",
+              "label": "Link",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "text": "",
+            "cta_text": "",
+            "cta_link": "#kontak"
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "cta-split",
+          "name": "cta-split",
+          "description": "cta-split — varian cta",
+          "layout": "cta-split",
+          "mockup": "cta-split",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "text",
+              "label": "Teks",
+              "type": "textarea"
+            },
+            {
+              "key": "cta_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            },
+            {
+              "key": "cta_link",
+              "label": "Link",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "text": "",
+            "cta_text": "",
+            "cta_link": "#kontak"
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "contact",
+      "name": "Kontak",
+      "variants": [
+        {
+          "id": "contact-form",
+          "name": "contact-form",
+          "description": "contact-form — varian contact",
+          "layout": "contact-form",
+          "mockup": "contact-form",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Subtitle",
+              "type": "textarea"
+            },
+            {
+              "key": "address",
+              "label": "Alamat",
+              "type": "textarea"
+            },
+            {
+              "key": "phone",
+              "label": "Telepon",
+              "type": "text"
+            },
+            {
+              "key": "email",
+              "label": "Email",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "address": "",
+            "phone": "",
+            "email": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "contact-form-map",
+          "name": "contact-form-map",
+          "description": "contact-form-map — varian contact",
+          "layout": "contact-form-map",
+          "mockup": "contact-form-map",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Subtitle",
+              "type": "textarea"
+            },
+            {
+              "key": "address",
+              "label": "Alamat",
+              "type": "textarea"
+            },
+            {
+              "key": "phone",
+              "label": "Telepon",
+              "type": "text"
+            },
+            {
+              "key": "email",
+              "label": "Email",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "address": "",
+            "phone": "",
+            "email": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "contact-split",
+          "name": "contact-split",
+          "description": "contact-split — varian contact",
+          "layout": "contact-split",
+          "mockup": "contact-split",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Subtitle",
+              "type": "textarea"
+            },
+            {
+              "key": "address",
+              "label": "Alamat",
+              "type": "textarea"
+            },
+            {
+              "key": "phone",
+              "label": "Telepon",
+              "type": "text"
+            },
+            {
+              "key": "email",
+              "label": "Email",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "address": "",
+            "phone": "",
+            "email": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "booking",
+      "name": "Booking",
+      "variants": [
+        {
+          "id": "booking-single",
+          "name": "Form Saja",
+          "description": "Form Saja — varian booking",
+          "layout": "booking-single",
+          "mockup": "booking-single",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Subtitle",
+              "type": "textarea"
+            },
+            {
+              "key": "items",
+              "label": "Layanan",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "duration",
+                  "label": "Durasi",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "label": "Harga",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "key": "hours",
+              "label": "Jam operasional",
+              "type": "text"
+            },
+            {
+              "key": "address",
+              "label": "Alamat",
+              "type": "textarea"
+            },
+            {
+              "key": "success_message",
+              "label": "Pesan sukses",
+              "type": "textarea"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "services": [],
+            "hours": "",
+            "address": "",
+            "success_message": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "about",
+      "name": "Tentang",
+      "variants": [
+        {
+          "id": "about-left",
+          "name": "about-left",
+          "description": "about-left — varian about",
+          "layout": "about-left",
+          "mockup": "about-left",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "content",
+              "label": "Konten",
+              "type": "html"
+            },
+            {
+              "key": "image",
+              "label": "Gambar",
+              "type": "image"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "content": "",
+            "image": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "about-right",
+          "name": "about-right",
+          "description": "about-right — varian about",
+          "layout": "about-right",
+          "mockup": "about-right",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "content",
+              "label": "Konten",
+              "type": "html"
+            },
+            {
+              "key": "image",
+              "label": "Gambar",
+              "type": "image"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "content": "",
+            "image": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "about-centered",
+          "name": "about-centered",
+          "description": "about-centered — varian about",
+          "layout": "about-centered",
+          "mockup": "about-centered",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "content",
+              "label": "Konten",
+              "type": "html"
+            },
+            {
+              "key": "image",
+              "label": "Gambar",
+              "type": "image"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "content": "",
+            "image": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "gallery",
+      "name": "Galeri",
+      "variants": [
+        {
+          "id": "gallery-grid",
+          "name": "gallery-grid",
+          "description": "gallery-grid — varian gallery",
+          "layout": "gallery-grid",
+          "mockup": "gallery-grid",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "images",
+              "label": "Gambar",
+              "type": "gallery"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "images": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "gallery-masonry",
+          "name": "gallery-masonry",
+          "description": "gallery-masonry — varian gallery",
+          "layout": "gallery-masonry",
+          "mockup": "gallery-masonry",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "images",
+              "label": "Gambar",
+              "type": "gallery"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "images": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "gallery-carousel",
+          "name": "gallery-carousel",
+          "description": "gallery-carousel — varian gallery",
+          "layout": "gallery-carousel",
+          "mockup": "gallery-carousel",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "images",
+              "label": "Gambar",
+              "type": "gallery"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "images": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "video",
+      "name": "Video",
+      "variants": [
+        {
+          "id": "video-full",
+          "name": "video-full",
+          "description": "video-full — varian video",
+          "layout": "video-full",
+          "mockup": "video-full",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "video_url",
+              "label": "URL Video",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "video_url": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "video-centered",
+          "name": "video-centered",
+          "description": "video-centered — varian video",
+          "layout": "video-centered",
+          "mockup": "video-centered",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "video_url",
+              "label": "URL Video",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "video_url": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "video-bg",
+          "name": "video-bg",
+          "description": "video-bg — varian video",
+          "layout": "video-bg",
+          "mockup": "video-bg",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "video_url",
+              "label": "URL Video",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "video_url": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "team",
+      "name": "Tim",
+      "variants": [
+        {
+          "id": "team-grid",
+          "name": "team-grid",
+          "description": "team-grid — varian team",
+          "layout": "team-grid",
+          "mockup": "team-grid",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Anggota",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "role",
+                  "label": "Peran",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "label": "Foto",
+                  "type": "image"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "members": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "team-list",
+          "name": "team-list",
+          "description": "team-list — varian team",
+          "layout": "team-list",
+          "mockup": "team-list",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Anggota",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "role",
+                  "label": "Peran",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "label": "Foto",
+                  "type": "image"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "members": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "team-carousel",
+          "name": "team-carousel",
+          "description": "team-carousel — varian team",
+          "layout": "team-carousel",
+          "mockup": "team-carousel",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Anggota",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "role",
+                  "label": "Peran",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "label": "Foto",
+                  "type": "image"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "members": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "pricing",
+      "name": "Harga",
+      "variants": [
+        {
+          "id": "pricing-3tier",
+          "name": "pricing-3tier",
+          "description": "pricing-3tier — varian pricing",
+          "layout": "pricing-3tier",
+          "mockup": "pricing-3tier",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Paket",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "label": "Harga",
+                  "type": "text"
+                },
+                {
+                  "key": "features",
+                  "label": "Fitur",
+                  "type": "list",
+                  "itemFields": [
+                    {
+                      "key": "text",
+                      "label": "Fitur",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "pricing-2tier",
+          "name": "pricing-2tier",
+          "description": "pricing-2tier — varian pricing",
+          "layout": "pricing-2tier",
+          "mockup": "pricing-2tier",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Paket",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "label": "Harga",
+                  "type": "text"
+                },
+                {
+                  "key": "features",
+                  "label": "Fitur",
+                  "type": "list",
+                  "itemFields": [
+                    {
+                      "key": "text",
+                      "label": "Fitur",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "pricing-single",
+          "name": "pricing-single",
+          "description": "pricing-single — varian pricing",
+          "layout": "pricing-single",
+          "mockup": "pricing-single",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "items",
+              "label": "Paket",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "name",
+                  "label": "Nama",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "label": "Harga",
+                  "type": "text"
+                },
+                {
+                  "key": "features",
+                  "label": "Fitur",
+                  "type": "list",
+                  "itemFields": [
+                    {
+                      "key": "text",
+                      "label": "Fitur",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "newsletter",
+      "name": "Newsletter",
+      "variants": [
+        {
+          "id": "newsletter-inline",
+          "name": "newsletter-inline",
+          "description": "newsletter-inline — varian newsletter",
+          "layout": "newsletter-inline",
+          "mockup": "newsletter-inline",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Subtitle",
+              "type": "textarea"
+            },
+            {
+              "key": "placeholder",
+              "label": "Placeholder",
+              "type": "text"
+            },
+            {
+              "key": "button_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "placeholder": "",
+            "button_text": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "newsletter-card",
+          "name": "newsletter-card",
+          "description": "newsletter-card — varian newsletter",
+          "layout": "newsletter-card",
+          "mockup": "newsletter-card",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Subtitle",
+              "type": "textarea"
+            },
+            {
+              "key": "placeholder",
+              "label": "Placeholder",
+              "type": "text"
+            },
+            {
+              "key": "button_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "placeholder": "",
+            "button_text": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "newsletter-split",
+          "name": "newsletter-split",
+          "description": "newsletter-split — varian newsletter",
+          "layout": "newsletter-split",
+          "mockup": "newsletter-split",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Subtitle",
+              "type": "textarea"
+            },
+            {
+              "key": "placeholder",
+              "label": "Placeholder",
+              "type": "text"
+            },
+            {
+              "key": "button_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "placeholder": "",
+            "button_text": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "divider",
+      "name": "Divider",
+      "variants": [
+        {
+          "id": "divider-line",
+          "name": "divider-line",
+          "description": "divider-line — varian divider",
+          "layout": "divider-line",
+          "mockup": "divider-line",
+          "configFields": [
+            {
+              "key": "style",
+              "label": "Gaya",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Garis",
+                  "value": "solid"
+                },
+                {
+                  "label": "Spasi",
+                  "value": "spacer"
+                }
+              ]
+            },
+            {
+              "key": "color",
+              "label": "Warna",
+              "type": "color"
+            }
+          ],
+          "defaultConfig": {
+            "style": "solid",
+            "color": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "divider-spacer",
+          "name": "divider-spacer",
+          "description": "divider-spacer — varian divider",
+          "layout": "divider-spacer",
+          "mockup": "divider-spacer",
+          "configFields": [
+            {
+              "key": "style",
+              "label": "Gaya",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Garis",
+                  "value": "solid"
+                },
+                {
+                  "label": "Spasi",
+                  "value": "spacer"
+                }
+              ]
+            },
+            {
+              "key": "color",
+              "label": "Warna",
+              "type": "color"
+            }
+          ],
+          "defaultConfig": {
+            "style": "solid",
+            "color": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "divider-image",
+          "name": "divider-image",
+          "description": "divider-image — varian divider",
+          "layout": "divider-image",
+          "mockup": "divider-image",
+          "configFields": [
+            {
+              "key": "style",
+              "label": "Gaya",
+              "type": "select",
+              "options": [
+                {
+                  "label": "Garis",
+                  "value": "solid"
+                },
+                {
+                  "label": "Spasi",
+                  "value": "spacer"
+                }
+              ]
+            },
+            {
+              "key": "color",
+              "label": "Warna",
+              "type": "color"
+            }
+          ],
+          "defaultConfig": {
+            "style": "solid",
+            "color": ""
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "marquee",
+      "name": "Teks Berjalan",
+      "variants": [
+        {
+          "id": "marquee-band",
+          "name": "Pita Berjalan",
+          "description": "Pita Berjalan — varian marquee",
+          "layout": "marquee-band",
+          "mockup": "marquee-band",
+          "configFields": [
+            {
+              "key": "items",
+              "label": "Teks",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "text",
+                  "label": "Teks",
+                  "type": "text"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "menu_board",
+      "name": "Menu",
+      "variants": [
+        {
+          "id": "menu-tabs",
+          "name": "menu-tabs",
+          "description": "menu-tabs — varian menu_board",
+          "layout": "menu-tabs",
+          "mockup": "menu-tabs",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Sub Judul",
+              "type": "textarea"
+            },
+            {
+              "key": "items",
+              "label": "Grup",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "label",
+                  "label": "Label",
+                  "type": "text"
+                },
+                {
+                  "key": "items",
+                  "label": "Item",
+                  "type": "list",
+                  "itemFields": [
+                    {
+                      "key": "name",
+                      "label": "Nama",
+                      "type": "text"
+                    },
+                    {
+                      "key": "desc",
+                      "label": "Deskripsi",
+                      "type": "textarea"
+                    },
+                    {
+                      "key": "price",
+                      "label": "Harga",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "groups": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "menu-list",
+          "name": "menu-list",
+          "description": "menu-list — varian menu_board",
+          "layout": "menu-list",
+          "mockup": "menu-list",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Sub Judul",
+              "type": "textarea"
+            },
+            {
+              "key": "items",
+              "label": "Grup",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "label",
+                  "label": "Label",
+                  "type": "text"
+                },
+                {
+                  "key": "items",
+                  "label": "Item",
+                  "type": "list",
+                  "itemFields": [
+                    {
+                      "key": "name",
+                      "label": "Nama",
+                      "type": "text"
+                    },
+                    {
+                      "key": "desc",
+                      "label": "Deskripsi",
+                      "type": "textarea"
+                    },
+                    {
+                      "key": "price",
+                      "label": "Harga",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "groups": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "menu-grid",
+          "name": "menu-grid",
+          "description": "menu-grid — varian menu_board",
+          "layout": "menu-grid",
+          "mockup": "menu-grid",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Sub Judul",
+              "type": "textarea"
+            },
+            {
+              "key": "items",
+              "label": "Grup",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "label",
+                  "label": "Label",
+                  "type": "text"
+                },
+                {
+                  "key": "items",
+                  "label": "Item",
+                  "type": "list",
+                  "itemFields": [
+                    {
+                      "key": "name",
+                      "label": "Nama",
+                      "type": "text"
+                    },
+                    {
+                      "key": "desc",
+                      "label": "Deskripsi",
+                      "type": "textarea"
+                    },
+                    {
+                      "key": "price",
+                      "label": "Harga",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "groups": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "steps",
+      "name": "Langkah",
+      "variants": [
+        {
+          "id": "steps-3col",
+          "name": "steps-3col",
+          "description": "steps-3col — varian steps",
+          "layout": "steps-3col",
+          "mockup": "steps-3col",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Sub Judul",
+              "type": "textarea"
+            },
+            {
+              "key": "items",
+              "label": "Langkah",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "title",
+                  "label": "Judul",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "label": "Deskripsi",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "steps-horizontal",
+          "name": "steps-horizontal",
+          "description": "steps-horizontal — varian steps",
+          "layout": "steps-horizontal",
+          "mockup": "steps-horizontal",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Sub Judul",
+              "type": "textarea"
+            },
+            {
+              "key": "items",
+              "label": "Langkah",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "title",
+                  "label": "Judul",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "label": "Deskripsi",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "steps-numbered",
+          "name": "steps-numbered",
+          "description": "steps-numbered — varian steps",
+          "layout": "steps-numbered",
+          "mockup": "steps-numbered",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "subtitle",
+              "label": "Sub Judul",
+              "type": "textarea"
+            },
+            {
+              "key": "items",
+              "label": "Langkah",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "title",
+                  "label": "Judul",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "label": "Deskripsi",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "subtitle": "",
+            "items": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    },
+    {
+      "type": "location",
+      "name": "Lokasi",
+      "variants": [
+        {
+          "id": "location-hours",
+          "name": "location-hours",
+          "description": "location-hours — varian location",
+          "layout": "location-hours",
+          "mockup": "location-hours",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "address",
+              "label": "Alamat",
+              "type": "textarea"
+            },
+            {
+              "key": "note",
+              "label": "Catatan",
+              "type": "textarea"
+            },
+            {
+              "key": "button_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            },
+            {
+              "key": "button_link",
+              "label": "Link",
+              "type": "text"
+            },
+            {
+              "key": "hours",
+              "label": "Jam",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "days",
+                  "label": "Hari",
+                  "type": "text"
+                },
+                {
+                  "key": "time",
+                  "label": "Jam",
+                  "type": "text"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "address": "",
+            "note": "",
+            "button_text": "",
+            "button_link": "",
+            "hours": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "location-hours-wide",
+          "name": "location-hours-wide",
+          "description": "location-hours-wide — varian location",
+          "layout": "location-hours-wide",
+          "mockup": "location-hours-wide",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "address",
+              "label": "Alamat",
+              "type": "textarea"
+            },
+            {
+              "key": "note",
+              "label": "Catatan",
+              "type": "textarea"
+            },
+            {
+              "key": "button_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            },
+            {
+              "key": "button_link",
+              "label": "Link",
+              "type": "text"
+            },
+            {
+              "key": "hours",
+              "label": "Jam",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "days",
+                  "label": "Hari",
+                  "type": "text"
+                },
+                {
+                  "key": "time",
+                  "label": "Jam",
+                  "type": "text"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "address": "",
+            "note": "",
+            "button_text": "",
+            "button_link": "",
+            "hours": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        },
+        {
+          "id": "location-card",
+          "name": "location-card",
+          "description": "location-card — varian location",
+          "layout": "location-card",
+          "mockup": "location-card",
+          "configFields": [
+            {
+              "key": "title",
+              "label": "Judul",
+              "type": "text"
+            },
+            {
+              "key": "address",
+              "label": "Alamat",
+              "type": "textarea"
+            },
+            {
+              "key": "note",
+              "label": "Catatan",
+              "type": "textarea"
+            },
+            {
+              "key": "button_text",
+              "label": "Teks Tombol",
+              "type": "text"
+            },
+            {
+              "key": "button_link",
+              "label": "Link",
+              "type": "text"
+            },
+            {
+              "key": "hours",
+              "label": "Jam",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "days",
+                  "label": "Hari",
+                  "type": "text"
+                },
+                {
+                  "key": "time",
+                  "label": "Jam",
+                  "type": "text"
+                }
+              ]
+            }
+          ],
+          "defaultConfig": {
+            "title": "",
+            "address": "",
+            "note": "",
+            "button_text": "",
+            "button_link": "",
+            "hours": []
+          },
+          "defaultStyle": {
+            "padding": {
+              "top": 64,
+              "right": 24,
+              "bottom": 64,
+              "left": 24
+            },
+            "background": "transparent"
+          }
+        }
+      ]
+    }
+  ],
+  "activeSections": [
+    "hero",
+    "features",
+    "pricing",
+    "booking",
+    "testimonials",
+    "gallery",
+    "location",
+    "faq",
+    "contact"
+  ],
+  "data": {
+    "designStyleId": "minimalist",
+    "paletteOverride": {
+      "primary": "#111827",
+      "secondary": "#374151",
+      "accent": "#f59e0b",
+      "background": "#ffffff",
+      "surface": "#f9fafb",
+      "text": "#111827",
+      "textMuted": "#6b7280",
+      "border": "#e5e7eb"
+    },
+    "customCss": "/* Gaya kreatif template di sini — sasar [data-tpl-type] / [data-tpl-variant], pakai var(--color-*). */",
+    "activeSections": [
+      "hero",
+      "features",
+      "pricing",
+      "booking",
+      "testimonials",
+      "gallery",
+      "location",
+      "faq",
+      "contact"
+    ],
+    "sections": [
+      {
+        "type": "hero",
+        "variant": "hero-full",
+        "anchorId": "beranda",
+        "config": {
+          "headline": "",
+          "subheadline": "",
+          "cta_text": "",
+          "cta_link": "#kontak"
+        }
+      },
+      {
+        "type": "features",
+        "variant": "features-3col",
+        "anchorId": "keunggulan",
+        "config": {
+          "title": "",
+          "items": []
+        }
+      },
+      {
+        "type": "pricing",
+        "variant": "pricing-3tier",
+        "anchorId": "harga",
+        "config": {
+          "title": "",
+          "items": []
+        }
+      },
+      {
+        "type": "booking",
+        "variant": "booking-single",
+        "anchorId": "booking",
+        "config": {
+          "title": "",
+          "subtitle": "",
+          "services": [],
+          "hours": "",
+          "address": "",
+          "success_message": ""
+        }
+      },
+      {
+        "type": "testimonials",
+        "variant": "testimonials-grid",
+        "anchorId": "testimoni",
+        "config": {
+          "title": "",
+          "items": []
+        }
+      },
+      {
+        "type": "gallery",
+        "variant": "gallery-grid",
+        "anchorId": "galeri",
+        "config": {
+          "title": "",
+          "images": []
+        }
+      },
+      {
+        "type": "location",
+        "variant": "location-hours",
+        "anchorId": "lokasi",
+        "config": {
+          "title": "",
+          "address": "",
+          "hours": []
+        }
+      },
+      {
+        "type": "faq",
+        "variant": "faq-accordion",
+        "anchorId": "faq",
+        "config": {
+          "title": "",
+          "items": []
+        }
+      },
+      {
+        "type": "contact",
+        "variant": "contact-form",
+        "anchorId": "kontak",
+        "config": {
+          "title": "",
+          "subtitle": "",
+          "address": "",
+          "phone": "",
+          "email": ""
+        }
+      }
+    ],
+    "header": {
+      "variant": "hdr-klasik",
+      "siteTitle": "Warung Makan XXX",
+      "tagline": "",
+      "navItems": [],
+      "ctaText": "",
+      "ctaLink": "#kontak",
+      "showCta": true,
+      "sticky": true
+    },
+    "footer": {
+      "style": "columns",
+      "text": "© {year} Warung Makan XXX.",
+      "navItems": [],
+      "showSocial": true
+    },
+    "seo": {
+      "title": "Warung Makan XXX — Isi judul SEO",
+      "description": "Isi deskripsi SEO minimal 50 karakter agar template lolos checklist."
+    },
+    "core": {
+      "site_title": "Warung Makan XXX",
+      "tagline": ""
+    }
+  },
+  "animations": [],
+  "behaviours": [],
+  "customCss": ""
+}

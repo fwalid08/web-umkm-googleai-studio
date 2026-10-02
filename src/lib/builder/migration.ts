@@ -461,6 +461,13 @@ export function uniqueAnchorId(wanted: string | undefined, used: Set<string>): s
  * anchorId yang hilang diisi dari default template (dedup) agar link
  * anchor nav tetap bekerja setelah reload — aturan yang sama dipakai
  * render publik sehingga kanvas dan live selalu sepakat.
+ *
+ * Guard: entri berbentuk DEFINISI katalog (`{ type, variants: [...] }`
+ * tanpa `variant`) dilewati — itu katalog, bukan seed. Tanpa guard ini,
+ * template library lama yang menyimpan katalog di `data.sections` meledak
+ * menjadi 19 section varian-pertama di kanvas (kasus nyata: kanvas
+ * berantakan sementara preview benar, karena preview membaca seed yang
+ * benar dari `data.data.sections`).
  */
 export function seedTemplateSections(
   template: Template,
@@ -469,7 +476,12 @@ export function seedTemplateSections(
   if (!Array.isArray(sections) || sections.length === 0) return [];
   const seen = new Set<string>();
   const usedAnchors = new Set<string>();
-  return sections.map((s) => {
+  const isCatalogDef = (s: unknown): boolean =>
+    !!s &&
+    typeof s === 'object' &&
+    Array.isArray((s as Record<string, unknown>).variants) &&
+    typeof (s as Record<string, unknown>).variant !== 'string';
+  return sections.filter((s) => !isCatalogDef(s)).map((s) => {
     const instance = builderSectionToInstance(s ?? {}, template);
     if (seen.has(instance.id)) instance.id = generateId();
     seen.add(instance.id);

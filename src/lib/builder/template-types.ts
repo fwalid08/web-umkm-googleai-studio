@@ -54,7 +54,8 @@ export type ConfigFieldType =
   | 'color'
   | 'background'
   | 'gallery'
-  | 'switch';
+  | 'switch'
+  | 'html';
 
 export interface ConfigFieldOption {
   label: string;
@@ -92,6 +93,18 @@ export interface SectionVariant {
     backgroundOverlayOpacity?: number;
   };
   mockup: string;
+  /**
+   * HTML kustom untuk varian ini (v3.0 — ekspresi HTML).
+   *
+   * Bila diisi, renderer mengutamakan `html` ini dibanding branch bawaan
+   * `section-renderer.tsx`, sehingga desain kreatif template tidak terbatas
+   * pada layout bawaan. Placeholder `{{key}}` diganti nilai `config[key]`
+   * (sudah di-escape kecuali field bertipe `html` yang disanitasi).
+   *
+   * Variabel tema tersedia sebagai CSS vars: `--color-primary`, dst.
+   * Targetkan section lewat `data-tpl-type` / `data-tpl-variant`.
+   */
+  html?: string;
 }
 
 export interface MobileMenuConfig {
@@ -120,6 +133,11 @@ export interface HeaderVariant {
   mockup: string;
   mobileMenu?: MobileMenuConfig;
   /**
+   * HTML kustom untuk varian header ini (v3.0).
+   * Placeholder `{{key}}` diganti nilai config. Lihat `SectionVariant.html`.
+   */
+  html?: string;
+  /**
    * Kedalaman menu navigasi yang didukung varian ini (1 atau 2 tingkat).
    *
    * TEMPLATE yang memutuskan lewat nilai ini — bukan renderer:
@@ -140,6 +158,11 @@ export interface FooterVariant {
   configFields: ConfigField[];
   defaultConfig: Record<string, unknown>;
   mockup: string;
+  /**
+   * HTML kustom untuk varian footer ini (v3.0).
+   * Placeholder `{{key}}` diganti nilai config. Lihat `SectionVariant.html`.
+   */
+  html?: string;
 }
 
 export interface AnimationConfig {
@@ -189,6 +212,21 @@ export interface Template {
   animations?: AnimationConfig[];
   behaviours?: BehaviourConfig[];
   assets?: AssetMetadata[];
+  /**
+   * Section mana yang AKTIF secara default untuk niche ini (v3.0, v3.4:
+   * boleh memuat tipe kustom milik template).
+   *
+   * Template WAJIB mendefinisikan SEMUA 19 tipe section di `sections`
+   * (agar mendukung section predefined builder) + tipe kustom bila ada,
+   * tapi hanya subset yang aktif di `data.sections` / kanvas awal —
+   * ditentukan di sini sesuai kebutuhan konten jenis usaha UMKM.
+   *
+   * Contoh warung makan: ["hero","menu_board","testimonials","location",...]
+   * Contoh bengkel: ["hero","features","pricing","booking",...]
+   *
+   * Kosong/undefined = semua tipe yang ada di `data.sections` dianggap aktif.
+   */
+  activeSections?: string[];
 }
 
 export interface TemplateInstance {

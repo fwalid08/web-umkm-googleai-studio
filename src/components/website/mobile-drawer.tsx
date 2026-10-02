@@ -74,11 +74,11 @@ export function MobileDrawer({
   const menuList = (
     <nav aria-label="Navigasi website" className="flex-1 overflow-y-auto p-2">
       <ul className="space-y-1">
-        {links.map((item) => {
+        {links.map((item, i) => {
           const kids = (item.children ?? []).filter((c) => c.enabled !== false);
           const isOpen = expanded === item.id;
           return (
-            <li key={item.id}>
+            <li key={`${typeof item.id === 'string' && item.id ? item.id : 'nav'}-${i}`}>
               <div className="flex items-center gap-1">
                 <a
                   href={item.url || '#'}
@@ -102,8 +102,8 @@ export function MobileDrawer({
               </div>
               {isOpen && kids.length > 0 && (
                 <ul className="ml-3 pl-2 border-l space-y-0.5 mt-0.5" style={{ borderColor: border }}>
-                  {kids.map((kid) => (
-                    <li key={kid.id}>
+                  {kids.map((kid, ki) => (
+                    <li key={`${typeof kid.id === 'string' && kid.id ? kid.id : 'nav'}-${ki}`}>
                       <a
                         href={kid.url || '#'}
                         onClick={(e) => go(e, kid.url || '#')}

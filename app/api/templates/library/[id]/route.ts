@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getStorageProvider } from "@/lib/storage";
+import { refreshTemplateUrls, URL_REFRESH_EXPIRES_SECS } from "@/lib/builder/template-urls";
 import type { BuilderConfig } from "@/lib/builder/types";
 
 interface SessionUser {
@@ -35,6 +37,36 @@ export async function GET(
 
     if (error || !template) {
       return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
+    }
+
+    // Self-healing signed URL: aset/thumbnail adalah signed URL 7 hari.
+    // Tanpa refresh, gambar mati sendiri seminggu setelah import. Refresh
+    // yang hampir kedaluwarsa (<24 jam) lalu simpan kembali agar galeri,
+    // preview, dan apply selalu membaca URL hidup. Fail-soft: bila gagal,
+    // baris lama tetap dikembalikan.
+    try {
+      const storage = getStorageProvider();
+      const refreshed = await refreshTemplateUrls(template, async (storagePath) => {
+        const r = await storage.getSignedUrl({ path: storagePath, expiresIn: URL_REFRESH_EXPIRES_SECS });
+        return r.success && r.url ? r.url : null;
+      });
+      if (refreshed.changed) {
+        const { error: updateError } = await supabase
+          .from("templates_library")
+          .update({
+            thumbnail_url: (refreshed.row as Record<string, unknown>).thumbnail_url,
+            assets: (refreshed.row as Record<string, unknown>).assets,
+            template_data: (refreshed.row as Record<string, unknown>).template_data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .eq("user_id", sessionUser.id);
+        if (!updateError) {
+          return NextResponse.json({ success: true, data: refreshed.row });
+        }
+      }
+    } catch {
+      // Abaikan — fallback ke baris apa adanya di bawah.
     }
 
     return NextResponse.json({ success: true, data: template });

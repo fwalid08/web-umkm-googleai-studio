@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { getOnColor } from '@/lib/builder/design-styles';
+import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer';
+import type { ConfigField } from '@/lib/builder/template-types';
 
 export interface FooterPalette {
   primary: string;
@@ -28,7 +30,7 @@ export interface FooterNavGroup {
 }
 
 export interface SiteFooterProps {
-  variant: { id: string; name: string; layout: string };
+  variant: { id: string; name: string; layout: string; html?: string; configFields?: ConfigField[] };
   config: Record<string, unknown>;
   palette: FooterPalette;
   radius: number;
@@ -37,6 +39,14 @@ export interface SiteFooterProps {
 }
 
 const str = (v: unknown, fallback = '') => (typeof v === 'string' ? v : fallback);
+
+/**
+ * Key unik untuk item nav. Template AI/ZIP kadang mengisi `id` kosong atau
+ * duplikat — key murni `item.id` memicu warning React "unique key prop".
+ * Indeks selalu ditempel agar unik meski id hilang/kembar.
+ */
+const navKey = (id: unknown, index: number) =>
+  `${typeof id === 'string' && id ? id : 'nav'}-${index}`;
 
 /**
  * Footer website — SATU sumber kebenaran untuk kanvas editor & live site
@@ -51,6 +61,18 @@ const str = (v: unknown, fallback = '') => (typeof v === 'string' ? v : fallback
  * layout `columns` memakai `navGroups` terkelompok.
  */
 export function SiteFooter({ variant, config, palette, radius, compact = false }: SiteFooterProps) {
+  // v3.0: varian dengan `html` kustom dirender langsung dari HTML template.
+  if (typeof variant.html === 'string' && variant.html.trim().length > 0) {
+    return (
+      <VariantHtmlRenderer
+        type="footer"
+        variantId={variant.id}
+        html={variant.html}
+        config={config}
+        configFields={variant.configFields ?? []}
+      />
+    );
+  }
   const onPrimary = getOnColor(palette.primary);
   const layout = variant.layout;
 
@@ -137,9 +159,9 @@ export function SiteFooter({ variant, config, palette, radius, compact = false }
     showNav &&
     nav.length > 0 && (
       <nav className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label="Navigasi footer">
-        {nav.map((item) => (
+        {nav.map((item, i) => (
           <a
-            key={item.id}
+            key={navKey(item.id, i)}
             href={item.url}
             className="text-[13px] hover:opacity-80 transition-opacity"
             style={{ color: palette.text }}
@@ -154,14 +176,14 @@ export function SiteFooter({ variant, config, palette, radius, compact = false }
     showNav &&
     groups.length > 0 && (
       <div className={`grid ${compact ? 'grid-cols-1' : 'grid-cols-2 @md:grid-cols-3'} gap-6`}>
-        {groups.map((group) => (
-          <nav key={group.id} aria-label={group.title || 'Navigasi footer'}>
+        {groups.map((group, gi) => (
+          <nav key={navKey(group.id, gi)} aria-label={group.title || 'Navigasi footer'}>
             {group.title && sectionTitle(group.title)}
             <ul className="space-y-1.5">
               {(group.items ?? [])
                 .filter((i) => i.enabled !== false)
-                .map((item) => (
-                  <li key={item.id}>
+                .map((item, i) => (
+                  <li key={navKey(item.id, i)}>
                     <a
                       href={item.url}
                       className="text-[13px] hover:opacity-80 transition-opacity"
@@ -341,9 +363,9 @@ export function SiteFooter({ variant, config, palette, radius, compact = false }
         >
           {nav
             .filter((n) => showNav)
-            .map((item) => (
+            .map((item, i) => (
               <a
-                key={item.id}
+                key={navKey(item.id, i)}
                 href={item.url}
                 className="text-[13px] hover:opacity-80 transition-opacity"
                 style={{ color: palette.text }}

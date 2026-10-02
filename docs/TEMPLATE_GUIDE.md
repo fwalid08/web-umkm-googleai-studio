@@ -1,8 +1,13 @@
 # Template Guide — Page Builder
 
 > **Target Audience**: Developer, Designer, AI Assistant
-> **Version**: 1.2
+> **Version**: 1.3
 > **Last Updated**: 2026-10-02
+>
+> v1.3: §15 menjadi spek mobile-first penuh (selaras AI prompt v3.1 §5.8) —
+> breakpoint, kontrak `responsive`, aturan `variant.html` responsif, dan
+> prosedur uji tiga viewport.
+> Selaras juga dengan AI prompt v3.2 §5.4 (aturan keras varian kustom).
 >
 > **Untuk AI eksternal yang hanya bisa menghasilkan file ZIP**, pakai
 > [`AI_TEMPLATE_PROMPT.md`](./AI_TEMPLATE_PROMPT.md) — dokumen itu berdiri sendiri
@@ -27,7 +32,7 @@
 12. [AI Assistant Guide](#12-ai-assistant-guide)
 13. [Template Preview System](#13-template-preview-system)
 14. [Single Page Navigation](#14-single-page-navigation)
-15. [Mobile Friendly Requirements](#15-mobile-friendly-requirements)
+15. [Mobile-First Requirements (Spek v3.1)](#15-mobile-first-requirements-spek-v31)
 
 ---
 
@@ -618,17 +623,42 @@ Gunakan `parseGradientSpec()` / `composeGradientCss()` dari
 }
 ```
 
+### Lebar Konten Section (boxed, bukan full-width)
+
+Isi section wajib dibox mengikuti renderer bawaan (`max-w-6xl`/`max-w-4xl` +
+`mx-auto`), sejajar dengan `contentWidth` header (default `6xl` = 1152px).
+Aturan penuh untuk penulis template (AI) ada di AI prompt §5.9; ringkasnya
+untuk developer:
+
+| Lebar | Nilai | Untuk |
+|---|---|---|
+| `4xl` | 896px | Teks panjang (FAQ, testimoni tunggal) |
+| `5xl` | 1024px | Sedang (pricing 2-tier, kontak split) |
+| `6xl` | 1152px — default | Umum (hero, features, galeri) |
+| `full` | Mengikuti layar | Hanya lapisan latar (foto hero, marquee) — isinya tetap dibox |
+
+`VariantHtmlRenderer` (`variant.html` kustom) TIDAK membungkus padding/latar
+section — penulis `html` wajib menyertakan wadahnya sendiri
+(`max-width` + `margin:auto` + padding 24px), kalau tidak section tampil
+full-width mentah. Ini sumber umum "desain tidak sesuai" pada template hasil
+import: periksa `html` variannya bila section melebar satu layar.
+
 ### Responsive Visibility
 
 ```typescript
 {
   responsive: {
-    hideOnMobile: false,
-    hideOnTablet: false,
-    hideOnDesktop: false,
+    hideOnMobile: false,    // sembunyikan di < 640px
+    hideOnTablet: false,     // sembunyikan di 640–1023px
+    hideOnDesktop: false,   // sembunyikan di ≥ 1024px
   }
 }
 ```
+
+Breakpoint mengikuti konvensi renderer (container queries `@sm:`/`@md:` +
+prop `compact` header/footer di `< 640px`, viewport switcher builder
+375 / 768 / 1024). Detail kontrak per-template ada di
+[§15.7](#157-kontrak-responsive-flags).
 
 ---
 
@@ -1077,6 +1107,17 @@ async function exportTemplate(templateId: string) {
 - [ ] Kontras warna teks vs background sudah benar
 - [ ] Background image options lengkap (blur, size, overlay)
 
+### Mobile Level (Spek v3.1 — lihat §15)
+
+- [ ] Lolos uji tiga viewport: 375 / 768 / 1024 (tanpa scroll horizontal di HP)
+- [ ] Isi section dibox (default `6xl`, rata tengah); `variant.html` membawa
+  wadahnya sendiri; verifikasi tepi rata di 1440px
+- [ ] Grid 1 kolom default → multi-kolom via `@md:`; tanpa width fixed > 480px
+- [ ] Gambar `max-width:100%;height:auto`; target sentuh ≥ 44px; body ≥ 14px
+- [ ] Nav jadi hamburger/drawer di HP; form 1 kolom full-width di HP
+- [ ] Flag `responsive` (bila dipakai) hanya menyembunyikan hiasan/varian
+  pengganti — bukan konten inti
+
 ### Config Fields Level
 
 - [ ] Setiap field punya `key` (camelCase)
@@ -1486,18 +1527,31 @@ Untuk memastikan preview bekerja:
 
 ---
 
-## 15. Mobile Friendly Requirements
+## 15. Mobile-First Requirements (Spek v3.1)
 
-### 15.1 Wajib Mobile Friendly
-- Semua template **wajib** responsive dan mobile-friendly
-- Touch target minimal 44x44px
-- Font size minimal 14px untuk body text
-- Spacing antar elemen cukup untuk interaksi sentuh
+> Selaras dengan AI prompt v3.1 §5.8. Bagian ini **normatif untuk template**:
+> setiap template (buatan AI maupun bawaan) wajib memenuhi §15.1–§15.9.
+> Status implementasi renderer ditandai ✅ (jalan) / 🔜 (kontrak, wiring menyusul).
 
-### 15.2 Opsi Tampilkan / Sembunyikan di Mobile
-- Setiap section bisa di-hide di mobile via `responsive.hideOnMobile`
-- Tombol CTA di header bisa di-hide di mobile via `mobileMenu.showCta`
-- Contoh: CTA header yang ramai di desktop boleh disembunyikan di HP agar header ringkas
+### 15.1 Wajib Mobile-First (bukan sekadar responsive)
+- Template dirancang **dari 375px ke atas**: satu kolom sebagai default,
+  multi-kolom hanya di breakpoint naik. Menulis gaya desktop lalu menimpanya
+  dengan `max-width` = pola terbalik, dilarang.
+- Breakpoint acuan: HP < 640px · Tablet 640–1023px · Desktop ≥ 1024px.
+- Semua template **wajib** lolos uji tiga viewport: 375 / 768 / 1024.
+- Touch target minimal 44x44px.
+- Font size minimal 14px untuk body text; headline hero proporsional di HP
+  (turunkan via `@md:` atau `clamp()`, line-height paragraf ≥ 1.5).
+- Spacing antar elemen cukup untuk interaksi sentuh; tidak boleh ada scroll
+  horizontal di 375px.
+
+### 15.2 Opsi Tampilkan / Sembunyikan per Perangkat
+- Setiap section bisa di-hide per perangkat via `responsive.hideOnMobile` /
+  `hideOnTablet` / `hideOnDesktop` (lihat kontrak §15.7).
+- Tombol CTA di header bisa di-hide di mobile via `mobileMenu.showCta`.
+- Contoh: CTA header yang ramai di desktop boleh disembunyikan di HP agar header ringkas.
+- Jangan menyembunyikan konten inti (hero, kontak, CTA booking) di perangkat
+  mana pun — hide hanya untuk hiasan atau varian ringkas pengganti.
 
 ### 15.3 Menu Mobile: Dua Opsi Drawer (Bukan Dropdown)
 Menu mobile **harus** salah satu dari dua opsi berikut — **dilarang memakai dropdown**:
@@ -1520,6 +1574,62 @@ Menu mobile **harus** salah satu dari dua opsi berikut — **dilarang memakai dr
 ### 15.6 Font Categories
 - 5 kategori font, semuanya dari Google Fonts (`src/lib/builder/font-categories.ts`):
   Modern, Tech, Luxury / Elegant, Creative, Handwritten
+
+### 15.7 Kontrak `responsive` Flags
+
+```typescript
+// Per section instance (kanvas, seed ZIP, live site):
+responsive: {
+  hideOnMobile?: boolean;    // ✅ schema+store+migration | 🔜 penerapan renderer
+  hideOnTablet?: boolean;    // ✅ schema+store+migration | 🔜 penerapan renderer
+  hideOnDesktop?: boolean;   // ✅ schema+store+migration | 🔜 penerapan renderer
+}
+```
+
+Aturan kontrak (berlaku walau wiring renderer menyusul):
+
+1. Flag adalah **data template**, bukan gaya inline: template ZIP boleh
+   mem-preset-nya lewat seed `data.sections[].responsive`; sidebar menulisnya
+   lewat kontrol "Tampil di" (HP/Tablet/Desktop).
+2. Semantik hide bersifat **eksklusif per breakpoint** di atas — section dengan
+   `hideOnMobile: true` tidak dirender di < 640px di kanvas, preview, maupun
+   live site (satu helper `isSectionHiddenAt()`, satu perilaku di semua
+   permukaan render termasuk `VariantHtmlRenderer`).
+3. Seed tanpa `responsive` = tampil di semua perangkat (default terbuka).
+4. Test penjaga: unit `isSectionHiddenAt` + passthrough seed
+   (`resolveTemplateSections` / `seedTemplateSections` meneruskan `responsive`
+   tanpa mengubahnya).
+
+### 15.8 Aturan Responsif untuk `variant.html` (Template Buatan AI)
+
+Karena `variant.html` melewati branch renderer bawaan, tanggung jawab
+responsif ada pada penulis template — bukan renderer:
+
+| Aturan | Status |
+|---|---|
+| Dilarang `width` / `min-width` fixed di atas 480px | Wajib, dicek saat import (warning) |
+| Gambar `max-width:100%;height:auto` | Wajib |
+| Grid 1 kolom default → multi-kolom via `@md:` | Wajib |
+| Tanpa scroll horizontal di 375px | Wajib (uji manual) |
+| Target sentuh ≥ 44px, body ≥ 14px | Wajib |
+| `position:fixed` hanya header sticky / progress bar | Wajib |
+
+Pola non-responsif berat (`width:\s*\d{4,}px`, `min-width:\s*\d{4,}`) dilaporkan
+sebagai **warning** saat import (tidak menggagalkan — agar template lama tetap
+masuk), via `validateTemplateV3()`.
+
+### 15.9 Prosedur Uji Tiga Viewport (Developer)
+
+1. Buka preview `/preview/[templateId]` (atau kanvas builder).
+2. Set viewport **375px** (HP): pastikan tanpa scroll horizontal, hero terbaca
+   tanpa zoom, CTA terjangkau, nav jadi hamburger, form 1 kolom.
+3. Set viewport **768px** (tablet): pastikan 2 kolom tidak pecah, gambar tidak
+   meluap, drawer/tablet nav benar.
+4. Set viewport **1024px** (desktop): pastikan konten ter-box (`contentWidth`),
+   multi-kolom tampil penuh.
+5. Ulangi untuk tiap `designType` yang disentuh perubahan (efek `customCss`
+   bisa berbeda perilaku per palet terang/gelap).
+6. Catat temuan sebagai checklist di PR (format: viewport → masalah → perbaikannya).
 
 ---
 

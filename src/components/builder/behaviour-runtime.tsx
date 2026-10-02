@@ -122,10 +122,25 @@ export function BehaviourRuntime({ animations, behaviours, customCss, root }: Be
 
   // CSS kustom template digabung ke blok yang sama dengan @keyframes hasil
   // `animations[]` — satu tag <style>, bukan beberapa.
+  // SCOPE: Semua CSS dibatasi ke #tpl-canvas agar tidak bocor ke UI builder (sidebar, topbar, dll).
   const css = useMemo(() => {
     const generated = buildCss(anims);
     const custom = customCss ? sanitizeTemplateCss(customCss) : '';
-    return [generated, custom].filter(Boolean).join('\n');
+    const combined = [generated, custom].filter(Boolean).join('\n');
+    
+    // Scope all CSS to #tpl-canvas to prevent leakage into builder UI (sidebar, topbar, etc.)
+    // We scope by prefixing all selectors with #tpl-canvas
+    const scopedCss = combined
+      .split('\n')
+      .map((line) => {
+        // Preserve @keyframes, @media, @layer, @supports, @supports, @font-face, @property, @import, @namespace, @page, @font-feature-values
+        if (line.trim().startsWith('@')) return line;
+        // Scope all selectors to #tpl-canvas
+        return line.replace(/^([^{]+)\{/gm, '#tpl-canvas $1{');
+      })
+      .join('\n');
+    
+    return scopedCss;
   }, [anims, customCss]);
 
   // Cegah eksekusi ulang saat React re-render, tapi tetap boleh jalan lagi

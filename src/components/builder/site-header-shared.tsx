@@ -4,6 +4,8 @@ import { useState, type ReactNode } from 'react';
 import { Menu, X, Phone, Mail, ChevronDown } from 'lucide-react';
 import { getOnColor } from '@/lib/builder/design-styles';
 import { resolveContentWidthClass } from '@/lib/builder/chrome';
+import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer';
+import type { ConfigField } from '@/lib/builder/template-types';
 
 export interface HeaderPalette {
   primary: string;
@@ -26,7 +28,7 @@ export interface HeaderLink {
 }
 
 export interface SiteHeaderProps {
-  variant: { id: string; name: string; layout: string };
+  variant: { id: string; name: string; layout: string; html?: string; configFields?: ConfigField[] };
   config: Record<string, unknown>;
   palette: HeaderPalette;
   /** Radius tombol/kartu dari tema template. */
@@ -47,6 +49,13 @@ const str = (v: unknown, fallback = '') => (typeof v === 'string' ? v : fallback
 const flag = (v: unknown) => v === true;
 
 /**
+ * Key unik untuk item nav (lihat navKey di site-footer-shared.tsx —
+ * template AI/ZIP kadang mengisi `id` kosong/duplikat).
+ */
+const navKey = (id: unknown, index: number) =>
+  `${typeof id === 'string' && id ? id : 'nav'}-${index}`;
+
+/**
  * Header website — SATU sumber kebenaran untuk kanvas editor maupun live site.
  *
  * Tujuh layout yang umum dipakai website modern:
@@ -64,6 +73,18 @@ export function SiteHeader({
   navSolid = false,
   drawer,
 }: SiteHeaderProps) {
+  // v3.0: varian dengan `html` kustom dirender langsung dari HTML template.
+  if (typeof variant.html === 'string' && variant.html.trim().length > 0) {
+    return (
+      <VariantHtmlRenderer
+        type="header"
+        variantId={variant.id}
+        html={variant.html}
+        config={config}
+        configFields={variant.configFields ?? []}
+      />
+    );
+  }
   const onPrimary = getOnColor(palette.primary);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -161,10 +182,10 @@ export function SiteHeader({
             className="absolute right-0 top-full mt-2 w-52 rounded-xl border shadow-xl p-1.5 z-30"
             style={{ background: palette.surface, borderColor: palette.border }}
           >
-            {links.slice(0, 7).map((item) => {
+            {links.slice(0, 7).map((item, i) => {
               const kids = (item.children ?? []).filter((c) => c.enabled);
               return (
-                <div key={item.id}>
+                <div key={navKey(item.id, i)}>
                   <a
                     href={item.url}
                     onClick={() => setMenuOpen(false)}
@@ -175,9 +196,9 @@ export function SiteHeader({
                   </a>
                   {/* Submenu ditampilkan flat-indent supaya kanvas ikut
                       meniru MobileDrawer (live site) yang punya dropdown. */}
-                  {kids.map((kid) => (
+                  {kids.map((kid, ki) => (
                     <a
-                      key={kid.id}
+                      key={navKey(kid.id, ki)}
                       href={kid.url}
                       onClick={() => setMenuOpen(false)}
                       className="block py-1.5 pl-6 pr-3 text-[13px] rounded-lg hover:opacity-80"
@@ -200,14 +221,14 @@ export function SiteHeader({
    * dropdown (group-hover + focus-within supaya tetap bisa diakses keyboard).
    * Mobile tidak lewat sini: `MobileDrawer` sudah menangani submenu sendiri.
    */
-  const navLink = (item: HeaderLink, navText?: string) => {
+  const navLink = (item: HeaderLink, index: number, navText?: string) => {
     const kids = (item.children ?? []).filter((c) => c.enabled);
     const linkClass = 'text-sm font-medium hover:opacity-80 transition-opacity';
 
     if (kids.length === 0) {
       return (
         <a
-          key={item.id}
+          key={navKey(item.id, index)}
           href={item.url}
           className={linkClass}
           style={{ color: navText ?? palette.text, textShadow }}
@@ -218,7 +239,7 @@ export function SiteHeader({
     }
 
     return (
-      <div key={item.id} className="relative group">
+      <div key={navKey(item.id, index)} className="relative group">
         <a
           href={item.url}
           className={`${linkClass} inline-flex items-center gap-1`}
@@ -233,9 +254,9 @@ export function SiteHeader({
             className="min-w-48 rounded-xl border shadow-xl p-1.5"
             style={{ background: palette.surface, borderColor: palette.border }}
           >
-            {kids.map((kid) => (
+            {kids.map((kid, ki) => (
               <a
-                key={kid.id}
+                key={navKey(kid.id, ki)}
                 href={kid.url}
                 className="block px-3 py-2.5 text-sm font-medium rounded-lg hover:opacity-80"
                 style={{ color: palette.text }}
@@ -256,7 +277,7 @@ export function SiteHeader({
    */
   const desktopNav = ({ gap = 'gap-5', max = 5 }: { gap?: string; max?: number } = {}) => (
     <nav className={`hidden @[640px]:flex items-center ${gap} shrink-0`} aria-label="Navigasi website">
-      {links.slice(0, max).map((item) => navLink(item))}
+      {links.slice(0, max).map((item, i) => navLink(item, i))}
     </nav>
   );
 

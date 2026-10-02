@@ -179,8 +179,125 @@ html{scroll-behavior:smooth;scroll-padding-top:76px}
    tanpa ini target anchor tertutup header sticky saat link menu diklik. */
 [id]{scroll-margin-top:76px}
 
-/* Query container bingkai kanvas builder (responsif ikut lebar device) */
-.builder-cq{container-type:inline-size}
+/* ============ Builder tool isolation — prevent template CSS leakage ============ */
+/* Tool buttons in canvas (move, edit, duplicate, delete, insert) must not inherit
+   template global styles (colors, borders, shadows, transitions, etc.). */
+.builder-tool {
+  all: initial !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: var(--font-sans) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  color: #1f2937 !important;
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  cursor: pointer !important;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease !important;
+  padding: 6px 10px !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+}
+.dark .builder-tool {
+  color: #f3f4f6 !important;
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+.builder-tool:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15) !important;
+  background: #f9fafb !important;
+}
+.dark .builder-tool:hover {
+  background: #374151 !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4) !important;
+}
+.builder-tool:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+.dark .builder-tool:active {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+}
+.builder-tool:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+.builder-tool svg {
+  all: initial !important;
+  box-sizing: border-box !important;
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0 !important;
+  stroke: currentColor !important;
+  fill: none !important;
+}
+.builder-tool-primary {
+  background: linear-gradient(135deg, #16a34a, #0d9488) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(22,163,74,0.3) !important;
+}
+.builder-tool-primary:hover {
+  background: linear-gradient(135deg, #15803d, #0f766e) !important;
+  box-shadow: 0 6px 16px rgba(22,163,74,0.4) !important;
+}
+.builder-tool-danger {
+  color: #ef4444 !important;
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+}
+.dark .builder-tool-danger {
+  color: #f87171 !important;
+  border-color: #991b1b !important;
+  background: #7f1d1d !important;
+}
+.builder-tool-danger:hover {
+  background: #fee2e2 !important;
+}
+.dark .builder-tool-danger:hover {
+  background: #991b1b !important;
+}
+
+/* Section toolbars (left/right side) */
+.section-toolbar {
+  position: absolute !important;
+  z-index: 100 !important;
+}
+.section-toolbar-left {
+  left: 8px !important;
+  top: 8px !important;
+}
+.section-toolbar-right {
+  right: 8px !important;
+  top: 8px !important;
+}
+.section-toolbar .builder-tool {
+  margin: 0 2px !important;
+}
+
+/* Insert block button between sections */
+.insert-block-btn {
+  margin-top: -20px !important;
+  margin-bottom: 20px !important;
+}
+
+/* Anchor copy button */
+.anchor-copy-btn {
+  font-family: var(--font-mono) !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+}
 
 /* ============ theme.effects yang benar-benar diimplementasikan ============
    Wrapper section memakai `data-tpl-fx` berisi flag yang aktif

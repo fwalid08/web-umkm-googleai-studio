@@ -39,6 +39,36 @@ export function getFooterVariant(template: Template, variantId: string) {
   return template.footers.find((f) => f.id === variantId) ?? template.footers[0];
 }
 
+/**
+ * Section mana yang AKTIF untuk niche ini (v3.0).
+ *
+ * Template WAJIB mendefinisikan SEMUA 19 tipe di `template.sections`,
+ * tapi hanya subset yang aktif di kanvas awal — ditentukan di sini sesuai
+ * kebutuhan konten jenis usaha.
+ *
+ * Urutan prioritas:
+ * 1. `template.activeSections` (root — dari AI/ZIP v3.0)
+ * 2. Tipe yang ada di seed default (turunan data.sections template TS)
+ * 3. Fallback: semua tipe yang didefinisikan di `template.sections`
+ */
+export function getActiveSections(template: Template): string[] {
+  if (Array.isArray(template.activeSections) && template.activeSections.length > 0) {
+    return template.activeSections;
+  }
+  // Turunan dari seed TS: tipe yang muncul di data.sections template.
+  const seedTypes = new Set<string>();
+  try {
+    const data = (template as unknown as { data?: { sections?: Array<{ type?: string }> } }).data;
+    for (const s of data?.sections ?? []) {
+      if (s?.type) seedTypes.add(s.type);
+    }
+  } catch {
+    // Abaikan — fallback ke semua tipe.
+  }
+  if (seedTypes.size > 0) return [...seedTypes];
+  return template.sections.map((s) => s.type);
+}
+
 function generateId(): string {
   return crypto.randomUUID();
 }

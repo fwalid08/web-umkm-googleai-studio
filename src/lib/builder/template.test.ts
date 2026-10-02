@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { PANGKAS_RAPI_TEMPLATE } from './templates/pangkas-rapi';
+import { WARUNG_MAKAN_TEMPLATE } from './templates/warung-makan';
 import { getTemplate, getSectionType, getSectionVariant, getHeaderVariant, getFooterVariant } from './template-store';
 import { migrateOldConfig, isOldConfig } from './migration';
 import { HEADER_VARIANTS, isKnownHeaderVariant, CONTENT_WIDTH_CLASSES, DEFAULT_CONTENT_WIDTH, resolveContentWidthClass } from './chrome';
@@ -335,14 +336,34 @@ describe('applyTemplate — isi konten bawaan template', () => {
     }
   });
 
-  it('applyTemplate menyuntikkan foto per-niche ke config section', () => {
+  it('applyTemplate tidak menyuntik foto ke section tanpa field gambar', () => {
+    // Regresi template laundry: section tanpa key image/background_image
+    // disuntik foto niche yang sama → kanvas berantakan, preview kosong.
+    // Fill hanya untuk key yang dideklarasikan seed/varian.
     useTemplateStore.getState().applyTemplate('warung-makan');
+    const tpl = WARUNG_MAKAN_TEMPLATE as unknown as {
+      data: { sections: Array<{ type: string; variant: string; config?: Record<string, unknown> }> };
+      sections: Array<{ type: string; variants: Array<{ id: string; defaultConfig: Record<string, unknown> }> }>;
+    };
+    const declared = new Map<string, Set<string>>();
+    for (const s of tpl.data.sections) {
+      const variant = tpl.sections.find((d) => d.type === s.type)?.variants.find((v) => v.id === s.variant);
+      declared.set(
+        s.type,
+        new Set([...Object.keys(s.config ?? {}), ...Object.keys(variant?.defaultConfig ?? {})]),
+      );
+    }
     const sections = useTemplateStore.getState().sections;
-    const withImage = sections.filter((s) => {
+    for (const s of sections) {
       const c = s.config as Record<string, unknown>;
-      return typeof c.image === 'string' && c.image.startsWith('https://');
-    });
-    expect(withImage.length, 'tidak ada section yang dapat foto').toBeGreaterThan(0);
+      const keys = declared.get(s.type) ?? new Set<string>();
+      if (c.image !== undefined) {
+        expect(keys.has('image'), `${s.type}: image disuntik tanpa dideklarasikan`).toBe(true);
+      }
+      if (c.background_image !== undefined) {
+        expect(keys.has('background_image'), `${s.type}: background_image disuntik`).toBe(true);
+      }
+    }
   });
 
   it('applyTemplate bisa di-undo (historyStores section lama)', () => {
@@ -377,5 +398,20 @@ describe('applyTemplate — isi konten bawaan template', () => {
     expect(assetsFor('toko-mobil')).toBeNull();
     expect(assetsFor(undefined)).toBeNull();
     expect(applySectionAssets({ title: 'x' }, 'toko-mobil')).toEqual({ title: 'x' });
+  });
+
+  it('applySectionAssets TIDAK menambah key gambar top-level (anti-berantakan)', () => {
+    // Regresi template laundry: 11 section tanpa field gambar disuntik foto
+    // barbershop yang sama → kanvas berantakan, preview kosong.
+    // (Pengisian avatar per-item di dalam items[] tetap berlaku — lihat test
+    // "mengisi items[] galeri" di atas.)
+    const seed = { title: 'Layanan' };
+    expect(applySectionAssets({ ...seed }, 'services')).toEqual(seed);
+  });
+
+  it('applySectionAssets hanya mengisi key gambar yang ada & kosong', () => {
+    const out = applySectionAssets({ title: 'x', image: '' }, 'food');
+    expect(out.image).toMatch(/^https:\/\//);
+    expect(out).not.toHaveProperty('background_image');
   });
 });

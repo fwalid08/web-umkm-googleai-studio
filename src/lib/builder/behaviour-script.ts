@@ -83,3 +83,97 @@ export function sanitizeTemplateCss(css: string): string {
   }
   return out;
 }
+
+/** Batas ukuran HTML kustom per varian/field (karakter). */
+export const MAX_TEMPLATE_HTML_LENGTH = 50_000;
+
+/**
+ * Pola yang diblokir di HTML kustom template (v3.0 — ekspresi HTML).
+ *
+ * Prinsip: HTML kustom untuk DESAIN KREATIF, bukan eksekusi kode.
+ * - Script/style/event-handler selalu diblokir (gunakan `behaviours[]`
+ *   untuk JS dan `customCss` untuk CSS).
+ * - `iframe`/`object`/`embed`/`form` diblokir (exfiltration / navigasi).
+ * - `{{...}}` placeholder DIBIARKAN — diganti renderer dengan nilai config.
+ */
+const DANGEROUS_HTML_PATTERNS: RegExp[] = [
+  /<\s*script[\s>]/gi,
+  /<\s*\/\s*script/gi,
+  /<\s*style[\s>]/gi,
+  /<\s*\/\s*style/gi,
+  /<\s*iframe[\s>]/gi,
+  /<\s*object[\s>]/gi,
+  /<\s*embed[\s>]/gi,
+  /<\s*form[\s>]/gi,
+  /\bon\w+\s*=/gi,
+  /javascript\s*:/gi,
+];
+
+/** Escape nilai config agar aman disisipkan ke HTML kustom. */
+export function escapeHtmlValue(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Sanitasi HTML kustom template. Dipakai saat import dan saat render.
+ * Idempoten, tidak melempar error untuk input rusak.
+ */
+export function sanitizeTemplateHtml(html: string): string {
+  const trimmed = (html ?? '').slice(0, MAX_TEMPLATE_HTML_LENGTH);
+  let out = trimmed;
+  for (const pattern of DANGEROUS_HTML_PATTERNS) {
+    out = out.replace(pattern, '<!-- BLOCKED');
+  }
+  return out;
+}
+
+/**
+ * Render HTML kustom varian dengan nilai config (v3.0).
+ *
+ * - `{{key}}` diganti `config[key]` (di-escape).
+ * - `{{{key}}}` diganti `config[key]` mentah tapi DISANITASI dulu
+ *   (untuk field bertipe `html`).
+ * - Hasil akhir disanitasi lewat `sanitizeTemplateHtml`.
+ */
+export function renderVariantHtml(
+  template: string,
+  config: Record<string, unknown>,
+  htmlFieldKeys: Set<string> = new Set(),
+): string {
+  const raw = template ?? '';
+  // Triple-brace dulu agar tidak tertelan replacer double-brace.
+  let out = raw.replace(/\{\{\{\s*([\w.]+)\s*\}\}\}/g, (_m, key: string) => {
+    const v = config[key];
+    if (v === undefined || v === null) return '';
+    return sanitizeTemplateHtml(String(v));
+  });
+  out = out.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, key: string) => {
+    const v = config[key];
+    if (v === undefined || v === null) return '';
+    if (htmlFieldKeys.has(key)) return sanitizeTemplateHtml(String(v));
+    return escapeHtmlValue(v);
+  });
+  return sanitizeTemplateHtml(out);
+}
+
+/** Kumpulkan key field bertipe `html` (termasuk nested `itemFields`). */
+export function collectHtmlFieldKeys(
+  fields: Array<{ key: string; type: string; itemFields?: Array<{ key: string; type: string; itemFields?: unknown }> }>,
+): Set<string> {
+  const keys = new Set<string>();
+  const walk = (list: Array<{ key: string; type: string; itemFields?: unknown }>) => {
+    for (const f of list ?? []) {
+      if (f.type === 'html') keys.add(f.key);
+      if (Array.isArray((f as { itemFields?: unknown }).itemFields)) {
+        walk((f as { itemFields: Array<{ key: string; type: string; itemFields?: unknown }> }).itemFields);
+      }
+    }
+  };
+  walk(fields as Array<{ key: string; type: string; itemFields?: unknown }>);
+  return keys;
+}

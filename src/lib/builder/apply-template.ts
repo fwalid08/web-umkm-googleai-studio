@@ -13,7 +13,7 @@
  */
 import { getSectionVariant } from './sections/registry';
 import { applySectionAssets } from './template-assets';
-import { BUILTIN_TEMPLATES } from './template-store';
+import { buildLibraryTemplate } from './library-template';
 import type { Template } from './template-types';
 import type { SectionType } from './types';
 
@@ -57,20 +57,51 @@ export function isLibraryTemplate(template: { source?: string }): boolean {
   return template.source === 'saved';
 }
 
+/** Katalog varian milik template (dipakai sebelum registry statis). */
+export interface SectionCatalogLike {
+  type: string;
+  variants: Array<{
+    id: string;
+    defaultConfig?: Record<string, unknown>;
+    defaultStyle?: Record<string, unknown>;
+  }>;
+}
+
+function findCatalogVariant(
+  catalog: SectionCatalogLike[] | undefined,
+  type: string,
+  variantId: string,
+): { defaultConfig: Record<string, unknown>; defaultStyle: Record<string, unknown> } | null {
+  if (!Array.isArray(catalog)) return null;
+  const def = catalog.find((d) => d?.type === type);
+  const v = def?.variants?.find((x) => x?.id === variantId);
+  if (!v) return null;
+  return {
+    defaultConfig: (v.defaultConfig ?? {}) as Record<string, unknown>,
+    defaultStyle: (v.defaultStyle ?? {}) as Record<string, unknown>,
+  };
+}
+
 /**
  * Ubah seed `data.sections` jadi format yang disimpan di `custom_config`.
  * Sama persis dengan yang dipakai seed kanvas, supaya hasil apply = hasil
  * pratinjau (termasuk foto bawaan per-niche).
+ *
+ * `catalog` = katalog sections milik template (template library v3).
+ * Dipakai DULU sebelum registry statis, supaya `defaultConfig`/`defaultStyle`
+ * varian milik template sendiri yang dipakai — bukan milik blueprint.
  */
 export function resolveTemplateSections(
   data: TemplateDataLike,
   category?: string,
+  catalog?: SectionCatalogLike[],
 ): Array<Record<string, unknown>> {
   return (data.sections ?? []).map((s) => {
-    const variant = getSectionVariant(s.type as SectionType, s.variant);
-    const base = variant?.defaultConfig ?? {};
+    const own = findCatalogVariant(catalog, s.type, s.variant);
+    const variant = own ? null : getSectionVariant(s.type as SectionType, s.variant);
+    const base = own?.defaultConfig ?? variant?.defaultConfig ?? {};
     const override = (s.config ?? {}) as Record<string, unknown>;
-    const styleBase = variant?.defaultStyle ?? {};
+    const styleBase = own?.defaultStyle ?? variant?.defaultStyle ?? {};
     const styleOverride = (s.style ?? {}) as Record<string, unknown>;
 
     const merged = applySectionAssets(
@@ -104,16 +135,29 @@ export function buildTemplateCustomConfig(
   template: ApplyableTemplate,
 ): Record<string, unknown> {
   const data = template.data ?? {};
+  // Template library membawa katalog sections-nya sendiri di level yang sama
+  // (galeri menggabung template_data utuh ke `data`). Pakai itu dulu agar
+  // default varian milik template yang dipakai saat apply.
+  const raw = data as unknown as Record<string, unknown>;
+  const maybeCatalog = Array.isArray(raw.sections) &&
+    raw.sections.some((d) => !!d && typeof d === 'object' && Array.isArray((d as Record<string, unknown>).variants))
+    ? (raw.sections as SectionCatalogLike[])
+    : undefined;
+  // Theme utuh milik template (tipografi/komponen/efek) ikut disimpan agar
+  // live site tidak jatuh ke tema bawaan. Konsumen lama yang hanya membaca
+  // `palette_override` tetap kompatibel.
+  const theme = (raw.theme as Record<string, unknown> | undefined) ??
+    (raw.data as Record<string, unknown> | undefined)?.theme;
   return {
     design_style_id: data.designStyleId ?? 'minimalist',
     palette_override: data.paletteOverride ?? {},
-    sections: resolveTemplateSections(data, template.category),
+    sections: resolveTemplateSections(data, template.category, maybeCatalog),
     header: data.header ?? {},
     footer: data.footer ?? {},
     layout: { rows: [] },
     core: data.core ?? {},
     seo: data.seo ?? {},
-    theme: {},
+    theme: theme ?? {},
     animations: data.animations ?? [],
     behaviours: data.behaviours ?? [],
     customCss: data.customCss ?? '',
@@ -174,34 +218,20 @@ export async function applyTemplateToWebsite(opts: {
 /**
  * Bentuk objek `Template` yang valid dari isi template library.
  *
- * Template library hanya menyimpan seed + config; katalog varian section TIDAK
- * ikut tersimpan. Jadi katalognya dipinjam dari blueprint (template bawaan
- * pertama) lalu palet diganti dengan milik library. Tanpa ini, id varian seperti
- * `booking-single` tidak ketemu dan section jatuh ke varian pertama.
+ * Delegasi ke `buildLibraryTemplate` (lib/builder/library-template.ts):
+ * theme, katalog headers/footers/sections, designType, customCss, dan aset
+ * dibaca dari `template_data` milik library — BUKAN dari blueprint bawaan.
+ * Blueprint hanya fallback per-bagian bila kunci hilang (template lama/v2).
  */
 export function synthesizeLibraryTemplate(
   data: TemplateDataLike,
   meta: { id: string; name: string; description?: string; category?: string },
 ): Template & { data: TemplateDataLike } {
-  const blueprint = BUILTIN_TEMPLATES[0];
-  if (!blueprint) {
-    throw new Error('Template bawaan tidak tersedia — tidak bisa menyusun template library.');
-  }
-  const palette = { ...blueprint.theme.palette, ...(data.paletteOverride ?? {}) };
-  return {
-    ...blueprint,
+  return buildLibraryTemplate(data as Record<string, unknown>, {
     id: meta.id,
     name: meta.name,
-    description: meta.description ?? '',
-    ...(meta.category ? { category: meta.category } : {}),
-    // `designType` ikut dari blueprint. Template hasil import library tidak
-    // punya designType sendiri, jadi blueprint yang dipakai sebagai acuan.
-    // Kontraknya dijaga di `templates/catalog.test.ts`.
-    theme: { ...blueprint.theme, palette },
-    customCss: data.customCss ?? '',
-    animations: (data.animations ?? []) as Template['animations'],
-    behaviours: (data.behaviours ?? []) as Template['behaviours'],
-    data,
-  } as Template & { data: TemplateDataLike };
+    ...(meta.description !== undefined ? { description: meta.description } : {}),
+    ...(meta.category !== undefined ? { category: meta.category } : {}),
+  }) as Template & { data: TemplateDataLike };
 }
 

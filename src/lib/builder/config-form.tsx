@@ -73,6 +73,8 @@ function ConfigFieldRenderer({ field, value, onChange }: ConfigFieldRendererProp
       return <TextField field={field} value={value} onChange={onChange} />;
     case 'textarea':
       return <TextareaField field={field} value={value} onChange={onChange} />;
+    case 'html':
+      return <HtmlField field={field} value={value} onChange={onChange} />;
     case 'number':
       return <NumberField field={field} value={value} onChange={onChange} />;
     case 'select':
@@ -244,7 +246,7 @@ function ListField({ field, value, onChange }: { field: ConfigField; value: unkn
             <div key={f.key} className="space-y-1">
               {/* Field `list` sudah punya label sendiri dari ListField
                   anak, jadi label luar dilewati agar tidak dobel. */}
-              {f.type !== 'list' && (
+              {f.type !== 'list' && f.type !== 'switch' && f.type !== 'html' && (
                 <Label className="text-[10px] text-muted-foreground">{f.label}</Label>
               )}
               {f.type === 'list' ? (
@@ -258,17 +260,42 @@ function ListField({ field, value, onChange }: { field: ConfigField; value: unkn
                     onChange={(v) => updateItem(index, f.key, v)}
                   />
                 </div>
-              ) : f.type === 'textarea' ? (
+              ) : f.type === 'textarea' || f.type === 'html' ? (
                 <Textarea
                   value={(item[f.key] as string) || ''}
                   onChange={(e) => updateItem(index, f.key, e.target.value)}
-                  rows={2}
-                  className="min-h-[34px] text-[11px] rounded-lg"
+                  rows={f.type === 'html' ? 4 : 2}
+                  placeholder={f.placeholder}
+                  spellCheck={f.type !== 'html'}
+                  className={`min-h-[34px] text-[11px] rounded-lg ${f.type === 'html' ? 'font-mono' : ''}`}
+                />
+              ) : f.type === 'switch' ? (
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-[10px] text-muted-foreground">{f.label}</Label>
+                  <Switch
+                    checked={(item[f.key] as boolean) || false}
+                    onCheckedChange={(v) => updateItem(index, f.key, v)}
+                  />
+                </div>
+              ) : f.type === 'image' ? (
+                <Input
+                  value={(item[f.key] as string) || ''}
+                  onChange={(e) => updateItem(index, f.key, e.target.value)}
+                  placeholder={f.placeholder || 'https://...'}
+                  className="h-6 text-[11px] rounded-md"
+                />
+              ) : f.type === 'number' ? (
+                <Input
+                  type="number"
+                  value={(item[f.key] as number) || 0}
+                  onChange={(e) => updateItem(index, f.key, Number(e.target.value))}
+                  className="h-6 text-[11px] rounded-md"
                 />
               ) : (
                 <Input
                   value={(item[f.key] as string) || ''}
                   onChange={(e) => updateItem(index, f.key, e.target.value)}
+                  placeholder={f.placeholder}
                   className="h-6 text-[11px] rounded-md"
                 />
               )}
@@ -435,6 +462,33 @@ function SwitchField({ field, value, onChange }: { field: ConfigField; value: un
         checked={(value as boolean) || false}
         onCheckedChange={(v) => onChange(v)}
       />
+    </div>
+  );
+}
+
+/**
+ * Field HTML kustom (v3.0 — ekspresi HTML field-level).
+ *
+ * Untuk konten kreatif yang tidak muat di text/textarea biasa
+ * (mis. teks dengan <strong>/<em>/<a>, list kustom, embed).
+ * Nilai disanitasi saat render (lihat `sanitizeTemplateHtml`).
+ */
+function HtmlField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (v: unknown) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[11px] font-bold">{field.label}</Label>
+      <Textarea
+        value={(value as string) || ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.placeholder || '<p>...</p>'}
+        rows={field.rows || 5}
+        spellCheck={false}
+        className="min-h-[96px] text-[12px] rounded-xl bg-white dark:bg-slate-800 focus-visible:ring-emerald-400 leading-relaxed font-mono"
+      />
+      <p className="text-[10px] text-muted-foreground">
+        HTML untuk desain kreatif. &lt;script&gt;, &lt;style&gt;, &lt;iframe&gt;, dan on*= diblokir otomatis.
+        Placeholder varian: {'{{key}}'} = teks aman, {'{{{key}}}'} = HTML disanitasi.
+      </p>
     </div>
   );
 }

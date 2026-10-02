@@ -3,6 +3,7 @@ import { getOnColor } from '@/lib/builder/design-styles';
 import { getGoogleFontsUrl } from '@/lib/builder/font-categories';
 import { MobileDrawer } from './mobile-drawer';
 import { SectionRenderer } from '@/components/builder/section-renderer';
+import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer';
 import { SiteHeader } from '@/components/builder/site-header-shared';
 import { BehaviourRuntime } from '@/components/builder/behaviour-runtime';
 import { SiteFooter } from '@/components/builder/site-footer-shared';
@@ -118,6 +119,22 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
         {sections.map((section) => {
           const variant = getSectionVariant(template, section.type, section.variantId);
           if (!variant) return null;
+          // v3.0: varian dengan `html` kustom dirender langsung dari HTML
+          // template (kreativitas tidak terbatas layout bawaan renderer).
+          const customHtml = (variant as { html?: unknown }).html;
+          if (typeof customHtml === 'string' && customHtml.trim().length > 0) {
+            return (
+              <VariantHtmlRenderer
+                key={section.id}
+                type={section.type}
+                variantId={section.variantId}
+                html={customHtml}
+                config={section.config as Record<string, unknown>}
+                configFields={variant.configFields}
+                anchorId={section.anchorId}
+              />
+            );
+          }
           // Convert TemplateSectionInstance to Section type for SectionRenderer
           // (token theme:* diteruskan mentah — SectionRenderer yang me-resolve
           // ke palet template aktif agar preview/canvas/live selalu sama).

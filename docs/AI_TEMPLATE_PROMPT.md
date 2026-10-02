@@ -1,64 +1,66 @@
-# Panduan Membuat Template ZIP — untuk AI Eksternal
+# Panduan Membuat Template — untuk AI Eksternal (v3.4)
 
-> **Untuk siapa**: AI Assistant di luar repository (Claude, GPT, dll.) yang tasked
-> merancang template website UMKM.
-> **Output tunggal**: satu file `.zip` yang di-import user lewat
-> **Customize → Templates → Import**.
-> **Versi**: 2.0 · **Terakhir diperbarui**: 2026-10-02
+> **Untuk siapa**: AI di luar repository (Claude, GPT, dll.) yang merancang template website UMKM.
+> **Output tunggal**: satu file `.zip` yang di-import user lewat **Customize → Templates → Import**.
+> **Versi**: 3.5 · **Terakhir diperbarui**: 2026-10-02
+>
+> v3.0 mengubah aturan besi v2.0: **HTML kini BOLEH** (section-level + field-level),
+> ditambah `activeSections`, dan penegasan "tidak ada konten hardcoded".
+> v3.1 menambahkan: **spek mobile-first penuh** (§5.8) — template wajib mobile-friendly.
+> v3.2 menambahkan: **aturan keras varian kustom** (§5.4) — ID di luar Tabel 2 wajib
+> punya `variant.html` atau disasar `customCss`, dipicu kasus nyata `hero-katering-*`.
+> v3.3 menambahkan: **lebar konten boxed** (§5.9) — isi section dibatasi
+> `4xl`/`5xl`/`6xl` dan rata tengah, `full` hanya untuk lapisan latar.
+> v3.4 menambahkan: **tipe section kustom diizinkan** (§5.10) — AI boleh membuat
+> tipe baru di luar 19 predefined, dengan syarat tiap variannya punya `html`.
+> v3.5 menambahkan: **chrome milik template (header/footer)** (§5.11) — header/footer
+> wajib punya varian milik template dengan `html`, tidak boleh pakai bawaan builder.
 
 ---
 
-## 0. Batasan yang harus dipahami sejak awal
+## 0. Yang harus dipahami sejak awal
 
-Kamu **tidak** mengenal codebase ini dan **tidak** boleh mengubah kode apa pun.
-Yang kamu lakukan:
+Kamu **tidak** mengenal codebase ini dan **tidak** boleh mengubah kode apa pun. Yang kamu lakukan:
 
 1. Merancang identitas visual (palet, tipografi, tata letak, tone).
 2. Menyusun seluruh konfigurasi template sesuai skema di bawah.
 3. Membuat aset (gambar/foto) bila ada.
 4. Mengembalikan **satu file `.zip`** sebagai hasil akhir.
 
-Semua yang tidak tercantum di dokumen ini **tidak akan dirender**. Section,
-variant, atau config key yang tidak ada di daftar putih akan diabaikan atau
-di-backfill oleh sistem.
+Page builder tugasnya **merender template dan menyesuaikan form konfigurasinya di sidebar**.
+Setiap varian yang kamu definisikan membawa `configFields`-nya sendiri — ketika user pilih
+varian, form di sidebar otomatis berubah mengikuti `configFields` varian itu.
 
-> ### Aturan besi
+> ### Aturan besi v3.5
 > 1. **Satu file ZIP saja** sebagai output. Tidak ada file lain, tidak ada patch kode.
-> 2. **JANGAN hasilkan HTML.** Output wajib JSON (`template.json`), bukan `.html`,
->    bukan JSX, bukan CSS terpisah sebagai file utama. Lihat §0.1.
-> 3. **Jangan mengarang nama tipe/variant section.** Hanya id di Tabel 2 & 3 yang valid.
-> 4. **Seed section wajib menyertakan config lengkap** — jangan mengandalkan nilai
->    default sistem (lihat §5.4).
-> 5. **9 section inti wajib ada** (lihat §6). Tanpa itu template ditolak.
-> 6. Animasi **harus lewat kontrak deklaratif** (§7), bukan JS bebas untuk efek dasar.
-> 7. Untuk desain yang berbeda secara visual (glassmorphism, bento grid, dan
->    sejenisnya), pakai `data.customCss` (§8.4) — **bukan** menulis HTML sendiri.
-
-### 0.1 Kenapa bukan HTML
-
-Platform ini **tidak punya jalur HTML sama sekali**. Bukan preferensi, bukan
-guideline — secara harfiah tidak ada:
-
-- Tidak ada file `.html`/`.hbs`/`.ejs`/`.pug` di repository.
-- Tidak ada template engine di dependency.
-- Tidak ada fungsi generator/export HTML.
-
-Halaman dibangun dari **data** yang dirender komponen React (`SectionRenderer`).
-Kalau kamu mengembalikan HTML, hasilnya **langsung ditolak import** dengan pesan
-`Format template tidak valid: wajib punya "theme" (format template) atau
-"layout.rows" + "core" (format builder)` — karena tidak ada `theme` maupun
-`sections`.
-
-```jsonc
-// ✅ Yang diminta: data
-{ "theme": { … }, "sections": [ { "type": "hero", "variant": "hero-split", … } ] }
-
-// ❌ Yang TIDAK boleh: markup
-{ "<!DOCTYPE html><html><head><style>…</style></head><body>…" }
-```
-
-Kalau kamu merasa "desainnya tidak muat", jangan melebar ke HTML — pakai
-`data.customCss` (§8.4). Itu jalur yang memang disediakan untuk hal itu.
+> 2. **HTML BOLEH** — dua jalur (§3): `variant.html` (section-level) dan field
+>    bertipe `html` (field-level). Ini cara template berekspresi bebas.
+> 3. **19 tipe Tabel 2 WAJIB didefinisikan semua** (§5) — plus kamu BOLEH
+>    menambah tipe section kustom sendiri (§5.10), dengan syarat tiap variannya
+>    punya `html` (tanpa html, tipe asing tidak bisa tampil).
+> 4. **`activeSections`** menentukan section mana yang AKTIF untuk niche ini (§5.5).
+> 5. **Tidak ada konten hardcoded** (§6): tiap teks/gambar/video/icon/list/background
+>    wajib punya `configFields` dengan tipe field yang sesuai.
+> 6. **Minimal varian**: ≥5 header, ≥5 footer, ≥3 untuk tiap tipe section (§5.6).
+>    Pengecualian: `booking` dan `marquee` (renderer single-DOM) boleh 1 varian.
+> 7. **Thumbnail + preview** wajib (§8): `thumbnail.png` di root + `data` lengkap
+>    agar preview/demo identik dengan hasil apply.
+> 8. Animasi **lewat kontrak deklaratif** `animations[]` (§7.1); JS hanya untuk
+>     kasus yang tidak tertutup kontrak itu (§7.2).
+> 9. **Palet + font harus bisa diganti** (§4.3): jangan kunci desain ke satu warna
+>     atau satu font — user bisa pilih predefined color scheme & font di builder.
+> 10. **Mobile-first penuh** (§5.8): template dirancang dari layar HP (375px) ke
+>     atas — fluid, tanpa scroll horizontal, CTA terjangkau, nav jadi hamburger.
+> 11. **Setiap aset harus dipakai** (§2.6): tiap file di `assets/` wajib dirujuk
+>     ≥1 kali oleh config (`assets/nama-file`), dan tiap field gambar di seed
+>     wajib terisi (path `assets/…` atau URL eksplisit) — field kosong tampil
+>     kosong di preview dan diisi foto generik di kanvas.
+> 12. **Tipe kustom diizinkan** (§5.10): id kebab-case tak menabrak 19 bawaan,
+>     ≥1 varian, tiap varian wajib `html` + `configFields` + `defaultConfig`.
+> 13. **Header & Footer milik template** (§5.11): chrome custom wajib punya `html`,
+>     layout kustom tanpa html = error, layout bawaan tanpa html = warning.
+> 13. **Header & Footer milik template** (§5.11): chrome custom wajib punya `html`,
+>    layout kustom tanpa html = error, layout bawaan tanpa html = warning.
 
 ---
 
@@ -72,15 +74,29 @@ menghasilkan SATU file .zip yang bisa di-import langsung ke builder.
 
 ATURAN WAJIB:
 1. Output hanya satu file .zip. Jangan menulis atau mengubah kode aplikasi.
-2. Gunakan HANYA tipe section dan id varian yang terdaftar di Tabel 2 & 3.
-3. Setiap section wajib menyertakan config yang LENGKAP (jangan andalkan default).
-4. Wajib menyertakan 9 section inti: hero, features, pricing, booking,
-   testimonials, gallery, location, faq, contact.
-5. anchorId tiap section harus unik, dan URL nav harus ditulis "#anchorId" yang sama.
-6. Teks di atas latar wajib kontras >= 4.5:1.
-7. Animasi memakai kontrak animations[] (deklaratif); script JS hanya untuk
-   kasus yang tidak tertutup kontrak tersebut.
-8. Jangan memakai pola yang otomatis diblokir sanitizer (lihat §7.4).
+2. Definisikan SEMUA 19 tipe section (Tabel 2), masing-masing ≥3 varian
+   (kecuali booking & marquee yang boleh 1 varian). Kamu BOLEH menambah tipe
+   section kustom (§5.10): id kebab-case baru, ≥1 varian, tiap varian wajib html.
+3. Tentukan activeSections: section yang AKTIF untuk niche ini (boleh memuat
+   tipe kustom milikmu, asal terdefinisi di katalog).
+4. Setiap varian (header/footer/section) wajib punya configFields + defaultConfig
+   yang lengkap — tidak ada konten hardcoded tanpa form field.
+5. Minimal 5 varian header dan 5 varian footer.
+6. HTML kustom BOLEH: variant.html (section-level) dan field type 'html'
+   (field-level). Placeholder {{key}} = teks aman, {{{key}}} = HTML disanitasi.
+   Setiap ID varian KUSTOM wajib punya variant.html ATAU disasar customCss (§5.4).
+7. anchorId tiap section harus unik (kebab-case), dan URL nav ditulis
+   "#anchorId" yang sama.
+8. Teks di atas latar wajib kontras >= 4.5:1.
+9. Animasi memakai kontrak animations[] (deklaratif); script JS hanya untuk
+   kasus yang tidak tertutup kontrak tersebut, dibungkus IIFE.
+10. Palet memakai 8 kunci standar agar predefined color scheme builder bisa
+    menggantikannya. Font memakai nama Google Fonts agar bisa diganti.
+11. Sertakan thumbnail.png (800x600) di root ZIP.
+12. Mobile-first (§5.8): desain dari 375px ke atas, fluid tanpa scroll
+    horizontal, target sentuh ≥44px, body ≥14px, nav mobile = hamburger/drawer.
+13. Setiap file di assets/ wajib dirujuk config; setiap field gambar di seed
+    wajib terisi (§2.6).
 
 SEBELUM MENGEMBALIKAN ZIP, jalankan checklist di §9.
 ```
@@ -92,26 +108,29 @@ SEBELUM MENGEMBALIKAN ZIP, jalankan checklist di §9.
 ```
 nama-template.zip
 ├── template.json        # WAJIB. Root. Konfigurasi utama (lihat §4)
-├── thumbnail.png        # opsional. Root. Kartu galeri (800×600, < 1MB)
+├── thumbnail.png        # WAJIB. Root. Kartu galeri + preview (800×600, < 1MB)
 ├── assets/              # opsional. Aset gambar
 │   ├── logo.png
 │   ├── hero.jpg
 │   └── gallery-01.jpg
-└── behaviours/          # opsional. Script tambahan
-    └── scroll-progress.json
+├── behaviours/          # opsional. Script tambahan (satu JSON per behaviour)
+│   └── scroll-progress.json
+└── animations/          # opsional. meta.json berisi animations[]
+    └── meta.json
 ```
 
-### 2.1 Nama file itu literal, bukan bebas
+### 2.1 Nama file itu literal
 
 | Path | Wajib? | Aturan |
 |---|---|---|
 | `template.json` | **Ya** | Persis di root. Tanpa ini import ditolak. |
-| `thumbnail.png` / `.jpg` / `.jpeg` / `.webp` | Tidak | Persis di **root**, bukan di dalam `assets/`. |
+| `thumbnail.png` / `.jpg` / `.jpeg` / `.webp` | **Ya** | Persis di **root**, bukan di dalam `assets/`. |
 | `assets/*` | Tidak | Semua file langsung di dalam `assets/`. |
 | `behaviours/*.json` | Tidak | Semua file langsung di dalam `behaviours/`. |
+| `animations/meta.json` | Tidak | Array animations. |
 
-File bernama `meta.json` di folder mana pun otomatis dilewati (dipakai oleh
-hasil export sistem).
+File `meta.json` di folder mana pun otomatis dilewati saat import folder itu
+(dipakai hasil export sistem sebagai fallback).
 
 ### 2.2 Batas keras
 
@@ -124,6 +143,8 @@ hasil export sistem).
 | Jumlah aset | ≤ 50 |
 | Ukuran 1 aset | ≤ 10 MB |
 | Jumlah behaviour | ≤ 50 |
+| `variant.html` per varian | ≤ 50.000 karakter |
+| `customCss` | ≤ 200.000 karakter |
 
 ### 2.3 Ekstensi aset yang diizinkan
 
@@ -131,8 +152,7 @@ hasil export sistem).
 jpg  jpeg  png  gif  webp  svg  ico  avif  js  css
 ```
 
-Ekstensi lain → **seluruh import gagal** dengan pesan
-`Tipe file tidak diizinkan`.
+Ekstensi lain → **seluruh import gagal** dengan pesan `Tipe file tidak diizinkan`.
 
 ### 2.4 Cara membuat ZIP
 
@@ -148,28 +168,120 @@ import hanya mencari `template.json` di root.
 
 Bila `template.json` memuat string `assets/hero.jpg`, sistem mengunggah file itu
 ke storage lalu **mengganti semua kemunculan string tersebut** dengan URL final —
-di `theme`, `sections`, `headers`, dan `footers`. Jadi cukup tulis path relatif;
-jangan menulis URL CDN sendiri.
+di `theme`, `sections`, `headers`, `footers`, dan `variant.html`. Jadi cukup tulis
+path relatif; jangan menulis URL CDN sendiri.
 
+### 2.6 Setiap aset harus dipakai (wajib)
+
+Upload tanpa referensi = gambar mati. Aturannya:
+
+1. **Tiap field gambar di seed wajib terisi.** `image`, `logoUrl`,
+   `backgroundImage`, `images`/`gallery`, `avatar` — isi dengan `assets/…`
+   atau URL `https://…` eksplisit. JANGAN kosongkan (`""`) dengan harapan
+   "nanti diisi builder": field kosong tampil kosong di preview dan diisi foto
+   generik (bukan desainmu) di kanvas.
+2. **Tiap file di `assets/` wajib dirujuk ≥1 kali.** File yang tidak dirujuk
+   config manapun memicu warning saat import (import tetap sukses).
+3. Nama file di JSON harus **persis sama** dengan nama file di ZIP
+   (termasuk ekstensi dan huruf besar-kecil): `assets/Hero.jpg` ≠
+   `assets/hero.jpg` — yang kedua tidak terganti dan tampil rusak.
+4. Cek silang sebelum zip: untuk setiap file di `assets/`, `grep` namanya di
+   `template.json` — harus ada ≥1 kemunculan.
+5. **Isi file harus foto asli, bukan placeholder.**
+   Kamu (AI) **tidak bisa menghasilkan foto JPG/PNG asli** — yang kamu tulis
+   hanyalah teks/SVG. Maka untuk foto (hero, galeri, tim, menu):
+   - **Opsi A (disarankan):** pakai URL foto asli langsung di config, mis.
+     `https://images.unsplash.com/photo-…?auto=format&fit=crop&w=1600&q=80`
+     — tanpa mengupload file apapun untuk foto tersebut.
+   - **Opsi B:** beri nama jujur berekstensi `.svg` (mis. `assets/hero.svg`)
+     bila memang hanya placeholder vektor, dan biarkan user mengganti dengan
+     foto asli lewat builder.
+   - **DILARANG:** menyimpan teks/SVG lalu menamainya `.jpg`/`.png`
+     (mis. file 1 KB berisi `<svg…` bernama `hero-catering.jpg`). Sistem
+     mendeteksi ini saat import dan memberi warning, dan gambarnya **tampil
+     rusak** di preview & canvas karena browser menolak SVG berlabel JPEG.
+6. **Jaring pengaman (bukan pengganti aturan di atas):** saat import, field
+   gambar kosong diisi otomatis dari file yang cocok konvensi nama
+   (`logo*` → `logoUrl`, `hero*/banner*` → `image`, `gallery-*`/`foto*` →
+   `images`, `avatar*/team*/chef*` → `avatar`). Hasil pengisian dilaporkan
+   di dialog import. Jangan mengandalkan ini — rujukan eksplisit tetap wajib
+   karena tebakan nama bisa salah (mis. `hero.svg` generik vs foto hero
+   sesungguhnya).
 
 ---
 
-## 3. Skema ZIP yang diterima
+## 3. Ekspresi HTML (baru di v3.0)
 
-`template.json` boleh salah satu dari dua bentuk:
+Template **boleh berekspresi dengan HTML** agar desain kreatif tidak terbatas
+layout bawaan renderer. Dua jalur:
+
+### 3.1 Section-level: `variant.html`
+
+Setiap varian header/footer/section boleh punya kunci `html`:
 
 ```jsonc
-{ "theme": {...}, "sections": [...], "data": {...} }    // bentuk langsung
-{ "template": { "theme": {...}, "sections": [...] } }   // bentuk terbungkus
+{
+  "id": "hero-panggung",
+  "name": "Panggung",
+  "layout": "hero-full",
+  "mockup": "hero-full",
+  "html": "<section data-tpl-type=\"hero\" data-tpl-variant=\"hero-panggung\" class=\"panggung\">\n  <h1>{{headline}}</h1>\n  <p>{{subheadline}}</p>\n  <a href=\"{{cta_link}}\">{{cta_text}}</a>\n</section>",
+  "configFields": [
+    { "key": "headline", "label": "Judul", "type": "text" },
+    { "key": "subheadline", "label": "Sub Judul", "type": "textarea" },
+    { "key": "cta_text", "label": "Teks Tombol", "type": "text" },
+    { "key": "cta_link", "label": "Link Tombol", "type": "text" }
+  ],
+  "defaultConfig": {
+    "headline": "Judul default",
+    "subheadline": "Sub judul default",
+    "cta_text": "Lihat Menu",
+    "cta_link": "#menu"
+  }
+}
 ```
 
-Syarat yang **diperiksa server**:
+Aturan `variant.html`:
 
-- `theme` wajib ada dan berupa object.
-- `headers`, `footers`, `sections` — bila ada, wajib berupa array.
-- `sections` wajib **non-kosong**.
+- Placeholder `{{key}}` diganti `config[key]` (di-escape otomatis — aman).
+- Placeholder `{{{key}}}` diganti `config[key]` mentah tapi **disanitasi dulu**
+  (untuk field bertipe `html`).
+- Variabel tema tersedia sebagai CSS vars di `customCss`: `--color-primary`,
+  `--color-secondary`, `--color-accent`, `--color-background`, `--color-surface`,
+  `--color-text`, `--color-text-muted`, `--color-border`, `--color-on-primary`,
+  `--radius`, `--font-heading`, `--font-body`.
+- Pembungkus hasil render selalu membawa `data-tpl-type` + `data-tpl-variant`
+  agar `customCss`-mu tetap bisa menyasarnya.
+- **Dilarang di dalam `html`**: `<script>`, `<style>`, `<iframe>`, `<object>`,
+  `<embed>`, `<form>`, atribut `on*=` (mis. `onclick=`), dan `javascript:`.
+  Semua diganti `<!-- BLOCKED` saat import & render. Butuh JS → pakai
+  `behaviours[]` (§7.2). Butuh CSS → pakai `customCss` (§8.4).
+- **Wajib responsif** (§5.8): `variant.html` dirancang mobile-first — dilarang
+  `width` fixed di atas 480px (mis. `width:1200px`, `min-width:900px`);
+  pakai layout fluid (`max-width:100%`, grid 1 kolom → multi-kolom via
+  `@md:` mengikuti pola renderer) dan gambar `max-width:100%;height:auto`.
 
-Gagal salah satu syarat di atas = import ditolak.
+### 3.2 Field-level: tipe field `html`
+
+`ConfigField` kini mengenal tipe `html` — textarea khusus untuk konten kaya
+(mis. deskripsi dengan `<strong>/<em>/<a>`, list kustom):
+
+```jsonc
+{ "key": "konten_kaya", "label": "Konten Kaya", "type": "html", "rows": 5 }
+```
+
+Nilai field `html` disanitasi dengan aturan yang sama seperti §3.1, lalu bisa
+ditampilkan lewat `{{{konten_kaya}}}` di `variant.html`, atau dibaca komponen
+section bawaan yang mendukungnya.
+
+### 3.3 Kapan pakai yang mana
+
+| Kebutuhan | Jalur |
+|---|---|
+| Layout section benar-benar baru (tidak muat di varian bawaan) | `variant.html` |
+| Teks dengan formatting di dalam section bawaan | field `html` + `{{{key}}}` |
+| Gaya visual (border, shadow, blur, grid, clip) | `customCss` (§8.4) |
+| Gerakan / interaksi | `animations[]` + `behaviours[]` (§7) |
 
 ---
 
@@ -177,23 +289,26 @@ Gagal salah satu syarat di atas = import ditolak.
 
 ```jsonc
 {
-  "version": "2.0",                  // opsional, informatif
+  "version": "3.0",                  // wajib "3.0" untuk template baru
   "name": "Bengkel Jaya Motor",      // nama template di galeri
   "description": "…",                // maksimal 2000 karakter
   "category": "services",            // Tabel 1
+  "designType": "tech",              // Tabel 1b — jenis desain (wajib)
   "theme":    { … },                 // §4.1 — WAJIB
-  "headers":  [ … ],                 // opsional, Tabel 5
-  "footers":  [ … ],                 // opsional, Tabel 6
-  "sections": [ … ],                 // §5 — WAJIB, non-kosong
+  "headers":  [ … ],                 // §4.4 — WAJIB ≥5 varian
+  "footers":  [ … ],                 // §4.4 — WAJIB ≥5 varian
+  "sections": [ … ],                 // §5 — WAJIB semua 19 tipe
+  "activeSections": [ … ],           // §5.5 — subset yang aktif untuk niche ini
   "data":     { … },                 // §4.2 — dipakai saat template diterapkan
   "animations":  [ … ],              // §7.1 — opsional
   "behaviours":  [ … ]               // §7.2 — opsional
 }
 ```
 
-> **Penting.** `sections` di root dipakai untuk **preview**. Blok `data` dipakai
-> saat template **diterapkan** ke website. Keduanya menunjuk seed yang sama — isi
-> keduanya supaya preview dan hasil apply identik.
+> **Penting.** `sections` di root = **katalog** (semua 19 tipe + variannya,
+> dipakai sidebar + preview). Blok `data.sections` = **seed** (hanya section
+> aktif + kontennya, dipakai saat template diterapkan). Keduanya menunjuk seed
+> yang sama — isi keduanya supaya preview dan hasil apply identik.
 
 ### 4.1 `theme`
 
@@ -210,10 +325,10 @@ Gagal salah satu syarat di atas = import ditolak.
     "border":      "#cbd5e1"
   },
   "typography": {
-    "headingFont": "Barlow",      // WAJIB Google Fonts
-    "bodyFont":    "Inter",
+    "headingFont": "Barlow",      // WAJIB nama Google Fonts
+    "bodyFont":    "Inter",       // WAJIB nama Google Fonts
     "baseSize":    16,
-    "scaleRatio":  1.25,          // rentang wajar 1.125–1.35
+    "scaleRatio":  1.25,
     "headingWeight": 700,
     "bodyWeight":    400
   },
@@ -241,24 +356,19 @@ textMuted vs surface      >= 4.5:1
 teks tombol vs primary    >= 4.5:1
 ```
 
-**Cara aman memilih teks redup**: pakai abu-abu 500–700, bukan 300–400. Abu-abu
-terang di atas putih hanya sekitar 3:1 dan akan ditolak.
-
-**Font**: hanya nama dari Google Fonts. Pilihan yang relevan antara lain:
-`Inter`, `Barlow`, `Archivo`, `Roboto`, `Oswald`, `Playfair Display`, `Poppins`,
-`Montserrat`, `Lora`, `Caveat`, `Nunito`, `Bebas Neue`, `DM Sans`, `Manrope`,
-`Sora`, `Space Grotesk`.
+**Cara aman memilih teks redup**: pakai abu-abu 500–700, bukan 300–400.
 
 ### 4.2 `data` — dipakai saat template diterapkan
 
 ```jsonc
 "data": {
-  "designStyleId":   "dark-mode",  // Tabel 4
+  "designStyleId":   "dark-mode",  // Tabel 4 (10 style bawaan)
   "paletteOverride": { …8 warna… }, // WAJIB: palet yang kamu rancang
   "customCss":       "…",           // §8.4 — CSS bebas, kunci pembeda utama
-  "sections":        [ … ],          // seed, sama dengan `sections` di root
+  "activeSections":  ["hero","features","pricing","booking","testimonials","gallery","location","faq","contact"],
+  "sections":        [ … ],          // seed HANYA section aktif + konten lengkap
   "header": {
-    "variant":   "standard",         // Tabel 5
+    "variant":   "bk-hdr-workshop", // id varian header milikmu (bukan layout global)
     "logoUrl":   "assets/logo.png",
     "siteTitle": "Bengkel Jaya Motor",
     "tagline":   "Servis Motor & Mobil",
@@ -270,10 +380,10 @@ terang di atas putih hanya sekitar 3:1 dan akan ditolak.
     "ctaLink":      "https://wa.me/6281234567890",
     "showCta":      true,
     "sticky":       true,
-    "contentWidth": "6xl"            // Tabel 7
+    "contentWidth": "6xl"
   },
   "footer": {
-    "style": "columns",              // Tabel 6
+    "style": "columns",
     "text":  "© {year} Bengkel Jaya Motor.",   // WAJIB memuat "{year}"
     "navItems":   [ … ],
     "showSocial": true,
@@ -283,7 +393,7 @@ terang di atas putih hanya sekitar 3:1 dan akan ditolak.
     "title":       "Bengkel Jaya Motor — Servis Motor Jakarta Timur",
     "description": "minimal 50 karakter, ideal 120–160"
   },
-  "core": {                          // opsional, cerminkan header/footer
+  "core": {
     "site_title": "…", "tagline": "…",
     "header_nav": [ … ], "footer_nav": [ … ],
     "footer_text": "© {year} …"
@@ -291,9 +401,42 @@ terang di atas putih hanya sekitar 3:1 dan akan ditolak.
 }
 ```
 
-**Aturan `url` pada navItems**: untuk section dalam halaman pakai anchor
-(`"#layanan"`). Pakai `isExternal: true` hanya untuk link ke luar.
+### 4.3 Palet & font harus bisa diganti builder
 
+Template membawa desainnya sendiri, TAPI:
+
+- Palet memakai **tepat 8 kunci standar** (`primary`, `secondary`, `accent`,
+  `background`, `surface`, `text`, `textMuted`, `border`) agar predefined color
+  scheme builder bisa menggantikannya satu-per-satu. Jangan menambah kunci
+  sendiri; jangan mengunci warna di dalam `variant.html` atau `customCss`
+  dengan hex mentah — pakai `var(--color-*)`.
+- Font memakai **nama Google Fonts** agar predefined font builder bisa
+  menggantikannya. Contoh valid: `Inter`, `Barlow`, `Playfair Display`,
+  `Bebas Neue`, `Space Grotesk`, `Nunito`, `Caveat`, `DM Sans`, `Manrope`.
+
+Contoh: template bernuansa coklat (`primary: #92400e`) harus tetap tampil benar
+ketika user memilih skema biru — karena semua warna mengalir dari 8 kunci itu.
+
+### 4.4 `headers` / `footers` — ≥5 varian masing-masing
+
+Setiap varian:
+
+```jsonc
+{
+  "id": "bk-hdr-workshop",          // unik dalam template, kebab-case
+  "name": "Bar Pabrik",             // nama di pemilih varian sidebar
+  "description": "…",
+  "layout": "standard",             // Tabel 5 (header) / Tabel 6 (footer)
+  "mockup": "header-standard",      // preview mini di galeri (wajib diisi)
+  "maxNavDepth": 1,                 // header saja: 1 = datar, 2 = boleh submenu
+  "html": "…opsional…",             // §3.1
+  "configFields": [ … ],            // §6 — form sidebar varian ini
+  "defaultConfig": { … }            // §6 — nilai awal, semua key punya field
+}
+```
+
+Kelima varian harus **benar-benar berbeda desainnya** (komposisi, bentuk,
+dekorasi) — bukan sekadar geser rata kiri/tengah/kanan.
 
 ---
 
@@ -309,208 +452,450 @@ terang di atas putih hanya sekitar 3:1 dan akan ditolak.
 | `handicraft` | Kerajinan, ukir, anyaman, buatan tangan |
 | `services` | Bengkel, barbershop, salon, klinik, jasa, kursus |
 
-### Tabel 2 — 19 tipe section + id varian yang valid
-
-| `type` | Varian yang boleh dipakai |
-|---|---|
-| `hero` | `hero-full`, `hero-split`, `hero-card`, `hero-video-bg` |
-| `features` | `features-3col`, `features-list`, `features-stacked`, `features-masonry` |
-| `pricing` | `pricing-2tier`, `pricing-3tier` |
-| `booking` | `booking-single`, `booking-split` |
-| `testimonials` | `testimonials-grid`, `testimonials-carousel`, `testimonials-single` |
-| `gallery` | `gallery-grid`, `gallery-masonry`, `gallery-carousel` |
-| `location` | `location-hours` *(satu-satunya varian)* |
-| `faq` | `faq-accordion`, `faq-list`, `faq-grid` |
-| `contact` | `contact-form`, `contact-form-map`, `contact-split` |
-| `about` | `about-left`, `about-right`, `about-centered` |
-| `team` | `team-grid`, `team-list` |
-| `video` | `video-full`, `video-centered` |
-| `menu_board` | `menu-tabs`, `menu-list` |
-| `steps` | `steps-3col` *(satu-satunya varian)* |
-| `cta` | `cta-banner`, `cta-card`, `cta-split` |
-| `newsletter` | `newsletter-inline`, `newsletter-card` |
-| `marquee` | `marquee-band` *(satu-satunya varian)* |
-| `divider` | `divider-line`, `divider-spacer` |
-| `product_grid` | `product-2col`, `product-3col`, `product-4col`, `product-carousel` |
-
-> **PENTING — `product_grid` belum berfungsi.** Di renderer saat ini section ini
-> hanya menampilkan placeholder abu-abu, bukan produk asli. **Jangan pakai
-> `product_grid`** untuk daftar layanan atau katalog. Gunakan `menu_board`
-> (daftar layanan + harga) atau `pricing`.
-
-> **Varian yang tidak dikenal akan ditimpa diam-diam** menjadi varian pertama
-> milik tipe tersebut. Jadi `booking-single` yang salah ketik berubah jadi
-> `booking-split` tanpa error. Periksa ejaan id dengan teliti.
-
-### Tabel 3 — Config key per section
-
-Isi semua key yang relevan; nilai yang tidak kamu isi akan tampil kosong.
-
-**hero**
-```jsonc
-{ "headline": "…", "subheadline": "…",
-  "cta_text": "…", "cta_link": "#booking",
-  "text_align": "center",            // center | left | right
-  "image": "assets/hero.jpg" }
-```
-
-**features**
-```jsonc
-{ "title": "…",
-  "items": [ { "icon": "🔧", "title": "…", "description": "…" } ] }   // icon = emoji
-```
-
-**menu_board — daftar layanan + harga**
-```jsonc
-// varian menu-tabs
-{ "title": "Layanan dan Harga", "subtitle": "…",
-  "groups": [ { "key": "perawatan", "label": "Perawatan Berkala",
-    "items": [ { "name": "Ganti Oli", "desc": "…", "price": "Mulai Rp 150rb" } ] } ] }
-
-// varian menu-list — datar
-{ "title": "…", "subtitle": "…",
-  "items": [ { "name": "…", "desc": "…", "price": "…" } ] }
-```
-
-**pricing**
-```jsonc
-{ "title": "Paket Servis",
-  "items": [ { "name": "Servis Reguler", "price": "Mulai Rp 250rb",
-    "features": ["Ganti oli", "Cek rem"] } ] }
-```
-
-**booking — WAJIB punya `services` dan `success_message`**
-```jsonc
-{ "title": "Booking Servis", "subtitle": "…",
-  "services": [ { "name": "Ganti Oli", "duration": "30-45 menit",
-                  "price": "Mulai Rp 150rb" } ],   // minimal 1, `name` wajib
-  "address": "…", "hours": "Senin-Sabtu, 08.00-19.00",
-  "success_message": "Booking diterima!",           // WAJIB
-  "forward_wa": "" }                                // nomor WA untuk kirim otomatis
-```
-
-**testimonials · gallery · location · faq · contact**
-```jsonc
-{ "title": "Kata Pelanggan",
-  "items": [ { "name": "Rudi", "text": "…", "rating": 5 } ] }      // rating 1-5
-
-{ "title": "Galeri Pekerjaan",
-  "images": ["assets/galeri-01.jpg", "assets/galeri-02.jpg"] }
-
-{ "title": "Kunjungi Kami", "address": "…", "note": "Parkir luas",
-  "button_text": "Chat via WhatsApp", "button_link": "https://wa.me/628…",
-  "hours": [ { "days": "Senin-Sabtu", "time": "08.00-19.00" } ] }
-
-{ "title": "Sering Ditanyakan",
-  "items": [ { "question": "…", "answer": "…" } ] }
-
-{ "title": "Hubungi Kami", "subtitle": "…", "address": "…", "show_map": true }
-```
-
-**about · team · steps · cta · newsletter · divider · marquee**
-```jsonc
-{ "title": "…", "content": "…", "image": "assets/tim.jpg" }              // about
-{ "title": "…", "members": [ { "name": "…", "role": "…",
-                               "image": "assets/x.jpg" } ] }            // team
-{ "title": "Cara Booking", "subtitle": "…",
-  "items": [ { "title": "Langkah 1", "description": "…" } ] }            // steps
-{ "title": "…", "text": "…", "cta_text": "…", "cta_link": "#booking" }  // cta
-{ "title": "…", "subtitle": "…", "placeholder": "Email Anda",
-  "button_text": "Daftar" }                                              // newsletter
-{ "style": "solid", "color": "#cbd5e1" }          // solid|dashed|dotted // divider
-{ "items": ["Promo 1", "Promo 2"] }                                     // marquee
-```
-
-### 5.4 Seed wajib lengkap
-
-Seed section berbentuk:
-
-```jsonc
-{ "type": "menu_board", "variant": "menu-tabs", "anchorId": "layanan",
-  "config": { …config lengkap di atas… } }
-```
-
-Sertakan **seluruh** key config di `config`. Sistem tidak menebak isinya, dan
-
----
-
-## 6. Kontrak 9 Section Inti
-
-Template **ditolak** bila salah satu tipe ini tidak ada di `sections`:
-
-| # | Tipe | Dipakai untuk |
-|---|---|---|
-| 1 | `hero` | Identitas usaha di atas lipatan |
-| 2 | `features` | Keunggulan / alasan memilih |
-| 3 | `pricing` | Struktur harga atau paket |
-| 4 | `booking` | Alur pemesanan / appointment |
-| 5 | `testimonials` | Bukti sosial |
-| 6 | `gallery` | Foto pekerjaan / produk |
-| 7 | `location` | Alamat + jam buka |
-| 8 | `faq` | Mencegah pertanyaan berulang |
-| 9 | `contact` | Kanal kontak |
-
-Sisanya (`about`, `steps`, `menu_board`, `cta`, `marquee`, `divider`,
-`newsletter`, `team`, `video`) opsional — pakai bila relevan dengan niche.
-
-### 6.1 Aturan `anchorId`
-
-- Wajib **kebab-case** tanpa spasi: `layanan`, `harga-lengkap`.
-- Wajib **unik** dalam satu template.
-- Kalau `url` nav = `"#layanan"`, harus ada section ber-`anchorId: "layanan"`.
-  Tanpa itu tautan menu tidak menuju ke mana pun.
-- Section tanpa kebutuhan navigasi (mis. `divider`) boleh tanpa `anchorId`.
-
-### Tabel 4 — `designStyleId` (TEPAT 10, dari `DESIGN_STYLES`)
+### Tabel 1b — Jenis desain (`designType`, wajib)
 
 | Nilai | Kesan |
 |---|---|
-| `minimalist` | Bersih, netral, aman untuk semua niche |
-| `flat` | 2D datar, warna jelas, sudut tajam |
-| `dark-mode` | **Latar gelap, aksen terang** — satu-satunya style gelap |
-| `neo-brutalism` | Garis tebal, kontras keras, brutalis |
-| `glassmorphism` | Kaca frosted, blur, efek cahaya |
-| `organic` | Lembut, hangat, handmade |
-| `retro` | Retro / vintage, bernuansa nostalgi |
-| `typography` | Tipografi besar sebagai elemen utama |
-| `parallax` | Latar bergeser saat scroll |
-| `3d-immersive` | 3D & immersive |
+| `editorial` | Tipografi besar, ruang kosong lega, garis tipis, kontras tinggi |
+| `brutalist` | Sudut tajam, border tebal, blok warna rata |
+| `organic` | Radius besar, warna hangat, kesan handmade |
+| `luxury` | Serif/display, whitespace lega, aksen mewah |
+| `tech` | Grid tegas, monospace, warna dingin, utilitarian |
 
-> **Jangan mengarang id baru.** `terakota`, `hutan`, `laut`, `anggur`, `mono`
-> **bukan** design style — itu color scheme / palet picker, kumpulan berbeda.
-> Id yang tidak terdaftar akan ditolak dengan pesan
-> `style <id> tak terdaftar`.
+### Tabel 2 — 19 tipe section predefined (SEMUA wajib didefinisikan + boleh tambah tipe kustom §5.10)
 
-> **Catatan penting:** `designStyleId` hanya label gaya + bahan untuk panel
-> pilihan warna. Yang benar-benar tampil di halaman adalah `paletteOverride`.
-> Template gelap **wajib** memakai `paletteOverride` penuh (semua 8 warna),
-> karena sebagian besar style bawaan bertema terang.
-
-### Tabel 5 — Varian header
-
-`standard`, `floating`, `hero-overlay`, `split-nav`, `with-topbar`, `glass`,
-`minimal` — ketujuhnya benar-benar tersedia.
-
-### Tabel 6 — Varian footer
-
-`simple`, `columns`, `centered`, `minimal` — **empat ini saja**.
-(`newsletter` dan `social` pernah ada di template bawaan tetapi tidak
-merender berbeda dari `simple` — jangan dipakai.)
-
-### Tabel 7 — `contentWidth` (lebar isi header)
-
-| Nilai | Lebar |
+| `type` | Contoh varian (≥3 tiap tipe) |
 |---|---|
-| `full` | Mengikuti lebar layar (perilaku lama) |
-| `6xl` | 1152px — **disarankan**, sama dengan footer & section hero |
-| `5xl` | 1024px |
-| `4xl` | 896px |
+| `hero` | `hero-full`, `hero-split`, `hero-card`, `hero-video-bg` |
+| `features` | `features-3col`, `features-list`, `features-stacked`, `features-masonry` |
+| `pricing` | `pricing-2tier`, `pricing-3tier`, + 1 varian kreasimu |
+| `booking` | `booking-single`, `booking-split` (boleh 1–2 — single-DOM) |
+| `testimonials` | `testimonials-grid`, `testimonials-carousel`, `testimonials-single` |
+| `gallery` | `gallery-grid`, `gallery-masonry`, `gallery-carousel` |
+| `location` | `location-hours`, + 2 varian kreasimu |
+| `faq` | `faq-accordion`, `faq-list`, `faq-grid` |
+| `contact` | `contact-form`, `contact-form-map`, `contact-split` |
+| `about` | `about-left`, `about-right`, `about-centered` |
+| `team` | `team-grid`, `team-list`, + 1 varian kreasimu |
+| `video` | `video-full`, `video-centered`, + 1 varian kreasimu |
+| `menu_board` | `menu-tabs`, `menu-list`, + 1 varian kreasimu (`menu-grid`) |
+| `steps` | `steps-3col`, + 2 varian kreasimu (`steps-horizontal`, `steps-numbered`) |
+| `cta` | `cta-banner`, `cta-card`, `cta-split` |
+| `newsletter` | `newsletter-inline`, `newsletter-card`, + 1 varian kreasimu |
+| `divider` | `divider-line`, `divider-spacer`, + 1 varian kreasimu |
+| `marquee` | `marquee-band` (boleh 1 — single-DOM) |
+| `product_grid` | `product-2col`, `product-3col`, `product-4col`, `product-carousel` |
+
+> ID varian boleh kreasimu sendiri (mis. `hero-panggung`), TAPI bila tanpa
+> `html` (§3.1) ia jatuh ke branch default renderer dan tampak sama dengan
+> varian lain. **Varian kustom tanpa `html` + tanpa `customCss` = varian mati.**
+> Selalu sertakan salah satunya. Detail + cara cek di §5.4.
+
+### 5.4 ID varian kustom wajib hidup (aturan keras)
+
+Renderer hanya mengenal ID bawaan (contoh hero: `hero-full`, `hero-split`,
+`hero-card`, `hero-video-bg`). Setiap ID di luar itu (contoh nyata yang pernah
+lolos: `hero-katering-full`, `hero-katering-split`) WAJIB memenuhi **salah satu**:
+
+- (a) punya kunci `html` (§3.1) dengan markup yang benar-benar berbeda, ATAU
+- (b) disasar eksplisit di `customCss`/`data.customCss`, mis.
+  `[data-tpl-variant="hero-katering-full"] { … }`.
+
+Bila tidak, import memunculkan warning persis seperti ini (dan varian tampil
+kembar dengan default):
+
+```
+Varian "hero/hero-katering-full" tidak dikenal renderer dan tanpa
+html/customCss — tampil sama dengan varian default. Tambahkan variant.html
+atau sasar via customCss.
+```
+
+**Cek mandiri sebelum zip** (wajib): kumpulkan semua ID varian yang TIDAK ada
+di Tabel 2, lalu untuk tiap ID pastikan `grep "id-tersebut"` mengenai `html`
+miliknya sendiri ATAU `customCss`. Bila tidak kena keduanya → perbaiki dulu,
+jangan mengandalkan warning import.
+
+### Tabel 3 — Config key per section + tipe field yang sesuai
+
+Setiap konten wajib punya field dengan tipe yang tepat (syarat §6):
+
+**hero** — `headline` (text), `subheadline` (textarea), `cta_text` (text),
+`cta_link` (text), `text_align` (select), `image` (image), `video_url` (text)
+
+**features** — `title` (text), `items` (list: `icon` text-emoji, `title` text,
+`description` textarea)
+
+**menu_board** — `title` (text), `subtitle` (textarea), `groups` (list: `key` text,
+`label` text, `items` list: `name` text, `desc` textarea, `price` text) untuk
+`menu-tabs`; atau `items` datar untuk `menu-list`
+
+**pricing** — `title` (text), `items` (list: `name` text, `price` text,
+`features` = **`string[]` polos**, mis. `["Ganti oli", "Cek rem"]`.
+JANGAN isi objek (`[{ "text": "…" }]`) — itu membuat seluruh halaman crash
+putih. Renderer menoleransinya agar tidak roboh, tapi bentuk kanonis tetap
+string polos.)
+
+**booking** — WAJIB `title` (text), `subtitle` (textarea), `services` (list:
+`name` text, `duration` text, `price` text, minimal 1), `address` (textarea),
+`hours` (text), `success_message` (textarea, WAJIB), `forward_wa` (text)
+
+**testimonials** — `title` (text), `items` (list: `name` text, `text` textarea,
+`rating` number 1–5, `avatar` image opsional)
+
+**gallery** — `title` (text), `images` (gallery) atau `images` (list image)
+
+**location** — `title` (text), `address` (textarea), `note` (textarea),
+`button_text` (text), `button_link` (text), `hours` (list: `days` text,
+`time` text)
+
+**faq** — `title` (text), `items` (list: `question` text, `answer` textarea)
+
+**contact** — `title` (text), `subtitle` (textarea), `address` (textarea),
+`phone` (text), `email` (text), `show_map` (switch)
+
+**about/team/steps/cta/newsletter/divider/marquee/product_grid** — lihat contoh
+`template-bengkel.zip` (§10): `title` (text), `content`/`subtitle` (textarea
+atau `html`), `image` (image), `members` (list), `items` (list),
+`button_text`/`cta_text` (text), `placeholder` (text), `style`/`color`
+(select/color), `columns` (number).
+
+### 5.5 `activeSections` — section mana yang aktif untuk niche ini
+
+`activeSections` = subset 19 tipe yang **di-seed ke kanvas** (`data.sections`):
+
+```jsonc
+"activeSections": ["hero","features","menu_board","pricing","booking","testimonials","gallery","location","faq","contact"]
+```
+
+Aturan:
+
+- Wajib subset dari 19 tipe Tabel 2 (yang tak dikenal dibuang saat import).
+- `data.sections` hanya berisi tipe yang ada di `activeSections`, berurutan
+  sesuai alur halaman (hero dulu, contact terakhir).
+- 9 section inti UMKM **wajib aktif**: `hero`, `features`, `pricing`, `booking`,
+  `testimonials`, `gallery`, `location`, `faq`, `contact`.
+- Sisa 10 tipe (`about`, `steps`, `menu_board`, `cta`, `marquee`, `divider`,
+  `newsletter`, `team`, `video`, `product_grid`) aktifkan bila relevan dengan
+  niche (mis. warung makan aktifkan `menu_board`; bengkel aktifkan `steps`).
+
+### 5.6 Minimal varian
+
+| Elemen | Minimal |
+|---|---|
+| Header | ≥5 varian, layout benar-benar dirender (Tabel 5), tiap punya `mockup` |
+| Footer | ≥5 varian, layout benar-benar dirender (Tabel 6), tiap punya `mockup` |
+| Tiap tipe section | ≥3 varian, tiap punya `mockup` — kecuali `booking` & `marquee` (boleh 1) |
+
+### 5.7 Aturan `anchorId` dan nav
+
+- `anchorId` wajib **kebab-case** tanpa spasi (`layanan`, `harga-lengkap`) dan
+  **unik** dalam satu template.
+- Kalau `url` nav = `"#layanan"`, harus ada section ber-`anchorId: "layanan"`.
+- Section tanpa kebutuhan navigasi (mis. `divider`) boleh tanpa `anchorId`.
+
+### 5.8 Mobile-first penuh (spek wajib v3.1)
+
+Template dirancang **dari layar HP ke atas**, bukan sebaliknya. Pengunjung UMKM
+mayoritas dari HP — halaman yang rusak di 375px = template ditolak.
+
+**Breakpoint builder:**
+
+| Perangkat | Lebar | Perilaku section |
+|---|---|---|
+| HP (mobile) | < 640px | 1 kolom, nav jadi hamburger/drawer |
+| Tablet | 640–1023px | 2 kolom / campuran |
+| Desktop | ≥ 1024px | Multi-kolom penuh |
+
+**Aturan layout (berlaku untuk `variant.html` maupun section bawaan):**
+
+1. **Satu kolom sebagai default.** Grid/kolom ganda hanya di breakpoint naik
+   (`@md:`/`@sm:` mengikuti pola renderer: `grid grid-cols-1 @md:grid-cols-3`).
+2. **Dilarang lebar fixed di atas 480px** di `variant.html` maupun `customCss`:
+   `width:1200px`, `min-width:900px`, dan sejenisnya. Pakai
+   `max-width:100%` + `margin:auto` untuk membatasi di desktop.
+3. **Gambar responsif**: selalu `max-width:100%;height:auto`. Jangan mengandalkan
+   atribut `width`/`height` mentah dari aset.
+4. **Tidak boleh scroll horizontal di 375px.** Penyebab umum: flex tanpa wrap,
+   teks tanpa break (`word-break`), badge/marquee terlalu lebar, tabel tanpa
+   wrapper scroll.
+5. **Target sentuh ≥ 44×44px** untuk tombol, link nav, ikon hamburger, dan
+   kontrol form. Jarak antar target yang bersebelahan cukup untuk jempol.
+6. **Tipografi mobile**: body ≥ 14px, headline hero proporsional (jangan 72px di
+   HP — turunkan via `@md:` atau `clamp()`), line-height ≥ 1.5 untuk paragraf.
+7. **Navigasi mobile = hamburger/drawer**, bukan dropdown dan bukan menu desktop
+   yang dikecilkan. Menu drawer menutup otomatis setelah item diklik lalu scroll
+   ke anchor (`scrollIntoView smooth`). CTA header yang ramai boleh
+   disembunyikan di HP agar header ringkas.
+8. **Form mobile**: input full-width 1 kolom, keyboard yang tepat (`type=tel`
+   untuk telepon, `type=email` untuk email — lewat placeholder pola bila perlu),
+   tombol submit selebar layar.
+9. **Sembunyikan section per perangkat bila relevan** lewat `responsive`
+   (`hideOnMobile` / `hideOnTablet` / `hideOnDesktop`) — mis. marquee hiasan
+   disembunyikan di HP, tabel harga lebar diganti varian ringkas. Jangan
+   menyembunyikan konten inti (hero, kontak, CTA booking) di perangkat mana pun.
+
+**Aturan `customCss` responsif:**
+
+- Tulis gaya mobile dulu, tambah `@media (min-width:640px)` /
+  `@media (min-width:1024px)` untuk naik — atau sasar `@md:` mengikuti pola
+  renderer. Jangan menulis gaya desktop lalu menimpanya dengan `max-width`.
+- Dilarang `position:fixed` kecuali header sticky / progress bar.
+  Dilarang `overflow-x` yang memaksa scroll halaman.
+
+**Verifikasi (wajib sebelum zip):** buka preview di **375px**, lalu 768px, lalu
+1024px. Checklist: tidak ada scroll horizontal; hero terbaca tanpa zoom; CTA
+terjangkau jempol; nav jadi hamburger di HP; form bisa diisi dengan keyboard HP.
+
+### 5.9 Lebar konten section: boxed, bukan full-width selebar layar
+
+Isi section **wajib dibox** (wadah terbatas + rata tengah), mengikuti section
+bawaan renderer (`max-w-6xl`/`max-w-4xl` + `mx-auto`). Teks dan kartu yang
+melebar satu layar penuh tidak terbaca dan terlihat rusak di monitor lebar.
+
+**Skala lebar konten (sama dengan Tabel 7 header):**
+
+| Lebar | Nilai | Untuk |
+|---|---|---|
+| `4xl` | 896px | Teks panjang: FAQ, testimoni tunggal, about-centered |
+| `5xl` | 1024px | Sedang: pricing 2-tier, kontak split |
+| `6xl` | 1152px — **default** | Umum: hero, features, galeri, pricing 3-tier |
+| `full` | Mengikuti layar | **Hanya latar/pita**: background hero, marquee, wave divider — isinya tetap dibox di dalamnya |
+
+**Aturan:**
+
+1. **Default `6xl` (1152px) + `margin:auto`** untuk semua section konten, kecuali
+   yang memang sempit secara sifatnya (`4xl`/`5xl` pada tabel di atas).
+2. **`full` hanya untuk lapisan latar**, bukan isi. Background boleh selebar
+   layar (foto hero, pita marquee, gradasi CTA), tapi judul/teks/tombol di
+   atasnya tetap dibungkus wadah `6xl` (atau lebih sempit) yang terpusat.
+3. **Padding horizontal wajib**: `24px` di HP (`px-6`), boleh longgar di desktop.
+   Isi tidak boleh menempel ke tepi layar di 375px.
+4. **Di `variant.html`**: bungkus isi dengan
+   `<div style="max-width:1152px;margin:0 auto;padding:0 24px">…</div>`
+   (ganti angka sesuai tabel). Jangan mengandalkan class Tailwind semata —
+   wadah eksplisit lebih tahan (lihat §8.1).
+5. **Di `customCss`**: bila menimpa lebar section bawaan, sasar
+   `[data-tpl-type="X"] > div` dengan `max-width` + `margin-inline:auto` —
+   jangan `width:100vw` (memicu scroll horizontal) dan jangan melebarkan
+   melampaui `6xl` kecuali untuk lapisan latar (aturan 2).
+6. **Sejajar vertikal**: semua section satu halaman memakai lebar yang sama
+   (umumnya `6xl`) agar tepi kiri-kanan rata dari hero sampai footer —
+   selaras dengan `contentWidth` header (Tabel 7, default `6xl`).
+
+**Verifikasi:** buka preview di **1440px** (atau monitor terlebar): tidak ada
+teks/kartu yang menempel ke tepi layar; tepi konten hero ≈ tepi konten
+features ≈ tepi footer.
+
+### 5.10 Tipe section kustom — buat tipe barumu sendiri (v3.4)
+
+19 tipe Tabel 2 adalah fondasi wajib, **bukan batas**. Bila niche butuh blok
+yang tidak muat di tipe manapun (contoh: `jadwal-sholat`, `kalkulator-ongkir`,
+`menu-harian`), buat tipe sendiri. Bedakan dengan §5.4: itu soal ID *varian*
+kustom di dalam tipe bawaan; ini soal *tipe* yang benar-benar baru.
+
+**Syarat tipe kustom (divalidasi otomatis, gagal = import ditolak):**
+
+1. **Id kebab-case**, huruf kecil/angka/strip, maks 40 karakter, mis.
+   `promo-gacor`. **Dilarang** memakai nama 19 bawaan (`hero`, `faq`, …).
+2. **≥1 varian**, tiap varian punya `name`, `configFields`, `defaultConfig`,
+   `mockup` — sama seperti varian biasa.
+3. **Tiap varian WAJIB punya `html` non-kosong.** Renderer tidak punya branch
+   untuk tipe asing; tanpa html, section jatuh ke placeholder bertuliskan
+   `Section: <type>` dan praktis mati. Tidak ada pengecualian.
+4. `html` memakai placeholder `{{key}}` / `{{{key}}}` seperti biasa (§3.1),
+   mengikuti aturan responsif (§5.8: fluid, 1 kolom default) dan lebar boxed
+   (§5.9: bungkus isi `max-width` + `margin:auto`).
+5. Daftarkan tipe kustom di `activeSections` / seed bila dipakai di halaman —
+   hanya tipe yang terdefinisi di katalog yang boleh aktif.
+
+**Contoh minimal:**
+
+```jsonc
+{
+  "type": "jadwal-sholat",
+  "name": "Jadwal Sholat",
+  "icon": "Clock",
+  "variants": [
+    {
+      "id": "jadwal-sholat-kartu",
+      "name": "Kartu",
+      "description": "Kartu jadwal sholat harian",
+      "layout": "jadwal-sholat-kartu",
+      "mockup": "jadwal-sholat-kartu",
+      "html": "<section data-tpl-type=\"jadwal-sholat\" data-tpl-variant=\"jadwal-sholat-kartu\"><div style=\"max-width:1152px;margin:0 auto;padding:0 24px\"><h2>{{title}}</h2><p>{{subtitle}}</p></div></section>",
+      "configFields": [
+        { "key": "title", "label": "Judul", "type": "text" },
+        { "key": "subtitle", "label": "Sub Judul", "type": "textarea" }
+      ],
+      "defaultConfig": { "title": "Jadwal Sholat", "subtitle": "… " }
+    }
+  ]
+}
+```
+
+Catatan: `icon` bebas (dipakai pemilih blok; tak dikenal → ikon default).
+`layout` bebas (hanya label; yang dirender adalah `html`).
+
+### 5.11 Header & Footer milik template — chrome custom (v3.4)
+
+**Prinsip:** Header & footer **wajib** menggunakan varian milik template. Template **tidak boleh** mengandalkan header/footer bawaan builder (default). Jika template tidak menyediakan `html` untuk varian header/footer, ia akan tampil seperti template bawaan builder (default), bukan desain milik template.
+
+**Layout bawaan (renderer punya branch):**  
+- Header: `standard`, `floating`, `hero-overlay`, `split-nav`, `with-topbar`, `glass`, `minimal`  
+- Footer: `simple`, `columns`, `centered`, `minimal`, `newsletter`, `social`, `cta-overlap`
+
+**Aturan keras (divalidasi otomatis saat import):**
+
+| Situasi | Aturan | Konsekuensi |
+|---|---|---|
+| Layout **kustom** (di luar daftar di atas) **tanpa `html`** | **ERROR** — import ditolak | Renderer tidak punya branch → desain hilang diam-diam |
+| Layout **bawaan** **tanpa `html`** | **WARNING** (import tetap sukses) | Tampil persis seperti bawaan builder; bukan desain template. Tambahkan `variant.html` untuk desain sendiri. |
+| Layout **kustom** **dengan `html`** | OK | Desain custom berjalan via `variant.html` |
+
+**Aturan desain chrome:**
+1. Layout kustom **WAJIB** punya `html` non-kosong di setiap varian. Tanpa html, import gagal (error).
+2. Layout bawaan **DISARANKAN** punya `html` agar desain jadi milik template, bukan bawaan builder. Tanpa html → warning di import.
+3. Setiap varian chrome WAJIB punya `configFields` + `defaultConfig` + `mockup` (untuk galeri).
+4. `configFields` chrome: `logoUrl`, `siteTitle`, `tagline`, `navItems` (list), `ctaText`, `ctaLink`, `showCta`, `sticky` (header); `siteTitle`, `logoUrl`, `text`, `showNav`, `navItems`, `showSocial`, `address`, `phone`, `email` (footer) — serupa §4.3.
+5. `defaultConfig` chrome WAJIB terisi (tidak boleh kosong `""` atau `[]`) agar preview & apply tidak kosong.
+
+**Contoh varian header kustom:**
+
+```jsonc
+{
+  "id": "hdr-katering-split",
+  "name": "Split Nav",
+  "description": "Brand kiri, menu kanan, CTA sticky",
+  "layout": "hdr-katering-split",
+  "mockup": "header-split",
+  "html": "<header data-tpl-type=\"header\" data-tpl-variant=\"hdr-katering-split\"><div style=\"max-width:1152px;margin:0 auto;padding:0 24px\"><a href=\"#\"><img src=\"{{logoUrl}}\" alt=\"{{siteTitle}}\"/></a><nav>{{navItems}}</nav><a href=\"{{ctaLink}}\" class=\"btn\">{{ctaText}}</a></div></header>",
+  "configFields": [
+    { "key": "logoUrl", "label": "Logo URL", "type": "image" },
+    { "key": "siteTitle", "label": "Nama Toko", "type": "text" },
+    { "key": "tagline", "label": "Tagline", "type": "text" },
+    { "key": "navItems", "label": "Menu Navigasi", "type": "list", "itemFields": [{ "key": "label", "type": "text" }, { "key": "url", "type": "text" }] },
+    { "key": "ctaText", "label": "Teks CTA", "type": "text" },
+    { "key": "ctaLink", "label": "Link CTA", "type": "text" },
+    { "key": "showCta", "label": "Tampilkan CTA", "type": "switch" },
+    { "key": "sticky", "label": "Header menempel", "type": "switch" }
+  ],
+  "defaultConfig": {
+    "logoUrl": "",
+    "siteTitle": "Catering",
+    "tagline": "Makanan Sehat Setiap Hari",
+    "navItems": [],
+    "ctaText": "Pesan Sekarang",
+    "ctaLink": "#pesan",
+    "showCta": true,
+    "sticky": true
+  }
+}
+```
+
+**Contoh varian footer kustom:**
+
+```jsonc
+{
+  "id": "ftr-katering-split",
+  "name": "Split Footer",
+  "description": "Brand kiri, navigasi tengah, kontak kanan",
+  "layout": "ftr-katering-split",
+  "mockup": "footer-split",
+  "html": "<footer data-tpl-type=\"footer\" data-tpl-variant=\"ftr-katering-split\"><div style=\"max-width:1152px;margin:0 auto;padding:0 24px\"><div class=\"grid grid-cols-3 gap-8\"><div><h4>{{siteTitle}}</h4><p>{{address}}</p></div><nav>{{navItems}}</nav><div><p>{{phone}}</p><p>{{email}}</p></div></div></footer>",
+  "configFields": [
+    { "key": "siteTitle", "label": "Nama Toko", "type": "text" },
+    { "key": "logoUrl", "label": "Logo URL", "type": "image" },
+    { "key": "text", "label": "Teks Copyright", "type": "text" },
+    { "key": "showNav", "label": "Tampilkan Navigasi", "type": "switch" },
+    { "key": "navItems", "label": "Menu Footer", "type": "list", "itemFields": [{ "key": "label", "type": "text" }, { "key": "url", "type": "text" }] },
+    { "key": "showSocial", "label": "Tampilkan Sosmed", "type": "switch" },
+    { "key": "address", "label": "Alamat", "type": "text" },
+    { "key": "phone", "label": "Telepon", "type": "text" },
+    { "key": "email", "label": "Email", "type": "text" }
+  ],
+  "defaultConfig": {
+    "siteTitle": "Catering",
+    "logoUrl": "",
+    "text": "© {year} Catering.",
+    "showNav": true,
+    "navItems": [],
+    "showSocial": true,
+    "address": "",
+    "phone": "",
+    "email": ""
+  }
+}
+```
+
+**Catatan:** `layout` di chrome hanya label; yang dirender adalah `html`. `id` harus unik kebab-case. Setiap varian chrome wajib punya `html`, `configFields`, `defaultConfig`, `mockup`. Tanpa `html`, varian tidak akan tampil beda dari bawaan.
 
 ---
 
-## 7. Kontrak Animasi
+### Tabel 4 — `designStyleId` (10 style bawaan)
 
-Dua jalur. **Pakai jalur deklaratif (§7.1) sedapat mungkin** — tidak butuh JS.
+`minimalist` · `flat` · `dark-mode` (satu-satunya gelap) · `neo-brutalism` ·
+`glassmorphism` · `organic` · `retro` · `typography` · `parallax` · `3d-immersive`
+
+> `designStyleId` hanya label + bahan panel warna. Yang tampil di halaman adalah
+> `paletteOverride` — template gelap wajib memakai `paletteOverride` penuh.
+
+### Tabel 5 — Layout header (7, semuanya dirender)
+
+`standard` · `floating` · `hero-overlay` · `split-nav` · `with-topbar` ·
+`glass` · `minimal`
+
+### Tabel 6 — Layout footer
+
+`simple` · `columns` · `centered` · `minimal` (+ varian kreasimu via `html`)
+
+### Tabel 7 — `contentWidth`
+
+`full` (mengikuti layar) · `6xl` = 1152px (**disarankan**) · `5xl` = 1024px ·
+`4xl` = 896px
+
+> Skala yang sama berlaku untuk **isi section** — lihat §5.9 (boxed, bukan
+> full-width). Header (`contentWidth`) dan section (§5.9) memakai default
+> yang sama (`6xl`) agar tepi halaman rata.
+
+---
+
+## 6. Tidak ada konten hardcoded
+
+**Setiap key yang diisi di `defaultConfig` harus punya form field**, agar user
+bisa mengubahnya dari sidebar. Key tanpa field = konten mati.
+
+```jsonc
+// ✅ Benar: semua key punya field
+"configFields": [
+  { "key": "headline", "label": "Judul", "type": "text" },
+  { "key": "hero_image", "label": "Gambar Hero", "type": "image" },
+  { "key": "items", "label": "Daftar", "type": "list", "itemFields": [
+    { "key": "name", "label": "Nama", "type": "text" },
+    { "key": "price", "label": "Harga", "type": "text" }
+  ]}
+],
+"defaultConfig": {
+  "headline": "Judul default (bisa diubah user)",
+  "hero_image": "assets/hero.jpg",
+  "items": [{ "name": "…", "price": "…" }]
+}
+```
+
+```jsonc
+// ❌ Salah: "promo_badge" diisi tapi tidak ada field-nya → tidak bisa diubah
+"defaultConfig": { "headline": "…", "promo_badge": "DISKON 50%" }
+```
+
+Pengecualian (boleh tanpa field — struktural, bukan konten): `showCta`,
+`showNav`, `showSocial`, `contentWidth`, `id`, `isExternal`, `enabled`, `key`.
+
+Pilih tipe field yang sesuai isi: gambar → `image`, daftar gambar → `gallery`,
+warna → `color`, latar → `background`, ya/tidak → `switch`, angka → `number`,
+pilihan → `select`, teks kaya → `html` (§3.2), berulang → `list`.
+
+---
+
+## 7. Kontrak Animasi & Behaviour
 
 ### 7.1 `animations[]` — deklaratif, tanpa JS
 
@@ -519,316 +904,16 @@ Dua jalur. **Pakai jalur deklaratif (§7.1) sedapat mungkin** — tidak butuh JS
   { "id": "reveal-hero",
     "name": "Hero Fade Up",
     "type": "slide",                  // fade | slide | zoom | bounce | custom
-    "duration": 700,                  // ms
-    "delay": 0,                       // ms
+    "duration": 700,
+    "delay": 0,
     "easing": "cubic-bezier(.16,1,.3,1)",
     "trigger": "onLoad",              // onLoad | onScroll | onHover | onClick
     "target": "#beranda" }            // CSS selector — WAJIB
 ]
 ```
 
-Sistem membuat `@keyframes` + kelas `.tpl-anim-<id>`, lalu menyalakannya sesuai
-`trigger`:
-
-| `trigger` | Efek |
-|---|---|
-| `onLoad` | Menyala setelah halaman dimuat |
-| `onScroll` | `IntersectionObserver` — menyala sekali saat elemen masuk layar |
-| `onHover` | Menyala saat kursor masuk elemen |
-| `onClick` | Menyala saat elemen diklik |
-
-`target` bisa berupa selector CSS valid apa pun — `#anchorId`, `#id .card`,
-`main > div:nth-child(3)`, dan seterusnya. Gabung beberapa dengan koma.
-
-Untuk `type: "custom"` isi `keyframes` sendiri:
-
-### 7.3 Contoh script yang berguna
-
-**Progress bar di atas halaman**
-```js
-(function () {
-  var bar = document.createElement('div');
-  bar.style.cssText = 'position:fixed;top:0;left:0;height:3px;width:0;z-index:9999;background:#c2410c;transition:width .1s linear';
-  document.body.appendChild(bar);
-  window.addEventListener('scroll', function () {
-    var h = document.documentElement.scrollHeight - window.innerHeight;
-    bar.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
-  }, { passive: true });
-})();
-```
-
-**Hitung mundur promo**
-```js
-(function () {
-  var el = document.getElementById('promo');
-  if (!el) return;
-  var end = new Date(el.getAttribute('data-sampai')).getTime();
-  setInterval(function () {
-    var d = Math.max(0, end - Date.now());
-    el.textContent = Math.floor(d / 86400000) + ' hari lagi';
-  }, 60000);
-})();
-```
-
-### 7.4 Batasan script
-
-- Maksimal 100.000 karakter per script.
-- Dijalankan **sekali** setelah halaman siap.
-- Bungkus selalu dengan IIFE `"(function(){ … })();"` agar tidak bocor ke global.
-- Hindari loop tak terbatas yang membebani CPU.
-
-### 7.5 Pola yang otomatis DIBLOKIR
-
-Script dan aset `.js`/`.css` disanitasi dua kali — saat import dan saat runtime.
-Pola berikut diganti menjadi `// BLOCKED`:
-
-```
-eval(          Function(        new Function(
-setTimeout("   setInterval("    document.write(   document.writeln(
-window.location =     location.href =      <script>      </script>      on*= (atribut event)
-```
-
-Kalau scriptMU butuh salah satu pola di atas, **desain ulang** agar tidak
-memakainya.
-
-### 7.6 Catatan penting soal sanitasi
-
-Ini **bukan sandbox**. Penapis cukup untuk template yang hanya masuk lewat akun
-pemiliknya sendiri. Jangan pernah menyertakan kode yang membaca data pengguna,
-mengirim permintaan jaringan ke pihak ketiga, atau memuat sumber daya dari luar.
-
----
-
-## 8. Art Direction — Cookbook 8 Gaya
-
-### 8.0 Langkah awal: jangan asal pilih palet
-
-Dua template dengan palet sama tapi `customCss` berbeda akan terlihat **jauh**
-berbeda. Urutan yang benar:
-
-1. Tulis **1 kalimat design thesis** (contoh: "Bengkel teknis yang terasa
-   seperti ruang kerja, bukan etalase").
-2. Pilih **satu gaya** dari 8 resep di bawah.
-3. Ikuti resep itu untuk `theme` **dan** `customCss`.
-4. Baru tulis konten.
-
-### 8.1 Hook wajib: `data-tpl-type` dan `data-tpl-variant`
-
-Setiap section dibungkus elemen yang selalu membawa dua atribut ini:
-
-```html
-<div id="keunggulan" data-tpl-type="features" data-tpl-variant="features-3col" …>
-  <div class="py-12 px-6">
-    <h2>Judul</h2>
-    <div class="grid …">
-      <div class="p-6 rounded-lg text-center">kartu 1</div>
-      <div class="p-6 rounded-lg text-center">kartu 2</div>
-      <div class="p-6 rounded-lg text-center">kartu 3</div>
-    </div>
-  </div>
-</div>
-```
-
-**Selalu menyasar `data-tpl-*`.** Jangan menyasar class Tailwind
-(`@md:grid-cols-3`, `rounded-lg`) — itu bisa berubah tiap build dan CSS-mu
-berhenti jalan tanpa error.
-
-Struktur dalam yang bisa diandalkan:
-
-| Menuju | Selector |
-|---|---|
-| Judul section | `[data-tpl-type="X"] > div > h2` |
-| Wadah isi | `[data-tpl-type="X"] > div` |
-| Kartu / item | `[data-tpl-type="X"] > div > div > div` |
-| Kartu ke-N | `… > div:nth-child(N)` |
-| Varian tertentu | `[data-tpl-variant="features-masonry"] …` |
-
-### 8.2 `data.customCss` — kunci pembeda utama
-
-Renderer **tidak pernah** menghasilkan `border`, `box-shadow`, `backdrop-filter`,
-`clip-path`, `mask-image`, atau `filter` pada kartu section. Jadi semua gaya
-modern di §8.3 **hanya bisa** dicapai lewat `customCss`.
-
-```jsonc
-"data": {
-  "customCss": "[data-tpl-type=\"features\"] > div > div > div { border: 3px solid var(--color-text); }"
-}
-```
-
-Aturan `customCss`:
-
-- Maksimal **200.000 karakter**.
-- Diblokir otomatis: `@import`, `url()` yang bukan `data:`, `expression(`,
-  `-moz-binding`, `behavior:`, dan `</style>`.
-- **Aset gambar tetap lewat `assets/`**, bukan `url()` di CSS — `url()` eksternal
-  diblokir, jadi jangan tulis `background-image: url("https://…")`.
-- Variabel warna tersedia: `--color-primary`, `--color-secondary`,
-  `--color-accent`, `--color-background`, `--color-surface`, `--color-text`,
-  `--color-text-muted`, `--color-border`, `--color-on-primary`, `--radius`,
-  `--font-heading`, `--font-body`.
-
-
-### 8.3 Resep per gaya
-
-Setiap resep: **theme** (warna + komponen) lalu **customCss**.
-
-**1) Minimalist UI**
-```jsonc
-"components": { "borderRadius": 2, "buttonStyle": "outline", "shadowStyle": "none" }
-"palette": { "primary": "#111827", "background": "#ffffff", "surface": "#ffffff",
-             "text": "#111827", "textMuted": "#6b7280" }
-```
-```css
-[data-tpl-type="features"] > div > div > div {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  padding: 32px;
-}
-[data-tpl-type="hero"] h1 { letter-spacing: -.03em; line-height: 1.05; }
-```
-Tanpa `box-shadow` sama sekali — tenang dan old-school.
-
-**2) Dark Mode / Cyberpunk**
-```jsonc
-"designStyleId": "dark-mode",
-"palette": { "primary": "#22d3ee", "accent": "#f472b6", "background": "#08090f",
-             "surface": "#12141f", "text": "#e8eaf2", "textMuted": "#9aa3c0" }
-```
-```css
-[data-tpl-type="hero"] {
-  background-image:
-    linear-gradient(rgba(34,211,238,.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34,211,238,.08) 1px, transparent 1px);
-  background-size: 46px 46px;
-}
-[data-tpl-type="hero"] a[href="#booking"] {
-  box-shadow: 0 0 22px rgba(34,211,238,.55);
-  text-shadow: 0 0 14px currentColor;
-}
-```
-
-**3) Glassmorphism**
-```css
-[data-tpl-type="menu_board"] > div > div,
-[data-tpl-type="features"] > div > div > div,
-[data-tpl-type="pricing"] > div > div > div {
-  background: rgba(255,255,255,.10);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,.20);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.28);
-}
-```
-Butuh latar berwarna atau bergambar di belakang supaya efek kacanya terlihat.
-
-**4) Neo-Brutalism**
-```jsonc
-"components": { "borderRadius": 0, "buttonStyle": "solid", "shadowStyle": "lg" }
-"effects": { "borderWidth": 2, "uppercaseHeadings": true }
-```
-```css
-[data-tpl-type="features"] > div > div > div,
-[data-tpl-type="pricing"] > div > div > div {
-  border: 3px solid var(--color-text);
-  border-radius: 0;
-  box-shadow: 8px 8px 0 var(--color-accent);
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-[data-tpl-type="features"] > div > div > div:hover {
-  transform: translate(4px, 4px);
-  box-shadow: 4px 4px 0 var(--color-accent);
-}
-```
-
-**5) Neomorphism**
-```jsonc
-"palette": { "background": "#e0e5ec", "surface": "#e0e5ec", "text": "#2c3444" }
-```
-```css
-[data-tpl-type="features"] > div > div > div,
-[data-tpl-type="pricing"] > div > div > div {
-  border-radius: 22px;
-  background: var(--color-surface);
-  box-shadow: 9px 9px 18px rgba(160,170,190,.55),
-             -9px -9px 18px rgba(255,255,255,.85);
-}
-```
-Neumorphism **butuh** latar dan kartu berwarna sama — kalau tidak, efeknya hilang.
-
-**6) Claymorphism**
-```css
-[data-tpl-type="menu_board"] > div > div {
-  border-radius: 28px;
-  background: linear-gradient(145deg, #ff9a76, #ff6a88);
-  box-shadow: 10px 10px 22px rgba(0,0,0,.18),
-             inset 4px 4px 10px rgba(255,255,255,.55),
-             inset -4px -4px 10px rgba(0,0,0,.14);
-  color: #fff;
-}
-```
-
----
-
-## 9. Checklist Sebelum Mengembalikan ZIP
-
-- [ ] `template.json` ada **di root** ZIP, dan berisi key `theme`
-- [ ] `sections` berupa array **non-kosong**
-- [ ] Semua 9 section inti ada: hero, features, pricing, booking, testimonials,
-      gallery, location, faq, contact
-- [ ] Tiap `type` dan `variant` ada di Tabel 2 — ejaan diperiksa per karakter
-- [ ] Setiap section punya `config` **lengkap** (§5.4)
-- [ ] `anchorId` unik; tiap `url` nav (`#…`) punya section dengan anchor cocok
-- [ ] `booking` punya `services` (≥1, semua punya `name`) dan `success_message`
-- [ ] `footer.text` memuat `{year}`
-- [ ] `header.navItems` non-kosong dan `header.ctaText` terisi
-- [ ] `seo.title` dan `seo.description` terisi
-- [ ] Palet lolos kontras 4.5:1 — cek `textMuted` di atas `background` **dan** `surface`
-- [ ] `designStyleId` ada di Tabel 4 (hanya 10; `mono`/`hutan`/`laut` bukan style)
-- [ ] **`customCss` diisi** dan menyasar `data-tpl-type`/`data-tpl-variant`,
-      bukan class Tailwind
-- [ ] `customCss` bebas `@import`, `url()` eksternal, `</style>`, `expression(`,
-      `-moz-binding`
-- [ ] Tidak menyet `effects.glassmorphism` / `effects.gradientBackgrounds`
-      (tidak diimplementasikan — menyetnya hanya berbohong)
-- [ ] Aset gambar lewat `assets/`, bukan `url()` di dalam CSS
-- [ ] Nama aset memakai ekstensi yang diizinkan dan berada di `assets/`
-- [ ] Nama font benar-benar ada di Google Fonts
-- [ ] `category` sesuai niche
-- [ ] Tidak memakai `product_grid`
-- [ ] Script animasi tidak memakai pola terlarang (§7.5)
-- [ ] ZIP bisa dibuka dan `template.json` valid JSON
-
----
-
-## 10. Contoh Referensi
-
-Repository ini menyediakan contoh yang **dijamin lolos seluruh kontrak**:
-
-```bash
-# Bangun ZIP dari template bengkel bawaan
-bun scripts/build-template-zip.ts bengkel dist/template-bengkel.zip
-```
-
-Contoh itu berisi 12 section (9 inti + `menu_board` + `steps` + `marquee`),
-7 animasi deklaratif (termasuk stagger 0/110/220 ms), 1 behaviour script, 2 aset
-lokal, dan `customCss` sepanjang ~1.800 karakter berisi wave divider, neon glow,
-tekstur grid, dan hover lift. Gunakan sebagai kerangka saat menyusun
-`template.json` milikmu sendiri — terutama bagian `customCss`, karena di situlah
-karakter visual sebuah template benar-benar tinggal.
-
-
-```jsonc
-{ "id": "spin", "type": "custom", "duration": 900, "easing": "linear",
-  "trigger": "onScroll", "target": "#galeri",
-  "keyframes": "from{transform:rotate(0)}to{transform:rotate(360deg)}" }
-```
-
-Nilai `keyframes` boleh blok `@keyframes` utuh, atau isi keyframe saja seperti
-di atas.
-
-Runtime otomatis menambahkan blok `prefers-reduced-motion`, sehingga animasi
-tetap aman untuk pengguna yang membatasi motion di sistemnya.
+Untuk `type: "custom"` isi `keyframes` sendiri (blok `@keyframes` utuh atau isi
+saja, mis. `"from{transform:rotate(0)}to{transform:rotate(360deg)}"`).
 
 ### 7.2 `behaviours[]` — JS untuk kasus khusus
 
@@ -836,122 +921,174 @@ tetap aman untuk pengguna yang membatasi motion di sistemnya.
 "behaviours": [
   { "id": "scroll-progress",
     "name": "Progress Bar Scroll",
-    "type": "custom",
-    "trigger": "onLoad",
+    "trigger": "onLoad",              // onLoad | onScroll | onClick | onHover | onSubmit
     "target": "body",
     "script": "(function(){ … })();" }
 ]
 ```
 
-Boleh juga ditulis sebagai file terpisah di `behaviours/nama.json` — keduanya
-dibaca. `meta.json` dilewati.
+Boleh juga sebagai file `behaviours/nama.json` — keduanya dibaca.
 
+Aturan script: maks 100.000 karakter, dijalankan sekali setelah siap, selalu
+bungkus IIFE, hindari loop berat.
 
-**7) Outline / Skeletal UI**
-```css
-[data-tpl-type="features"] > div > div > div {
-  background: transparent;
-  border: 2px solid var(--color-text);
-  border-radius: 10px;
-}
-[data-tpl-type="gallery"] > div > div > div {
-  background: transparent;
-  border: 2px dashed var(--color-border);
-  border-radius: 10px;
-  min-height: 180px;
-}
+**Pola yang otomatis DIBLOKIR** (diganti `// BLOCKED` saat import & runtime):
+
 ```
-Shimmer-nya lewat `animations[]`: `keyframes: "from{opacity:.35}to{opacity:1}"`,
-`trigger: "onScroll"`.
-
-**8) Bento Grid**
-```css
-[data-tpl-type="features"] > div > div {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: minmax(120px, auto);
-  gap: 16px;
-}
-[data-tpl-type="features"] > div > div > div:nth-child(1) { grid-column: span 4; grid-row: span 2; }
-[data-tpl-type="features"] > div > div > div:nth-child(2) { grid-column: span 2; }
-[data-tpl-type="features"] > div > div > div:nth-child(3) { grid-column: span 2; }
+eval(  Function(  new Function(  setTimeout("  setInterval("
+document.write(  document.writeln(  window.location =  location.href =
+<script>  </script>  on*=
 ```
 
-### 8.4 Teknik lintas gaya
+### 7.3 Contoh script yang berguna
 
-**Wave / curved divider** — memotong satu section supaya menyatu ke berikutnya:
+Progress bar, hitung mundur promo, parallax (`translateY` dari `scrollY`),
+smooth-scroll anchor — lihat arsip v2 untuk contoh lengkap.
 
-```css
-[data-tpl-type="hero"] { clip-path: ellipse(78% 88% at 50% 0%); margin-bottom: -58px; }
-[data-tpl-type="features"] { padding-top: 108px; }
+---
+
+## 8. Art Direction, Thumbnail & Preview
+
+### 8.0 Langkah awal
+
+1. Tulis **1 kalimat design thesis** (mis. "Bengkel teknis yang terasa seperti
+   ruang kerja, bukan etalase").
+2. Pilih **satu** `designType` (Tabel 1b) dan **satu** gaya §8.3.
+3. Ikuti resep itu untuk `theme` **dan** `customCss` **dan** `variant.html`.
+4. Baru tulis konten.
+
+### 8.1 Hook wajib: `data-tpl-type` dan `data-tpl-variant`
+
+Setiap section dibungkus elemen ber-atribut ini (otomatis bila pakai renderer
+bawaan; tulis manual bila pakai `variant.html`):
+
+```html
+<div id="keunggulan" data-tpl-type="features" data-tpl-variant="features-3col">
+  …
+</div>
 ```
 
-**Gradient text**
+**Selalu menyasar `data-tpl-*` di `customCss`.** Jangan menyasar class Tailwind —
+itu bisa berubah tiap build.
 
-```css
-[data-tpl-type="hero"] h1 {
-  background: linear-gradient(92deg, var(--color-text), var(--color-primary));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-```
+### 8.2 `data.customCss` — kunci pembeda utama
 
-**Parallax** — harus lewat `behaviours[].script`, karena CSS murni tidak bisa
-membaca posisi scroll:
+Renderer **tidak pernah** menghasilkan `border`, `box-shadow`,
+`backdrop-filter`, `clip-path`, `mask-image`, atau `filter` pada kartu section.
+Semua gaya modern **hanya bisa** dicapai lewat `customCss` (atau `variant.html`).
 
-```js
-(function () {
-  var el = document.querySelector('[data-tpl-type="hero"]');
-  if (!el) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  window.addEventListener('scroll', function () {
-    var y = window.scrollY;
-    if (y > 900) return;
-    el.style.transform = 'translateY(' + (y * 0.18) + 'px)';
-  }, { passive: true });
-})();
-```
+Aturan: maks 200.000 karakter; diblokir `@import`, `url()` non-`data:`,
+`expression(`, `-moz-binding`, `behavior:`, `</style>`; aset gambar tetap lewat
+`assets/` (jangan `url(https://…)` di CSS); pakai `var(--color-*)`.
 
-**Background berbeda per section** — dua cara:
+### 8.3 Resep gaya (ringkas — pilih satu)
 
-```jsonc
-// (a) lewat style section, tanpa CSS sama sekali
-{ "type": "hero", "style": { "background": "gradient",
-    "backgroundGradient": "linear-gradient(135deg, #0b1220, #7c2d12)" } }
-```
+**Minimalist** — `borderRadius: 2`, `buttonStyle: outline`, `shadowStyle: none`,
+tanpa box-shadow, garis `1px solid var(--color-border)`.
 
-```css
-/* (b) lewat customCss */
-[data-tpl-type="features"] { background: var(--color-surface); }
-[data-tpl-type="gallery"]  { background: var(--color-background); }
-```
+**Dark/Cyberpunk** — `designStyleId: dark-mode`, grid neon di hero,
+glow di CTA (`box-shadow: 0 0 22px …`).
 
-**Stagger on scroll** — untuk menghidupkan deretan kartu:
+**Glassmorphism** — kartu `rgba(255,255,255,.10)` + `backdrop-filter: blur(16px)`
++ border putih transparan. Butuh latar berwarna di belakangnya.
 
-```jsonc
-{ "id": "s1", "type": "slide", "duration": 620, "delay": 0,   "trigger": "onScroll",
-  "target": "#keunggulan .grid > div:nth-child(1)" }
-{ "id": "s2", "type": "slide", "duration": 620, "delay": 110, "trigger": "onScroll",
-  "target": "#keunggulan .grid > div:nth-child(2)" }
-{ "id": "s3", "type": "slide", "duration": 620, "delay": 220, "trigger": "onScroll",
-  "target": "#keunggulan .grid > div:nth-child(3)" }
-```
+**Neo-Brutalism** — `borderRadius: 0`, border `3px solid var(--color-text)`,
+`box-shadow: 8px 8px 0 var(--color-accent)`, hover menggeser.
+
+**Neomorphism/Claymorphism/Bento/Wave/Gradient-text** — lihat arsip v2; teknik
+sama, hanya bungkusnya kini boleh `variant.html`.
+
+### 8.4 Thumbnail & preview (demo template)
+
+- `thumbnail.png` (800×600, <1MB) di **root** ZIP — kartu galeri.
+- Preview (`/preview/[templateId]`) merender `data.sections` + `data.header` +
+  `data.footer` apa adanya — verifikasi di **tiga viewport: 375px, 768px,
+  1024px** (§5.8) sebelum mengembalikan ZIP.
+- **Tidak perlu semua 19 tipe tampil**, cukup yang di
+  `activeSections` sesuai niche UMKM (mis. warung makan tampilkan hero, menu,
+  testimoni, lokasi, kontak).
+- Pastikan preview = hasil apply: isi `sections` root dan `data.sections` dengan
+  seed yang sama.
 
 ### 8.5 Kesalahan yang membuat template terlihat monoton
 
 | Kesalahan | Akibat |
 |---|---|
-| Tidak pakai `customCss` sama sekali | Semua template jadi "kartu putih + teks" |
-| Hanya ganti palet | Terlihat sama dengan template lain |
-| `effects.glassmorphism` / `gradientBackgrounds` di-set | **Tidak ada efek apa pun** — kunci itu tidak diimplementasikan |
-| `borderRadius` selalu di tengah (8–16) | Tidak ada karakter |
-| Semua section pakai varian yang sama | Ritme monoton |
-| Menyasar class Tailwind di CSS | Berhenti jalan diam-diam saat build berubah |
-| Terlalu banyak animasi sekaligus | Teriak, bukan grotesk |
+| Tidak pakai `customCss`/`variant.html` sama sekali | "Kartu putih + teks" generik |
+| Hanya ganti palet | Sama dengan template lain |
+| Varian tanpa `html` + tanpa CSS khas | 3 nama untuk 1 tampilan |
+| `borderRadius` selalu 8–16 | Tidak ada karakter |
+| Menyasar class Tailwind di CSS | Berhenti jalan diam-diam |
+| Hex mentah di `html`/CSS (bukan `var(--color-*)`) | Skema builder merusak desain |
 
-> Hanya **2 dari 4** kunci `effects` yang benar-benar berfungsi:
-> `uppercaseHeadings` dan `borderWidth`. `glassmorphism` dan
-> `gradientBackgrounds` **tidak dibaca renderer mana pun** — jangan di-set.
+---
 
-`config` kosong menghasilkan section kosong.
+## 9. Checklist Sebelum Mengembalikan ZIP
+
+- [ ] `template.json` di **root**, `version: "3.0"`, berisi `theme` + `sections` non-kosong
+- [ ] `thumbnail.png` di **root** (800×600, <1MB)
+- [ ] `designType` terisi salah satu dari 5 (Tabel 1b)
+- [ ] `sections` katalog memuat **semua 19 tipe** Tabel 2 (+ tipe kustom bila ada, §5.10)
+- [ ] Tiap tipe (kecuali `booking`/`marquee`) punya **≥3 varian** berisi `mockup`
+- [ ] Tiap tipe kustom: id kebab-case tak menabrak bawaan, ≥1 varian, **tiap varian punya `html`** (§5.10)
+- [ ] `headers` ≥5 varian, `footers` ≥5 varian, tiap punya `mockup` **dan `html`**
+- [ ] `activeSections` = tipe terdefinisi di katalog (boleh kustom), memuat 9 inti
+  (hero, features, pricing, booking, testimonials, gallery, location, faq, contact)
+- [ ] `data.sections` hanya berisi tipe aktif, `config` **lengkap**, `anchorId` unik
+- [ ] Tiap key `defaultConfig` punya `configFields` (§6) — tidak ada konten mati
+- [ ] Tipe field sesuai isi (image/gallery/color/switch/html/list)
+- [ ] `variant.html` (bila ada) ≤50rb karakter, bebas script/style/iframe/on*
+- [ ] Tiap ID varian kustom punya `html` ATAU disasar `customCss` (§5.4) — cek via grep per ID
+- [ ] Isi section dibox (§5.9): default `6xl` + rata tengah + padding 24px di HP;
+  `full` hanya untuk lapisan latar; verifikasi di 1440px (tepi hero ≈ features ≈ footer)
+- [ ] `variant.html` + `customCss` responsif (§5.8): tanpa width fixed >480px,
+  gambar `max-width:100%`, grid 1 kolom → multi-kolom via `@md:`
+- [ ] Verifikasi 375px: tanpa scroll horizontal, hero terbaca, CTA terjangkau,
+  nav jadi hamburger, form 1 kolom full-width
+- [ ] Target sentuh ≥44px; body ≥14px; CTA header ringkas di HP
+- [ ] Tiap `url` nav (`#…`) punya section ber-anchor cocok
+- [ ] `booking` punya `services` (≥1, semua punya `name`) + `success_message`
+- [ ] `footer.text` memuat `{year}`; `header.navItems` non-kosong + `ctaText` terisi
+- [ ] `seo.title` + `seo.description` (≥50 karakter) terisi
+- [ ] Palet 8 kunci, lolos kontras 4.5:1; font = nama Google Fonts
+- [ ] `designStyleId` salah satu dari 10 (Tabel 4)
+- [ ] `customCss`/`variant.html` menyasar `data-tpl-*`, pakai `var(--color-*)`
+- [ ] Aset di `assets/` berekstensi diizinkan; `url()` eksternal tidak dipakai
+- [ ] Tiap file di `assets/` dirujuk ≥1 kali di `template.json` (§2.6)
+- [ ] Tiap field gambar di seed terisi (`assets/…` atau URL eksplisit, bukan `""`)
+- [ ] Script IIFE, tanpa pola terlarang (§7.2)
+- [ ] ZIP bisa dibuka dan `template.json` valid JSON
+
+---
+
+## 10. Contoh Referensi
+
+Dua referensi — pakai keduanya:
+
+**A. Kerangka v3.0 siap isi** (`docs/template-reference-v3.json` + tool):
+
+```bash
+# Buat kerangka baru untuk niche apapun
+bun scripts/create-template.ts --category food --design organic --name "Warung Makan" --out template.json
+
+# Validasi sebelum zip
+bun scripts/create-template.ts --validate template.json
+```
+
+File `docs/template-reference-v3.json` = kerangka lengkap yang SUDAH valid v3.0
+(semua 19 tipe, ≥3 varian per tipe, ≥5 header/footer, activeSections, slot
+`variant.html`, field `html`). Isi `defaultConfig` + `theme` + `customCss` +
+`variant.html` sesuai niche — strukturnya jangan diubah.
+
+**B. Contoh terisi** (konten nyata, gaya v2 — pelajari kontennya, naikkan ke v3):
+
+```bash
+# Bangun ZIP dari template bengkel bawaan
+bun scripts/build-template-zip.ts bengkel dist/template-bengkel.zip
+```
+
+Contoh itu berisi 9 section inti + `menu_board` + `steps` + `marquee`, animasi
+deklaratif + stagger, 1 behaviour, aset lokal, dan `customCss` (wave divider,
+neon glow, grid, hover lift). Untuk v3, tambahkan `variant.html` pada varian
+kreasimu + `activeSections` + field `html` di mana konten kaya dibutuhkan —
+lihat `scripts/create-template.ts` untuk kerangka JSON v3 siap isi.

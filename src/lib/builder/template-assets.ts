@@ -99,6 +99,13 @@ export function assetsFor(category?: string): (typeof BIZ_ASSETS)[BizCategory] |
 /**
  * Isi field foto pada config section dengan aset bawaan niche.
  * Tidak menimpa nilai yang sudah diisi (custom user / template lain).
+ *
+ * PENTING (anti-berantakan): hanya field yang ADA di config yang diisi.
+ * Dulu fungsi ini MENAMBAHKAN `image`/`background_image` ke SEMUA section
+ * (mis. 11 section template laundry disuntik foto barbershop yang sama),
+ * padahal renderer (`config.image || config.background_image`) me-rendernya
+ * — hasilnya kanvas penuh foto salah, sementara preview (tanpa fill) kosong.
+ * Sekarang: tanpa key = tanpa suntik, kanvas identik dengan preview.
  */
 export function applySectionAssets(
   config: Record<string, unknown>,
@@ -110,11 +117,9 @@ export function applySectionAssets(
   const out: Record<string, unknown> = { ...config };
   const i = opts.index ?? 0;
 
-  // Hero: image / background_image
-  if (!out.image && !out.background_image) {
-    out.background_image = assets.hero;
-    out.image = assets.hero;
-  }
+  // Hero: image / background_image — hanya bila key-nya memang ada di config.
+  if ('image' in out && !out.image) out.image = assets.hero;
+  if ('background_image' in out && !out.background_image) out.background_image = assets.hero;
   // Galeri / tim: array of { image }
   for (const key of ['items', 'members'] as const) {
     const arr = out[key];
@@ -127,7 +132,8 @@ export function applySectionAssets(
       return { ...o, image: pool[idx % pool.length] };
     });
   }
-  // Section `about` / `team`level pakai config.image langsung
-  if (!out.image && assets.about) out.image = assets.about;
+  // Section `about` / `team`level pakai config.image langsung — sama:
+  // hanya bila key-nya ada (lihat catatan anti-berantakan di atas).
+  if ('image' in out && !out.image && assets.about) out.image = assets.about;
   return out;
 }

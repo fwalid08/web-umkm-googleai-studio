@@ -5,6 +5,12 @@ import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
 import { BUILTIN_TEMPLATES } from "@/lib/builder/template-store";
+import {
+  buildLibraryTemplate,
+  pickLibraryFooterVariant,
+  pickLibraryHeaderVariant,
+} from "@/lib/builder/library-template";
+import { applySectionAssets } from "@/lib/builder/template-assets";
 import type {
   Template,
   TemplateSectionInstance,
@@ -23,7 +29,13 @@ function toSection(s: any, template: Template): TemplateSectionInstance {
     id: generateId(),
     type: s.type,
     variantId: variant?.id ?? 'default',
-    config: { ...(variant?.defaultConfig ?? {}), ...(s.config ?? {}) },
+    // Fill foto per-niche SAMA seperti kanvas (template-store applyTemplate)
+    // supaya preview = hasil apply. Setelah gating anti-berantakan, fill ini
+    // hanya mengisi key gambar yang memang ada di config.
+    config: applySectionAssets(
+      { ...(variant?.defaultConfig ?? {}), ...(s.config ?? {}) },
+      template.category,
+    ),
     style: {
       padding: { top: 64, right: 24, bottom: 64, left: 24, ...(variant?.defaultStyle?.padding ?? {}) },
       background: variant?.defaultStyle?.background ?? ('transparent' as const),
@@ -55,6 +67,7 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
     footerConfig?: Record<string, unknown>;
     animations?: AnimationConfig[];
     behaviours?: BehaviourConfig[];
+    customCss?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -86,28 +99,40 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
           const paletteOverride = (seed.paletteOverride ?? seed.palette_override ?? {}) as Record<string, string>;
           const rawSections = Array.isArray(seed.sections) ? (seed.sections as Record<string, unknown>[]) : [];
 
-          // Katalog varian tidak ikut tersimpan di template library — yang ada
-          // hanya seed section. Pinjam blueprint (template bawaan pertama) yang
-          // memuat seluruh definisi varian, lalu timpa palet dengan skema miliknya.
-          const blueprint = BUILTIN_TEMPLATES[0];
-          if (!blueprint) {
-            setError("Template bawaan tidak tersedia");
+          // Template library ADALAH sumber kebenaran untuk dirinya sendiri:
+          // theme utuh (palet+tipografi+komponen+efek), katalog headers /
+          // footers / sections, activeSections, customCss, dan aset dibaca
+          // dari template_data hasil import. Blueprint bawaan hanya fallback
+          // per-bagian bila kunci hilang (lihat library-template.ts).
+          let library: ReturnType<typeof buildLibraryTemplate>;
+          try {
+            library = buildLibraryTemplate(td, {
+              id: String(row.id),
+              name: String(row.name ?? 'Template'),
+              description: String(row.description ?? ''),
+            });
+          } catch {
+            setError("Template tidak valid");
             return;
           }
-          const theme = {
-            ...blueprint.theme,
-            palette: { ...blueprint.theme.palette, ...paletteOverride },
-          };
-
-          const headerLayout = String(headerCfg.variant ?? 'standard');
-          const footerLayout = String(footerCfg.style ?? 'simple');
+          const headerVariant = pickLibraryHeaderVariant(
+            library,
+            (headerCfg.variant as string | undefined) ?? 'standard',
+          );
+          const footerVariant = pickLibraryFooterVariant(
+            library,
+            ((footerCfg.variant ?? footerCfg.style) as string | undefined) ?? 'simple',
+          );
+          const customCss =
+            (typeof td.customCss === 'string' && td.customCss) ||
+            (typeof seed.customCss === 'string' ? seed.customCss : '');
 
           setSiteData({
-            template: { ...blueprint, id: String(row.id), name: String(row.name ?? 'Template'), theme },
-            headerVariantId: blueprint.headers.find(h => h.layout === headerLayout)?.id ?? blueprint.headers[0].id,
-            footerVariantId: blueprint.footers.find(f => f.layout === footerLayout)?.id ?? blueprint.footers[0].id,
+            template: library,
+            headerVariantId: headerVariant.id,
+            footerVariantId: footerVariant.id,
             sections: rawSections
-              .map(s => toSection(s, blueprint))
+              .map(s => toSection(s, library))
               .filter(Boolean),
             seo: {
               title: String((seed.seo as Record<string, unknown>)?.title ?? row.name ?? 'Template'),
@@ -118,6 +143,7 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
             footerConfig: footerCfg,
             animations: (Array.isArray(row.animations) ? row.animations : undefined) as AnimationConfig[] | undefined,
             behaviours: (Array.isArray(row.behaviours) ? row.behaviours : undefined) as BehaviourConfig[] | undefined,
+            ...(customCss ? { customCss } : {}),
           });
           return;
         }
@@ -169,5 +195,9 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
     );
   }
 
-  return <PublicWebsiteV3 site={siteData} />;
+  return (
+    <div id="tpl-canvas">
+      <PublicWebsiteV3 site={siteData} />
+    </div>
+  );
 }
