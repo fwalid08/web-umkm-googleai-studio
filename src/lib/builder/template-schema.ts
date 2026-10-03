@@ -278,14 +278,20 @@ export function validateTemplateV3(data: unknown): ValidateTemplateResult {
   errors.push(...chrome.errors);
   warnings.push(...chrome.warnings);
   for (const h of headers) {
-    if (typeof h.html === 'string' && h.html.length > 50_000) {
-      errors.push(`header ${(h.id as string) ?? '?'}: html melebihi 50.000 karakter`);
+    if (typeof h.html === 'string') {
+      if (h.html.length > 50_000) {
+        errors.push(`header ${(h.id as string) ?? '?'}: html melebihi 50.000 karakter`);
+      }
+      validateHtmlSafety(h.html, `header ${(h.id as string) ?? '?'}`, warnings);
     }
     validateConfigFields(h.configFields, `header ${(h.id as string) ?? '?'}`, errors);
   }
   for (const f of footers) {
-    if (typeof f.html === 'string' && f.html.length > 50_000) {
-      errors.push(`footer ${(f.id as string) ?? '?'}: html melebihi 50.000 karakter`);
+    if (typeof f.html === 'string') {
+      if (f.html.length > 50_000) {
+        errors.push(`footer ${(f.id as string) ?? '?'}: html melebihi 50.000 karakter`);
+      }
+      validateHtmlSafety(f.html, `footer ${(f.id as string) ?? '?'}`, warnings);
     }
     validateConfigFields(f.configFields, `footer ${(f.id as string) ?? '?'}`, errors);
   }
@@ -325,8 +331,11 @@ export function validateTemplateV3(data: unknown): ValidateTemplateResult {
         validateCustomSectionType(d as Record<string, unknown>, errors, warnings);
       }
       for (const v of variants) {
-        if (typeof v.html === 'string' && v.html.length > 50_000) {
-          errors.push(`${type}/${String(v.id ?? '?')}: html melebihi 50.000 karakter`);
+        if (typeof v.html === 'string') {
+          if (v.html.length > 50_000) {
+            errors.push(`${type}/${String(v.id ?? '?')}: html melebihi 50.000 karakter`);
+          }
+          validateHtmlSafety(v.html, `${type}/${String(v.id ?? '?')}`, warnings);
         }
         validateConfigFields(v.configFields, `${type}/${String(v.id ?? '?')}`, errors);
       }
@@ -347,6 +356,12 @@ export function validateTemplateV3(data: unknown): ValidateTemplateResult {
         }
       }
     }
+  }
+
+  // --- customCss safety check ---
+  const customCss = (dataBlock?.customCss as string) ?? (t.customCss as string);
+  if (typeof customCss === 'string' && customCss.trim()) {
+    validateCssSafety(customCss, 'template.customCss', warnings);
   }
 
   return { ok: errors.length === 0, errors, warnings };
@@ -379,6 +394,37 @@ function validateConfigFields(
     }
   };
   walk(fields as unknown[], label);
+}
+
+/** Validasi keamanan HTML kustom — cek pola berisiko yang bisa keluar dari kanvas. */
+function validateHtmlSafety(html: string, label: string, warnings: string[]): void {
+  const riskyPatterns: Array<{ pattern: RegExp; msg: string }> = [
+    { pattern: /position\s*:\s*fixed/gi, msg: 'position:fixed relative ke viewport, tidak ke kanvas (akan dikontain via transform pada kanvas)' },
+    { pattern: /z-index\s*:\s*(?:[1-9]\d{3,}|\d{5,})/gi, msg: 'z-index sangat tinggi (>9999) dapat menutupi UI builder' },
+    { pattern: /overflow\s*:\s*visible/gi, msg: 'overflow:visible dapat keluar dari kontainer kanvas' },
+    { pattern: /<\s*style/gi, msg: 'tag <style> diblokir saat render (pakai customCss di template.json)' },
+  ];
+  for (const { pattern, msg } of riskyPatterns) {
+    if (pattern.test(html)) {
+      warnings.push(`${label}: ${msg}`);
+    }
+  }
+}
+
+/** Validasi keamanan customCss — cek pola berisiko. */
+function validateCssSafety(css: string, label: string, warnings: string[]): void {
+  const riskyPatterns: Array<{ pattern: RegExp; msg: string }> = [
+    { pattern: /position\s*:\s*fixed/gi, msg: 'position:fixed relative ke viewport (akan dikontain via transform pada kanvas)' },
+    { pattern: /z-index\s*:\s*(?:[1-9]\d{3,}|\d{5,})/gi, msg: 'z-index sangat tinggi (>9999) dapat menutupi UI builder' },
+    { pattern: /overflow\s*:\s*visible/gi, msg: 'overflow:visible dapat keluar dari kontainer kanvas' },
+    { pattern: /@import/gi, msg: '@import diblokir saat render' },
+    { pattern: /url\(\s*(?!['"]?data:)/gi, msg: 'url() eksternal diblokir (pakai data: atau assets/)' },
+  ];
+  for (const { pattern, msg } of riskyPatterns) {
+    if (pattern.test(css)) {
+      warnings.push(`${label}: ${msg}`);
+    }
+  }
 }
 
 /** Helper: apakah template (TS) memenuhi kontrak v3 minimal. */

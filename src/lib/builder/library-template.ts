@@ -15,7 +15,7 @@
  * import. Blueprint bawaan HANYA jadi fallback per-bagian bila kunci hilang
  * atau tidak valid (agar template lama/v2 yang minim tetap bisa tampil).
  */
-import { BUILTIN_TEMPLATES } from './template-store';
+// No blueprint fallback - template library is standalone
 import type {
   AnimationConfig,
   AssetMetadata,
@@ -227,19 +227,13 @@ function normalizeFooter(f: unknown): FooterVariant | null {
 /**
  * Bangun `Template` penuh dari `template_data` library.
  *
- * Dipakai TIGA konsumen (dulu masing-masing meminjam blueprint sendiri):
- * - preview `/preview/[id]` (dulu: seluruh theme + katalog dari blueprint)
- * - `synthesizeLibraryTemplate` jalur apply (dulu: theme + katalog blueprint)
- * - galeri kanvas via `applyable.data` (sudah membawa template_data utuh)
+ * Template library adalah standalone - tidak ada blueprint fallback.
+ * Semua data dibaca dari `template_data` hasil import ZIP.
  */
 export function buildLibraryTemplate(
   rawData: LibraryTemplateData | Record<string, unknown>,
   meta: LibraryTemplateMeta,
 ): Template & { data: Record<string, unknown> } {
-  const blueprint = BUILTIN_TEMPLATES[0];
-  if (!blueprint) {
-    throw new Error('Template bawaan tidak tersedia — tidak bisa menyusun template library.');
-  }
   const td = (rawData ?? {}) as LibraryTemplateData;
   const data = (isRecord(td.data) ? td.data : {}) as Record<string, unknown>;
 
@@ -248,14 +242,14 @@ export function buildLibraryTemplate(
       ? td.category
       : typeof meta.category === 'string' && VALID_CATEGORIES.has(meta.category)
         ? meta.category
-        : blueprint.category) as BusinessCategory;
+        : 'services') as BusinessCategory;
 
   const designType =
     (typeof td.designType === 'string' && VALID_DESIGN_TYPES.has(td.designType)
       ? td.designType
-      : blueprint.designType) as DesignType;
+      : 'editorial') as DesignType;
 
-  // Katalog milik template dulu; blueprint hanya fallback per-bagian.
+  // Katalog milik template dulu; tidak ada fallback blueprint.
   const headers = (Array.isArray(td.headers) ? td.headers : [])
     .map(normalizeHeader)
     .filter((h): h is HeaderVariant => !!h);
@@ -291,7 +285,6 @@ export function buildLibraryTemplate(
   // Override palet level seed menang atas theme. Dua bentuk didukung:
   // - `data.paletteOverride` (bentuk DB: template_data.data.*)
   // - root `paletteOverride` (bentuk applyable lama / synthesize langsung)
-  // karena `synthesizeLibraryTemplate` menerima keduanya.
   const seedPalette =
     (isRecord(data.paletteOverride) ? data.paletteOverride : undefined) ??
     (isRecord(data.palette_override) ? data.palette_override : undefined) ??
@@ -308,14 +301,36 @@ export function buildLibraryTemplate(
     category,
     designType,
     theme: {
-      palette: normalizePalette(themeWithSeedOverride, blueprint.theme.palette),
-      typography: normalizeTypography(td.theme, blueprint.theme.typography),
-      components: normalizeComponents(td.theme, blueprint.theme.components),
-      effects: normalizeEffects(td.theme, blueprint.theme.effects ?? {}),
+      palette: normalizePalette(themeWithSeedOverride, {
+        primary: '#333333',
+        secondary: '#666666',
+        accent: '#333333',
+        background: '#ffffff',
+        surface: '#f5f5f5',
+        text: '#333333',
+        textMuted: '#666666',
+        border: '#e5e5e5',
+      }),
+      typography: normalizeTypography(td.theme, {
+        headingFont: 'Inter',
+        bodyFont: 'Inter',
+        baseSize: 16,
+        scaleRatio: 1.25,
+        headingWeight: 700,
+        bodyWeight: 400,
+      }),
+      components: normalizeComponents(td.theme, {
+        borderRadius: 4,
+        buttonStyle: 'solid',
+        shadowStyle: 'sm',
+        navStyle: 'solid',
+        footerStyle: 'simple',
+      }),
+      effects: normalizeEffects(td.theme, {}),
     },
-    headers: headers.length > 0 ? headers : blueprint.headers,
-    footers: footers.length > 0 ? footers : blueprint.footers,
-    sections: sections.length > 0 ? sections : blueprint.sections,
+    headers: headers.length > 0 ? headers : [],
+    footers: footers.length > 0 ? footers : [],
+    sections: sections.length > 0 ? sections : [],
     ...(animations.length > 0 ? { animations } : {}),
     ...(behaviours.length > 0 ? { behaviours } : {}),
     ...(assets.length > 0 ? { assets } : {}),

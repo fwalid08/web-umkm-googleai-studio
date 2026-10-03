@@ -15,7 +15,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import type { Template } from '@/lib/builder/template-types';
-import { BUILTIN_TEMPLATES } from '@/lib/builder/template-store';
 import { CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { isCatalogTemplateAllowedForTier } from '@/lib/builder/validation';
 import { useBuilderStore } from '@/lib/builder/store';
@@ -65,25 +64,23 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
   const MAX_IMPORT_SIZE = 25 * 1024 * 1024;
 
+  const [systemTemplates, setSystemTemplates] = useState<Template[]>([]);
+
   useEffect(() => {
-    if (userTier) {
-      setResolvedTier(userTier);
-      return;
-    }
-    let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/websites/${websiteId}/website`);
-        const json = await res.json();
-        if (!cancelled && json.success && typeof json.data?.tier === 'string') {
-          setResolvedTier(json.data.tier);
+        const res = await fetch('/api/templates/library?scope=public&is_system_template=true');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setSystemTemplates(json.data);
+          }
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error('Failed to load system templates:', err);
       }
     })();
-    return () => { cancelled = true; };
-  }, [websiteId, userTier]);
+  }, []);
 
   const loadSavedTemplates = useCallback(async () => {
     try {
@@ -104,18 +101,53 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     loadSavedTemplates();
   }, [loadSavedTemplates]);
 
+  // Resolve tier tenant untuk badge/lock katalog builtin: pakai prop bila
+  // diberikan parent, kalau tidak fetch /api/user/plan. Tetap null = permissive
+  // di client (server sudah melakukan tier gating), jadi tidak menyembunyikan.
+  useEffect(() => {
+    if (userTier) {
+      setResolvedTier(userTier);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/user/plan');
+        const json = await res.json().catch(() => null);
+        const t = json?.data?.tier;
+        if (!cancelled && typeof t === 'string' && t) setResolvedTier(t);
+      } catch {
+        // abaikan — server sudah gate, client tetap permissive
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userTier]);
+
   const builtinUnified = useMemo((): UnifiedTemplate[] => {
-    return BUILTIN_TEMPLATES.map((t) => ({
-      id: `builtin-${t.id}`,
-      name: t.name,
-      description: t.description,
-      category: t.category,
-      source: 'builtin' as TemplateSource,
-      sectionsCount: t.sections.length,
-      tiers: t.tiers ? [...t.tiers] : undefined,
-      data: t,
-    }));
-  }, []);
+    return systemTemplates
+      .filter((t) => isCatalogTemplateAllowedForTier([t.tier_requirement ?? 'free'], resolvedTier))
+      .map((t) => ({
+        // ID dipakai apa adanya (UUID asli) — TANPA prefix. Pembedaan asal
+        // cukup lewat field `source`. Prefix `system-`/`builtin-` terbukti
+        // bocor ke request API & tersimpan sebagai template_id website.
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        category: t.category,
+        source: 'builtin' as TemplateSource,
+        sectionsCount: t.template_data?.sections?.length ?? 0,
+        tiers: t.tier_requirement ? [t.tier_requirement] : undefined,
+        data: {
+          ...t.template_data,
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          category: t.category,
+        } as unknown as Template,
+      }));
+  }, [systemTemplates, resolvedTier]);
 
   const savedUnified = useMemo((): UnifiedTemplate[] => {
     return savedTemplates.map((row) => {
@@ -153,7 +185,13 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     });
   }, [savedTemplates]);
 
-  const allTemplates = useMemo(() => [...builtinUnified, ...savedUnified], [builtinUnified, savedUnified]);
+  // Daftar yang ditampilkan mengikuti tab aktif. Sebelumnya selalu saved
+  // sehingga template sistem (builtin) tidak pernah terlihat walau API-nya
+  // sudah mengembalikan data.
+  const allTemplates = useMemo(
+    () => (activeTab === 'builtin' ? [...builtinUnified] : [...savedUnified]),
+    [activeTab, builtinUnified, savedUnified],
+  );
 
   const filteredTemplates = useMemo(() => {
     return allTemplates.filter((t) => {
@@ -433,10 +471,10 @@ const colors = getStyleColors(template.data);
       <div className="flex items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
           <Button variant={activeTab === 'builtin' ? 'default' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => { setActiveTab('builtin'); setCurrentPage(1); }}>
-            <Sparkles className="w-4 h-4" /> Bawaan ({builtinUnified.length})
+            <Sparkles className="w-4 h-4" /> Katalog ({builtinUnified.length})
           </Button>
           <Button variant={activeTab === 'saved' ? 'default' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => { setActiveTab('saved'); setCurrentPage(1); }}>
-            <Layout className="w-4 h-4" /> Tersimpan ({savedUnified.length})
+            <Layout className="w-4 h-4" /> Library ({savedUnified.length})
           </Button>
         </div>
         <div className="flex items-center gap-2">

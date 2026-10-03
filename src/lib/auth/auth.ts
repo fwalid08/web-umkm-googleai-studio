@@ -40,6 +40,7 @@ const nextAuth = NextAuth({
         if (isDemoAuthEnabled()) {
           const demo = findDemoUser(credentials.email as string, credentials.password as string);
           if (demo) {
+            console.log("[AUTH] Demo login success:", { email: demo.email, tier: demo.tier });
             const active = getDemoActiveWebsite(demo.id);
             return {
               id: demo.id,
@@ -61,31 +62,72 @@ const nextAuth = NextAuth({
             password: credentials.password as string,
           });
           if (error || !data.user) return null;
+
+          // Cari profile by Auth ID dulu
           const { data: profile } = await supabase
             .from("users")
             .select("id, name, business_type, tier, subdomain, avatar_url")
             .eq("id", data.user.id)
             .single();
-          if (!profile) return null;
-          // Sprint 03: subdomain session ikut website aktif (bukan kolom users legacy)
+
+          // Fallback: cari by email. ID session = public.users.id yang ketemu
+          // (bisa berbeda dari Auth ID kalau baris dibuat manual). JANGAN pernah
+          // UPDATE PK users — baris itu sudah direferensikan subscriptions/websites/orders.
+          let finalProfile = profile;
+          if (!finalProfile) {
+            const { data: profileByEmail } = await supabase
+              .from("users")
+              .select("id, name, business_type, tier, subdomain, avatar_url")
+              .eq("email", data.user.email!)
+              .single();
+            if (!profileByEmail) {
+              // User benar-benar baru: buat profile dengan Auth ID sebagai PK
+              // agar auth.users.id == public.users.id sejak awal.
+              const svc = createServiceSupabaseClient();
+              const { data: newProfile, error: createError } = await svc
+                .from("users")
+                .insert({
+                  id: data.user.id,
+                  email: data.user.email!,
+                  name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
+                  business_type: "retail",
+                  tier: "free",
+                  avatar_url: data.user.user_metadata?.avatar_url || null,
+                  auth_provider: "credentials",
+                })
+                .select("id, name, business_type, tier, subdomain, avatar_url")
+                .single();
+              if (createError || !newProfile) {
+                console.error("[AUTH] Failed to create profile:", createError);
+                return null;
+              }
+              finalProfile = newProfile;
+            } else {
+              finalProfile = profileByEmail;
+            }
+          }
+
+          // Sprint 03: subdomain session ikut website aktif (bukan kolom users legacy).
+          // PENTING: query pakai finalProfile.id (public.users.id), bukan Auth ID.
           const { data: active } = await supabase
             .from("websites")
             .select("subdomain")
-            .eq("user_id", data.user.id)
+            .eq("user_id", finalProfile.id)
             .order("created_at", { ascending: true })
             .limit(1)
             .maybeSingle();
           return {
-            id: data.user.id,
+            id: finalProfile.id,
             email: data.user.email!,
-            name: profile.name || data.user.email!,
-            image: profile.avatar_url || null,
-            tier: (profile.tier as any) || "free",
-            subdomain: active?.subdomain ?? profile.subdomain,
-            business_type: profile.business_type,
+            name: finalProfile.name || data.user.email!,
+            image: finalProfile.avatar_url || null,
+            tier: (finalProfile.tier as any) || "free",
+            subdomain: active?.subdomain ?? finalProfile.subdomain,
+            business_type: finalProfile.business_type,
             trial_ends_at: null, // Sprint 04: kolom di-drop (015) — session selalu free-murni
           } as any;
-        } catch {
+        } catch (err) {
+          console.error("[AUTH] Authorize error:", err);
           return null;
         }
       },

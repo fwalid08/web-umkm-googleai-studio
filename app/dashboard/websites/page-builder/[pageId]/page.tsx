@@ -16,7 +16,13 @@ import {
   seedTemplateSections,
   templateIdForApiName,
 } from "@/lib/builder/migration";
+import { resolveTemplateId, synthesizeLibraryTemplate } from "@/lib/builder/apply-template";
+import {
+  pickLibraryFooterVariant,
+  pickLibraryHeaderVariant,
+} from "@/lib/builder/library-template";
 import { getTemplate } from "@/lib/builder/template-store";
+import type { Template } from "@/lib/builder/template-types";
 
 /** Daftar id+kategori katalog untuk memetakan nama template API -> template-store. */
 const BUILT_IN_TEMPLATES_FOR_LOOKUP = BUILT_IN_CATALOG.map((t) => ({ id: t.id, category: t.category }));
@@ -48,6 +54,9 @@ export default function PageBuilderPage() {
   const loadConfig = useBuilderStore((s) => s.loadConfig);
   const globalRef = useRef<Record<string, unknown> | null>(null);
   const pageMetaRef = useRef<{ is_homepage?: boolean; slug?: string } | null>(null);
+  // Template library aktif website (sumber ID + template_source saat save).
+  // Tanpa ini save mengirim t.template.id yang kosong → PUT 404.
+  const libMetaRef = useRef<{ id: string; source: 'saved' | 'builtin' } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,13 +135,92 @@ export default function PageBuilderPage() {
           null;
         const templateStore = useTemplateStore.getState();
         if (templateId) templateStore.setTemplate(templateId);
-        // setTemplate() sinkron mengganti template; baca ulang state terbaru
-        // supaya seed memakai template yang benar (bukan template lama).
-        const freshTemplateStore = useTemplateStore.getState();
-        const seedTemplate =
-          freshTemplateStore.template ?? (templateId ? getTemplateByIdSafe(templateId) : undefined);
-        if (seedTemplate) {
-          freshTemplateStore.replaceSections(seedTemplateSections(seedTemplate, pageSections as never));
+        // setTemplate() saat ini no-op + BUILT_IN_CATALOG kosong, jadi jalur
+        // statis di atas hampir selalu null. Fallback utama: ambil template
+        // aktif website langsung dari library (sumber kebenaran sekarang).
+        // JANGAN pakai freshTemplateStore.template apa adanya: nilai awalnya
+        // template kosong yang truthy tapi tanpa headers/footers → crash .id
+        // di resolveChromeConfig.
+        let seedTemplate: Template | undefined =
+          templateId ? getTemplateByIdSafe(templateId) : undefined;
+        if (!seedTemplate) {
+          const rawLibId = cfgJson.data.template_id;
+          const libId =
+            typeof rawLibId === "string" && rawLibId ? resolveTemplateId(rawLibId) : "";
+          if (libId && !cancelled) {
+            try {
+              const libRes = await fetch(`/api/templates/library/${libId}`);
+              const libJson = await libRes.json().catch(() => null);
+              const row = libJson?.data;
+              if (row && typeof row === "object") {
+                const rec = row as Record<string, unknown>;
+                // Bangun Template penuh (varian header/footer ternormalisasi)
+                // memakai helper yang sama dengan alur apply galeri.
+                const built = synthesizeLibraryTemplate(
+                  (rec.template_data ?? {}) as Record<string, unknown>,
+                  {
+                    id: typeof rec.id === "string" ? rec.id : libId,
+                    name: typeof rec.name === "string" ? rec.name : "Template",
+                    description: typeof rec.description === "string" ? rec.description : undefined,
+                    category: typeof rec.category === "string" ? rec.category : undefined,
+                  },
+                );
+                seedTemplate = built;
+                libMetaRef.current = {
+                  id: built.id,
+                  source: rec.scope === "public" && rec.is_system_template ? "builtin" : "saved",
+                };
+                // Isi store agar sidebar/kanvas memakai definisi varian asli
+                // (bukan template kosong bawaan store yang memicu crash).
+                // customCss/animations/behaviours/assets bawaan template ikut
+                // diisi bila config tersimpan belum memilikinya — tanpa ini
+                // kanvas tanpa gaya template (ukuran logo hilang, dsb), tapi
+                // kustomisasi user yang sudah tersimpan tidak pernah ditimpa.
+                const cfgRec = config as Record<string, unknown>;
+                const storedHeader = cfgRec.header as Record<string, unknown> | undefined;
+                const storedFooter = cfgRec.footer as Record<string, unknown> | undefined;
+                // Sumber bawaan template dibaca dari template_data mentah
+                // (bukan hasil sintesis) agar tidak tergantung bentuk type-nya.
+                const rawTd = ((rec as Record<string, unknown>).template_data ?? {}) as Record<string, unknown>;
+                useTemplateStore.setState({
+                  template: built,
+                  headerVariantId:
+                    pickLibraryHeaderVariant(built, storedHeader?.variant)?.id ?? "",
+                  footerVariantId:
+                    pickLibraryFooterVariant(
+                      built,
+                      storedFooter?.variant ?? storedFooter?.style,
+                    )?.id ?? "",
+                  ...(typeof cfgRec.customCss !== "string" || !cfgRec.customCss
+                    ? { customCss: typeof rawTd.customCss === "string" ? rawTd.customCss : "" }
+                    : {}),
+                  ...(!Array.isArray(cfgRec.animations) || cfgRec.animations.length === 0
+                    ? { animations: (rawTd.animations ?? []) as never }
+                    : {}),
+                  ...(!Array.isArray(cfgRec.behaviours) || cfgRec.behaviours.length === 0
+                    ? { behaviours: (rawTd.behaviours ?? []) as never }
+                    : {}),
+                  ...(!Array.isArray(cfgRec.assets) || cfgRec.assets.length === 0
+                    ? { assets: (rawTd.assets ?? []) as never }
+                    : {}),
+                });
+              }
+            } catch {
+              // abaikan — guard usable di bawah yang menangani
+            }
+          }
+        }
+        // Seed hanya bila template punya headers+footers (resolveChromeConfig
+        // membaca .id varian pertama; array kosong = crash). Kanvas tetap
+        // dimuat dari sections halaman tersimpan walau seed dilewati.
+        const hasUsableChrome =
+          !!seedTemplate &&
+          Array.isArray(seedTemplate.headers) &&
+          seedTemplate.headers.length > 0 &&
+          Array.isArray(seedTemplate.footers) &&
+          seedTemplate.footers.length > 0;
+        if (seedTemplate && hasUsableChrome) {
+          templateStore.replaceSections(seedTemplateSections(seedTemplate, pageSections as never));
           // Seed konten header/footer efektif (default varian + tersimpan)
           // agar form sidebar & kanvas menampilkan nilai sebenarnya, bukan
           // sekadar default template.
@@ -209,13 +297,25 @@ export default function PageBuilderPage() {
       animations: t.animations as unknown[],
       behaviours: t.behaviours as unknown[],
       assets: t.assets as unknown[],
+      // Persist CSS efektif (template bawaan bila simpanan belum punya).
+      // Tanpa ini customCss hilang saat save pertama dan tak pernah kembali.
+      customCss: t.customCss,
       seo: s.seo,
       core: (s.core ?? {}) as unknown as Record<string, unknown>,
     });
+    // ID template yang dikirim = template library aktif (disimpan saat load).
+    // t.template.id SELALU kosong (store template tak pernah diisi dari server
+    // sejak katalog statis dikosongkan) → PUT 404 "Template tidak ditemukan".
+    const libMeta = libMetaRef.current;
     const globalRes = await fetch(`/api/websites/${websiteId}/website`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ custom_config: customConfig, template_id: t.template.id, is_homepage: isHomepage }),
+      body: JSON.stringify({
+        custom_config: customConfig,
+        template_id: libMeta?.id ?? t.template.id,
+        ...(libMeta ? { template_source: libMeta.source } : {}),
+        is_homepage: isHomepage,
+      }),
     });
     const globalJson = await globalRes.json();
     if (!globalJson.success) throw new Error(globalJson.error ?? "Gagal menyimpan global");

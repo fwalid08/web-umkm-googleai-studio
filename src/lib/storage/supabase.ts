@@ -18,6 +18,32 @@ import type {
 } from "./types";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 
+/**
+ * MIME type dari ekstensi file. Dipisah sebagai fungsi murni agar bisa
+ * di-unit-test. PENTING: `svg` (dan `ico`/`css`/`js`) WAJIB terpetakan —
+ * tanpanya file ter-upload sebagai `application/octet-stream` dan berisiko
+ * tidak tampil di konteks ketat (preview tertentu, CSP ketat, `<object>`).
+ */
+export function mimeTypeForFilename(fileName: string): string {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  const mimeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+    avif: "image/avif",
+    svg: "image/svg+xml",
+    ico: "image/x-icon",
+    css: "text/css",
+    js: "text/javascript",
+    pdf: "application/pdf",
+    mp4: "video/mp4",
+    webm: "video/webm",
+  };
+  return mimeMap[ext || ""] || "application/octet-stream";
+}
+
 export class SupabaseStorageProvider implements StorageProvider {
   readonly id = "supabase";
   readonly name = "Supabase Storage";
@@ -269,19 +295,7 @@ export class SupabaseStorageProvider implements StorageProvider {
   }
 
   private detectMimeType(fileName: string): string {
-    const ext = fileName.split(".").pop()?.toLowerCase();
-    const mimeMap: Record<string, string> = {
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      png: "image/png",
-      webp: "image/webp",
-      gif: "image/gif",
-      avif: "image/avif",
-      pdf: "application/pdf",
-      mp4: "video/mp4",
-      webm: "video/webm",
-    };
-    return mimeMap[ext || ""] || "application/octet-stream";
+    return mimeTypeForFilename(fileName);
   }
 }
 

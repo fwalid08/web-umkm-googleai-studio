@@ -7,7 +7,6 @@ import type { AnimationConfig, BehaviourConfig, TemplateSectionInstance } from "
 import type { DesignStylePalette, DesignStyleTypography } from "@/lib/builder/types";
 import { getDemoPublicSite } from "@/lib/mock/store";
 import { isValidSubdomain, normalizeHost, rootHost, isRootHost } from "@/lib/tenant";
-import { BUILT_IN_CATALOG, type BusinessCategory } from "@/lib/builder/templates/catalog";
 import { defaultAnchorId, uniqueAnchorId } from "@/lib/builder/migration";
 
 /** Convert builder section format to MergedSection format for public rendering. */
@@ -260,11 +259,17 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
   let catalogTemplateId: string | null = null;
   
   if (stored?.catalog_template_id) {
-    const catalogTemplate = BUILT_IN_CATALOG.find((t) => t.id === stored.catalog_template_id);
+    // Fetch catalog template from templates_library
+    const { data: catalogTemplate } = await supabase
+      .from("templates_library")
+      .select("*")
+      .eq("id", stored.catalog_template_id)
+      .maybeSingle();
+    
     if (catalogTemplate) {
       sectionMappingTemplate = {
         ...template,
-        sections_config: catalogTemplate.sections,
+        sections_config: catalogTemplate.template_data?.sections ?? [],
       } as typeof template;
       catalogTemplateId = catalogTemplate.id;
     }
@@ -396,11 +401,7 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
   } as TypographyConfig;
 const name = user.name || "Toko Kami";
   // Use catalog template ID if available (for V3 renderer), otherwise determine from businessType
-  const templateId = catalogTemplateId || (() => {
-    const cat = (user.business_type ?? "retail") as BusinessCategory;
-    const t = BUILT_IN_CATALOG.find((x) => x.category === cat);
-    return t?.id;
-  })();
+  const templateId = catalogTemplateId || template.id;
   const designStyleId = (stored?.design_style_id as string) || (stored?.designStyleId as string) || 'minimalist';
   const storedSections = stored?.sections as Array<{
     id: string;
@@ -411,22 +412,20 @@ const name = user.name || "Toko Kami";
     style?: Record<string, unknown>;
     responsive?: Record<string, unknown>;
   }> | undefined;
-  // Template katalog untuk mapping variant & anchor default. Dipindah ke atas
-  // agar dipakai juga saat membangun builderSections di bawah.
-  const catalogTemplateForSections = catalogTemplateId
-    ? (BUILT_IN_CATALOG.find((t) => t.id === catalogTemplateId) ?? null)
-    : null;
-  const variantSource =
-    catalogTemplateForSections?.sections ??
-    BUILT_IN_CATALOG.find((t) => t.id === templateId)?.sections ??
-    BUILT_IN_CATALOG[0]?.sections ??
-    [];
+// Template katalog untuk mapping variant & anchor default. Dipindah ke atas
+// agar dipakai juga saat membangun builderSections di bawah.
+const catalogTemplateForSections = catalogTemplateId
+  ? (await supabase.from("templates_library").select("*").eq("id", catalogTemplateId).maybeSingle()).data
+  : null;
+const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
+  catalogTemplateForSections?.template_data?.sections ??
+  [];
   const resolveVariantId = (type: string, variant: unknown): string => {
     const typeDef = variantSource.find((t) => t.type === type);
-    if (typeof variant === 'string' && variant.length > 0 && typeDef?.variants.some((v) => v.id === variant)) {
+    if (typeof variant === 'string' && variant.length > 0 && typeDef?.variants?.some((v) => v.id === variant)) {
       return variant;
     }
-    return typeDef?.variants[0]?.id ?? 'hero-full';
+    return typeDef?.variants?.[0]?.id ?? 'hero-full';
   };
   // Samakan dengan seed kanvas: tipe tak dikenal dipetakan ke hero agar
   // section tidak hilang diam-diam di live site.
@@ -469,26 +468,29 @@ const name = user.name || "Toko Kami";
   const footer = stored?.footer as Record<string, unknown> | undefined;
   const paletteOverride = ((stored?.palette_override as Record<string, string>) || (stored?.paletteOverride as Record<string, string>) || undefined) as Record<string, string> | undefined;
   // Animasi/behaviour ikut template. Disimpan utuh di custom_config; runtime
-  // yang menyalakannya, bukan data ini.
-  const templateAnimations = Array.isArray(stored?.animations)
-    ? (stored!.animations as AnimationConfig[])
-    : undefined;
-  const templateBehaviours = Array.isArray(stored?.behaviours)
-    ? (stored!.behaviours as BehaviourConfig[])
-    : undefined;
+  // yang menyalakannya, bukan data ini. Bila simpanan belum memilikinya
+  // (mis. baris lama), fallback ke data template katalog agar live site
+  // tidak kehilangan gaya/animasi bawaan template.
+  const libData = (catalogTemplateForSections?.template_data ?? {}) as Record<string, unknown>;
+  const nonEmptyString = (v: unknown): string | undefined =>
+    typeof v === 'string' && v.trim().length > 0 ? v : undefined;
+  const nonEmptyArray = <T,>(v: unknown): T[] | undefined =>
+    Array.isArray(v) && v.length > 0 ? (v as T[]) : undefined;
+  const templateAnimations =
+    nonEmptyArray<AnimationConfig>(stored?.animations) ??
+    nonEmptyArray<AnimationConfig>(libData.animations);
+  const templateBehaviours =
+    nonEmptyArray<BehaviourConfig>(stored?.behaviours) ??
+    nonEmptyArray<BehaviourConfig>(libData.behaviours);
   const templateCustomCss =
-    typeof stored?.customCss === 'string' && stored.customCss.trim().length > 0
-      ? stored.customCss
-      : undefined;
+    nonEmptyString(stored?.customCss) ?? nonEmptyString(libData.customCss);
 
-  // Use catalog template's theme/typography for V3 renderer if available.
-  // Font pilihan user (theme.typography tersimpan) selalu menang.
-  // (Lookup katalog dipakai ulang dari atas agar satu sumber kebenaran.)
-  const catalogTemplate = catalogTemplateForSections;
-  const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePalette;
+// Use catalog template's theme/typography for V3 renderer if available.
+const catalogTemplate = catalogTemplateForSections;
+const v3Palette = (catalogTemplate?.template_data?.theme?.palette ?? palette) as DesignStylePalette;
   const storedTypography = ((stored?.theme as Record<string, unknown> | undefined)?.typography ?? {}) as Record<string, string>;
   const v3Typography = {
-    ...((catalogTemplate?.theme?.typography ?? typography) as DesignStyleTypography),
+    ...((catalogTemplate?.template_data?.theme?.typography ?? typography) as DesignStyleTypography),
     ...(typeof storedTypography.headingFont === 'string' && storedTypography.headingFont.trim() ? { headingFont: storedTypography.headingFont.trim() } : {}),
     ...(typeof storedTypography.bodyFont === 'string' && storedTypography.bodyFont.trim() ? { bodyFont: storedTypography.bodyFont.trim() } : {}),
   } as DesignStyleTypography;

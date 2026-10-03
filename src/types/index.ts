@@ -19,7 +19,7 @@ export interface User {
   updated_at: string;
 }
 
-export type BusinessType = "food" | "fashion" | "handicraft" | "retail" | "services";
+export type BusinessType = "food" | "fashion" | "handicraft" | "retail" | "services" | "marketplace" | "education" | "electronics" | "home";
 
 export type Tier = "free" | "starter" | "growth" | "enterprise";
 
@@ -66,6 +66,7 @@ export interface SectionConfig {
   id: string;
   type: SectionType;
   label: string;
+  variant?: string;
   default_props: Record<string, any>;
   required: boolean;
   order: number;
@@ -73,15 +74,24 @@ export interface SectionConfig {
 
 export type SectionType =
   | "hero"
+  | "features"
   | "product_grid"
-  | "image_gallery"
-  | "contact_info"
-  | "whatsapp_button"
-  | "location_map"
   | "testimonials"
-  | "about"
   | "faq"
-  | "promo_banner";
+  | "cta"
+  | "contact"
+  | "booking"
+  | "about"
+  | "gallery"
+  | "video"
+  | "team"
+  | "pricing"
+  | "newsletter"
+  | "divider"
+  | "marquee"
+  | "menu_board"
+  | "steps"
+  | "location";
 
 // Order Types
 export interface Order {

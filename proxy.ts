@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 /**
  * Ekstrak subdomain tenant dari hostname → header x-tenant-subdomain.
  * Env-driven: ROOT=localhost:3000 (dev, sub.localhost) atau saas-saya.com (prod).
  * Host lain (custom domain) diteruskan; getTenantSite() resolve via DB.
  * Validasi terpusat di src/lib/tenant (isValidSubdomain, stripPort).
+ * 
+ * Ditambah: session validation untuk /dashboard dan /admin routes
  */
 
 function stripPortLocal(host: string): string {
@@ -37,8 +40,64 @@ function tenantHeaders(sub: string) {
   return res;
 }
 
-export default function proxy(request: NextRequest) {
+const PROTECTED_PATHS = ["/dashboard", "/admin"];
+const ADMIN_PATHS = ["/admin"];
+
+async function validateSession(request: NextRequest): Promise<NextResponse | null> {
+  const { pathname } = request.nextUrl;
+
+  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
+  const isAdmin = ADMIN_PATHS.some((p) => pathname.startsWith(p));
+
+  if (!isProtected) {
+    return null;
+  }
+
+  // DEBUG: Check cookie header
+  const cookieHeader = request.headers.get("cookie");
+  const hasSessionCookie = !!cookieHeader?.includes("authjs.session-token");
+  console.log("[PROXY] Cookie check:", { pathname, hasSessionCookie });
+
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
+  });
+
+  console.log("[PROXY] validateSession:", {
+    pathname,
+    hasToken: !!token,
+    tokenEmail: token?.email,
+    tokenTier: token?.tier,
+    isAdmin,
+  });
+
+  if (!token) {
+    const signInUrl = new URL("/signin", request.url);
+    signInUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  if (isAdmin) {
+    const isAdminUser = token.email === "admin@saas.com" && token.tier === "enterprise";
+    console.log("[PROXY] Admin check:", { isAdminUser, email: token.email, tier: token.tier });
+    if (!isAdminUser) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
+  return null;
+}
+
+export default async function proxy(request: NextRequest) {
   const { hostname, pathname } = request.nextUrl;
+
+  // Session validation untuk protected routes
+  const sessionRedirect = await validateSession(request);
+  if (sessionRedirect) {
+    return sessionRedirect;
+  }
+
   // Static/API dilewati (matcher sudah kecualikan); JANGAN pakai includes(".")
   // karena route valid bisa mengandung titik.
   if (
@@ -50,13 +109,8 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Support /admin alias -> /dashboard
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    const newPath = pathname.replace(/^\/admin/, "/dashboard");
-    const url = request.nextUrl.clone();
-    url.pathname = newPath;
-    return NextResponse.redirect(url);
-  }
+  // NOTE: /admin adalah route admin sungguhan (app/(admin)/), bukan alias.
+  // Jangan redirect ke /dashboard — proteksi sudah ditangani validateSession di atas.
 
   const host = hostname.toLowerCase();
   if (host.startsWith("admin.")) {

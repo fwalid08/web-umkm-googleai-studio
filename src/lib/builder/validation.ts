@@ -48,6 +48,7 @@ export interface SectionOverride {
 export interface MergedSection {
   id: string;
   type: string;
+  variant?: string;
   label: string;
   enabled: boolean;
   required: boolean;
@@ -86,6 +87,7 @@ export function mergeAndValidateSections(
       return {
         id: t.id,
         type: t.type,
+        variant: t.variant,
         label: t.label,
         enabled: o?.enabled ?? true,
         required: t.required,

@@ -1,26 +1,13 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { Template, SectionTypeDefinition, SectionVariant, TemplateSectionInstance, AnimationConfig, BehaviourConfig, AssetMetadata, TemplateTheme } from './template-types';
-import { PANGKAS_RAPI_TEMPLATE } from './templates/pangkas-rapi';
-import { BENGKEL_TEMPLATE } from './templates/bengkel';
-import { WARUNG_MAKAN_TEMPLATE } from './templates/warung-makan';
-import { BUTIK_HIJAB_TEMPLATE } from './templates/butik-hijab';
-import { TOKO_KELONTONG_TEMPLATE } from './templates/toko-kelontong';
-import { KERAJINAN_TANGAN_TEMPLATE } from './templates/kerajinan-tangan';
 import { seedTemplateSections, sanitizeAnchor, uniqueAnchorId } from './migration';
 import { applySectionAssets } from './template-assets';
 
-export const BUILTIN_TEMPLATES: Template[] = [
-  PANGKAS_RAPI_TEMPLATE,
-  BENGKEL_TEMPLATE,
-  WARUNG_MAKAN_TEMPLATE,
-  BUTIK_HIJAB_TEMPLATE,
-  TOKO_KELONTONG_TEMPLATE,
-  KERAJINAN_TANGAN_TEMPLATE,
-];
+export const BUILTIN_TEMPLATES: Template[] = [];
 
 export function getTemplate(id: string): Template | undefined {
-  return BUILTIN_TEMPLATES.find((t) => t.id === id);
+  return undefined;
 }
 
 export function getSectionType(template: Template, type: string): SectionTypeDefinition | undefined {
@@ -39,23 +26,10 @@ export function getFooterVariant(template: Template, variantId: string) {
   return template.footers.find((f) => f.id === variantId) ?? template.footers[0];
 }
 
-/**
- * Section mana yang AKTIF untuk niche ini (v3.0).
- *
- * Template WAJIB mendefinisikan SEMUA 19 tipe di `template.sections`,
- * tapi hanya subset yang aktif di kanvas awal — ditentukan di sini sesuai
- * kebutuhan konten jenis usaha.
- *
- * Urutan prioritas:
- * 1. `template.activeSections` (root — dari AI/ZIP v3.0)
- * 2. Tipe yang ada di seed default (turunan data.sections template TS)
- * 3. Fallback: semua tipe yang didefinisikan di `template.sections`
- */
 export function getActiveSections(template: Template): string[] {
   if (Array.isArray(template.activeSections) && template.activeSections.length > 0) {
     return template.activeSections;
   }
-  // Turunan dari seed TS: tipe yang muncul di data.sections template.
   const seedTypes = new Set<string>();
   try {
     const data = (template as unknown as { data?: { sections?: Array<{ type?: string }> } }).data;
@@ -63,7 +37,6 @@ export function getActiveSections(template: Template): string[] {
       if (s?.type) seedTypes.add(s.type);
     }
   } catch {
-    // Abaikan — fallback ke semua tipe.
   }
   if (seedTypes.size > 0) return [...seedTypes];
   return template.sections.map((s) => s.type);
@@ -78,14 +51,12 @@ function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-/** Satu entri histori template (sections + chrome + tema + aset). */
 type TemplateHistoryEntry = {
   sections: TemplateSectionInstance[];
   headerVariantId: string;
   footerVariantId: string;
   themeOverride: Record<string, string>;
   animations: AnimationConfig[];
-  /** CSS kustom template — lihat `FullTemplateData.customCss`. */
   customCss: string;
   behaviours: BehaviourConfig[];
   assets: AssetMetadata[];
@@ -101,7 +72,6 @@ type TemplateDraft = {
   footerConfig: Record<string, unknown>;
   themeOverride: Record<string, string>;
   animations: AnimationConfig[];
-  /** CSS kustom template — lihat `FullTemplateData.customCss`. */
   customCss: string;
   behaviours: BehaviourConfig[];
   assets: AssetMetadata[];
@@ -124,7 +94,6 @@ function snapshotTemplate(state: TemplateDraft) {
   };
 }
 
-/** Dorong histori lengkap (sections + chrome + tema + aset). */
 function pushTemplateHistory(state: TemplateDraft) {
   state.past.push(snapshotTemplate(state));
 }
@@ -156,8 +125,6 @@ function createDefaultSectionInstance(template: Template, type: string, variantI
     style: {
       padding: { top: 48, right: 24, bottom: 48, left: 24, ...(ds.padding ?? {}) },
       background: ds.background ?? 'transparent',
-      // Pertahankan token theme:* apa adanya — di-resolve saat render ke
-      // warna template aktif sehingga varian baru langsung ikut tema.
       ...(ds.backgroundColor ? { backgroundColor: ds.backgroundColor } : {}),
       ...(ds.backgroundImage ? { backgroundImage: ds.backgroundImage } : {}),
       ...(ds.backgroundGradient ? { backgroundGradient: ds.backgroundGradient } : {}),
@@ -184,28 +151,13 @@ interface TemplateState {
   themeOverride: Record<string, string>;
   animations: AnimationConfig[];
   behaviours: BehaviourConfig[];
-  /** CSS kustom template — lihat `FullTemplateData.customCss`. */
   customCss: string;
   assets: AssetMetadata[];
   past: TemplateHistoryEntry[];
   future: TemplateHistoryEntry[];
 
   setTemplate: (templateId: string) => void;
-  /**
-   * Terapkan template sebagai titik awal BARU: ganti theme/palette, reset
-   * header/footer ke varian pertama, DAN seed sections bawaan template lengkap
-   * dengan aset foto per-niche. Section lama digantikan (bisa di-undo).
-   */
-  /**
-   * Terapkan template ke store/kanvas.
-   *
-   * `override` dipakai untuk template library (hasil import ZIP): id-nya tidak
-   * ada di `BUILTIN_TEMPLATES`, jadi `getTemplate()` akan mengembalikan
-   * `undefined` dan pemanggilan diam-diam tidak berefek apa pun. Kirim objek
-   * `Template` hasil `synthesizeLibraryTemplate()` untuk menutup jalur itu.
-   */
   applyTemplate: (templateId: string, override?: Template) => void;
-  /** Timpa sections tanpa reset undo-user (dipakai seed dari data tersimpan). */
   replaceSections: (sections: TemplateSectionInstance[]) => void;
   setHeaderVariant: (variantId: string) => void;
   setFooterVariant: (variantId: string) => void;
@@ -217,7 +169,6 @@ interface TemplateState {
   setSectionVariant: (id: string, variantId: string) => void;
   updateSectionConfig: (id: string, config: Record<string, unknown>) => void;
   updateSectionStyle: (id: string, style: Partial<TemplateSectionInstance['style']>) => void;
-  /** Set anchor link (`#...`) sebuah section. Nilai dinormalisasi + dijaga unik. */
   updateSectionAnchor: (id: string, anchorId: string) => void;
   reorderSections: (fromIndex: number, toIndex: number) => void;
   selectSection: (id: string | null) => void;
@@ -226,9 +177,7 @@ interface TemplateState {
   updateAnimations: (animations: AnimationConfig[]) => void;
   updateBehaviours: (behaviours: BehaviourConfig[]) => void;
   updateAssets: (assets: AssetMetadata[]) => void;
-  /** Ubah satu key konten header (ikut undo + tandai belum tersimpan). */
   updateHeaderConfig: (patch: Record<string, unknown>) => void;
-  /** Ubah satu key konten footer (ikut undo + tandai belum tersimpan). */
   updateFooterConfig: (patch: Record<string, unknown>) => void;
   undo: () => void;
   redo: () => void;
@@ -238,13 +187,54 @@ interface TemplateState {
   getConfig: () => Record<string, unknown>;
 }
 
+function createEmptyTemplate(): Template {
+  return {
+    id: '',
+    name: '',
+    description: '',
+    category: 'services',
+    designType: 'editorial',
+    theme: {
+      palette: {
+        primary: '#333333',
+        secondary: '#666666',
+        accent: '#333333',
+        background: '#ffffff',
+        surface: '#f5f5f5',
+        text: '#333333',
+        textMuted: '#666666',
+        border: '#e5e5e5',
+      },
+      typography: {
+        headingFont: 'Inter',
+        bodyFont: 'Inter',
+        baseSize: 16,
+        scaleRatio: 1.25,
+        headingWeight: 700,
+        bodyWeight: 400,
+      },
+      components: {
+        borderRadius: 4,
+        buttonStyle: 'solid',
+        shadowStyle: 'sm',
+        navStyle: 'solid',
+        footerStyle: 'simple',
+      },
+      effects: {},
+    },
+    headers: [],
+    footers: [],
+    sections: [],
+  };
+}
+
 export const useTemplateStore = create<TemplateState>()(
   immer((set, get) => ({
-    template: PANGKAS_RAPI_TEMPLATE,
-    headerVariantId: PANGKAS_RAPI_TEMPLATE.headers[0].id,
-    footerVariantId: PANGKAS_RAPI_TEMPLATE.footers[0].id,
-    headerConfig: { ...(PANGKAS_RAPI_TEMPLATE.headers[0]?.defaultConfig ?? {}) },
-    footerConfig: { ...(PANGKAS_RAPI_TEMPLATE.footers[0]?.defaultConfig ?? {}) },
+    template: createEmptyTemplate(),
+    headerVariantId: '',
+    footerVariantId: '',
+    headerConfig: {},
+    footerConfig: {},
     sections: [],
     selectedSectionId: null,
     saved: true,
@@ -258,40 +248,22 @@ export const useTemplateStore = create<TemplateState>()(
 
     setTemplate: (templateId) =>
       set((state) => {
-        const template = getTemplate(templateId);
-        if (!template) return;
-        state.template = template;
-        state.headerVariantId = template.headers[0].id;
-        state.footerVariantId = template.footers[0].id;
-        state.headerConfig = { ...(template.headers[0]?.defaultConfig ?? {}) };
-        state.footerConfig = { ...(template.footers[0]?.defaultConfig ?? {}) };
-        state.sections = [];
-        state.selectedSectionId = null;
-        state.themeOverride = {};
-        state.animations = template.animations || [];
-        state.customCss = (template as { customCss?: string }).customCss ?? '';
-        state.behaviours = template.behaviours || [];
-        state.assets = template.assets || [];
-        state.saved = false;
+        // Template now comes from database, not BUILTIN_TEMPLATES
+        // This is a no-op since template comes from server
       }),
 
     applyTemplate: (templateId, override) =>
       set((state) => {
         const template = override ?? getTemplate(templateId);
         if (!template) return;
-        // Dorong histori dulu → "Ganti template" bisa di-undo seperti edit biasa.
         pushTemplateHistory(state);
 
         state.template = template;
-        state.headerVariantId = template.headers[0].id;
-        state.footerVariantId = template.footers[0].id;
+        state.headerVariantId = template.headers[0]?.id ?? '';
+        state.footerVariantId = template.footers[0]?.id ?? '';
         state.headerConfig = deepClone(template.headers[0]?.defaultConfig ?? {});
         state.footerConfig = deepClone(template.footers[0]?.defaultConfig ?? {});
 
-        // Seed section bawaan template lalu lengkapi foto per-niche bisnis.
-        // Tanpa ini kanvas kosong setelah ganti template (regression lama).
-        // Sumber = `data.sections` (konten per-bisnis) jika ada; kalau template
-        // tidak menyediakannya, jatuh ke varian pertama tiap tipe section.
         const tplData = (template as unknown as { data?: { sections?: Parameters<typeof seedTemplateSections>[1] } }).data;
         type SeedInput = NonNullable<Parameters<typeof seedTemplateSections>[1]>[number];
         const fallback: SeedInput[] = (template.sections ?? []).flatMap((st) =>
@@ -309,8 +281,6 @@ export const useTemplateStore = create<TemplateState>()(
         }));
 
         state.selectedSectionId = null;
-        // Reset override tema supaya palet template (mis. oranye warung makan)
-        // benar-benar tampil, bukan sisa template sebelumnya.
         state.themeOverride = {};
         state.animations = template.animations || [];
         state.customCss = (template as { customCss?: string }).customCss ?? '';
@@ -326,8 +296,6 @@ export const useTemplateStore = create<TemplateState>()(
         state.selectedSectionId = null;
         state.past = [];
         state.future = [];
-        // Konten hasil seed dianggap "tersimpan" agar indikator atas tidak
-        // menyala palsu saat halaman baru dibuka.
         state.saved = true;
       }),
 
@@ -451,10 +419,6 @@ export const useTemplateStore = create<TemplateState>()(
         }
       }),
 
-    // Anchor = atribut `id` di DOM yang jadi target link `#...` di menu.
-    // Nilai dinormalisasi (lihat sanitizeAnchor) lalu dijaga unik terhadap
-    // section lain — duplikat akan menjadi id HTML yang tidak valid.
-    // String kosong = section tanpa anchor (tetap tanpa id, bukan error).
     updateSectionAnchor: (id, anchorId) =>
       set((state) => {
         const section = state.sections.find((s) => s.id === id);
@@ -555,23 +519,11 @@ export const useTemplateStore = create<TemplateState>()(
 
     loadFromConfig: (config) =>
       set((state) => {
-        const templateId = (config.template_id as string) || 'pangkas-rapi';
-        const template = getTemplate(templateId) || PANGKAS_RAPI_TEMPLATE;
-        state.template = template;
-        const headerVariantId = (config.header_variant_id as string) || template.headers[0].id;
-        const footerVariantId = (config.footer_variant_id as string) || template.footers[0].id;
-        state.headerVariantId = headerVariantId;
-        state.footerVariantId = footerVariantId;
-        state.headerConfig = {
-          ...(getHeaderVariant(template, headerVariantId)?.defaultConfig ?? {}),
-        };
-        state.footerConfig = {
-          ...(getFooterVariant(template, footerVariantId)?.defaultConfig ?? {}),
-        };
-
+        // Template now comes from database via server
+        // This is used for hydrating from server config
         if (Array.isArray(config.sections)) {
           state.sections = seedTemplateSections(
-            template,
+            state.template,
             config.sections as Array<Record<string, unknown>>,
           );
         }

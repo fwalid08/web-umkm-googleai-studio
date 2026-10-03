@@ -14,6 +14,7 @@
 import { getSectionVariant } from './sections/registry';
 import { applySectionAssets } from './template-assets';
 import { buildLibraryTemplate } from './library-template';
+import { getTemplate } from './template-store';
 import type { Template } from './template-types';
 import type { SectionType } from './types';
 
@@ -48,9 +49,11 @@ export interface ApplyableTemplate {
   data: TemplateDataLike;
 }
 
-/** Buang prefix `builtin-` yang dipakai untuk membedakan asal di galeri. */
+/** Buang prefix asal galeri bila ada. Galeri saat ini tidak lagi menambah
+ *  prefix (ID = UUID asli), tapi nilai lama `system-<uuid>` / `builtin-<uuid>`
+ *  mungkin sudah tersimpan sebagai template_id website — tetap didukung. */
 export function resolveTemplateId(id: string): string {
-  return id.startsWith('builtin-') ? id.slice(8) : id;
+  return id.replace(/^(system|builtin)-/, "");
 }
 
 export function isLibraryTemplate(template: { source?: string }): boolean {
@@ -233,5 +236,43 @@ export function synthesizeLibraryTemplate(
     ...(meta.description !== undefined ? { description: meta.description } : {}),
     ...(meta.category !== undefined ? { category: meta.category } : {}),
   }) as Template & { data: TemplateDataLike };
+}
+
+/**
+ * Resolve template untuk store/kanvas dari item galeri — SATU-SATUNYA tempat
+ * yang tahu aturan ini (jangan diduplikasi di call site).
+ *
+ * - Bila `data` objek non-null (kasus `saved` MAUPUN `builtin` — keduanya
+ *   membawa `template_data` penuh dari API), sintesis dari data tersebut.
+ *   Inilah jalur yang dipakai semua template hasil import ZIP.
+ * - Hanya bila tanpa data, fallback ke `getTemplate()` untuk id statis legacy.
+ * - Tidak pernah melempar; gagal → `undefined` (call site menampilkan error
+ *   "Template tidak ditemukan" seperti dulu).
+ */
+export function resolveStoreTemplate(
+  // `source` sengaja diterima tapi DIABAIKAN: saved maupun builtin membawa
+  // template_data penuh, jadi keduanya disintesis sama. Hanya data yang menentukan.
+  applyable: Pick<ApplyableTemplate, 'id' | 'name' | 'description' | 'category' | 'source' | 'data'>,
+): (Template & { data: TemplateDataLike }) | undefined {
+  try {
+    const data = (applyable as { data?: unknown }).data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      return synthesizeLibraryTemplate(data as TemplateDataLike, {
+        id: resolveTemplateId(applyable.id),
+        name: applyable.name ?? 'Template',
+        description: applyable.description,
+        category: applyable.category,
+      });
+    }
+  } catch {
+    return undefined;
+  }
+  try {
+    return getTemplate(resolveTemplateId(applyable.id)) as
+      | (Template & { data: TemplateDataLike })
+      | undefined;
+  } catch {
+    return undefined;
+  }
 }
 

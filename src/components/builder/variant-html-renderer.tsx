@@ -17,6 +17,7 @@
  */
 
 import { useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import {
   collectHtmlFieldKeys,
   renderVariantHtml,
@@ -31,6 +32,35 @@ interface VariantHtmlRendererProps {
   configFields?: ConfigField[];
   anchorId?: string;
   className?: string;
+  /**
+   * Matikan clipping pembungkus (overflow + paint containment).
+   * WAJIB false untuk chrome header/footer: varian overlay ber-root
+   * `position:absolute` (keluar dari flow → pembungkus tinggi nol), dan
+   * dengan clip aktif ia terpotong habis → "tidak muncul" tanpa error.
+   * Default true = perilaku lama untuk sections.
+   */
+  clip?: boolean;
+}
+
+/**
+ * Style pembungkus renderer. Diekstrak agar bisa di-unit-test:
+ * regresi clip pada chrome overlay tidak boleh terulang diam-diam.
+ */
+export function chromeRendererStyle(clip: boolean): CSSProperties {
+  return clip
+    ? {
+        contain: 'layout paint style',
+        overflow: 'clip',
+        isolation: 'isolate',
+        position: 'relative',
+        zIndex: 'auto',
+      }
+    : {
+        contain: 'layout style',
+        isolation: 'isolate',
+        position: 'relative',
+        zIndex: 'auto',
+      };
 }
 
 export function VariantHtmlRenderer({
@@ -41,6 +71,7 @@ export function VariantHtmlRenderer({
   configFields = [],
   anchorId,
   className,
+  clip = true,
 }: VariantHtmlRendererProps) {
   const rendered = useMemo(() => {
     const htmlKeys = collectHtmlFieldKeys(
@@ -57,6 +88,7 @@ export function VariantHtmlRenderer({
       data-tpl-type={type}
       data-tpl-variant={variantId}
       className={className}
+      style={chromeRendererStyle(clip)}
       dangerouslySetInnerHTML={{ __html: rendered }}
     />
   );

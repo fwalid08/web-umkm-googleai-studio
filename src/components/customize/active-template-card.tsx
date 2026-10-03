@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BUILT_IN_CATALOG, CATEGORY_LABELS } from "@/lib/builder/templates/catalog";
+import { CATEGORY_LABELS, type BusinessCategory } from "@/lib/builder/templates/catalog";
 import { DESIGN_STYLES } from "@/lib/builder/design-styles";
+import { resolveTemplateId } from "@/lib/builder/apply-template";
 
 interface ActiveTemplateCardProps {
   websiteId: string;
@@ -22,64 +23,73 @@ interface ActiveTemplateCardProps {
   initialTemplateCategory?: string | null;
 }
 
-type CatalogTemplate = (typeof BUILT_IN_CATALOG)[number];
 type DesignStyle = (typeof DESIGN_STYLES)[number];
 
-/**
- * Resolusi berlapis:
- * 1. cocok langsung id katalog (slug, mis. 'pangkas-rapi') — akurat untuk template builtin;
- * 2. cocok via template_category (dari API response template_name) — unik per template;
- * 3. fallback design_style_id — untuk config lama yang hanya menyimpan style
- *    (template_id dari API adalah UUID tabel DB, bukan slug katalog).
- */
-function resolveTemplate(
+interface SystemTemplate {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  template_data: {
+    designStyleId?: string;
+    sections?: any[];
+    header?: any;
+    footer?: any;
+    theme?: any;
+  };
+}
+
+async function resolveTemplate(
   templateId: string | null | undefined,
   styleId: string | null | undefined,
   templateCategory?: string | null,
-): { template: CatalogTemplate | null; style: DesignStyle | null } {
+): Promise<{ template: SystemTemplate | null; style: DesignStyle | null }> {
+  let template: SystemTemplate | null = null;
+  let style: DesignStyle | null = null;
+  
   if (templateId) {
-    const byId = BUILT_IN_CATALOG.find((t) => t.id === templateId);
-    if (byId) {
-      const style =
-        DESIGN_STYLES.find((s) => s.id === byId.data?.designStyleId) ??
-        (styleId ? DESIGN_STYLES.find((s) => s.id === styleId) ?? null : null);
-      return { template: byId, style };
+    // template_id lama mungkin masih berprefix (system-/builtin-) —
+    // normalisasi dulu agar fetch tidak 404.
+    const res = await fetch(`/api/templates/library/${resolveTemplateId(templateId)}`);
+    if (res.ok) {
+      const json = await res.json();
+      const t = json.data;
+      if (t) {
+        template = t;
+        style = DESIGN_STYLES.find((s) => s.id === t.template_data?.designStyleId) ?? null;
+      }
     }
   }
-  if (templateCategory) {
-    const byCategory = BUILT_IN_CATALOG.find((t) => t.category === templateCategory);
-    if (byCategory) {
-      const style =
-        DESIGN_STYLES.find((s) => s.id === byCategory.data?.designStyleId) ??
-        (styleId ? DESIGN_STYLES.find((s) => s.id === styleId) ?? null : null);
-      return { template: byCategory, style };
+  if (!template && templateCategory) {
+    const res = await fetch('/api/templates/library?scope=public&is_system_template=true');
+    if (res.ok) {
+      const json = await res.json();
+      const t = json.data?.find((t: any) => t.category === templateCategory);
+      if (t) {
+        template = t;
+        style = DESIGN_STYLES.find((s) => s.id === t.template_data?.designStyleId) ?? null;
+      }
     }
   }
-  if (styleId) {
-    const byStyle = BUILT_IN_CATALOG.find((t) => t.data?.designStyleId === styleId);
-    if (byStyle) {
-      return {
-        template: byStyle,
-        style: DESIGN_STYLES.find((s) => s.id === styleId) ?? null,
-      };
+  if (!template && styleId) {
+    const res = await fetch('/api/templates/library?scope=public&is_system_template=true');
+    if (res.ok) {
+      const json = await res.json();
+      const t = json.data?.find((t: any) => t.template_data?.designStyleId === styleId);
+      if (t) {
+        template = t;
+        style = DESIGN_STYLES.find((s) => s.id === styleId) ?? null;
+      }
     }
-    return {
-      template: null,
-      style: DESIGN_STYLES.find((s) => s.id === styleId) ?? null,
-    };
   }
-  return { template: null, style: null };
+  return { template, style };
 }
 
 export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGallery, refreshKey = 0, initialTemplateId = null, initialStyleId = null, initialTemplateCategory = null }: ActiveTemplateCardProps) {
   // Data awal dipasok parent (sudah fetch saat load halaman) → tidak ada flash
   // card kuning dan tidak ada double-fetch saat mount.
-  const [currentTemplate, setCurrentTemplate] = useState<CatalogTemplate | null>(
-    () => resolveTemplate(initialTemplateId, initialStyleId, initialTemplateCategory).template,
-  );
-  const [currentStyle, setCurrentStyle] = useState<DesignStyle | null>(
-    () => resolveTemplate(initialTemplateId, initialStyleId, initialTemplateCategory).style,
-  );
+  const [currentTemplate, setCurrentTemplate] = useState<SystemTemplate | null>(null);
+  const [currentStyle, setCurrentStyle] = useState<DesignStyle | null>(null);
   // Skeleton hanya bila parent tidak punya data awal sama sekali.
   const [loading, setLoading] = useState(() => !initialTemplateId && !initialStyleId);
 
@@ -92,7 +102,7 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
         const res = await fetch(`/api/websites/${websiteId}/website`);
         const json = await res.json();
         if (cancelled || !json?.success) return;
-        const resolved = resolveTemplate(
+        const resolved = await resolveTemplate(
           json.data?.template_id ?? null,
           json.data?.custom_config?.design_style_id ?? null,
           json.data?.template_name ?? null,
@@ -172,6 +182,7 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
   }
 
   const styleColors = currentStyle?.palette ?? { primary: "#15803D", secondary: "#0d9488" };
+  const tplData = currentTemplate?.template_data ?? {};
 
   return (
     <Card className="overflow-hidden">
@@ -187,7 +198,7 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
             </div>
             <div className="mt-4 text-center text-white">
               <p className="font-semibold text-lg">{currentTemplate.name}</p>
-              <p className="text-sm text-white/80 mt-1">{CATEGORY_LABELS[currentTemplate.category]}</p>
+              <p className="text-sm text-white/80 mt-1">{CATEGORY_LABELS[currentTemplate.category as BusinessCategory]}</p>
               <Badge className="mt-3 bg-emerald-500 text-white gap-1" variant="default">
                 <Check className="w-3 h-3" /> Aktif
               </Badge>
@@ -217,9 +228,9 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
         {/* Info & Actions */}
         <div className="flex-1 p-6 lg:p-8 flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-4">
-            <Badge variant="secondary" className="text-sm">{CATEGORY_LABELS[currentTemplate.category]}</Badge>
-            <Badge variant="outline" className="text-sm">{currentStyle?.name ?? currentTemplate.data?.designStyleId}</Badge>
-            <Badge variant="outline" className="text-sm">{(currentTemplate.data?.sections ?? []).length} Section</Badge>
+            <Badge variant="secondary" className="text-sm">{CATEGORY_LABELS[currentTemplate.category as BusinessCategory]}</Badge>
+            <Badge variant="outline" className="text-sm">{currentStyle?.name ?? tplData.designStyleId}</Badge>
+            <Badge variant="outline" className="text-sm">{tplData.sections?.length ?? 0} Section</Badge>
           </div>
           <h3 className="text-2xl font-bold mb-2">{currentTemplate.name}</h3>
           <p className="text-muted-foreground mb-6 max-w-xl">{currentTemplate.description}</p>
@@ -227,19 +238,19 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
           <div className="grid sm:grid-cols-2 gap-3 mb-6">
             <div className="p-3 bg-muted/50 rounded-xl">
               <p className="text-xs text-muted-foreground">Style</p>
-              <p className="font-medium">{currentStyle?.name ?? currentTemplate.data?.designStyleId}</p>
+              <p className="font-medium">{currentStyle?.name ?? tplData.designStyleId}</p>
             </div>
             <div className="p-3 bg-muted/50 rounded-xl">
               <p className="text-xs text-muted-foreground">Section</p>
-              <p className="font-medium">{(currentTemplate.data?.sections ?? []).length} section</p>
+              <p className="font-medium">{tplData.sections?.length ?? 0} section</p>
             </div>
             <div className="p-3 bg-muted/50 rounded-xl">
               <p className="text-xs text-muted-foreground">Header</p>
-              <p className="font-medium">{(currentTemplate.data?.header?.navItems?.length ?? 0)} menu</p>
+              <p className="font-medium">{tplData.header?.navItems?.length ?? 0} menu</p>
             </div>
             <div className="p-3 bg-muted/50 rounded-xl">
               <p className="text-xs text-muted-foreground">Footer</p>
-              <p className="font-medium">{currentTemplate.data?.footer?.style ?? 'simple'}</p>
+              <p className="font-medium">{tplData.footer?.style ?? 'simple'}</p>
             </div>
           </div>
         </div>

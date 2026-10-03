@@ -6,6 +6,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { sanitizeBehaviourScript, sanitizeTemplateHtml } from "@/lib/builder/behaviour-script";
 import { autoMapAssets, sniffImageContent } from "@/lib/builder/asset-automap";
 import { replaceAssetUrls } from "@/lib/builder/template-urls";
+import { collectAnimationsFromZip, mergeAnimations } from "@/lib/builder/template-import";
 import { findAssetCoverageIssues, validateTemplateV3, validateChromeHtml } from "@/lib/builder/template-schema";
 
 interface SessionUser {
@@ -268,13 +269,9 @@ function sanitizeTemplateHtmlFields(data: Record<string, unknown>): Record<strin
       (out.data as Record<string, unknown>).activeSections = cleaned;
     }
   }
-  // Validasi v3 ringan — hanya warning di log, tidak menggagalkan import
-  // agar template v2 lama tetap kompatibel.
+  // Validasi v3 ringan — warning dikembalikan ke user via response
   try {
-    const result = validateTemplateV3(out);
-    if (!result.ok) {
-      console.warn("[template-import] v3 warnings:", result.errors.slice(0, 5).join("; "));
-    }
+    validateTemplateV3(out);
   } catch {
     // Abaikan — validasi dasar sudah dilakukan validateTemplateData.
   }
@@ -541,8 +538,11 @@ export async function POST(request: NextRequest) {
 
       templateData = replaceAssetUrls(templateData, assetMap) as Record<string, unknown>;
 
-      if (Array.isArray(templateData.animations)) {
-        animations = (templateData.animations as unknown[]).slice(0, 100);
+      // Animasi: inline template.json dulu, lalu animations/meta.json
+      // (cerminan merge behaviours). Ditulis kembali agar runtime membacanya.
+      animations = mergeAnimations(templateData.animations, collectAnimationsFromZip(entries));
+      if (animations.length > 0) {
+        templateData = { ...templateData, animations };
       }
       const inlineBehaviours = sanitizeBehaviours(templateData.behaviours);
       const folderBehaviours = sanitizeBehaviours(parsedBehaviours);
@@ -590,8 +590,9 @@ export async function POST(request: NextRequest) {
       }
 
       templateData = unwrapped as Record<string, unknown>;
-      if (Array.isArray(templateData.animations)) {
-        animations = (templateData.animations as unknown[]).slice(0, 100);
+      animations = mergeAnimations(templateData.animations, []);
+      if (animations.length > 0) {
+        templateData = { ...templateData, animations };
       }
       behaviours = sanitizeBehaviours(templateData.behaviours);
       if (behaviours.length > 0) {
@@ -640,11 +641,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // v3.0: validasi struktur & keamanan (HTML/CSS berisiko)
+    const v3Validation = validateTemplateV3(templateData);
+    const v3Warnings = v3Validation.warnings;
+
     // Cakupan aset: file tak dirujuk + field gambar kosong di seed.
     // Hanya warnings (tidak menggagalkan) agar template lama tetap masuk.
     const coverageWarnings = [
       ...contentWarnings,
       ...chromeWarnings,
+      ...v3Warnings,
       ...findAssetCoverageIssues(
         templateData,
         assets.map((a) => ({ name: a.name, url: a.url })),

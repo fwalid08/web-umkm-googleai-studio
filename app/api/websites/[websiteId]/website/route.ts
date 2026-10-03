@@ -12,7 +12,7 @@ import {
   sanitizePaletteOverride,
   type MergedSection,
 } from "@/lib/builder/validation";
-import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
+// No BUILT_IN_CATALOG import - using database queries instead
 import { ensureSectionIdentities } from "@/lib/builder/migration";
 import { getOwnedWebsite } from "@/lib/websites/active";
 import { tenantUrl } from "@/lib/urls";
@@ -44,11 +44,6 @@ function getSessionUser(session: unknown): SessionUser | null {
 
 function subdomainUrl(subdomain: string | null): string | null {
   return tenantUrl(subdomain);
-}
-
-function suggestedTemplate(businessType: string | undefined, names: string[]): string {
-  if (businessType && names.includes(businessType)) return businessType;
-  return names.includes("food") ? "food" : names[0] ?? "food";
 }
 
 async function getNextAuthToken(): Promise<string | undefined> {
@@ -174,21 +169,20 @@ export async function GET(
       return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
     }
 
-    const { data: templates } = await supabase
-      .from("templates")
-      .select(TEMPLATE_FIELDS)
-      .eq("is_active", true)
-      .order("name");
-    const list = templates ?? [];
+    // Katalog template sistem dari templates_library.
+    // CATATAN: tabel lama `templates` sudah di-DROP (migrasi 036) — query ke
+    // sana selalu kosong dan endpoint ini me-return 503 "Template belum tersedia".
+    const { data: systemTemplates } = await supabase
+      .from("templates_library")
+      .select("id, name, category, tier_requirement")
+      .eq("scope", "public")
+      .eq("is_system_template", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+    const list = systemTemplates ?? [];
     if (list.length === 0) {
       return NextResponse.json({ success: false, error: "Template belum tersedia" }, { status: 503 });
     }
-
-    const allowed = getAllowedTemplateNames(
-      user.tier,
-      null,
-      list.map((t) => t.name as string)
-    );
 
     const { data: rows } = await supabase
       .from("user_templates")
@@ -196,24 +190,23 @@ export async function GET(
       .eq("website_id", websiteId)
       .order("updated_at", { ascending: false });
 
+    // Template aktif: current_template_id (UUID baris library) → cocok kategori
+    // bisnis → baris pertama. `template_name` dikembalikan sebagai category
+    // karena frontend mencocokkannya ke katalog public (t.category === template_name).
     let template = site.current_template_id
       ? list.find((t) => t.id === site.current_template_id) ?? null
       : null;
-    let stored: { template_id: string; custom_config: unknown } | null =
-      (rows ?? []).find((r) => r.template_id === site.current_template_id) ??
+    if (!template) {
+      const biz = site.business_type ?? user.business_type ?? null;
+      template =
+        (biz ? list.find((t) => t.category === biz) : null) ?? list[0];
+    }
+    const stored =
+      (rows ?? []).find((r) => r.template_id === template.id) ??
       (rows ?? [])[0] ??
       null;
-    if (!template && stored) template = list.find((t) => t.id === stored?.template_id) ?? null;
-    if (!template) {
-      const name = suggestedTemplate(site.business_type ?? user.business_type, allowed.length > 0 ? allowed : list.map((t) => t.name as string));
-      template = list.find((t) => t.name === name) ?? list[0];
-      stored = null;
-    }
 
-    const templateSections = (template.sections_config ?? []) as Parameters<
-      typeof mergeAndValidateSections
-    >[0];
-    const storedConfig = (stored?.custom_config ?? null) as {
+    type StoredConfig = {
       design_style_id?: string;
       sections?: unknown[];
       header?: Record<string, unknown>;
@@ -221,16 +214,17 @@ export async function GET(
       theme?: Record<string, unknown>;
       core?: Record<string, unknown>;
       seo?: { title?: string; description?: string };
-    } | null;
+    };
+    const storedConfig = (stored?.custom_config ?? null) as StoredConfig | null;
 
     let customConfig: {
       design_style_id?: string;
       sections?: unknown[];
       header?: Record<string, unknown>;
       footer?: Record<string, unknown>;
-      theme: Record<string, unknown>;
+      theme?: Record<string, unknown>;
       core?: Record<string, unknown>;
-      seo: Record<string, string>;
+      seo?: { title?: string; description?: string };
     };
     let isDefault: boolean;
     if (stored && stored.template_id === template.id && storedConfig?.design_style_id) {
@@ -245,10 +239,6 @@ export async function GET(
       };
       isDefault = false;
     } else {
-      const merged = mergeAndValidateSections(templateSections, []);
-      if (!merged.ok) {
-        return NextResponse.json({ success: false, error: "Konfigurasi template rusak" }, { status: 500 });
-      }
       customConfig = {
         design_style_id: (site as unknown as { design_style_id?: string }).design_style_id ?? 'minimalist',
         sections: [],
@@ -261,14 +251,21 @@ export async function GET(
       isDefault = true;
     }
 
+    // Gate tier kumulatif (paket atas bisa memakai template paket bawahnya).
+    // template_name = category agar frontend bisa match ke katalog public.
+    const templateLocked = !isCatalogTemplateAllowedForTier(
+      [template.tier_requirement as string],
+      user.tier,
+    );
+
     return NextResponse.json({
       success: true,
       data: {
         website_id: site.id,
         website_name: site.name,
         template_id: template.id,
-        template_name: template.name,
-        template_locked: !allowed.includes(template.name as string),
+        template_name: template.category,
+        template_locked: templateLocked,
         custom_config: customConfig,
         is_default: isDefault,
         tier: user.tier,
@@ -360,52 +357,55 @@ export async function PUT(
         return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
       }
 
-      // Template builtin dari kode (catalog.ts) - bukan baris database.
-      // ID & kategori diturunkan dari katalog agar tambah template baru
-      // otomatis dikenali tanpa edit route ini.
-      const BUILTIN_BY_ID = new Map(BUILT_IN_CATALOG.map((t) => [t.id, t]));
+      // Template builtin from code no longer exists - all templates are now in templates_library
+// Normalize template_id: strip 'builtin-' prefix if present (legacy)
+const normalizedTemplateId = template_id?.startsWith('builtin-') ? template_id.slice(8) : template_id;
 
-      // Normalize template_id: strip 'builtin-' prefix if present
-      const normalizedTemplateId = template_id?.startsWith('builtin-') ? template_id.slice(8) : template_id;
-      const builtinEntry = (normalizedTemplateId && BUILTIN_BY_ID.get(normalizedTemplateId)) || null;
-      const isBuiltinTemplate = !!builtinEntry;
+// Check if it's a system template in templates_library
+const { data: systemTemplate } = await supabase
+  .from("templates_library")
+  .select("id, category, tier_requirement, name")
+  .eq("id", normalizedTemplateId)
+  .eq("is_system_template", true)
+  .maybeSingle();
 
-      console.log('[DEBUG] template_id:', template_id, 'normalized:', normalizedTemplateId, 'isBuiltinTemplate:', isBuiltinTemplate);
+const isBuiltinTemplate = !!systemTemplate;
 
-      // Gate tier per-template (sumber: CatalogTemplate.tiers; undefined = semua tier).
-      if (builtinEntry && !isCatalogTemplateAllowedForTier(builtinEntry.tiers, user.tier)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Template ${builtinEntry.name} hanya untuk paket ${(builtinEntry.tiers ?? []).join(", ")}. Upgrade untuk membukanya.`,
-            upgrade_url: "/dashboard/billing",
-          },
-          { status: 403 }
-        );
-      }
+// Gate tier per-template (sumber: templates_library.tier_requirement).
+// Kumulatif: paket atas bisa memakai template paket bawahnya.
+if (systemTemplate && !isCatalogTemplateAllowedForTier([systemTemplate.tier_requirement], user.tier)) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: `Template ${systemTemplate.name} hanya untuk paket ${systemTemplate.tier_requirement}. Upgrade untuk membukanya.`,
+      upgrade_url: "/dashboard/billing",
+    },
+    { status: 403 }
+  );
+}
 
-      // Builder/page-builder mengirim custom_config saja (template builtin dari kode).
-      // Fallback: pakai template aktif website, lalu template aktif pertama.
-      if (!template_id) {
-        const { data: allTemplatesForFallback } = await supabase
-          .from("templates")
-          .select("id")
-          .eq("is_active", true);
-        template_id =
-          (site.current_template_id as string | null) ?? (allTemplatesForFallback?.[0]?.id as string | undefined);
-      }
+// Builder/page-builder mengirim custom_config saja (template builtin dari kode).
+// Fallback: pakai template aktif website, lalu template aktif pertama.
+if (!template_id) {
+  const { data: allTemplatesForFallback } = await supabase
+    .from("templates_library")
+    .select("id")
+    .eq("is_system_template", true)
+    .eq("scope", "public");
+  template_id =
+    (site.current_template_id as string | null) ?? (allTemplatesForFallback?.[0]?.id as string | undefined);
+}
 
-      const { data: allTemplates } = await supabase
-        .from("templates")
-        .select("id, name")
-        .eq("is_active", true);
+const { data: allTemplates } = await supabase
+  .from("templates_library")
+  .select("id, name, category, tier_requirement")
+  .eq("is_system_template", true)
+  .eq("scope", "public");
 
-      console.log('[DEBUG] allTemplates:', allTemplates);
+let dbTemplateId = normalizedTemplateId;
+let dbTemplate: { id: string; name: string } | null = null;
 
-      let dbTemplateId = isBuiltinTemplate ? normalizedTemplateId : template_id;
-      let dbTemplate: { id: string; name: string } | null = null;
-
-      if (isLibraryTemplate) {
+if (isLibraryTemplate) {
         // Anchor FK = baris template yang sudah terpasang di website ini.
         // WAJIB baris yang ada: `user_templates.template_id` nullable dan
         // `onConflict: (website_id, template_id)` tidak pernah conflict pada
@@ -433,18 +433,11 @@ export async function PUT(
         dbTemplateId = anchorId;
         dbTemplate = { id: anchorId, name: "Template Library" };
       } else if (isBuiltinTemplate) {
-        // Map builtin template to database template by direct ID match.
-        // Avoids category-name matching dependency entirely.
-        const templateRows = allTemplates ?? [];
-        const dbTemplateById = templateRows.find((t) => t.id === normalizedTemplateId) ?? null;
+        // Map system template to templates_library by direct ID match.
+        const systemTemplates = allTemplates ?? [];
+        const dbTemplateById = systemTemplates.find((t) => t.id === normalizedTemplateId) ?? null;
         if (dbTemplateById) {
           dbTemplate = dbTemplateById;
-        } else {
-          // Fallback: find by category name (original logic, now more reliable after DB category fix)
-          const builtinById = new Map(BUILT_IN_CATALOG.map((t) => [t.id, t])).get(normalizedTemplateId ?? "") || null;
-          if (builtinById) {
-            dbTemplate = templateRows.find((t) => t.name === builtinById.category) ?? null;
-          }
         }
         dbTemplateId = dbTemplate?.id ?? normalizedTemplateId;
       } else {
@@ -498,14 +491,14 @@ export async function PUT(
 
       /**
        * `ensureSectionIdentities()` mencari katalog varian lewat template ini.
-       * Kalau ref-nya ID library (tidak terdaftar di BUILT_IN_CATALOG) maka
+       * Kalau ref-nya ID library (tidak terdaftar di templates_library) maka
        * `variants` kosong dan SETIAP section diam-diam ditulis ulang ke varian
        * pertama — `booking-single`, `location-hours`, `menu-tabs`, dst. hilang
        * tanpa error apa pun. Template library karena itu dipinjamkan ke template
-       * bawaan yang jadi blueprint seluruh varian section.
+       * sistem yang jadi blueprint seluruh varian section.
        */
       const variantCatalogRef = isLibraryTemplate
-        ? BUILT_IN_CATALOG[0]?.id ?? 'pangkas-rapi'
+        ? (await supabase.from("templates_library").select("id").eq("is_system_template", true).eq("scope", "public").limit(1).maybeSingle()).data?.id ?? 'pangkas-rapi'
         : sectionTemplateRef;
 
       const toStore = {

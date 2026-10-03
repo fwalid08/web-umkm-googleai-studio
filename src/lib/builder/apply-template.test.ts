@@ -5,6 +5,7 @@ import {
   applyTemplateToWebsite,
   buildTemplateCustomConfig,
   isLibraryTemplate,
+  resolveStoreTemplate,
   resolveTemplateId,
   resolveTemplateSections,
   synthesizeLibraryTemplate,
@@ -218,9 +219,43 @@ describe('REGRESI: logika apply tidak boleh diduplikasi', () => {
   it('template library tetap punya jalur ke store/kanvas di sidebar', () => {
     const src = repoFile('src', 'components', 'builder', 'builder-sidebar.tsx');
     // Tanpa ini, `applyTemplate()` diam-diam tidak berefek karena
-    // `getTemplate()` hanya tahu template bawaan.
-    expect(src).toContain('synthesizeLibraryTemplate');
+    // `getTemplate()` hanya tahu template bawaan. Wajib lewat helper bersama
+    // (berlaku untuk saved MAUPUN builtin — keduanya membawa template_data).
+    expect(src).toContain('resolveStoreTemplate');
     expect(src).toContain('applyTemplate(result.templateId, storeTemplate)');
+  });
+});
+
+describe('resolveStoreTemplate: builtin ikut tersintesis (bukan cuma saved)', () => {
+  it('builtin + data lengkap → tersintesis dengan id ter-strip', () => {
+    const tpl = resolveStoreTemplate({
+      ...libraryTemplate(),
+      id: 'system-be6e2957-1d0f-4ef2-89ba-1a85347ef44f',
+      source: 'builtin',
+    });
+    expect(tpl).toBeDefined();
+    expect(tpl!.id).toBe('be6e2957-1d0f-4ef2-89ba-1a85347ef44f');
+  });
+
+  it('saved + data lengkap → tetap seperti dulu', () => {
+    const tpl = resolveStoreTemplate(libraryTemplate());
+    expect(tpl).toBeDefined();
+    expect(tpl!.id).toBe('be6e2957-1d0f-4ef2-89ba-1a85347ef44f');
+  });
+
+  it('tanpa data + id tak dikenal → undefined (error UX lama preserved)', () => {
+    expect(
+      resolveStoreTemplate({ id: 'id-tak-dikenal', data: undefined as never }),
+    ).toBeUndefined();
+  });
+
+  it('prefix legacy builtin- juga ter-strip', () => {
+    const tpl = resolveStoreTemplate({
+      ...libraryTemplate(),
+      id: 'builtin-be6e2957-1d0f-4ef2-89ba-1a85347ef44f',
+      source: 'builtin',
+    });
+    expect(tpl?.id).toBe('be6e2957-1d0f-4ef2-89ba-1a85347ef44f');
   });
 });
 

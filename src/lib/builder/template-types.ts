@@ -200,6 +200,7 @@ export interface Template {
   description: string;
   category: BusinessCategory;
   tiers?: Tier[];
+  tier_requirement?: Tier;
   /**
    * Bahasa desain template (lihat `DesignType`). Wajib diisi — template
    * tanpa karakter desain sendiri hanya jadi "ganti warna".
@@ -212,6 +213,13 @@ export interface Template {
   animations?: AnimationConfig[];
   behaviours?: BehaviourConfig[];
   assets?: AssetMetadata[];
+  template_data?: {
+    designStyleId?: string;
+    sections?: any[];
+    header?: any;
+    footer?: any;
+    theme?: any;
+  };
   /**
    * Section mana yang AKTIF secara default untuk niche ini (v3.0, v3.4:
    * boleh memuat tipe kustom milik template).

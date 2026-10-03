@@ -74,6 +74,9 @@ export function SiteHeader({
   drawer,
 }: SiteHeaderProps) {
   // v3.0: varian dengan `html` kustom dirender langsung dari HTML template.
+  // clip={false}: header adalah chrome overlay — root varian boleh
+  // `position:absolute` (pembungkus tinggi nol); dengan clip aktif ia
+  // terpotong habis dan header "tidak muncul" tanpa error.
   if (typeof variant.html === 'string' && variant.html.trim().length > 0) {
     return (
       <VariantHtmlRenderer
@@ -82,6 +85,7 @@ export function SiteHeader({
         html={variant.html}
         config={config}
         configFields={variant.configFields ?? []}
+        clip={false}
       />
     );
   }
@@ -89,7 +93,9 @@ export function SiteHeader({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as HeaderLink[];
-  const links = navItems.filter((item) => item.enabled);
+  // Data lama tidak selalu punya flag `enabled` — anggap aktif kecuali
+  // eksplisit false (konsisten dengan footer). Tanpa ini nav tampil kosong.
+  const links = navItems.filter((item) => item.enabled !== false);
   const layout = variant.layout;
 
   const siteTitle = str(config.siteTitle, 'Nama Toko') || 'Nama Toko';

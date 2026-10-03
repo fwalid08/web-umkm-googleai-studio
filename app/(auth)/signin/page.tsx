@@ -38,8 +38,9 @@ function SignInForm() {
           document.cookie = `umkm_demo_id=${demoJson.user.id}; path=/; max-age=2592000; SameSite=None; Secure`;
         } catch {}
 
-        // Sinkronisasi NextAuth session di background
-        signIn("credentials", { email, password: pass, redirect: false }).catch(() => {});
+        // Sinkronisasi NextAuth session — WAJIB await sebelum navigasi agar
+        // cookie JWT sempat ter-set (proxy memvalidasi JWT untuk /dashboard & /admin).
+        await signIn("credentials", { email, password: pass, redirect: false }).catch(() => {});
 
         // Navigasi instan ke halaman dashboard / callbackUrl
         window.location.href = callbackUrl || "/dashboard";
@@ -109,6 +110,38 @@ function SignInForm() {
             <p className="text-[11px] text-gray-600 mt-1 truncate font-medium">Hijab & Aksesoris Cantik</p>
             <div className="mt-2 flex items-center justify-between text-[11px]">
               <span className="text-emerald-700 font-semibold group-hover:underline">Masuk Sekarang →</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => handleLoginWith("demo3@umkm.id", "Password123!")}
+            className="text-left p-3 bg-white border border-amber-300 hover:border-amber-600 hover:bg-amber-50 rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-50 group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-900 group-hover:text-amber-700">📈 Akun Demo 3</span>
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">3 Toko</span>
+            </div>
+            <p className="text-[11px] text-gray-600 mt-1 truncate font-medium">Jasa Desain, Marketing, Training</p>
+            <div className="mt-2 flex items-center justify-between text-[11px]">
+              <span className="text-amber-700 font-semibold group-hover:underline">Masuk Sekarang →</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => handleLoginWith("demo4@umkm.id", "Password123!")}
+            className="text-left p-3 bg-white border border-violet-300 hover:border-violet-600 hover:bg-violet-50 rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-50 group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-900 group-hover:text-violet-700">🏢 Akun Demo 4</span>
+              <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-medium">5 Toko</span>
+            </div>
+            <p className="text-[11px] text-gray-600 mt-1 truncate font-medium">Marketplace, Fashion, Electronics, Home, Corporate</p>
+            <div className="mt-2 flex items-center justify-between text-[11px]">
+              <span className="text-violet-700 font-semibold group-hover:underline">Masuk Sekarang →</span>
             </div>
           </button>
         </div>

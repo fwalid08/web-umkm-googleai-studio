@@ -182,7 +182,8 @@ function SiteHeaderV3({ site }: { site: PublicSiteDataV3 }) {
   const palette = { ...template.theme.palette, ...(site.themeOverride ?? {}) };
   const onPrimary = getOnColor(palette.primary);
   const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as ChromeNavItem[];
-  const links = navItems.filter((item) => item.enabled);
+  // Sama seperti kanvas: data lama tanpa flag `enabled` dianggap aktif.
+  const links = navItems.filter((item) => item.enabled !== false);
   const drawerStyle = headerVariant.mobileMenu?.style === 'drawer-top' ? 'drawer-top' : 'drawer-sidebar';
   const showCta = Boolean(config.showCta);
   const drawer = (

@@ -149,8 +149,15 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
       <div
         id="tpl-canvas"
         ref={canvasRef}
-        className={`${bleed ? 'w-full' : 'mx-auto'} min-h-full flex flex-col transition-all duration-300`}
-        style={bleed ? undefined : { maxWidth: `min(${viewportWidth}px, 100%)` }}
+        className={`${bleed ? 'w-full' : 'mx-auto'} w-full flex flex-col transition-all duration-300`}
+        style={{
+          ...(bleed ? undefined : { maxWidth: `min(${viewportWidth}px, 100%)` }),
+          transform: 'translateZ(0)',
+          contain: 'layout paint style',
+          isolation: 'isolate',
+          position: 'relative',
+          zIndex: 0,
+        }}
       >
         <div
           className={frameChrome}
@@ -165,7 +172,13 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
               <div className="w-24 h-1.5 rounded-full bg-white/20" />
             </div>
           )}
-          <CanvasHeader variant={headerVariant} config={savedHeader as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} navSolid={navSolid} />
+          {/* Slot header: chrome overlay (mis. position:absolute) harus boleh
+              terlukis di luar kotak slot yang tingginya nol — JANGAN beri
+              overflow clip / paint containment di sini (pernah membuat header
+              "tidak muncul" tanpa error). */}
+          <div style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}>
+            <CanvasHeader variant={headerVariant} config={savedHeader as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} navSolid={navSolid} />
+          </div>
 
           <div className="relative min-h-[320px]">
             {sections.length === 0 ? (
@@ -399,7 +412,10 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
             )}
           </div>
 
-          <CanvasFooter variant={footerVariant} config={savedFooter as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
+          {/* Slot footer: sama seperti header — chrome tidak boleh ter-clip. */}
+          <div style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}>
+            <CanvasFooter variant={footerVariant} config={savedFooter as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
+          </div>
         </div>
         {!preview && (
           <p className="text-center text-[11px] font-medium text-muted-foreground mt-3 bg-white/70 dark:bg-slate-900/70 backdrop-blur inline-block mx-auto px-3 py-1 rounded-full border border-white dark:border-slate-800 shadow-sm">

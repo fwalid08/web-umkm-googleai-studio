@@ -2,7 +2,13 @@
 
 > **Untuk siapa**: AI di luar repository (Claude, GPT, dll.) yang merancang template website UMKM.
 > **Output tunggal**: satu file `.zip` yang di-import user lewat **Customize → Templates → Import**.
-> **Versi**: 3.5 · **Terakhir diperbarui**: 2026-10-02
+> **Versi**: 3.6 · **Terakhir diperbarui**: 2026-10-03
+>
+> v3.6 menyelaraskan dokumen dengan sistem yang berjalan: tabel jujur FAIL vs
+> warning saat import (§2.7), paket tier kumulatif + siapa mengisinya (§1c),
+> `animations/meta.json` benar-benar dibaca, thumbnail jadi anjuran kuat
+> (bukan syarat mati), format ZIP hasil Export yang round-trip (§8.6),
+> dan pembersihan referensi mati (§10).
 >
 > v3.0 mengubah aturan besi v2.0: **HTML kini BOLEH** (section-level + field-level),
 > ditambah `activeSections`, dan penegasan "tidak ada konten hardcoded".
@@ -43,10 +49,12 @@ varian, form di sidebar otomatis berubah mengikuti `configFields` varian itu.
 >    wajib punya `configFields` dengan tipe field yang sesuai.
 > 6. **Minimal varian**: ≥5 header, ≥5 footer, ≥3 untuk tiap tipe section (§5.6).
 >    Pengecualian: `booking` dan `marquee` (renderer single-DOM) boleh 1 varian.
-> 7. **Thumbnail + preview** wajib (§8): `thumbnail.png` di root + `data` lengkap
->    agar preview/demo identik dengan hasil apply.
-> 8. Animasi **lewat kontrak deklaratif** `animations[]` (§7.1); JS hanya untuk
->     kasus yang tidak tertutup kontrak itu (§7.2).
+> 7. **Thumbnail + preview** disarankan kuat (§8): `thumbnail.png` di root + `data` lengkap
+>    agar preview/demo identik dengan hasil apply. Tanpa thumbnail import tetap
+>    sukses, tapi kartu galeri kosong.
+> 8. Animasi **lewat kontrak deklaratif** `animations[]` (§7.1) atau file
+>    `animations/meta.json` (§2) — keduanya dibaca dan digabung (inline dulu);
+>    JS hanya untuk kasus yang tidak tertutup kontrak itu (§7.2).
 > 9. **Palet + font harus bisa diganti** (§4.3): jangan kunci desain ke satu warna
 >     atau satu font — user bisa pilih predefined color scheme & font di builder.
 > 10. **Mobile-first penuh** (§5.8): template dirancang dari layar HP (375px) ke
@@ -59,8 +67,11 @@ varian, form di sidebar otomatis berubah mengikuti `configFields` varian itu.
 >     ≥1 varian, tiap varian wajib `html` + `configFields` + `defaultConfig`.
 > 13. **Header & Footer milik template** (§5.11): chrome custom wajib punya `html`,
 >     layout kustom tanpa html = error, layout bawaan tanpa html = warning.
-> 13. **Header & Footer milik template** (§5.11): chrome custom wajib punya `html`,
->    layout kustom tanpa html = error, layout bawaan tanpa html = warning.
+> 14. **Paket tier kumulatif** (§1c): `free` < `starter` < `growth` < `enterprise`.
+>     Paket atas bisa memakai semua template paket bawahnya. Tier diisi admin
+>     saat publish (form import) — bukan dari file ZIP.
+> 15. Item nav tanpa flag `enabled` dianggap aktif. Tetap tulis `"enabled": true`
+>     eksplisit agar jelas.
 
 ---
 
@@ -208,6 +219,35 @@ Upload tanpa referensi = gambar mati. Aturannya:
    karena tebakan nama bisa salah (mis. `hero.svg` generik vs foto hero
    sesungguhnya).
 
+### 2.7 Yang menggagalkan vs peringatan (kontrak jujur)
+
+Tidak semua "wajib" di dokumen ini menggagalkan import. Yang berlaku di sistem:
+
+**MENGGAGALKAN import (error, ZIP ditolak):**
+
+| Kondisi | Pesan |
+|---|---|
+| ZIP rusak / bukan ZIP / tanpa `template.json` | File ZIP rusak / template.json tidak ditemukan |
+| `template.json` bukan JSON valid / bukan objek / >5 MB | JSON tidak valid / terlalu besar |
+| Tanpa `theme` (dan bukan format legacy) | Format template tidak valid |
+| Layout chrome **kustom** tanpa `html` | Renderer tidak punya branch … |
+| Melebihi batas (§2.2): 25MB / 100MB / 200 entri / 50 aset / 10MB per aset | Batas terlampaui |
+| Path tak aman (`..`, absolut) / ekstensi dilarang | Path tidak aman / tipe file tidak diizinkan |
+| Nama template duplikat (per user / per katalog public) | Nama sudah digunakan |
+| `category` form admin di luar 5 kanonis / tier di luar 4 paket | Invalid category / tier |
+
+**PERINGATAN (import tetap sukses, tampil di dialog):** semua hasil
+`validateTemplateV3` — nama/category/designType bermasalah, jumlah varian di
+bawah minimum, `activeSections` tak dikenal (dibuang diam-diam), `configFields`
+tak lengkap, coverage aset (file tak dirujuk / field kosong), auto-map,
+thumbnail bermasalah, pola CSS/HTML berisiko. Juga: `category`/`designType`
+tak dikenal diabaikan diam-diam; `customCss` >200.000 karakter **dipotong
+diam-diam** (bukan ditolak).
+
+Aturan praktis: ikuti seluruh checklist §9 — lolos import bukan berarti lolos
+kualitas. Template yang penuh warning tampil rusak/kosong di preview walau
+statusnya "berhasil".
+
 ---
 
 ## 3. Ekspresi HTML (baru di v3.0)
@@ -252,6 +292,12 @@ Aturan `variant.html`:
   `--radius`, `--font-heading`, `--font-body`.
 - Pembungkus hasil render selalu membawa `data-tpl-type` + `data-tpl-variant`
   agar `customCss`-mu tetap bisa menyasarnya.
+- **List link otomatis diekspan**: bila `config[key]` berupa array objek
+  `{label, url, ...}` (mis. `navItems`), `{{key}}` dirender jadi deretan
+  `<a href="url">label</a>` — item `enabled: false` dilewati, item tanpa
+  `enabled` dianggap aktif, `isExternal: true` membuka tab baru, protokol
+  selain `#…`, `/…`, `http(s)`, `mailto:`, `tel:` dibuang. Jadi
+  `<nav>{{navItems}}</nav>` langsung jadi navigasi tanpaHTML manual per item.
 - **Dilarang di dalam `html`**: `<script>`, `<style>`, `<iframe>`, `<object>`,
   `<embed>`, `<form>`, atribut `on*=` (mis. `onclick=`), dan `javascript:`.
   Semua diganti `<!-- BLOCKED` saat import & render. Butuh JS → pakai
@@ -289,12 +335,12 @@ section bawaan yang mendukungnya.
 
 ```jsonc
 {
-  "version": "3.0",                  // wajib "3.0" untuk template baru
-  "name": "Bengkel Jaya Motor",      // nama template di galeri
-  "description": "…",                // maksimal 2000 karakter
-  "category": "services",            // Tabel 1
-  "designType": "tech",              // Tabel 1b — jenis desain (wajib)
-  "theme":    { … },                 // §4.1 — WAJIB
+  "version": "3.0",                  // metadata, tidak divalidasi (boleh diisi)
+  "name": "Bengkel Jaya Motor",      // nama tampilan; NAMA GALERI diambil dari form import bila kosong di file
+  "description": "…",                // maksimal 2000 karakter (dipotong bila lebih)
+  "category": "services",            // Tabel 1 — 5 nilai kanonis; di luar itu ditolak saat validasi ketat, diabaikan diam-diam saat import
+  "designType": "tech",              // Tabel 1b — divalidasi bila diisi, boleh kosong
+  "theme":    { … },                 // §4.1 — WAJIB (salah satu dari sedikit syarat mati, lihat §2.7)
   "headers":  [ … ],                 // §4.4 — WAJIB ≥5 varian
   "footers":  [ … ],                 // §4.4 — WAJIB ≥5 varian
   "sections": [ … ],                 // §5 — WAJIB semua 19 tipe
@@ -438,6 +484,9 @@ Setiap varian:
 Kelima varian harus **benar-benar berbeda desainnya** (komposisi, bentuk,
 dekorasi) — bukan sekadar geser rata kiri/tengah/kanan.
 
+> Item nav tanpa flag `enabled` dianggap aktif oleh renderer. Tetap tulis
+> `"enabled": true` eksplisit di seed agar maksudnya jelas.
+
 ---
 
 ## 5. Kamus Section
@@ -461,6 +510,26 @@ dekorasi) — bukan sekadar geser rata kiri/tengah/kanan.
 | `organic` | Radius besar, warna hangat, kesan handmade |
 | `luxury` | Serif/display, whitespace lega, aksen mewah |
 | `tech` | Grid tegas, monospace, warna dingin, utilitarian |
+
+### Tabel 1c — Paket tier (`tier_requirement`, kumulatif)
+
+Template tidak memilih paketnya sendiri — **admin mengisi tier saat publish**
+(dropdown Category + Min. Tier di dialog import admin). Aturannya kumulatif:
+paket atas bisa memakai semua template paket bawahnya.
+
+| Nilai | Siapa yang melihat |
+|---|---|
+| `free` | Semua paket (default bila tidak diisi) |
+| `starter` | `starter`, `growth`, `enterprise` |
+| `growth` | `growth`, `enterprise` |
+| `enterprise` | Hanya `enterprise` |
+
+Template bertier di atas paket tenant tetap tampil di katalog tapi **tergembok**
+dengan ajakan upgrade — jadi rancang template `free` semenarik mungkin sebagai
+pintu masuk, dan simpan fitur premium untuk tier berbayar.
+
+> Nilai lain (termasuk string kosong) ditolak saat publish. Kolom `category`
+> hanya menerima 5 nilai Tabel 1 — kategori di luar itu ditolak.
 
 ### Tabel 2 — 19 tipe section predefined (SEMUA wajib didefinisikan + boleh tambah tipe kustom §5.10)
 
@@ -1021,13 +1090,49 @@ sama, hanya bungkusnya kini boleh `variant.html`.
 | Menyasar class Tailwind di CSS | Berhenti jalan diam-diam |
 | Hex mentah di `html`/CSS (bukan `var(--color-*)`) | Skema builder merusak desain |
 
+### 8.6 Export ZIP (round-trip import-ulang)
+
+Tombol **Export** (galeri tenant maupun panel admin) selalu menghasilkan ZIP
+dengan struktur **yang sama persis seperti ZIP import** (§2), sehingga hasilnya
+bisa di-import ulang apa adanya:
+
+```
+nama-template.zip
+├── template.json        # data tersimpan apa adanya (hanya URL storage
+│                        #  yang ditulis ulang ke path relatif assets/…)
+├── thumbnail.png        # diunduh ulang dari storage (best-effort)
+├── assets/              # file aktual yang berhasil diunduh ulang
+│   ├── logo.png
+│   └── meta.json        # referensi saja (dilewati saat import)
+└── (tanpa behaviours/*.json & animations/ — keduanya hidup inline
+    di template.json; menulis file terpisah justru menduplikasi saat re-import)
+```
+
+Jaminan dan batasnya:
+- URL absolut (signed URL kedaluwarsa) di `template.json` dipetakan balik ke
+  `assets/<nama>` memakai metadata DB — **hanya untuk file yang benar-benar
+  masuk ZIP**. URL yang filenya gagal diunduh dibiarkan apa adanya (jujur)
+  dan dilaporkan sebagai warning di log server.
+- `behaviours` + `animations` tetap inline di `template.json` (import
+  membacanya dari sana — lihat §2.7).
+- Thumbnail yang gagal diunduh (URL kedaluwarsa) tidak disertakan sebagai
+  file; `thumbnail_url` lama tetap tertulis.
+
 ---
 
 ## 9. Checklist Sebelum Mengembalikan ZIP
 
-- [ ] `template.json` di **root**, `version: "3.0"`, berisi `theme` + `sections` non-kosong
-- [ ] `thumbnail.png` di **root** (800×600, <1MB)
-- [ ] `designType` terisi salah satu dari 5 (Tabel 1b)
+Legenda: **[FAIL]** = import ditolak bila dilanggar (§2.7). Tanpa tanda =
+anjuran kualitas — import tetap sukses tapi hasilnya bisa rusak/kosong.
+
+- [ ] **[FAIL]** `template.json` di **root** dan valid JSON, berisi `theme` + `sections` non-kosong
+- [ ] **[FAIL]** Tiap ID varian kustom (di luar Tabel 2) punya `html` ATAU disasar `customCss` — cek via grep per ID (§5.4)
+- [ ] **[FAIL]** Layout chrome kustom tanpa `html` tidak ada (§5.11)
+- [ ] **[FAIL]** Batas §2.2 dipatuhi (25MB ZIP, 200 entri, 50 aset, dst.)
+- [ ] **[FAIL]** Aset berekstensi diizinkan; path aman; nama duplikat tidak ada
+- [ ] `version: "3.0"` terisi (metadata; tidak divalidasi)
+- [ ] `thumbnail.png` di **root** (800×600, <1MB) — sangat disarankan; tanpanya kartu galeri kosong
+- [ ] `designType` salah satu dari 5 (Tabel 1b); `category` salah satu dari 5 (Tabel 1)
 - [ ] `sections` katalog memuat **semua 19 tipe** Tabel 2 (+ tipe kustom bila ada, §5.10)
 - [ ] Tiap tipe (kecuali `booking`/`marquee`) punya **≥3 varian** berisi `mockup`
 - [ ] Tiap tipe kustom: id kebab-case tak menabrak bawaan, ≥1 varian, **tiap varian punya `html`** (§5.10)
@@ -1038,7 +1143,6 @@ sama, hanya bungkusnya kini boleh `variant.html`.
 - [ ] Tiap key `defaultConfig` punya `configFields` (§6) — tidak ada konten mati
 - [ ] Tipe field sesuai isi (image/gallery/color/switch/html/list)
 - [ ] `variant.html` (bila ada) ≤50rb karakter, bebas script/style/iframe/on*
-- [ ] Tiap ID varian kustom punya `html` ATAU disasar `customCss` (§5.4) — cek via grep per ID
 - [ ] Isi section dibox (§5.9): default `6xl` + rata tengah + padding 24px di HP;
   `full` hanya untuk lapisan latar; verifikasi di 1440px (tepi hero ≈ features ≈ footer)
 - [ ] `variant.html` + `customCss` responsif (§5.8): tanpa width fixed >480px,
@@ -1053,11 +1157,11 @@ sama, hanya bungkusnya kini boleh `variant.html`.
 - [ ] Palet 8 kunci, lolos kontras 4.5:1; font = nama Google Fonts
 - [ ] `designStyleId` salah satu dari 10 (Tabel 4)
 - [ ] `customCss`/`variant.html` menyasar `data-tpl-*`, pakai `var(--color-*)`
-- [ ] Aset di `assets/` berekstensi diizinkan; `url()` eksternal tidak dipakai
 - [ ] Tiap file di `assets/` dirujuk ≥1 kali di `template.json` (§2.6)
 - [ ] Tiap field gambar di seed terisi (`assets/…` atau URL eksplisit, bukan `""`)
 - [ ] Script IIFE, tanpa pola terlarang (§7.2)
 - [ ] ZIP bisa dibuka dan `template.json` valid JSON
+- [ ] `category` + tier target sudah disiapkan untuk form import admin (Tabel 1c)
 
 ---
 
@@ -1080,15 +1184,9 @@ File `docs/template-reference-v3.json` = kerangka lengkap yang SUDAH valid v3.0
 `variant.html`, field `html`). Isi `defaultConfig` + `theme` + `customCss` +
 `variant.html` sesuai niche — strukturnya jangan diubah.
 
-**B. Contoh terisi** (konten nyata, gaya v2 — pelajari kontennya, naikkan ke v3):
+**B. Contoh terisi dari Export** (cara tercepat melihat bentuk nyata):
 
-```bash
-# Bangun ZIP dari template bengkel bawaan
-bun scripts/build-template-zip.ts bengkel dist/template-bengkel.zip
-```
-
-Contoh itu berisi 9 section inti + `menu_board` + `steps` + `marquee`, animasi
-deklaratif + stagger, 1 behaviour, aset lokal, dan `customCss` (wave divider,
-neon glow, grid, hover lift). Untuk v3, tambahkan `variant.html` pada varian
-kreasimu + `activeSections` + field `html` di mana konten kaya dibutuhkan —
-lihat `scripts/create-template.ts` untuk kerangka JSON v3 siap isi.
+1. Buka panel admin → Templates → **Export** pada template apa pun.
+2. Hasilnya ZIP import-compatible (§8.6): `template.json` persis seperti yang
+   disimpan + `assets/` + `thumbnail.*`. Bandingkan dengan kerangka A untuk
+   melihat bagaimana konten niche mengisi struktur yang sama.

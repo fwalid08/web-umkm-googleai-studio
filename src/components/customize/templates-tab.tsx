@@ -13,11 +13,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from "@/lib/builder/templates/catalog";
+import { CATEGORY_LABELS, type BusinessCategory } from "@/lib/builder/templates/catalog";
 import { DESIGN_STYLES } from "@/lib/builder/design-styles";
 import { applyTemplateToWebsite, type ApplyableTemplate } from "@/lib/builder/apply-template";
 import { useBuilderStore } from "@/lib/builder/store";
 import { TemplateGallery } from "@/components/builder/template-gallery";
+
+interface SystemTemplate {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  template_data: any;
+}
 
 export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false, onGalleryClose, onTemplateApplied }: { websiteId: string; homepagePageId: string | null; isGalleryOpen?: boolean; onGalleryClose?: () => void; onTemplateApplied?: () => void }) {
   const [currentStyleId, setCurrentStyleId] = useState<string | null>(null);
@@ -28,7 +36,7 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
   const [notice, setNotice] = useState("");
 
   // Preview modal state
-  const [previewTemplate, setPreviewTemplate] = useState<typeof BUILT_IN_CATALOG[number] | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<SystemTemplate | null>(null);
 
   // Template gallery modal state - controlled by parent or internal state
   const [showTemplateGallery, setShowTemplateGallery] = useState(isGalleryOpen);
@@ -55,8 +63,8 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
           // Cari template yang cocok via template_name (category) dari API
           const templateCategory = json.data.template_name ?? null;
           const matched = templateCategory
-            ? BUILT_IN_CATALOG.find((t) => t.category === templateCategory)
-            : BUILT_IN_CATALOG.find((t) => t.designStyleId === config.design_style_id);
+            ? (await fetch('/api/templates/library?scope=public&is_system_template=true').then(r => r.json()).then(j => j.data?.find((t: any) => t.category === templateCategory)))
+            : (await fetch('/api/templates/library?scope=public&is_system_template=true').then(r => r.json()).then(j => j.data?.find((t: any) => t.template_data?.designStyleId === config.design_style_id)));
           if (matched) setCurrentTemplateId(matched.id);
         }
       } catch {
@@ -66,23 +74,28 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
   }, [websiteId]);
 
   const currentTemplate = currentTemplateId
-    ? BUILT_IN_CATALOG.find((t) => t.id === currentTemplateId)
+    ? (async () => {
+        const res = await fetch(`/api/templates/library/${currentTemplateId}`);
+        if (res.ok) {
+          const json = await res.json();
+          return json.data;
+        }
+        return null;
+      })()
     : null;
   const currentStyle = currentStyleId
     ? DESIGN_STYLES.find((s) => s.id === currentStyleId)
     : null;
 
-  function openPreview(tpl: (typeof BUILT_IN_CATALOG)[number]) {
+  function openPreview(tpl: SystemTemplate) {
     setPreviewTemplate(tpl);
   }
 
-  async function applyTemplate(tpl: (typeof BUILT_IN_CATALOG)[number]) {
+  async function applyTemplate(tpl: SystemTemplate) {
     setBusyId(tpl.id);
     setError("");
     setNotice("");
     setPreviewTemplate(null);
-    // Jalur yang sama dengan galeri — sebelumnya masih salinan sendiri yang
-    // sudah tertinggal satu field (belum mengirim customCss/animations).
     try {
       const result = await applyTemplateToWebsite({
         websiteId,
@@ -92,14 +105,14 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
           description: tpl.description,
           source: 'builtin',
           category: tpl.category,
-          data: tpl.data ?? {},
+          data: tpl.template_data ?? {},
         } as ApplyableTemplate,
       });
       if (!result.ok) {
         setError(result.error ?? "Gagal menerapkan template");
         return;
       }
-      setCurrentStyleId(tpl.data?.designStyleId ?? null);
+      setCurrentStyleId(tpl.template_data?.designStyleId ?? null);
       setCurrentTemplateId(tpl.id);
       onTemplateApplied?.();
       setNotice(
@@ -190,9 +203,9 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
                     <div className="text-sm space-y-1">
                       <p className="font-semibold">Perubahan yang akan terjadi:</p>
                       <ul className="list-disc list-inside space-y-0.5">
-                        <li>Warna, font, & komponen style diganti ke <strong>{DESIGN_STYLES.find((s) => s.id === previewTemplate.data?.designStyleId)?.name ?? previewTemplate.data?.designStyleId}</strong></li>
+                        <li>Warna, font, & komponen style diganti ke <strong>{DESIGN_STYLES.find((s) => s.id === previewTemplate.template_data?.designStyleId)?.name ?? previewTemplate.template_data?.designStyleId}</strong></li>
                         <li>Navigasi header & footer diganti ke bawaan template (link anchor ke section homepage)</li>
-                        <li>Layout homepage diganti: <strong>{(previewTemplate.data?.sections ?? []).length} section</strong> (section lama dihapus)</li>
+                        <li>Layout homepage diganti: <strong>{(previewTemplate.template_data?.sections ?? []).length} section</strong> (section lama dihapus)</li>
                         <li>SEO title & description diganti</li>
                         <li><strong>Halaman custom (store_pages) TIDAK terhapus</strong> — hanya style global & homepage yang berubah</li>
                       </ul>
@@ -200,11 +213,11 @@ export function TemplatesTab({ websiteId, homepagePageId, isGalleryOpen = false,
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
-                  <p><strong>Kategori:</strong> {CATEGORY_LABELS[previewTemplate.category]}</p>
-                  <p><strong>Style:</strong> {DESIGN_STYLES.find((s) => s.id === previewTemplate.data?.designStyleId)?.name ?? previewTemplate.data?.designStyleId}</p>
-                  <p><strong>Section:</strong> {(previewTemplate.data?.sections ?? []).map((s) => `${s.type}:${s.variant}`).join(", ")}</p>
-                  <p><strong>Header CTA:</strong> {previewTemplate.data?.header?.ctaText ?? "—"} → {previewTemplate.data?.header?.ctaLink ?? "—"}</p>
-                  <p><strong>Footer style:</strong> {previewTemplate.data?.footer?.style ?? "simple"}</p>
+                  <p><strong>Kategori:</strong> {CATEGORY_LABELS[previewTemplate.category as BusinessCategory]}</p>
+<p><strong>Style:</strong> {DESIGN_STYLES.find((s) => s.id === previewTemplate.template_data?.designStyleId)?.name ?? previewTemplate.template_data?.designStyleId}</p>
+                      <p><strong>Section:</strong> {(previewTemplate.template_data?.sections ?? []).map((s: { type: string; variant: string }) => `${s.type}:${s.variant}`).join(", ")}</p>
+                      <p><strong>Header CTA:</strong> {previewTemplate.template_data?.header?.ctaText ?? "—"} → {previewTemplate.template_data?.header?.ctaLink ?? "—"}</p>
+                      <p><strong>Footer style:</strong> {previewTemplate.template_data?.footer?.style ?? "simple"}</p>
                 </div>
               </div>
               <DialogFooter className="gap-2">

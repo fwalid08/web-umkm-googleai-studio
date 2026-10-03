@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { zipSync, strToU8 } from "fflate";
+import { getStorageProvider } from "@/lib/storage";
+import { URL_REFRESH_EXPIRES_SECS } from "@/lib/builder/template-urls";
+import {
+  buildTemplateExportZip,
+  createRouteFetchDeps,
+  slugifyTemplateName,
+} from "@/lib/builder/template-export";
 
 interface SessionUser {
   id: string;
@@ -11,15 +17,6 @@ function getSessionUser(session: unknown): SessionUser | null {
   const user = (session as { user?: SessionUser } | null)?.user;
   if (!user?.id) return null;
   return user;
-}
-
-interface AssetMetadata {
-  id: string;
-  name: string;
-  path: string;
-  url: string;
-  type: "image" | "script" | "style";
-  size: number;
 }
 
 export async function GET(
@@ -34,10 +31,15 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !UUID_RE.test(id)) {
+      return NextResponse.json({ success: false, error: "Invalid template ID" }, { status: 400 });
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: template, error } = await supabase
       .from("templates_library")
-      .select("*")
+      .select("id, name, description, template_data, assets, thumbnail_url")
       .eq("id", id)
       .eq("user_id", sessionUser.id)
       .single();
@@ -46,96 +48,50 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
     }
 
-    // Check if we should return ZIP (has assets/animations/behaviours) or just JSON
-    const hasAssets = Array.isArray(template.assets) && template.assets.length > 0;
-    const hasAnimations = Array.isArray(template.animations) && template.animations.length > 0;
-    const hasBehaviours = Array.isArray(template.behaviours) && template.behaviours.length > 0;
-    
-    const hasExtras = hasAssets || hasAnimations || hasBehaviours;
-
-    if (!hasExtras) {
-      // Return simple JSON for templates without extra assets/animations
-      const exportData = {
-        version: "1.0",
-        name: template.name,
-        description: template.description,
-        exported_at: new Date().toISOString(),
-        data: template.template_data,
-      };
-
-      return new NextResponse(JSON.stringify(exportData, null, 2), {
-        headers: {
-          "Content-Type": "application/json",
-          "Content-Disposition": `attachment; filename="template-${template.name.toLowerCase().replace(/\s+/g, "-")}.json"`,
-        },
-      });
-    }
-
-    // Build ZIP package
-    const files: Record<string, Uint8Array> = {};
-
-    // 1. template.json (v3.0 — kompatibel AI eksternal, lihat docs/AI_TEMPLATE_PROMPT.md)
-    const td = (template.template_data ?? {}) as Record<string, unknown>;
-    const templateJson = {
-      version: "3.0",
-      name: template.name,
-      description: template.description,
-      category: (td.category as string) || "services",
-      designType: (td.designType as string) || "organic",
-      theme: td.theme || {},
-      headers: td.headers || [],
-      footers: td.footers || [],
-      sections: td.sections || [],
-      // v3: section mana yang aktif untuk niche ini (subset 19 tipe predefined).
-      // Template tetap mendefinisikan SEMUA tipe di `sections`.
-      activeSections: td.activeSections ?? (td.data as Record<string, unknown> | undefined)?.activeSections ?? [],
-      data: td.data ?? td,
-      animations: template.animations || [],
-      behaviours: template.behaviours || [],
-    };
-    files["template.json"] = strToU8(JSON.stringify(templateJson, null, 2));
-
-    // 2. Assets — sertakan file aktual bila masih bisa diunduh (best-effort),
-    // agar hasil export bisa di-import ulang dengan asset-nya. Selalu sertakan
-    // meta.json sebagai fallback bila URL sudah kedaluwarsa.
-    if (Array.isArray(template.assets) && template.assets.length > 0) {
-      const assetsMeta = (template.assets as AssetMetadata[]).slice(0, 50);
-      files["assets/meta.json"] = strToU8(JSON.stringify(assetsMeta, null, 2));
-      for (const asset of assetsMeta) {
-        if (!asset?.url || !asset?.name || typeof asset.url !== "string") continue;
-        if (!/^https?:\/\//.test(asset.url)) continue;
-        const safeName = asset.name.replace(/\\/g, "/").split("/").pop() || "";
-        if (!safeName || safeName === "meta.json" || safeName.includes("..")) continue;
+    // SELALU ZIP dengan struktur yang sama persis seperti ZIP import
+    // (template.json root + thumbnail.* root + assets/*) sehingga hasilnya
+    // bisa di-import ulang apa adanya (round-trip).
+    const storage = getStorageProvider();
+    const deps = createRouteFetchDeps({
+      signStoragePath: async (storagePath: string) => {
         try {
-          const res = await fetch(asset.url);
-          if (!res.ok) continue;
-          const buf = new Uint8Array(await res.arrayBuffer());
-          if (buf.length === 0 || buf.length > 10 * 1024 * 1024) continue;
-          files[`assets/${safeName}`] = buf;
+          const r = await storage.getSignedUrl({ path: storagePath, expiresIn: URL_REFRESH_EXPIRES_SECS });
+          return r.success && r.url ? r.url : null;
         } catch {
-          // Abaikan asset yang gagal diunduh; meta.json tetap tersedia
+          return null;
         }
-      }
+      },
+    });
+
+    let built;
+    try {
+      built = await buildTemplateExportZip(
+        {
+          id: template.id,
+          name: template.name,
+          description: template.description,
+          template_data: template.template_data,
+          assets: template.assets,
+          thumbnail_url: template.thumbnail_url,
+        },
+        deps,
+      );
+    } catch (e) {
+      console.error("Export build error:", e);
+      return NextResponse.json(
+        { success: false, error: "Data template tidak valid untuk di-export" },
+        { status: 500 },
+      );
     }
 
-    // 3. Behaviours
-    if (Array.isArray(template.behaviours) && template.behaviours.length > 0) {
-      files["behaviours/meta.json"] = strToU8(JSON.stringify(template.behaviours, null, 2));
+    if (built.warnings.length > 0) {
+      console.warn(`Export ${slugifyTemplateName(template.name)} warnings:`, built.warnings);
     }
 
-    // 4. Animations
-    if (Array.isArray(template.animations) && template.animations.length > 0) {
-      files["animations/meta.json"] = strToU8(JSON.stringify(template.animations, null, 2));
-    }
-
-    // Create ZIP
-    const zip = zipSync(files, { level: 6 });
-    const fileName = `template-${template.name.toLowerCase().replace(/\s+/g, "-")}.zip`;
-
-    return new NextResponse(zip, {
+    return new NextResponse(built.bytes, {
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": `attachment; filename="${built.fileName}"`,
       },
     });
   } catch (error) {

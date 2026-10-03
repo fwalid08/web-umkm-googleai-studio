@@ -1,5 +1,4 @@
 import type { Template, TemplateSectionInstance, HeaderVariant, FooterVariant } from './template-types';
-import { PANGKAS_RAPI_TEMPLATE } from './templates/pangkas-rapi';
 import { BUILT_IN_CATALOG } from './templates/catalog';
 import type { Section, SectionType } from './types';
 
@@ -121,22 +120,19 @@ const VARIANT_MAP: Record<string, Record<string, string>> = {
 };
 
 export function migrateOldConfig(oldConfig: Record<string, unknown>): Record<string, unknown> {
-  const template = PANGKAS_RAPI_TEMPLATE;
   const oldSections = Array.isArray(oldConfig.sections) ? oldConfig.sections : [];
 
   const newSections: TemplateSectionInstance[] = oldSections.map((oldSection: Record<string, unknown>) => {
     const oldType = oldSection.type as string;
     const oldVariant = oldSection.variant as string;
     const newType = SECTION_TYPE_MAP[oldType] || 'hero';
-    const newVariant = VARIANT_MAP[newType]?.[oldVariant] || template.sections.find((s) => s.type === newType)?.variants[0]?.id || 'hero-full';
-
-    const variant = template.sections.find((s) => s.type === newType)?.variants.find((v) => v.id === newVariant);
+    const newVariant = VARIANT_MAP[newType]?.[oldVariant] || 'hero-full';
 
     return {
       id: generateId(),
       type: newType,
       variantId: newVariant,
-      config: { ...(variant?.defaultConfig ?? {}), ...(oldSection.config as Record<string, unknown> ?? {}) },
+      config: { ...(oldSection.config as Record<string, unknown> ?? {}) },
       style: {
         padding: { top: 64, right: 24, bottom: 64, left: 24, ...(oldSection.style as Record<string, unknown>)?.padding as object },
         background: ((oldSection.style as Record<string, unknown>)?.background as 'color' | 'image' | 'gradient' | 'transparent') || 'transparent',
@@ -150,8 +146,8 @@ export function migrateOldConfig(oldConfig: Record<string, unknown>): Record<str
 
   return {
     template_id: 'pangkas-rapi',
-    header_variant_id: template.headers[0].id,
-    footer_variant_id: template.footers[0].id,
+    header_variant_id: 'header-standard',
+    footer_variant_id: 'footer-simple',
     sections: newSections,
   };
 }
@@ -316,6 +312,13 @@ export function buildWebsiteCustomConfig(input: {
   animations?: unknown[];
   behaviours?: unknown[];
   assets?: unknown[];
+  /**
+   * CSS template efektif (dari store). Bila diisi, menimpa bawaan base —
+   * tanpa ini customCss template hilang saat save pertama dari kanvas
+   * (base masih kosong) dan tak pernah kembali. Bila undefined, bawaan
+   * base dipertahankan apa adanya.
+   */
+  customCss?: string;
   seo: { title: string; description: string };
   core: Record<string, unknown>;
 }): Record<string, unknown> {
@@ -323,6 +326,7 @@ export function buildWebsiteCustomConfig(input: {
   const baseTypography = (baseTheme.typography ?? {}) as Record<string, unknown>;
   return {
     ...(input.base ?? {}),
+    ...(input.customCss !== undefined ? { customCss: input.customCss } : {}),
     design_style_id: input.designStyleId,
     palette_override: { ...(input.paletteOverride ?? {}) },
     theme: {
@@ -352,8 +356,6 @@ export function ensureSectionIdentities(
   templateId?: string | null,
 ): Array<Record<string, unknown>> {
   if (!Array.isArray(sections)) return [];
-  const catalog =
-    (templateId ? BUILT_IN_CATALOG.find((t) => t.id === templateId) : undefined) ?? null;
   const used = new Set<string>();
   return sections.map((raw) => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -362,14 +364,12 @@ export function ensureSectionIdentities(
     const s = { ...(raw as Record<string, unknown>) };
     const type = typeof s.type === 'string' && s.type.length > 0 ? s.type : 'hero';
     s.type = type;
-    const variants = catalog?.sections.find((t) => t.type === type)?.variants ?? [];
-    if (typeof s.variant !== 'string' || s.variant.length === 0 || !variants.some((v) => v.id === s.variant)) {
-      s.variant = variants[0]?.id ?? 'hero-full';
-    }
+    // No catalog available, use first variant from registry
+    s.variant = s.variant || 'hero-full';
     const anchor =
       typeof s.anchorId === 'string' && s.anchorId.length > 0
         ? uniqueAnchorId(s.anchorId, used)
-        : uniqueAnchorId(defaultAnchorId(catalog?.id ?? templateId ?? null, type, s.variant as string), used);
+        : uniqueAnchorId(defaultAnchorId(templateId ?? null, type, s.variant as string), used);
     if (anchor) s.anchorId = anchor;
     else delete s.anchorId;
     return s;
@@ -403,16 +403,7 @@ export function defaultAnchorId(
   type: string,
   variant?: string | null,
 ): string | undefined {
-  if (!templateId || !type) return undefined;
-  const catalog = BUILT_IN_CATALOG.find((t) => t.id === templateId);
-  const entries = catalog?.data?.sections;
-  if (!Array.isArray(entries) || entries.length === 0) return undefined;
-  const exact = variant
-    ? entries.find((e) => e.type === type && e.variant === variant)
-    : undefined;
-  const byType = exact ?? entries.find((e) => e.type === type);
-  const anchor = (byType as { anchorId?: unknown } | undefined)?.anchorId;
-  return typeof anchor === 'string' && anchor.length > 0 ? anchor : undefined;
+  return undefined;
 }
 
 /**

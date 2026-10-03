@@ -62,6 +62,8 @@ const navKey = (id: unknown, index: number) =>
  */
 export function SiteFooter({ variant, config, palette, radius, compact = false }: SiteFooterProps) {
   // v3.0: varian dengan `html` kustom dirender langsung dari HTML template.
+  // clip={false}: footer adalah chrome — pola yang sama dengan header
+  // (lihat site-header-shared): root varian boleh absolute tanpa terpotong.
   if (typeof variant.html === 'string' && variant.html.trim().length > 0) {
     return (
       <VariantHtmlRenderer
@@ -70,6 +72,7 @@ export function SiteFooter({ variant, config, palette, radius, compact = false }
         html={variant.html}
         config={config}
         configFields={variant.configFields ?? []}
+        clip={false}
       />
     );
   }

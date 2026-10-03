@@ -7,7 +7,7 @@ import { BuilderCanvas } from './builder-canvas';
 import { BuilderBottomBar } from './builder-bottom-bar';
 import { useBuilderStore } from '@/lib/builder/store';
 import { useTemplateStore } from '@/lib/builder/template-store';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { X, Monitor, Tablet, Smartphone } from 'lucide-react';
 
 export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, isPublished, exitHref }: { websiteId: string; pageTitle?: string; siteUrl?: string | null; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: () => Promise<void>; onPublishOverride?: () => Promise<void>; isPublished?: boolean; exitHref?: string }) {
@@ -103,7 +103,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         {/* Kanvas tampil full-page: desktop selebar viewport (full-bleed),
             tablet/HP di tengah selebar device — tanpa bingkai kartu. */}
         <PreviewCanvas websiteId={websiteId} />
-        <Toaster position="bottom-center" richColors closeButton />
       </div>
     );
   }
@@ -156,7 +155,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
       </div>
 
       <BuilderBottomBar />
-      <Toaster position="bottom-center" richColors closeButton />
     </div>
   );
 }

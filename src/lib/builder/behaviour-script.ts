@@ -119,6 +119,60 @@ export function escapeHtmlValue(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Item link untuk ekspansi `{{navItems}}` (dan daftar link sejenis). */
+export interface NavLinkItem {
+  label?: unknown;
+  url?: unknown;
+  enabled?: unknown;
+  isExternal?: unknown;
+}
+
+function isNavLinkItem(v: unknown): v is Record<string, unknown> {
+  return (
+    !!v &&
+    typeof v === 'object' &&
+    !Array.isArray(v) &&
+    typeof (v as Record<string, unknown>).label === 'string' &&
+    typeof (v as Record<string, unknown>).url === 'string'
+  );
+}
+
+/** Protokol URL yang diizinkan di link hasil ekspansi. Sisanya jadi `#`. */
+function sanitizeNavUrl(url: string): string {
+  const t = url.trim();
+  if (/^(#|\/|https?:\/\/|mailto:|tel:)/i.test(t)) return t;
+  return '#';
+}
+
+/**
+ * Render array link (mis. `navItems`) menjadi deretan `<a>`.
+ * Tanpa ini `{{navItems}}` menjadi string "[object Object],…" karena
+ * substitusi flat hanya tahu string. Aturan: item tanpa `enabled` dianggap
+ * aktif (konsisten dengan layout bawaan); `enabled: false` dilewati;
+ * `isExternal: true` membuka tab baru. Selalu aman (escape + allowlist protokol).
+ */
+export function renderNavItems(items: unknown): string {
+  if (!Array.isArray(items)) return '';
+  return items
+    .filter((it) => isNavLinkItem(it) && (it.enabled as unknown) !== false)
+    .map((it) => {
+      const r = it as Record<string, unknown>;
+      const label = escapeHtmlValue(String(r.label ?? ''));
+      const url = escapeHtmlValue(sanitizeNavUrl(String(r.url ?? '#')));
+      const target =
+        (r as { isExternal?: unknown }).isExternal === true
+          ? ' target="_blank" rel="noreferrer"'
+          : '';
+      return `<a href="${url}"${target}>${label}</a>`;
+    })
+    .join('');
+}
+
+/** True bila nilai adalah array homogen item link (siap diekspan). */
+function isExpandableLinkList(v: unknown): v is Array<Record<string, unknown>> {
+  return Array.isArray(v) && v.length > 0 && v.every(isNavLinkItem);
+}
+
 /**
  * Sanitasi HTML kustom template. Dipakai saat import dan saat render.
  * Idempoten, tidak melempar error untuk input rusak.
@@ -138,6 +192,8 @@ export function sanitizeTemplateHtml(html: string): string {
  * - `{{key}}` diganti `config[key]` (di-escape).
  * - `{{{key}}}` diganti `config[key]` mentah tapi DISANITASI dulu
  *   (untuk field bertipe `html`).
+ * - Array homogen item link `{label, url}` (mis. `navItems`) diekspan jadi
+ *   deretan `<a>` — tanpa ini tertulis "[object Object],…".
  * - Hasil akhir disanitasi lewat `sanitizeTemplateHtml`.
  */
 export function renderVariantHtml(
@@ -150,11 +206,13 @@ export function renderVariantHtml(
   let out = raw.replace(/\{\{\{\s*([\w.]+)\s*\}\}\}/g, (_m, key: string) => {
     const v = config[key];
     if (v === undefined || v === null) return '';
+    if (isExpandableLinkList(v)) return renderNavItems(v);
     return sanitizeTemplateHtml(String(v));
   });
   out = out.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, key: string) => {
     const v = config[key];
     if (v === undefined || v === null) return '';
+    if (isExpandableLinkList(v)) return renderNavItems(v);
     if (htmlFieldKeys.has(key)) return sanitizeTemplateHtml(String(v));
     return escapeHtmlValue(v);
   });

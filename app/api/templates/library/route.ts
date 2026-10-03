@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStorageProvider } from "@/lib/storage";
 import { refreshTemplateUrls, URL_REFRESH_EXPIRES_SECS } from "@/lib/builder/template-urls";
+import { allowedTierRequirements, sessionTier } from "@/lib/builder/template-access";
 import type { BuilderConfig } from "@/lib/builder/types";
 
 interface SessionUser {
@@ -15,7 +16,7 @@ function getSessionUser(session: unknown): SessionUser | null {
   return user;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     const sessionUser = getSessionUser(session);
@@ -23,7 +24,36 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope");
+    const systemOnly = searchParams.get("is_system_template") === "true";
+
     const supabase = await createServerSupabaseClient();
+
+    // Katalog public (dipakai tab builtin galeri, active-template-card,
+    // templates-tab): template sistem yang di-upload admin. Sebelumnya
+    // parameter ini DIABAIKAN dan query selalu user_id = sendiri, sehingga
+    // template public tidak pernah sampai ke tenant.
+    if (scope === "public" || systemOnly) {
+      const tier = sessionTier(session);
+      const allowed = allowedTierRequirements(tier);
+      let query = supabase
+        .from("templates_library")
+        .select("*")
+        .eq("scope", "public")
+        .eq("is_system_template", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (allowed !== null) {
+        query = query.or(`tier_requirement.is.null,tier_requirement.in.(${allowed.join(",")})`);
+      }
+      const { data: templates, error } = await query;
+      if (error) {
+        return NextResponse.json({ success: false, error: "Gagal memuat template" }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, data: templates ?? [] });
+    }
+
     const { data: templates, error } = await supabase
       .from("templates_library")
       .select("*")

@@ -472,6 +472,8 @@ export default function DashboardLayout({
                       await fetch("/api/auth/demo-logout", { method: "POST" }).catch(() => {});
                     } catch {}
                     signOut({ callbackUrl: "/signin" });
+                    // Force hard redirect to ensure JWT cookie is cleared
+                    window.location.href = "/signin";
                   }}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-lg cursor-pointer dark:hover:bg-red-900/20"
                 >

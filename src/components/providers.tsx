@@ -2,6 +2,7 @@
 
 import { SessionProvider } from "next-auth/react";
 import { ReactNode, useEffect } from "react";
+import { Toaster } from "sonner";
 import { LanguageProvider } from "@/lib/i18n";
 import { isDemoAuthEnabledClient } from "@/lib/auth/utils";
 
@@ -41,6 +42,10 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <LanguageProvider>{children}</LanguageProvider>
+      {/* Global toast host: satu-satunya <Toaster/> di aplikasi. Sebelumnya
+          hanya di-mount di builder-shell sehingga semua toast di halaman lain
+          (admin, dashboard, settings) hilang tanpa tampil. */}
+      <Toaster position="bottom-center" richColors closeButton />
     </SessionProvider>
   );
 }

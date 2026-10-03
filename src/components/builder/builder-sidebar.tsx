@@ -42,18 +42,41 @@ import { StyleSelector } from './style-selector';
 import { TemplateGallery } from './template-gallery';
 import { ConfigForm } from '@/lib/builder/config-form';
 import { MockupPreview } from '@/lib/builder/mockup-preview';
-import { BUILT_IN_CATALOG, type BusinessCategory } from '@/lib/builder/templates/catalog';
+// No BUILT_IN_CATALOG import - templates now come from database
+import type { BusinessCategory } from '@/lib/builder/templates/catalog';
 import {
   applyTemplateToWebsite,
-  isLibraryTemplate,
-  resolveTemplateId,
-  synthesizeLibraryTemplate,
+  resolveStoreTemplate,
   type ApplyableTemplate,
 } from '@/lib/builder/apply-template';
-import { getTemplate } from '@/lib/builder/template-store';
-import type { Template } from '@/lib/builder/template-types';
+import type { Template, HeaderVariant, FooterVariant } from '@/lib/builder/template-types';
 
 type SidebarLevel = 'main' | 'sections' | 'section-config' | 'header' | 'footer' | 'seo' | 'style' | 'template-info';
+
+/**
+ * Varian darurat bila template aktif tidak punya varian header/footer
+ * (mis. template kosong / data library tanpa varian). Tanpa ini
+ * `headerVariant.defaultConfig` meledak "reading 'defaultConfig'".
+ */
+const FALLBACK_HEADER_VARIANT: HeaderVariant = {
+  id: 'standard',
+  name: 'Standar',
+  description: '',
+  layout: 'solid',
+  configFields: [],
+  defaultConfig: {},
+  mockup: '',
+};
+
+const FALLBACK_FOOTER_VARIANT: FooterVariant = {
+  id: 'simple',
+  name: 'Simpel',
+  description: '',
+  layout: 'solid',
+  configFields: [],
+  defaultConfig: {},
+  mockup: '',
+};
 
 /**
  * Baca konten header/footer chrome tersimpan untuk varian aktif.
@@ -139,8 +162,8 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
     setShowSectionPicker(false);
   };
 
-  const headerVariant = getHeaderVariant(template, headerVariantId);
-  const footerVariant = getFooterVariant(template, footerVariantId);
+  const headerVariant = getHeaderVariant(template, headerVariantId) ?? FALLBACK_HEADER_VARIANT;
+  const footerVariant = getFooterVariant(template, footerVariantId) ?? FALLBACK_FOOTER_VARIANT;
 
   const headerConfig = useMemo(
     () => normalizeChrome(headerChromeConfig, headerVariant.defaultConfig),
@@ -490,19 +513,14 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
                 // menulis ke console.
                 const applyable = template as ApplyableTemplate;
 
-                // Ke store/kanvas: template library perlu disintesis karena
-                // `getTemplate()` hanya tahu template bawaan. Tanpa ini kanvas
-                // tidak berubah meski API-nya sukses.
+                // Resolve template untuk store/kanvas via helper bersama —
+                // berlaku untuk `saved` MAUPUN `builtin` (keduanya membawa
+                // template_data penuh dari API). Versi lama hanya mensintesis
+                // `saved` sehingga apply dari tab Katalog selalu gagal dengan
+                // "Template tidak ditemukan".
                 let storeTemplate: Template | undefined;
                 try {
-                  storeTemplate = isLibraryTemplate(applyable)
-                    ? synthesizeLibraryTemplate(applyable.data ?? {}, {
-                        id: resolveTemplateId(applyable.id),
-                        name: applyable.name ?? 'Template',
-                        description: applyable.description,
-                        category: applyable.category,
-                      })
-                    : getTemplate(resolveTemplateId(applyable.id));
+                  storeTemplate = resolveStoreTemplate(applyable);
                 } catch (e) {
                   setApplyError(e instanceof Error ? e.message : 'Gagal menyiapkan template');
                   return;

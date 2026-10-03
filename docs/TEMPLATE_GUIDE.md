@@ -921,7 +921,10 @@ if (result.success) {
   console.log('Template imported:', result.data);
 }
 
-// 3. Export template as ZIP
+// 3. Export template as ZIP (selalu ZIP, import-compatible — lihat
+//    src/lib/builder/template-export.ts: template.json apa adanya +
+//    assets/ + thumbnail.* + meta.json referensi; behaviours/animations
+//    tetap inline agar re-import tidak duplikat)
 async function exportTemplate(templateId: string) {
   const res = await fetch(`/api/templates/library/${templateId}/export`);
   const blob = await res.blob();
@@ -931,6 +934,20 @@ async function exportTemplate(templateId: string) {
   a.download = `template-${templateId}.zip`;
   a.click();
 }
+```
+
+### Admin endpoints (system templates)
+
+- `GET /api/admin/templates` — list semua template (filter scope/category/tier).
+- `POST /api/admin/templates` — buat system template dari JSON.
+- `GET/PATCH/DELETE /api/admin/templates/[id]` — kelola satu template.
+- `POST /api/admin/templates/import` — import ZIP sebagai system template
+  (`scope=public`, `is_system_template=true`). Batas SAMA dengan user route
+  (25MB/100MB/200 entri/5MB/50 aset/10MB/50 behaviour). Form fields
+  `category` (5 kanonis) + `tier_requirement` (4 paket, hierarki kumulatif:
+  paket atas bisa memakai milik bawahnya) — nilai tak dikenal ditolak 400.
+- `GET /api/admin/templates/[id]/export` — export ZIP template apa pun
+  (termasuk system) dengan builder yang sama.
 ```
 ```
 

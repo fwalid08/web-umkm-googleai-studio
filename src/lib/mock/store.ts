@@ -1,8 +1,10 @@
 /**
  * Mock in-memory store for Demo Accounts & Templates
- * Mendukung 2 Akun Demo:
+ * Mendukung 4 Akun Demo:
  * 1. Demo 1: 1 Website (Tier Free) - Warung Kopi Bu Toni
  * 2. Demo 2: 2 Websites (Tier Starter) - Hijab Cantik Official & Aksesoris Cantik
+ * 3. Demo 3: 3 Websites (Tier Growth) - Jasa Desain, Digital Marketing, Training
+ * 4. Demo 4: 5 Websites (Tier Enterprise) - Marketplace, Fashion Wholesale, Electronics, Home & Living, Corporate Services
  */
 import { buildCustomers, buildDailyTrend, buildTopProducts } from "@/lib/analytics/aggregate";
 
@@ -12,7 +14,7 @@ export interface DemoUser {
   name: string;
   password: string;
   tier: "free" | "starter" | "growth" | "enterprise";
-  business_type: "food" | "fashion" | "handicraft" | "retail" | "services";
+  business_type: "food" | "fashion" | "handicraft" | "retail" | "services" | "marketplace" | "education" | "electronics" | "home";
   trial_ends_at: string;
   active_website_id: string;
 }
@@ -21,7 +23,7 @@ export interface DemoWebsite {
   id: string;
   user_id: string;
   name: string;
-  business_type: "food" | "fashion" | "handicraft" | "retail" | "services";
+  business_type: "food" | "fashion" | "handicraft" | "retail" | "services" | "marketplace" | "education" | "electronics" | "home";
   subdomain: string;
   custom_domain: string | null;
   custom_domain_verified: boolean;
@@ -395,7 +397,7 @@ export const STATIC_TEMPLATES = [
 // --- SEED DEMO USERS ---
 const demoUsers: DemoUser[] = [
   {
-    id: "user-demo-1",
+    id: "574fb366-f0c1-4901-bde3-1dc73cb5c3df",
     email: "demo1@umkm.id",
     name: "Bu Toni (1 Website)",
     password: "Password123!",
@@ -405,7 +407,7 @@ const demoUsers: DemoUser[] = [
     active_website_id: "site-demo-1",
   },
   {
-    id: "user-demo-2",
+    id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     email: "demo2@umkm.id",
     name: "Siti Rahma (2 Website)",
     password: "Password123!",
@@ -414,6 +416,26 @@ const demoUsers: DemoUser[] = [
     trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     active_website_id: "site-demo-2a",
   },
+  {
+    id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    email: "demo3@umkm.id",
+    name: "Budi Growth (3 Website)",
+    password: "Password123!",
+    tier: "growth",
+    business_type: "services",
+    trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    active_website_id: "site-demo-3a",
+  },
+  {
+    id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    email: "demo4@umkm.id",
+    name: "Citra Enterprise (5 Website)",
+    password: "Password123!",
+    tier: "enterprise",
+    business_type: "marketplace",
+    trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    active_website_id: "site-demo-4a",
+  },
 ];
 
 // --- SEED DEMO WEBSITES ---
@@ -421,7 +443,7 @@ const demoWebsites: DemoWebsite[] = [
   // Demo 1: Hanya 1 Website
   {
     id: "site-demo-1",
-    user_id: "user-demo-1",
+    user_id: "574fb366-f0c1-4901-bde3-1dc73cb5c3df",
     name: "Warung Kopi Bu Toni",
     business_type: "food",
     subdomain: "tenant-kopibutoni",
@@ -434,7 +456,7 @@ const demoWebsites: DemoWebsite[] = [
   // Demo 2: Punya 2 Websites
   {
     id: "site-demo-2a",
-    user_id: "user-demo-2",
+    user_id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     name: "Hijab Cantik Official",
     business_type: "fashion",
     subdomain: "tenant-hijabcantik",
@@ -446,7 +468,7 @@ const demoWebsites: DemoWebsite[] = [
   },
   {
     id: "site-demo-2b",
-    user_id: "user-demo-2",
+    user_id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     name: "Aksesoris Cantik & Bros",
     business_type: "retail",
     subdomain: "tenant-aksesoris",
@@ -456,6 +478,104 @@ const demoWebsites: DemoWebsite[] = [
     created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
+  // Demo 3 (Growth): 3 Websites
+  {
+    id: "site-demo-3a",
+    user_id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    name: "Jasa Desain Grafis Budi",
+    business_type: "services",
+    subdomain: "tenant-growthdemo",
+    custom_domain: "budidesain.com",
+    custom_domain_verified: true,
+    current_template_id: "tpl-services",
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "site-demo-3b",
+    user_id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    name: "Konsultasi Digital Marketing",
+    business_type: "services",
+    subdomain: "tenant-growthmarketing",
+    custom_domain: null,
+    custom_domain_verified: false,
+    current_template_id: "tpl-services",
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "site-demo-3c",
+    user_id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    name: "Training & Workshop Online",
+    business_type: "services",
+    subdomain: "tenant-growthtraining",
+    custom_domain: "growthedu.id",
+    custom_domain_verified: true,
+    current_template_id: "tpl-education",
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  // Demo 4 (Enterprise): 5 Websites
+  {
+    id: "site-demo-4a",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    name: "Marketplace Citra Utama",
+    business_type: "marketplace",
+    subdomain: "tenant-enterprisedemo",
+    custom_domain: "citramarketplace.com",
+    custom_domain_verified: true,
+    current_template_id: "tpl-marketplace",
+    created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "site-demo-4b",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    name: "Citra Fashion Wholesale",
+    business_type: "fashion",
+    subdomain: "tenant-citrafashion",
+    custom_domain: "citrafashion.biz",
+    custom_domain_verified: true,
+    current_template_id: "tpl-fashion",
+    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "site-demo-4c",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    name: "Citra Electronics Hub",
+    business_type: "retail",
+    subdomain: "tenant-citraelectronics",
+    custom_domain: "citratech.store",
+    custom_domain_verified: true,
+    current_template_id: "tpl-retail",
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "site-demo-4d",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    name: "Citra Home & Living",
+    business_type: "handicraft",
+    subdomain: "tenant-citrahomeliving",
+    custom_domain: null,
+    custom_domain_verified: false,
+    current_template_id: "tpl-handicraft",
+    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "site-demo-4e",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    name: "Citra Corporate Services",
+    business_type: "services",
+    subdomain: "tenant-citracorporate",
+    custom_domain: "citracorp.co.id",
+    custom_domain_verified: true,
+    current_template_id: "tpl-services",
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ];
 
 // --- SEED DEMO ORDERS ---
@@ -463,7 +583,7 @@ const demoOrders: DemoOrder[] = [
   // Orders Toko 1 (Warung Kopi)
   {
     id: "ord-demo-101",
-    user_id: "user-demo-1",
+    user_id: "574fb366-f0c1-4901-bde3-1dc73cb5c3df",
     website_id: "site-demo-1",
     product_name: "Kopi Susu Aren Spesial",
     product_price: 18000,
@@ -481,7 +601,7 @@ const demoOrders: DemoOrder[] = [
   },
   {
     id: "ord-demo-102",
-    user_id: "user-demo-1",
+    user_id: "574fb366-f0c1-4901-bde3-1dc73cb5c3df",
     website_id: "site-demo-1",
     product_name: "Roti Bakar Coklat Keju",
     product_price: 15000,
@@ -499,7 +619,7 @@ const demoOrders: DemoOrder[] = [
   },
   {
     id: "ord-demo-103",
-    user_id: "user-demo-1",
+    user_id: "574fb366-f0c1-4901-bde3-1dc73cb5c3df",
     website_id: "site-demo-1",
     product_name: "Pisang Goreng Crispy",
     product_price: 12000,
@@ -519,7 +639,7 @@ const demoOrders: DemoOrder[] = [
   // Orders Toko 2A (Hijab Cantik Official)
   {
     id: "ord-demo-201",
-    user_id: "user-demo-2",
+    user_id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     website_id: "site-demo-2a",
     product_name: "Pashmina Ceruty Babydoll",
     product_price: 35000,
@@ -537,7 +657,7 @@ const demoOrders: DemoOrder[] = [
   },
   {
     id: "ord-demo-202",
-    user_id: "user-demo-2",
+    user_id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     website_id: "site-demo-2a",
     product_name: "Gamis Rayon Premium",
     product_price: 125000,
@@ -555,7 +675,7 @@ const demoOrders: DemoOrder[] = [
   },
   {
     id: "ord-demo-203",
-    user_id: "user-demo-2",
+    user_id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     website_id: "site-demo-2a",
     product_name: "Hijab Paris Jadul Original",
     product_price: 20000,
@@ -575,7 +695,7 @@ const demoOrders: DemoOrder[] = [
   // Orders Toko 2B (Aksesoris Cantik & Bros)
   {
     id: "ord-demo-301",
-    user_id: "user-demo-2",
+    user_id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     website_id: "site-demo-2b",
     product_name: "Bros Mutiara Air Tawar",
     product_price: 25000,
@@ -593,7 +713,7 @@ const demoOrders: DemoOrder[] = [
   },
   {
     id: "ord-demo-302",
-    user_id: "user-demo-2",
+    user_id: "3d548114-a262-4bbb-92d6-c1e91646e5cf",
     website_id: "site-demo-2b",
     product_name: "Jepit Rambut Korea Pastel (Isi 4)",
     product_price: 10000,
@@ -608,6 +728,214 @@ const demoOrders: DemoOrder[] = [
     payment_status: "paid",
     delivery_address: "Perumahan Griya Indah No. 22, Bekasi",
     notes: "",
+  },
+
+  // Orders Demo 3 (Growth) - site-demo-3a (Jasa Desain Grafis)
+  {
+    id: "ord-demo-301",
+    user_id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    website_id: "site-demo-3a",
+    product_name: "Desain Logo Profesional",
+    product_price: 500000,
+    quantity: 1,
+    total_amount: 500000,
+    status: "selesai",
+    order_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Andi Wijaya",
+    customer_phone: "081234567890",
+    customer_email: "andi@startup.id",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Digital delivery",
+    notes: "Logo untuk startup fintech",
+  },
+  {
+    id: "ord-demo-302",
+    user_id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    website_id: "site-demo-3a",
+    product_name: "Desain Kemasan Produk",
+    product_price: 750000,
+    quantity: 1,
+    total_amount: 750000,
+    status: "dikirim",
+    order_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Sari Dewi",
+    customer_phone: "081298765432",
+    customer_email: "sari@umkmfood.id",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Digital delivery",
+    notes: "Kemasan snack sehat",
+  },
+  // Orders Demo 3 (Growth) - site-demo-3b (Digital Marketing)
+  {
+    id: "ord-demo-303",
+    user_id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    website_id: "site-demo-3b",
+    product_name: "Audit SEO Website",
+    product_price: 1000000,
+    quantity: 1,
+    total_amount: 1000000,
+    status: "konfirmasi",
+    order_date: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    customer_name: "PT Maju Jaya",
+    customer_phone: "02155556666",
+    customer_email: "procurement@majujaya.co.id",
+    payment_method: "transfer",
+    payment_status: "pending",
+    delivery_address: "Digital delivery",
+    notes: "Website corporate",
+  },
+  // Orders Demo 3 (Growth) - site-demo-3c (Training)
+  {
+    id: "ord-demo-304",
+    user_id: "024efdae-d5b6-433d-a22d-d9ed3b497cda",
+    website_id: "site-demo-3c",
+    product_name: "Workshop Desain untuk Pemula",
+    product_price: 800000,
+    quantity: 5,
+    total_amount: 4000000,
+    status: "selesai",
+    order_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Komunitas Desain Bandung",
+    customer_phone: "081333344444",
+    customer_email: "komdesbdg@gmail.com",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Online (Zoom)",
+    notes: "Batch 5 peserta",
+  },
+
+  // Orders Demo 4 (Enterprise) - site-demo-4a (Marketplace)
+  {
+    id: "ord-demo-401",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    website_id: "site-demo-4a",
+    product_name: "Paket Seller Pro",
+    product_price: 799000,
+    quantity: 1,
+    total_amount: 799000,
+    status: "selesai",
+    order_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Toko Baju Online",
+    customer_phone: "081211112222",
+    customer_email: "tokobaju@shop.id",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Digital delivery",
+    notes: "Upgrade dari starter",
+  },
+  {
+    id: "ord-demo-402",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    website_id: "site-demo-4a",
+    product_name: "Paket Seller Starter",
+    product_price: 299000,
+    quantity: 3,
+    total_amount: 897000,
+    status: "baru",
+    order_date: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Koleksi Sepatu Murah",
+    customer_phone: "081222223333",
+    customer_email: "sepatu@murah.id",
+    payment_method: "cod",
+    payment_status: "pending",
+    delivery_address: "Digital delivery",
+    notes: "",
+  },
+  // Orders Demo 4 (Enterprise) - site-demo-4b (Fashion Wholesale)
+  {
+    id: "ord-demo-403",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    website_id: "site-demo-4b",
+    product_name: "Hijab Premium Grosir (Dus 50 pcs)",
+    product_price: 1250000,
+    quantity: 2,
+    total_amount: 2500000,
+    status: "dikirim",
+    order_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Agen Hijab Medan",
+    customer_phone: "081266667777",
+    customer_email: "agenhijab@medan.id",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Jl. Gatot Subroto No. 88, Medan",
+    notes: "Warna: mix pastel",
+  },
+  {
+    id: "ord-demo-404",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    website_id: "site-demo-4b",
+    product_name: "Gamis Syar'i Grosir (Dus 30 pcs)",
+    product_price: 3750000,
+    quantity: 1,
+    total_amount: 3750000,
+    status: "selesai",
+    order_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Butik Muslimah Surabaya",
+    customer_phone: "081277778888",
+    customer_email: "butik@surabaya.id",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Jl. Basuki Rahmat No. 45, Surabaya",
+    notes: "Size campur S-XL",
+  },
+  // Orders Demo 4 (Enterprise) - site-demo-4c (Electronics)
+  {
+    id: "ord-demo-405",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    website_id: "site-demo-4c",
+    product_name: "Wireless Earbuds ANC Hybrid",
+    product_price: 450000,
+    quantity: 10,
+    total_amount: 4500000,
+    status: "selesai",
+    order_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Distributor Elektronik Jakarta",
+    customer_phone: "081288889999",
+    customer_email: "distro@jakarta.id",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Jl. Hayam Wuruk No. 123, Jakarta Pusat",
+    notes: "Bulk order untuk reseller",
+  },
+  // Orders Demo 4 (Enterprise) - site-demo-4d (Home & Living)
+  {
+    id: "ord-demo-406",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    website_id: "site-demo-4d",
+    product_name: "Set Perlengkapan Makan Minimalis 4 Orang",
+    product_price: 350000,
+    quantity: 20,
+    total_amount: 7000000,
+    status: "dikirim",
+    order_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Hotel & Resort Bali",
+    customer_phone: "081299990000",
+    customer_email: "procurement@baliresort.id",
+    payment_method: "transfer",
+    payment_status: "paid",
+    delivery_address: "Jl. Raya Kuta No. 55, Badung, Bali",
+    notes: "Untuk renovasi kamar",
+  },
+  // Orders Demo 4 (Enterprise) - site-demo-4e (Corporate Services)
+  {
+    id: "ord-demo-407",
+    user_id: "64fc60c8-af34-42c9-aad9-9009d68880f4",
+    website_id: "site-demo-4e",
+    product_name: "Pembuatan PT/PMA Lengkap",
+    product_price: 7500000,
+    quantity: 1,
+    total_amount: 7500000,
+    status: "konfirmasi",
+    order_date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    customer_name: "Startup Teknologi Baru",
+    customer_phone: "081300001111",
+    customer_email: "founder@startupbaru.id",
+    payment_method: "transfer",
+    payment_status: "pending",
+    delivery_address: "Digital delivery",
+    notes: "Urgensi: 1 minggu",
   },
 ];
 

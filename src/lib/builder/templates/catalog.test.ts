@@ -137,6 +137,32 @@ describe("template contract", () => {
     expect(isCatalogTemplateAllowedForTier(["starter", "growth"], "growth")).toBe(true);
   });
 
+  it("helper tier: kumulatif — paket atas bisa memakai milik paket bawahnya", () => {
+    // free terlihat oleh semua
+    for (const tier of ALL_TIERS) {
+      expect(isCatalogTemplateAllowedForTier(["free"], tier), `free harus terbuka untuk ${tier}`).toBe(true);
+    }
+    // starter terlihat oleh starter ke atas
+    expect(isCatalogTemplateAllowedForTier(["starter"], "free")).toBe(false);
+    expect(isCatalogTemplateAllowedForTier(["starter"], "starter")).toBe(true);
+    expect(isCatalogTemplateAllowedForTier(["starter"], "growth")).toBe(true);
+    expect(isCatalogTemplateAllowedForTier(["starter"], "enterprise")).toBe(true);
+    // growth terlihat oleh growth ke atas
+    expect(isCatalogTemplateAllowedForTier(["growth"], "starter")).toBe(false);
+    expect(isCatalogTemplateAllowedForTier(["growth"], "growth")).toBe(true);
+    expect(isCatalogTemplateAllowedForTier(["growth"], "enterprise")).toBe(true);
+    // enterprise hanya untuk enterprise
+    expect(isCatalogTemplateAllowedForTier(["enterprise"], "growth")).toBe(false);
+    expect(isCatalogTemplateAllowedForTier(["enterprise"], "enterprise")).toBe(true);
+    // syarat null/undefined = terbuka (template lama tanpa tier_requirement)
+    expect(isCatalogTemplateAllowedForTier([null] as unknown as string[], "free")).toBe(true);
+    expect(isCatalogTemplateAllowedForTier([undefined] as unknown as string[], "starter")).toBe(true);
+    // tier user asing = tolak (fail-closed); tier belum diketahui = terbuka
+    expect(isCatalogTemplateAllowedForTier(["free"], "pro")).toBe(false);
+    expect(isCatalogTemplateAllowedForTier(["starter"], null)).toBe(true);
+    expect(isCatalogTemplateAllowedForTier(["starter"], undefined)).toBe(true);
+  });
+
   it("varian header & footer terdaftar di chrome registry", () => {
     for (const t of BUILT_IN_CATALOG) {
       const hv = (t.data.header as { variant?: string } | undefined)?.variant ?? "standard";
