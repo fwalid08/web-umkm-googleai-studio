@@ -53,23 +53,10 @@ async function validateSession(request: NextRequest): Promise<NextResponse | nul
     return null;
   }
 
-  // DEBUG: Check cookie header
-  const cookieHeader = request.headers.get("cookie");
-  const hasSessionCookie = !!cookieHeader?.includes("authjs.session-token");
-  console.log("[PROXY] Cookie check:", { pathname, hasSessionCookie });
-
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
     secureCookie: process.env.NODE_ENV === "production",
-  });
-
-  console.log("[PROXY] validateSession:", {
-    pathname,
-    hasToken: !!token,
-    tokenEmail: token?.email,
-    tokenTier: token?.tier,
-    isAdmin,
   });
 
   if (!token) {
@@ -80,7 +67,6 @@ async function validateSession(request: NextRequest): Promise<NextResponse | nul
 
   if (isAdmin) {
     const isAdminUser = token.email === "admin@saas.com" && token.tier === "enterprise";
-    console.log("[PROXY] Admin check:", { isAdminUser, email: token.email, tier: token.tier });
     if (!isAdminUser) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }

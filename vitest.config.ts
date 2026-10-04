@@ -4,11 +4,11 @@ import path from "path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
-      include: ["src/lib/tenant/**/*.ts", "src/lib/orders/**/*.ts", "src/lib/builder/**/*.ts", "src/lib/websites/**/*.ts", "src/lib/products/**/*.ts", "src/lib/pages/**/*.ts"],
+      include: ["src/lib/tenant/**/*.ts", "src/lib/orders/**/*.ts", "src/lib/builder/**/*.ts", "src/lib/websites/**/*.ts", "src/lib/pages/**/*.ts"],
     },
   },
   resolve: {

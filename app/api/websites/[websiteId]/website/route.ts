@@ -94,13 +94,8 @@ export async function GET(
       });
     }
 
-    console.log("[DEBUG] User ID:", sessionUser.id);
-    console.log("[DEBUG] Website ID:", websiteId);
-
     const site = await getOwnedWebsite(sessionUser.id, websiteId);
-    console.log("[DEBUG] Site found:", !!site, site?.id);
     if (!site || site.id !== websiteId) {
-      console.log("[DEBUG] 404: Site not found or not owned by user");
       return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
     }
 
@@ -114,8 +109,6 @@ export async function GET(
       .maybeSingle();
     let user = userRow;
 
-    console.log("[DEBUG] GET website - user:", user, "error:", userError?.message);
-    
     if (!user) {
       const { data: newUser, error: createError } = await supabase
         .from("users")
@@ -127,8 +120,6 @@ export async function GET(
         })
         .select("tier, business_type")
         .maybeSingle();
-      
-      console.log("[DEBUG] GET website - created user:", newUser, "error:", createError?.message);
       user = newUser;
     }
 
@@ -285,10 +276,6 @@ export async function PUT(
     const body = await request.json();
 
     const hasNewFormat = body?.custom_config?.design_style_id !== undefined || body?.custom_config?.sections !== undefined;
-
-    console.log('[DEBUG PUT] body keys:', Object.keys(body));
-    console.log('[DEBUG PUT] template_id from body:', body.template_id);
-    console.log('[DEBUG PUT] hasNewFormat:', hasNewFormat);
 
     const nextAuthToken = await getNextAuthToken();
 
