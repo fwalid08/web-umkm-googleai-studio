@@ -1,0 +1,8 @@
+{
+	auto_https disable_redirects
+}
+
+https://rabasha.id, https://admin.rabasha.id {
+	tls .cert/localhost.pem .cert/localhost-key.pem
+	reverse_proxy 127.0.0.1:3000
+}

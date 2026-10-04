@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
+const rootHost = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com").replace(/:\d+$/, "");
+const adminHost = `admin.${rootHost}`;
+
 const nextConfig: NextConfig = {
   output: "standalone",
+  allowedDevOrigins: [rootHost, adminHost],
   async redirects() {
-    const rootHost = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com").replace(/:\d+$/, "");
-    const adminHost = `admin.${rootHost}`;
     return [
       {
         source: "/websites",
@@ -39,7 +41,6 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    const adminHost = `admin.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com"}`;
     return [
       // Tenant dashboard at root on admin subdomain
       { source: "/", has: [{ type: "host", value: adminHost }], destination: "/dashboard" },

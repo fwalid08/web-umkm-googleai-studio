@@ -21,10 +21,12 @@ describe("admin host routing", () => {
   it("does not apply legacy websites redirects on the admin host", async () => {
     const redirects = await nextConfig.redirects?.();
     const websitesRedirects = redirects?.filter((rule) => rule.source.startsWith("/websites"));
+    const adminHost = nextConfig.allowedDevOrigins?.find((origin) => origin.startsWith("admin."));
 
     expect(websitesRedirects).toHaveLength(2);
+    expect(adminHost).toBeTruthy();
     for (const rule of websitesRedirects ?? []) {
-      expect(rule.missing).toContainEqual({ type: "host", value: "admin.localhost" });
+      expect(rule.missing).toContainEqual({ type: "host", value: adminHost });
     }
   });
 

@@ -79,10 +79,45 @@ MIDTRANS_CLIENT_KEY=SB-Mid-client-xxx
 MIDTRANS_IS_PRODUCTION=false
 ```
 
-Di production, siapkan DNS dan TLS untuk `admin.<NEXT_PUBLIC_ROOT_DOMAIN>`, lalu daftarkan
-`https://admin.<domain>/api/auth/callback/google` sebagai Google OAuth redirect URI.
-Tambahkan `http://admin.localhost:3000/reset-password` untuk development dan
-`https://admin.<domain>/reset-password` ke Supabase Auth URL Configuration redirect allow list.
+Untuk development lokal dengan `admin.rabasha.id`, arahkan host ke loopback di `/etc/hosts`:
+
+```text
+127.0.0.1 rabasha.id admin.rabasha.id
+```
+
+Buat cert/key lokal yang dipercaya browser (direktori `.cert/` diabaikan Git):
+
+```bash
+mkcert -install
+mkdir -p .cert
+mkcert -cert-file .cert/localhost.pem -key-file .cert/localhost-key.pem rabasha.id admin.rabasha.id
+```
+
+Setel env lokal ke origin tanpa port:
+
+```env
+NEXTAUTH_URL=https://admin.rabasha.id
+NEXT_PUBLIC_APP_URL=https://admin.rabasha.id
+NEXT_PUBLIC_ROOT_DOMAIN=rabasha.id
+```
+
+Jalankan Next.js dalam HTTP internal pada port 3000 dengan `pnpm dev`. Pasang binary Caddy sesuai
+distro Anda. Di terminal kedua, jalankan Caddy dari root repo pada HTTPS standar port 443; Linux
+membutuhkan hak bind privileged untuk port ini:
+
+```bash
+sudo caddy run --config Caddyfile.dev
+```
+
+Port 443 termasuk privileged port pada Linux, sehingga Caddy perlu hak bind port tersebut. Di Google
+Cloud OAuth Client, tambahkan JavaScript origin `https://admin.rabasha.id` dan redirect URI
+`https://admin.rabasha.id/api/auth/callback/google`. Tambahkan `rabasha.id` ke Authorized domains
+dan verifikasi kepemilikannya jika diminta. Untuk Supabase Auth URL Configuration, izinkan
+`https://admin.rabasha.id/reset-password`.
+
+Untuk production, siapkan DNS dan TLS untuk `admin.<NEXT_PUBLIC_ROOT_DOMAIN>`, lalu daftarkan
+`https://admin.<domain>/api/auth/callback/google` sebagai Google OAuth redirect URI dan
+`https://admin.<domain>/reset-password` di Supabase Auth URL Configuration redirect allow list.
 
 ### Database Setup (Supabase)
 
