@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { NextRequest, type NextResponse } from "next/server";
+import nextConfig from "../next.config";
 
 const { getTokenMock } = vi.hoisted(() => ({ getTokenMock: vi.fn() }));
 vi.mock("next-auth/jwt", () => ({ getToken: getTokenMock }));
@@ -17,6 +18,16 @@ afterAll(() => {
 });
 
 describe("admin host routing", () => {
+  it("does not apply legacy websites redirects on the admin host", async () => {
+    const redirects = await nextConfig.redirects?.();
+    const websitesRedirects = redirects?.filter((rule) => rule.source.startsWith("/websites"));
+
+    expect(websitesRedirects).toHaveLength(2);
+    for (const rule of websitesRedirects ?? []) {
+      expect(rule.missing).toContainEqual({ type: "host", value: "admin.localhost" });
+    }
+  });
+
   it("redirects unauthenticated admin root to signin with dashboard callback", async () => {
     getTokenMock.mockResolvedValueOnce(null);
 

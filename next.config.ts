@@ -3,15 +3,19 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   async redirects() {
+    const rootHost = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com").replace(/:\d+$/, "");
+    const adminHost = `admin.${rootHost}`;
     return [
       {
         source: "/websites",
         destination: "/dashboard/websites",
+        missing: [{ type: "host", value: adminHost }],
         permanent: false,
       },
       {
         source: "/websites/:path*",
         destination: "/dashboard/websites",
+        missing: [{ type: "host", value: adminHost }],
         permanent: false,
       },
       {
