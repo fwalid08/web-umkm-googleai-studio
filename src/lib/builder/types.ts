@@ -20,29 +20,6 @@ export interface NavItem {
   children?: NavItem[];
 }
 
-export type NavigationGroupKey = 'topnav' | 'footer' | 'custom';
-
-export interface NavigationGroup {
-  id: string;
-  website_id: string;
-  key: NavigationGroupKey;
-  title: string;
-  sort_order: number;
-}
-
-export interface NavigationItem {
-  id: string;
-  group_id: string;
-  parent_id: string | null;
-  label: string;
-  url: string;
-  page_id: string | null;
-  open_in_new_tab: boolean;
-  enabled: boolean;
-  sort_order: number;
-  children?: NavigationItem[];
-}
-
 export interface BuilderConfig {
   theme: {
     palette: Record<string, string>;
