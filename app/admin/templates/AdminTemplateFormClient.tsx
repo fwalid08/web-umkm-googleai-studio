@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Upload, Download, FileText, X, Check } from "lucide-react";
+import { ArrowLeft, Save, Loader2, FileText } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ImportResultPanel, toImportResult, type ImportResult } from "@/components/admin/templates/ImportResultPanel";
-import { cn } from "@/lib/utils";
 
 interface Template {
   id: string;
@@ -71,12 +69,6 @@ export function AdminTemplateFormClient({ mode, templateId: propTemplateId }: Ad
   });
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
   const [jsonValue, setJsonValue] = useState("");
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [importCategory, setImportCategory] = useState("retail");
-  const [importTier, setImportTier] = useState("free");
 
   const fetchTemplate = useCallback(async () => {
     if (!isEdit || !templateId) return;
@@ -174,70 +166,6 @@ export function AdminTemplateFormClient({ mode, templateId: propTemplateId }: Ad
       toast.error("Network error");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!importFile) {
-      const msg = "Please select a ZIP file";
-      setImportResult({ ok: false, message: msg, warnings: [], autofilled: [] });
-      toast.error(msg);
-      return;
-    }
-
-    setImporting(true);
-    setImportResult(null);
-    try {
-      const formDataObj = new FormData();
-      formDataObj.append("file", importFile);
-      formDataObj.append("name", (formData.name || "").trim() || importFile.name.replace(".zip", ""));
-      formDataObj.append("category", importCategory);
-      formDataObj.append("tier_requirement", importTier);
-
-      const res = await fetch("/api/admin/templates/import", {
-        method: "POST",
-        body: formDataObj,
-      });
-      const json = await res.json().catch(() => null);
-      const result = toImportResult(json, `Import failed (HTTP ${res.status})`);
-      setImportResult(result);
-      if (result.ok) {
-        toast.success(result.message);
-        // Dialog dibiarkan terbuka agar ringkasan + warnings terbaca.
-        // Keluar via tombol Done di bawah.
-        setImportFile(null);
-      } else {
-        toast.error(result.message);
-      }
-    } catch {
-      const msg = "Network error";
-      setImportResult({ ok: false, message: msg, warnings: [], autofilled: [] });
-      toast.error(msg);
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const closeImportDialog = (open: boolean) => {
-    setImportDialogOpen(open);
-    if (!open) {
-      setImportFile(null);
-      setImportResult(null);
-      setImportCategory("retail");
-      setImportTier("free");
-    }
-  };
-
-  const finishImportDialog = () => {
-    closeImportDialog(false);
-    if (importResult?.ok) {
-      if (isEdit) {
-        fetchTemplate();
-      } else {
-        router.push("/admin/templates");
-        router.refresh();
-      }
     }
   };
 
@@ -389,83 +317,6 @@ export function AdminTemplateFormClient({ mode, templateId: propTemplateId }: Ad
         </DialogContent>
       </Dialog>
 
-      <Dialog open={importDialogOpen} onOpenChange={closeImportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import from ZIP</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleImport} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="import-zip">ZIP File</Label>
-              <Input
-                id="import-zip"
-                type="file"
-                accept=".zip"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                required
-              />
-              <p className="text-xs text-gray-500 dark:text-slate-400">
-                ZIP should contain template.json, optional assets/, thumbnail.png, behaviours/
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="import-zip-category">Category</Label>
-                <Select value={importCategory} onValueChange={setImportCategory}>
-                  <SelectTrigger id="import-zip-category"><SelectValue placeholder="Category" /></SelectTrigger>
-                  <SelectContent>
-                    {["food", "fashion", "retail", "handicraft", "services"].map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="import-zip-tier">Min. Tier</Label>
-                <Select value={importTier} onValueChange={setImportTier}>
-                  <SelectTrigger id="import-zip-tier"><SelectValue placeholder="Tier" /></SelectTrigger>
-                  <SelectContent>
-                    {["free", "starter", "growth", "enterprise"].map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                  Higher tiers can also use it (cumulative).
-                </p>
-              </div>
-            </div>
-            <ImportResultPanel result={importResult} />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={finishImportDialog}>
-                {importResult?.ok ? "Done" : "Cancel"}
-              </Button>
-              <Button type="submit" disabled={importing}>
-                {importing ? "Importing..." : importResult?.ok ? "Import Again" : "Import & Replace"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
-        <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          Import ZIP (Replace)
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => {
-          const blob = new Blob([JSON.stringify(formData.template_data, null, 2)], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${formData.name || "template"}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }}>
-          <Download className="h-4 w-4 mr-2" />
-          Export JSON
-        </Button>
-      </div>
     </form>
   );
 }

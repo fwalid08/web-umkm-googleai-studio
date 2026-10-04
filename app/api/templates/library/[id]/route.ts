@@ -4,7 +4,6 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStorageProvider } from "@/lib/storage";
 import { refreshTemplateUrls, URL_REFRESH_EXPIRES_SECS } from "@/lib/builder/template-urls";
 import { isPublicTemplateVisible, sessionTier } from "@/lib/builder/template-access";
-import type { BuilderConfig } from "@/lib/builder/types";
 
 interface SessionUser {
   id: string;
@@ -86,75 +85,6 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data: template });
-  } catch {
-    return NextResponse.json({ success: false, error: "Terjadi kesalahan server" }, { status: 500 });
-  }
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    const sessionUser = getSessionUser(session);
-    if (!sessionUser) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { name, description, thumbnail_url, template_data } = body;
-
-    const supabase = await createServerSupabaseClient();
-    const { data: template, error } = await supabase
-      .from("templates_library")
-      .update({
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-        ...(thumbnail_url !== undefined && { thumbnail_url }),
-        ...(template_data !== undefined && { template_data: template_data as BuilderConfig }),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq("user_id", sessionUser.id)
-      .select()
-      .single();
-
-    if (error || !template) {
-      return NextResponse.json({ success: false, error: "Gagal memperbarui template" }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, data: template, message: "Template berhasil diperbarui" });
-  } catch {
-    return NextResponse.json({ success: false, error: "Terjadi kesalahan server" }, { status: 500 });
-  }
-}
-
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    const sessionUser = getSessionUser(session);
-    if (!sessionUser) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-
-    const supabase = await createServerSupabaseClient();
-    const { error } = await supabase
-      .from("templates_library")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", sessionUser.id);
-
-    if (error) {
-      return NextResponse.json({ success: false, error: "Gagal menghapus template" }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, message: "Template berhasil dihapus" });
   } catch {
     return NextResponse.json({ success: false, error: "Terjadi kesalahan server" }, { status: 500 });
   }

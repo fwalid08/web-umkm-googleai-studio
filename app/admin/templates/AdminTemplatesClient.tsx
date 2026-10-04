@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Filter, ChevronLeft, ChevronRight, MoreVertical, Edit, Trash2, Eye, Download, Upload } from "lucide-react";
+import { Plus, Search, Filter, ChevronLeft, ChevronRight, MoreVertical, Edit, Trash2, Eye } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,9 +27,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ImportResultPanel, toImportResult, type ImportResult } from "@/components/admin/templates/ImportResultPanel";
 import { cn } from "@/lib/utils";
 
 interface Template {
@@ -78,13 +76,6 @@ export function AdminTemplatesClient() {
   const [scopeFilter, setScopeFilter] = useState<"all" | "public" | "user">("all");
   const [systemFilter, setSystemFilter] = useState<"all" | "system" | "user">("all");
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; template: Template | null }>({ open: false, template: null });
-  const [importDialog, setImportDialog] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importName, setImportName] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [importCategory, setImportCategory] = useState("retail");
-  const [importTier, setImportTier] = useState("free");
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
@@ -140,59 +131,6 @@ export function AdminTemplatesClient() {
     }
   };
 
-  const handleImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!importFile || !importName.trim()) {
-      const msg = "Please select a file and enter a name";
-      setImportResult({ ok: false, message: msg, warnings: [], autofilled: [] });
-      toast.error(msg);
-      return;
-    }
-
-    setImporting(true);
-    setImportResult(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", importFile);
-      formData.append("name", importName.trim());
-      formData.append("category", importCategory);
-      formData.append("tier_requirement", importTier);
-
-      const res = await fetch("/api/admin/templates/import", {
-        method: "POST",
-        body: formData,
-      });
-      const json = await res.json().catch(() => null);
-      const result = toImportResult(json, `Import failed (HTTP ${res.status})`);
-      setImportResult(result);
-      if (result.ok) {
-        toast.success(result.message);
-        setImportFile(null);
-        setImportName("");
-        fetchTemplates();
-      } else {
-        toast.error(result.message);
-      }
-    } catch {
-      const msg = "Network error";
-      setImportResult({ ok: false, message: msg, warnings: [], autofilled: [] });
-      toast.error(msg);
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const closeImportDialog = (open: boolean) => {
-    setImportDialog(open);
-    if (!open) {
-      setImportFile(null);
-      setImportName("");
-      setImportResult(null);
-      setImportCategory("retail");
-      setImportTier("free");
-    }
-  };
-
   const categories = ["food", "fashion", "handicraft", "retail", "services", "marketplace"];
   const tiers = ["free", "starter", "growth", "enterprise"];
 
@@ -200,9 +138,11 @@ export function AdminTemplatesClient() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={() => setImportDialog(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Import Template
+          <Button asChild className="gap-2">
+            <Link href="/admin/templates/new">
+              <Plus className="h-4 w-4" />
+              New Template
+            </Link>
           </Button>
         </div>
 
@@ -372,16 +312,6 @@ export function AdminTemplatesClient() {
                               Edit
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link
-                              href={`/api/admin/templates/${template.id}/export`}
-                              className="flex items-center gap-2 w-full"
-                              download
-                            >
-                              <Download className="h-4 w-4" />
-                              Export
-                            </Link>
-                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => setDeleteDialog({ open: true, template })}
@@ -447,74 +377,6 @@ export function AdminTemplatesClient() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={importDialog} onOpenChange={closeImportDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Import System Template</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleImport} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="import-name">Template Name</Label>
-              <Input
-                id="import-name"
-                value={importName}
-                onChange={(e) => setImportName(e.target.value)}
-                placeholder="Enter template name"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="import-file">ZIP File</Label>
-              <Input
-                id="import-file"
-                type="file"
-                accept=".zip"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                required
-              />
-              <p className="text-xs text-gray-500 dark:text-slate-400">
-                ZIP must contain template.json and optional assets/ folder, thumbnail.png, behaviours/ folder
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="import-category">Category</Label>
-                <Select value={importCategory} onValueChange={setImportCategory}>
-                  <SelectTrigger id="import-category"><SelectValue placeholder="Category" /></SelectTrigger>
-                  <SelectContent>
-                    {["food", "fashion", "retail", "handicraft", "services"].map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="import-tier">Min. Tier</Label>
-                <Select value={importTier} onValueChange={setImportTier}>
-                  <SelectTrigger id="import-tier"><SelectValue placeholder="Tier" /></SelectTrigger>
-                  <SelectContent>
-                    {["free", "starter", "growth", "enterprise"].map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                  Higher tiers can also use it (cumulative).
-                </p>
-              </div>
-            </div>
-            <ImportResultPanel result={importResult} />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => closeImportDialog(false)}>
-                {importResult?.ok ? "Done" : "Cancel"}
-              </Button>
-              <Button type="submit" disabled={importing}>
-                {importing ? "Importing..." : importResult?.ok ? "Import Again" : "Import"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

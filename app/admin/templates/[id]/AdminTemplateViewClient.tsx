@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Edit, Download, ExternalLink, Copy, Check, X, Loader2, FileText, Eye, Trash2, MoreVertical } from "lucide-react";
+import { ArrowLeft, Edit, Copy, FileText, Eye, Trash2, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +80,6 @@ export function AdminTemplateViewClient({ templateId }: AdminTemplateViewClientP
   const [loading, setLoading] = useState(true);
   const [jsonDialogOpen, setJsonDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
 
   const fetchTemplate = useCallback(async () => {
     setLoading(true);
@@ -127,27 +126,6 @@ export function AdminTemplateViewClient({ templateId }: AdminTemplateViewClientP
       toast.error("Network error");
     } finally {
       setDeleteDialogOpen(false);
-    }
-  };
-
-  const handleExport = async () => {
-    if (!template) return;
-    setExporting(true);
-    try {
-      const res = await fetch(`/api/admin/templates/${templateId}/export`);
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${template.name.replace(/\s+/g, "-").toLowerCase()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Template exported");
-    } catch {
-      toast.error("Export failed");
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -230,10 +208,6 @@ export function AdminTemplateViewClient({ templateId }: AdminTemplateViewClientP
                   <Edit className="h-4 w-4" />
                   Edit Template
                 </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExport} disabled={exporting} className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                {exporting ? "Exporting..." : "Export JSON"}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={copyJson} className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />

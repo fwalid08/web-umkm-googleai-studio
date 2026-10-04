@@ -13,7 +13,7 @@ export default function AdminTemplateNewPage({ params }: AdminTemplateNewPagePro
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Template</h1>
-          <p className="text-gray-500 dark:text-slate-400 mt-1">Create a new system template from JSON or ZIP import</p>
+          <p className="text-gray-500 dark:text-slate-400 mt-1">Create a new system template manually</p>
         </div>
       </div>
 

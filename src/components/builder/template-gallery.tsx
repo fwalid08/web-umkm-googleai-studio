@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Download, Upload, Trash2, Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, ExternalLink, Lock } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, ExternalLink, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import type { Template } from '@/lib/builder/template-types';
 import { CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { isCatalogTemplateAllowedForTier } from '@/lib/builder/validation';
-import { useBuilderStore } from '@/lib/builder/store';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -29,32 +27,24 @@ interface TemplateGalleryProps {
   userTier?: string;
 }
 
-type TemplateSource = 'builtin' | 'saved';
-
 interface UnifiedTemplate {
   id: string;
   name: string;
   description: string;
   category: BusinessCategory;
-  source: TemplateSource;
+  source: 'builtin';
   sectionsCount: number;
   tiers?: string[];
   data: Template;
 }
 
 export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTier }: TemplateGalleryProps) {
-  const [savedTemplates, setSavedTemplates] = useState<Template[]>([]);
+  void websiteId;
+  void onClose;
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<TemplateSource>('builtin');
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importName, setImportName] = useState('');
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importWarnings, setImportWarnings] = useState<string[]>([]);
-  const [importAutofilled, setImportAutofilled] = useState<string[]>([]);
-  const [isImporting, setIsImporting] = useState(false);
   const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
   const [showApplyDialog, setShowApplyDialog] = useState<{ template: UnifiedTemplate | null; open: boolean }>({
     template: null,
@@ -62,44 +52,29 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   });
   const [resolvedTier, setResolvedTier] = useState<string | null>(null);
 
-  const MAX_IMPORT_SIZE = 25 * 1024 * 1024;
-
   const [systemTemplates, setSystemTemplates] = useState<Template[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const res = await fetch('/api/templates/library?scope=public&is_system_template=true');
         if (res.ok) {
           const json = await res.json();
-          if (json.success) {
+          if (!cancelled && json.success) {
             setSystemTemplates(json.data);
           }
         }
       } catch (err) {
         console.error('Failed to load system templates:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const loadSavedTemplates = useCallback(async () => {
-    try {
-      const res = await fetch('/api/templates/library');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.success) {
-        setSavedTemplates(json.data);
-      }
-    } catch (err) {
-      console.error('Failed to load templates:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadSavedTemplates();
-  }, [loadSavedTemplates]);
 
   // Resolve tier tenant untuk badge/lock katalog builtin: pakai prop bila
   // diberikan parent, kalau tidak fetch /api/user/plan. Tetap null = permissive
@@ -136,7 +111,7 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
         name: t.name,
         description: t.description,
         category: t.category,
-        source: 'builtin' as TemplateSource,
+        source: 'builtin' as const,
         sectionsCount: t.template_data?.sections?.length ?? 0,
         tiers: t.tier_requirement ? [t.tier_requirement] : undefined,
         data: {
@@ -149,58 +124,14 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
       }));
   }, [systemTemplates, resolvedTier]);
 
-  const savedUnified = useMemo((): UnifiedTemplate[] => {
-    return savedTemplates.map((row) => {
-      /**
-       * Baris `templates_library` membungkus seluruh isi template di dalam
-       * kolom `template_data`. Dulu `data` diisi baris DB utuh, sehingga
-       * `template.data.sections/header/footer/...` selalu `undefined` →
-       * menerapkan template library menghasilkan homepage kosong tanpa nav,
-       * footer, dan SEO. Di sini dibongkar dulu, lalu digabung kembali dengan
-       * metadata baris (nama/deskripsi/thumbnail) supaya bentuknya sama
-       * persis dengan template bawaan dan semua konsumen (`resolveSections`,
-       * form apply, preview) bisa memakai jalur yang sama.
-       */
-      const rowData = row as unknown as Record<string, unknown>;
-      const inner = (rowData.template_data ?? {}) as Record<string, unknown>;
-      const sections = Array.isArray(inner.sections) ? inner.sections : [];
-      const data = {
-        ...inner,
-        id: row.id,
-        name: row.name,
-        description: row.description || String(inner.description ?? ''),
-        category: (inner.category as BusinessCategory) ?? 'retail',
-        sections,
-      } as unknown as Template;
-
-      return {
-        id: row.id,
-        name: row.name,
-        description: row.description || '',
-        category: data.category,
-        source: 'saved' as TemplateSource,
-        sectionsCount: sections.length,
-        data,
-      };
-    });
-  }, [savedTemplates]);
-
-  // Daftar yang ditampilkan mengikuti tab aktif. Sebelumnya selalu saved
-  // sehingga template sistem (builtin) tidak pernah terlihat walau API-nya
-  // sudah mengembalikan data.
-  const allTemplates = useMemo(
-    () => (activeTab === 'builtin' ? [...builtinUnified] : [...savedUnified]),
-    [activeTab, builtinUnified, savedUnified],
-  );
-
   const filteredTemplates = useMemo(() => {
-    return allTemplates.filter((t) => {
+    return builtinUnified.filter((t) => {
       const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [allTemplates, searchQuery, selectedCategory]);
+  }, [builtinUnified, searchQuery, selectedCategory]);
 
   const totalPages = Math.ceil(filteredTemplates.length / ITEMS_PER_PAGE);
   const paginatedTemplates = useMemo(() => {
@@ -210,141 +141,10 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, activeTab]);
-
-  const handleExport = async (templateId: string) => {
-    try {
-      const res = await fetch(`/api/templates/library/${templateId}/export`);
-      if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        throw new Error(json?.error || 'Export failed');
-      }
-      const contentType = res.headers.get('content-type') || '';
-      const isZip = contentType.includes('zip');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `template-${templateId}.${isZip ? 'zip' : 'json'}`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Failed to export template:', err);
-    }
-  };
-
-  const handleImport = async () => {
-    const trimmedName = importName.trim();
-    if (!importFile || !trimmedName || isImporting) return;
-    setImportError(null);
-    setImportWarnings([]);
-    setImportAutofilled([]);
-    const fileName = importFile.name.toLowerCase();
-    const isZip = fileName.endsWith('.zip');
-    const isJson = fileName.endsWith('.json');
-    if (!isZip && !isJson) {
-      setImportError('File harus berformat .json atau .zip');
-      return;
-    }
-    if (importFile.size > MAX_IMPORT_SIZE) {
-      setImportError('Ukuran file melebihi batas 25 MB');
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      if (isZip) {
-        // ZIP file upload - use multipart/form-data
-        const formData = new FormData();
-        formData.append('file', importFile);
-        formData.append('name', trimmedName);
-
-        const res = await fetch('/api/templates/library/import', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.success) {
-          throw new Error(json?.error || `Import gagal (HTTP ${res.status})`);
-        }
-        // Warnings cakupan aset (file tak dirujuk / field gambar kosong):
-        // import tetap sukses. Bila ada warnings, dialog DIBIARKAN terbuka
-        // agar user sempat membaca catatan gambar yang bermasalah.
-        const zipWarnings = Array.isArray(json?.warnings)
-          ? json.warnings.filter((w: unknown) => typeof w === 'string').slice(0, 12)
-          : [];
-        const zipAutofilled = Array.isArray(json?.autofilled)
-          ? json.autofilled.filter((w: unknown) => typeof w === 'string').slice(0, 12)
-          : [];
-        setImportWarnings(zipWarnings);
-        setImportAutofilled(zipAutofilled);
-        if (zipWarnings.length === 0 && zipAutofilled.length === 0) {
-          setImportFile(null);
-          setImportName('');
-        }
-        loadSavedTemplates();
-      } else {
-        // JSON file upload
-        let data: unknown;
-        try {
-          const text = await importFile.text();
-          data = JSON.parse(text);
-        } catch {
-          throw new Error('File JSON tidak valid');
-        }
-
-        const res = await fetch('/api/templates/library/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: trimmedName,
-            template_data:
-              data && typeof data === 'object' && !Array.isArray(data) && 'data' in (data as Record<string, unknown>)
-                ? (data as Record<string, unknown>).data
-                : data,
-          }),
-        });
-
-        const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.success) {
-          throw new Error(json?.error || `Import gagal (HTTP ${res.status})`);
-        }
-        const jsonWarnings = Array.isArray(json?.warnings)
-          ? json.warnings.filter((w: unknown) => typeof w === 'string').slice(0, 12)
-          : [];
-        const jsonAutofilled = Array.isArray(json?.autofilled)
-          ? json.autofilled.filter((w: unknown) => typeof w === 'string').slice(0, 12)
-          : [];
-        setImportWarnings(jsonWarnings);
-        setImportAutofilled(jsonAutofilled);
-        if (jsonWarnings.length === 0 && jsonAutofilled.length === 0) {
-          setImportFile(null);
-          setImportName('');
-        }
-        loadSavedTemplates();
-      }
-    } catch (err) {
-      console.error('Failed to import template:', err);
-      setImportError(err instanceof Error ? err.message : 'Import gagal, coba lagi');
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const handleDelete = async (templateId: string) => {
-    if (!confirm('Yakin ingin menghapus template ini?')) return;
-    try {
-      const res = await fetch(`/api/templates/library/${templateId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.success) loadSavedTemplates();
-    } catch (err) {
-      console.error('Failed to delete template:', err);
-    }
-  };
+  }, [searchQuery, selectedCategory]);
 
   const handleApply = async (template: UnifiedTemplate) => {
+    if (applyingTemplateId) return;
     setApplyingTemplateId(template.id);
     try {
       await onApply(template);
@@ -360,21 +160,13 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
   function TemplateCard({
     template,
-    onApply,
-    onExport,
-    onDelete,
     onPreview,
   }: {
     template: UnifiedTemplate;
-    onApply: (template: UnifiedTemplate) => void;
-    onExport: (id: string) => void;
-    onDelete: (id: string) => void;
     onPreview?: (template: UnifiedTemplate) => void;
   }) {
 const colors = getStyleColors(template.data);
-  const isBuiltin = template.source === 'builtin';
   const locked =
-    isBuiltin &&
     Array.isArray(template.tiers) &&
     template.tiers.length > 0 &&
     !!resolvedTier &&
@@ -387,9 +179,7 @@ const colors = getStyleColors(template.data);
     return (
       <div
         key={template.id}
-        className={`group h-full flex flex-col p-3 gap-2.5 transition-all border-2 rounded-xl ${
-          isBuiltin ? 'border-primary/20 bg-primary/5' : 'border-border bg-background'
-        } hover:border-primary/50 hover:shadow-md ${applyingTemplateId === template.id ? 'opacity-70 pointer-events-none' : ''}`}
+        className={`group h-full flex flex-col p-3 gap-2.5 transition-all border-2 rounded-xl border-primary/20 bg-primary/5 hover:border-primary/50 hover:shadow-md ${applyingTemplateId === template.id ? 'opacity-70 pointer-events-none' : ''}`}
         role="button"
         tabIndex={0}
       >
@@ -408,11 +198,9 @@ const colors = getStyleColors(template.data);
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <h4 className="font-semibold truncate">{template.name}</h4>
-            {isBuiltin && (
-              <Badge variant="default" className="bg-primary/10 text-primary text-[10px]">
-                <Sparkles className="w-2.5 h-2.5 mr-1" /> Bawaan
-              </Badge>
-            )}
+            <Badge variant="default" className="bg-primary/10 text-primary text-[10px]">
+              <Sparkles className="w-2.5 h-2.5 mr-1" /> Bawaan
+            </Badge>
             {locked && (
               <Badge variant="default" className="bg-amber-100 text-amber-800 text-[10px] dark:bg-amber-900/40 dark:text-amber-200">
                 <Lock className="w-2.5 h-2.5 mr-1" /> {(template.tiers ?? []).join(' • ') || 'Premium'}
@@ -427,17 +215,6 @@ const colors = getStyleColors(template.data);
             </span>
           </div>
         </div>
-
-{template.source === 'saved' && (
-          <div className="flex items-center gap-1 border-t pt-3 mt-2">
-            <button className="h-7 w-7 p-1 rounded-md hover:bg-muted transition-colors" onClick={(e) => { e.stopPropagation(); onExport(template.id); }} title="Export">
-              <Download className="w-3.5 h-3.5" />
-            </button>
-            <button className="h-7 w-7 p-1 rounded-md hover:bg-muted transition-colors text-red-500" onClick={(e) => { e.stopPropagation(); onDelete(template.id); }} title="Hapus">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
           <div className="flex gap-2">
             {locked && (
@@ -468,31 +245,10 @@ const colors = getStyleColors(template.data);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 border-b pb-4">
-        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-          <Button variant={activeTab === 'builtin' ? 'default' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => { setActiveTab('builtin'); setCurrentPage(1); }}>
-            <Sparkles className="w-4 h-4" /> Katalog ({builtinUnified.length})
-          </Button>
-          <Button variant={activeTab === 'saved' ? 'default' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => { setActiveTab('saved'); setCurrentPage(1); }}>
-            <Layout className="w-4 h-4" /> Library ({savedUnified.length})
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" className="h-8" variant="outline" onClick={() => document.getElementById('import-file')?.click()}>
-            <Upload className="w-4 h-4 mr-1" /> Import
-          </Button>
-          <input
-            id="import-file"
-            type="file"
-            accept=".json,.zip"
-            className="hidden"
-            onChange={(e) => {
-              setImportError(null);
-              setImportFile(e.target.files?.[0] || null);
-              e.target.value = '';
-            }}
-          />
-        </div>
+      <div className="flex items-center gap-1 bg-muted p-1 rounded-lg w-fit">
+        <Button variant="default" size="sm" className="h-8 gap-1.5">
+          <Sparkles className="w-4 h-4" /> Katalog ({builtinUnified.length})
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/30 rounded-lg">
@@ -519,9 +275,7 @@ const colors = getStyleColors(template.data);
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Menampilkan {paginatedTemplates.length} dari {filteredTemplates.length} template
-        {activeTab === 'builtin' && ` (${builtinUnified.length} bawaan`}
-        {activeTab === 'saved' && ` (${savedUnified.length} tersimpan)`}
+        Menampilkan {paginatedTemplates.length} dari {filteredTemplates.length} template ({builtinUnified.length} bawaan)
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
@@ -533,7 +287,7 @@ const colors = getStyleColors(template.data);
           </div>
         ) : (
           paginatedTemplates.map((template) => (
-            <TemplateCard key={template.id} template={template} onApply={handleApply} onExport={handleExport} onDelete={handleDelete} onPreview={onPreview as ((template: UnifiedTemplate) => void) | undefined} />
+            <TemplateCard key={template.id} template={template} onPreview={onPreview as ((template: UnifiedTemplate) => void) | undefined} />
           ))
         )}
       </div>
@@ -576,104 +330,6 @@ const colors = getStyleColors(template.data);
             <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={() => { handleApply(showApplyDialog.template!); setShowApplyDialog({ template: null, open: false }); }} disabled={applyingTemplateId === showApplyDialog.template?.id}>
               {applyingTemplateId === showApplyDialog.template?.id ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!importFile}
-        onOpenChange={(open) => {
-          if (!open && !isImporting) {
-            setImportFile(null);
-            setImportError(null);
-            setImportWarnings([]);
-            setImportAutofilled([]);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import Template</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              File: <span className="font-medium">{importFile?.name}</span> (
-              {importFile ? `${(importFile.size / 1024 / 1024).toFixed(2)} MB` : ''})
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="import-name">Nama Template</Label>
-              <Input
-                id="import-name"
-                value={importName}
-                onChange={(e) => setImportName(e.target.value)}
-                placeholder="Template imported"
-                maxLength={200}
-              />
-            </div>
-            {importError && (
-              <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-                {importError}
-              </p>
-            )}
-            {importAutofilled.length > 0 && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200" role="status">
-                <p className="font-bold mb-1">Gambar terisi otomatis dari file upload:</p>
-                <ul className="list-disc pl-4 space-y-0.5 max-h-40 overflow-y-auto">
-                  {importAutofilled.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {importWarnings.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200" role="status">
-                <p className="font-bold mb-1">Import berhasil dengan catatan — gambar berikut bermasalah:</p>
-                <ul className="list-disc pl-4 space-y-0.5 max-h-40 overflow-y-auto">
-                  {importWarnings.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (isImporting) return;
-                setImportFile(null);
-                setImportError(null);
-                setImportWarnings([]);
-                setImportAutofilled([]);
-                setImportName('');
-              }}
-              disabled={isImporting}
-            >
-              Batal
-            </Button>
-            {importWarnings.length > 0 || importAutofilled.length > 0 ? (
-              <Button
-                onClick={() => {
-                  setImportFile(null);
-                  setImportError(null);
-                  setImportWarnings([]);
-                  setImportAutofilled([]);
-                  setImportName('');
-                }}
-              >
-                Tutup
-              </Button>
-            ) : (
-              <Button onClick={handleImport} disabled={isImporting || !importName.trim()}>
-                {isImporting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Mengimpor...
-                  </>
-                ) : (
-                  'Import'
-                )}
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

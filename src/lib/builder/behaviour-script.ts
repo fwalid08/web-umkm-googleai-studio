@@ -2,7 +2,7 @@
  * Sanitasi script behaviour template.
  *
  * MODUL SAMA dipakai di dua tempat (defense in depth):
- * - server: `POST /api/templates/library/import` — saat ZIP di-upload
+ * - server: validasi template saat disimpan
  * - client: `behaviour-runtime.tsx` — tepat sebelum script dieksekusi di DOM
  *
  * Dipisah dari route supaya daftar polanya hanya ada di satu tempat. Kalau
