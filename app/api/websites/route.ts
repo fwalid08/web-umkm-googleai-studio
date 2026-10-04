@@ -175,21 +175,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Gagal membuat website" }, { status: 500 });
     }
 
-    // Create default homepage page for new website
-    const { error: pageError } = await supabase.from("store_pages").insert({
-      website_id: site.id,
-      title: "Halaman Utama",
-      slug: "home",
-      type: "custom",
-      is_published: true,
-      is_homepage: true,
-      layout: { rows: [], sections: [] },
-      content: "",
-    });
-    if (pageError) {
-      console.error("Create default homepage error:", pageError);
-      // Don't fail website creation, but log the error
-    }
+    // Website sekarang single-page: tidak ada tabel store_pages lagi. Isi
+    // halaman (sections + status tayang) disimpan di user_templates.custom_config
+    // dan di-backfill oleh 044_single_page_user_templates.sql.
 
     await supabase.from("users").update({ active_website_id: site.id }).eq("id", userId);
 

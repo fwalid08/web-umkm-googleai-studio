@@ -245,6 +245,12 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     core?: Record<string, unknown>;
     seo?: { title?: string; description?: string };
     catalog_template_id?: string;
+    /** Status tayang halaman (single-page, lihat 044). `false` = 404. */
+    is_published?: boolean;
+    /** Meta per-halaman (single-page, lihat 044). */
+    meta_title?: string;
+    meta_description?: string;
+    og_image_url?: string;
     /** Animasi & behaviour template — dijalankan `BehaviourRuntime`. */
     animations?: AnimationConfig[];
     behaviours?: BehaviourConfig[];
@@ -267,59 +273,28 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
   };
   const catalogTemplateId: string | null = template.id;
 
-  // Page Builder adalah satu-satunya sumber kebenaran homepage: homepage
-  // selalu baris store_pages dengan is_homepage = true. Mode 'builder'
-  // (homepage_type) sudah dipensiunkan — lihat 033_page_builder_only.sql.
-  let pageSections: Array<{
-    id: string;
-    type: string;
-    variant: string;
-    anchorId?: string;
-    config?: Record<string, unknown>;
-    style?: Record<string, unknown>;
-    responsive?: Record<string, unknown>;
-  }> | null = null;
-  let pageMeta: { title?: string; description?: string; ogImageUrl?: string } = {};
+  // Website sekarang SATU HALAMAN (lihat 044_single_page_user_templates.sql).
+  // `user_templates.custom_config` adalah satu-satunya sumber isi halaman:
+  // sections, status tayang, dan meta. Tabel `store_pages` sudah dihapus,
+  // jadi tidak ada lagi baris "is_homepage" yang dicari terpisah.
+  const isPublished = stored?.is_published !== false;
+  const pageMeta: { title?: string; description?: string; ogImageUrl?: string } = {
+    title: stored?.meta_title ?? undefined,
+    description: stored?.meta_description ?? undefined,
+    ogImageUrl: stored?.og_image_url ?? undefined,
+  };
 
-  const { data: homepagePage } = await supabase
-    .from("store_pages")
-    .select("id, title, slug, layout, meta_title, meta_description, og_image_url, is_published")
-    .eq("website_id", user.id)
-    .eq("is_homepage", true)
-    .maybeSingle();
-
-  // Publish = halaman bisa diakses: homepage yang belum dipublish tidak
+  // Publish = halaman bisa diakses: config yang belum dipublish tidak
   // dirender (404), bukan fallback ke konten basi.
-  if (homepagePage && homepagePage.is_published !== true) return null;
+  if (!isPublished) return null;
 
-  if (homepagePage) {
-    const layout = homepagePage.layout as { sections?: Array<{
-      id: string;
-      type: string;
-      variant: string;
-      anchorId?: string;
-      config?: Record<string, unknown>;
-      style?: Record<string, unknown>;
-      responsive?: Record<string, unknown>;
-    }> } | null;
-    if (layout?.sections && Array.isArray(layout.sections) && layout.sections.length > 0) {
-      pageSections = layout.sections;
-    }
-    pageMeta = {
-      title: homepagePage.meta_title ?? undefined,
-      description: homepagePage.meta_description ?? undefined,
-      ogImageUrl: homepagePage.og_image_url ?? undefined,
-    };
-  }
+  const pageSections = Array.isArray(stored?.sections) && stored.sections.length > 0 ? stored.sections : null;
 
   let sections: MergedSection[];
   let theme: Record<string, unknown> = {};
   let seo: { title?: string; description?: string } = {};
 
-  // Sumber render homepage: hanya dari baris homepage di store_pages.
-  // Sumber konten homepage hanya dari baris homepage (page-builder).
-  // custom_config.sections tidak lagi dipakai sebagai fallback — homepage
-  // selalu punya barisnya sendiri di store_pages.
+  // Sumber render homepage: hanya dari custom_config.sections di user_templates.
   const sectionsToRender = pageSections;
 
   if (sectionsToRender && sectionsToRender.length > 0) {
@@ -404,16 +379,7 @@ const name = user.name || "Toko Kami";
   // Use catalog template ID if available (for V3 renderer), otherwise determine from businessType
   const templateId = catalogTemplateId || template.id;
   const designStyleId = (stored?.design_style_id as string) || (stored?.designStyleId as string) || 'minimalist';
-  const storedSections = stored?.sections as Array<{
-    id: string;
-    type: string;
-    variant: string;
-    anchorId?: string;
-    config?: Record<string, unknown>;
-    style?: Record<string, unknown>;
-    responsive?: Record<string, unknown>;
-  }> | undefined;
-// Template katalog untuk mapping variant & anchor default.
+  // Template katalog untuk mapping variant & anchor default.
 const catalogTemplateForSections = template;
 const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
   template.sections.map((def) => ({
@@ -500,12 +466,10 @@ const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePal
   } as DesignStyleTypography;
 
   // Determine page slug and meta
-  // Homepage selalu adalah baris is_homepage (page-builder). Tanpa baris
-  // → diperlakukan sebagai homepage agar URL root tetap masuk ke renderer
-  // (yang lalu memakai sections default template).
+  // Single-page: URL root adalah satu-satunya halaman, jadi slug selalu "home".
+  const pageSlug = 'home';
+  const pageId: string | undefined = undefined;
   const isHomepage = true;
-  const pageSlug = homepagePage ? 'home' : undefined;
-  const pageId = homepagePage?.id;
 
   return {
     websiteId: user.id,

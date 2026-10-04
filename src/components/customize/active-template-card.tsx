@@ -12,7 +12,6 @@ import { resolveTemplateId } from "@/lib/builder/apply-template";
 
 interface ActiveTemplateCardProps {
   websiteId: string;
-  homepagePageId: string | null;
   onOpenTemplateGallery: () => void;
   refreshKey?: number;
   /** template_id dari API (dipakai untuk match langsung ke katalog). */
@@ -82,7 +81,7 @@ function resolveTemplate(
   };
 }
 
-export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGallery, refreshKey = 0, initialTemplateId = null, initialStyleId = null, initialTemplateCategory = null }: ActiveTemplateCardProps) {
+export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKey = 0, initialTemplateId = null, initialStyleId = null, initialTemplateCategory = null }: ActiveTemplateCardProps) {
   // Data awal dipasok parent (sudah fetch saat load halaman) → tidak ada flash
   // card kuning dan tidak ada double-fetch saat mount.
   //
@@ -215,19 +214,10 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
               <Button
                 variant="default"
                 className="bg-white text-slate-900 hover:bg-white/90"
-                onClick={() => homepagePageId && window.dispatchEvent(new CustomEvent('open-page-builder', { detail: { pageId: homepagePageId } }))}
-                disabled={!homepagePageId}
+                onClick={() => window.dispatchEvent(new CustomEvent('open-page-builder'))}
               >
                 <Home className="w-4 h-4 mr-2" />
-                Customize Homepage
-              </Button>
-              <Button
-                variant="default"
-                className="bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm"
-                onClick={onOpenTemplateGallery}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Ganti Template
+                Customize
               </Button>
             </div>
           </div>

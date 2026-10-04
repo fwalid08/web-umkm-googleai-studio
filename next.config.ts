@@ -42,9 +42,23 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        // Editor single-page pindah ke /dashboard/web-design/customize
+        // (lihat 044_single_page_user_templates.sql). URL lama yang masih
+        // membawa pageId store_pages ikut dialihkan ke editor — baris
+        // halamannya sudah dihapus, jadi tidak ada lagi tujuan per-id.
+        source: "/dashboard/websites/page-builder/:path*",
+        destination: "/dashboard/web-design/customize",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/customize",
+        destination: "/dashboard/web-design",
+        permanent: false,
+      },
+      {
         // Rute lama halaman Desain Website (pindah dari /dashboard/websites).
         source: "/dashboard/websites/customize/:path*",
-        destination: "/dashboard/customize",
+        destination: "/dashboard/web-design",
         permanent: true,
       },
     ];
@@ -66,8 +80,8 @@ const nextConfig: NextConfig = {
       { source: "/domain/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/domain/:path*" },
       { source: "/themes/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/themes/:path*" },
       { source: "/announcement/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/announcement/:path*" },
-      // Halaman Desain Website (/dashboard/customize → kanonik /customize di admin host)
-      { source: "/customize/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/customize/:path*" },
+      // Halaman Desain Website (/dashboard/web-design → kanonik /web-design di admin host)
+      { source: "/web-design/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/web-design/:path*" },
       // Auth on admin subdomain
       { source: "/signin", has: [{ type: "host", value: adminHost }], destination: "/signin" },
       { source: "/signup", has: [{ type: "host", value: adminHost }], destination: "/signup" },

@@ -215,7 +215,7 @@ export function DashboardShell({
     {
       header: t("nav.groupWebsite"),
       items: [
-        { name: t("nav.builder"), href: dashboardNavHref("/customize", isAdminHost), fullHref: "/dashboard/customize", icon: Palette },
+        { name: t("nav.builder"), href: dashboardNavHref("/web-design", isAdminHost), fullHref: "/dashboard/web-design", icon: Palette },
         { name: t("nav.domain"), href: dashboardNavHref("/domain", isAdminHost), fullHref: "/dashboard/domain", icon: Globe },
       ],
     },
@@ -234,8 +234,8 @@ export function DashboardShell({
       return true;
     }
     // Builder mencakup halaman editor full-page di bawahnya.
-    if (full === "/dashboard/customize") {
-      return pathname.startsWith("/dashboard/websites/page-builder");
+    if (full === "/dashboard/web-design") {
+      return pathname.startsWith("/dashboard/web-design/customize");
     }
     if (full === "/dashboard/websites") {
       return pathname.startsWith("/dashboard/websites");
@@ -253,7 +253,7 @@ export function DashboardShell({
 
   // Builder memakai mode full-page: tanpa sidebar/topbar dashboard agar
   // seluruh viewport dipakai untuk kanvas editing (seperti Canva/Webflow).
-  const isBuilderFullPage = pathname.startsWith("/dashboard/websites/page-builder");
+  const isBuilderFullPage = pathname.startsWith("/dashboard/web-design/customize");
   if (isBuilderFullPage) {
     return (
       <div className="h-dvh w-full bg-slate-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden">

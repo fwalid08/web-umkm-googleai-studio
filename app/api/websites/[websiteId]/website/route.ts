@@ -198,6 +198,11 @@ export async function GET(
       theme?: Record<string, unknown>;
       core?: Record<string, unknown>;
       seo?: { title?: string; description?: string };
+      // Single-page (044): status tayang + meta halaman.
+      is_published?: boolean;
+      meta_title?: string;
+      meta_description?: string;
+      og_image_url?: string;
     };
     const storedConfig = (stored?.custom_config ?? null) as StoredConfig | null;
 
@@ -209,6 +214,10 @@ export async function GET(
       theme?: Record<string, unknown>;
       core?: Record<string, unknown>;
       seo?: { title?: string; description?: string };
+      is_published?: boolean;
+      meta_title?: string;
+      meta_description?: string;
+      og_image_url?: string;
     };
     let isDefault: boolean;
     if (stored && storedConfig?.design_style_id) {
@@ -220,6 +229,11 @@ export async function GET(
         theme: storedConfig.theme ?? {},
         core: storedConfig.core ?? {},
         seo: { ...(storedConfig.seo ?? {}) },
+        // Single-page (044): status tayang & meta dibawa ke builder.
+        is_published: storedConfig.is_published !== false,
+        meta_title: storedConfig.meta_title,
+        meta_description: storedConfig.meta_description,
+        og_image_url: storedConfig.og_image_url,
       };
       isDefault = false;
     } else {
@@ -231,6 +245,7 @@ export async function GET(
         theme: {},
         core: {},
         seo: {},
+        is_published: true,
       };
       isDefault = true;
     }
@@ -384,6 +399,12 @@ export async function PUT(
         // menampilkannya di live site.
         customCss: typeof custom_config.customCss === 'string' ? custom_config.customCss : '',
         catalog_template_id: slug,
+        // Single-page (044): status tayang + meta halaman ikut di config yang
+        // sama. Builder mengirimnya saat Simpan / Publish.
+        is_published: custom_config.is_published !== false,
+        meta_title: typeof custom_config.meta_title === 'string' ? custom_config.meta_title : null,
+        meta_description: typeof custom_config.meta_description === 'string' ? custom_config.meta_description : null,
+        og_image_url: typeof custom_config.og_image_url === 'string' ? custom_config.og_image_url : null,
       };
 
       const { error: upsertError } = await supabase.from("user_templates").upsert(
@@ -401,55 +422,9 @@ export async function PUT(
         return NextResponse.json({ success: false, error: "Gagal menyimpan konfigurasi" }, { status: 500 });
       }
 
-      // Apply template sections to homepage (store_pages with is_homepage=true)
-      // Upsert: create if not exists, update if exists.
-      // PENTING: hanya sync bila yang disimpan memang homepage. Tanpa gate ini,
-      // menyimpan halaman lain (sections global = snapshot basi) akan menimpa
-      // layout homepage asli di store_pages.
-      //
-      // CATATAN: hanya page-builder yang memakai jalur ini dan dia selalu mengirim
-      // is_homepage boolean eksplisit.
-      const homepageSections = custom_config.sections ?? [];
-      if (homepageSections.length > 0 && body.is_homepage === true) {
-        // First check if homepage exists
-        const { data: existingHomepage } = await supabase
-          .from("store_pages")
-          .select("id")
-          .eq("website_id", websiteId)
-          .eq("is_homepage", true)
-          .maybeSingle();
-
-        if (existingHomepage) {
-          // Update existing
-          const { error: pageError } = await supabase
-            .from("store_pages")
-            .update({
-              layout: { sections: homepageSections },
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", existingHomepage.id);
-          if (pageError) {
-            console.error("Update homepage layout error:", pageError);
-          }
-        } else {
-          // Create new homepage with template sections
-          const { error: pageError } = await supabase
-            .from("store_pages")
-            .insert({
-              website_id: websiteId,
-              title: "Halaman Utama",
-              slug: "home",
-              type: "custom",
-              is_published: true,
-              is_homepage: true,
-              layout: { sections: homepageSections },
-              content: "",
-            });
-          if (pageError) {
-            console.error("Create homepage with template error:", pageError);
-          }
-        }
-      }
+      // Single-page: sections halaman kini ikut tersimpan di
+      // user_templates.custom_config (lihat 044_single_page_user_templates.sql),
+      // jadi tidak ada lagi sinkronisasi terpisah ke store_pages.
 
       await supabase
         .from("websites")
@@ -529,6 +504,11 @@ export async function PUT(
       theme: custom_config.theme ?? {},
       core: custom_config.core ?? {},
       seo: custom_config.seo ?? {},
+      // Single-page (044): status tayang + meta halaman.
+      is_published: custom_config.is_published !== false,
+      meta_title: typeof custom_config.meta_title === 'string' ? custom_config.meta_title : null,
+      meta_description: typeof custom_config.meta_description === 'string' ? custom_config.meta_description : null,
+      og_image_url: typeof custom_config.og_image_url === 'string' ? custom_config.og_image_url : null,
     };
 
     const { error: upsertError } = await supabase.from("user_templates").upsert(

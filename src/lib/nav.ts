@@ -47,7 +47,10 @@ export function dashboardNavHref(path: string, isAdminHost: boolean): string {
   const full = `/dashboard${p === "/" ? "" : p}`;
   if (!isAdminHost) return full;
   // Halaman tanpa alias kanonik di admin host (lihat DASHBOARD_PATHS di proxy.ts).
-  if (full === "/dashboard" || full.startsWith("/dashboard/websites/page-builder")) {
+  // Hanya `/dashboard` yang tidak punya alias ("/" sudah dipakai dashboard home).
+  // Editor single-page (/web-design/customize) tetap dipendekkan — `/web-design`
+  // ada di DASHBOARD_PATHS dan next.config rewrite-nya.
+  if (full === "/dashboard") {
     return full;
   }
   return p;

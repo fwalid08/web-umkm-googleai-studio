@@ -3,45 +3,96 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Guard decommission Builder Global: page-builder jadi satu-satunya sumber
- * kebenaran homepage. Fokus: tidak ada lagi percabangan homepage_type yang
- * menentukan sumber render, dan homepage selalu baris is_homepage.
+ * Guard model single-page (lihat 044_single_page_user_templates.sql).
+ *
+ * Semula `store_pages` yang menjadi satu-satunya sumber kebenaran homepage.
+ * Sekarang tabel itu dihapus: isi halaman (sections + status tayang + meta)
+ * lived di `user_templates.custom_config`. Test ini mengunci invarian baru:
+ * tidak boleh ada satu pun sisa `store_pages` di kode.
  */
 const read = (...parts: string[]) => readFileSync(join(process.cwd(), ...parts), 'utf8');
+/** Buang komentar baris (//) maupun blok agar assertion tidak salah
+ *  positive dari dokumentasi yang menyebut nama tabel yang dihapus. */
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
 
-describe('homepage_type tidak lagi menentukan sumber render', () => {
-  it('public.ts tidak memakai homepage_type sebagai sumber logika', () => {
-    const src = read('src', 'lib', 'builder', 'public.ts');
-    // Hanya boleh muncul di komentar; tidak boleh di kode.
-    const code = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
-    expect(code).not.toContain('homepage_type');
-    expect(code).not.toContain('homepage_page_id');
-    expect(code).not.toContain('homepageType');
+const SOURCE_FILES = [
+  ['src', 'lib', 'builder', 'public.ts'],
+  ['app', 'api', 'websites', 'route.ts'],
+  ['app', 'api', 'websites', '[websiteId]', 'website', 'route.ts'],
+  ['app', '[...slug]', 'page.tsx'],
+  ['app', 'dashboard', 'web-design', 'customize', 'page.tsx'],
+] as const;
+
+describe('store_pages dihapus total', () => {
+  it('tidak ada kode yang masih query store_pages', () => {
+    for (const f of SOURCE_FILES) {
+      const code = stripComments(read(...f));
+      expect(code, `${f.join('/')} masih menyebut store_pages`).not.toContain('store_pages');
+    }
   });
 
-  it('public.ts membaca homepage via is_homepage', () => {
-    const src = read('src', 'lib', 'builder', 'public.ts');
-    expect(src).toContain('.eq("is_homepage", true)');
+  it('route API pages tidak lagi ada', () => {
+    for (const p of [
+      ['app', 'api', 'websites', '[websiteId]', 'pages', 'route.ts'],
+      ['app', 'api', 'websites', '[websiteId]', 'pages', '[pageId]', 'route.ts'],
+    ]) {
+      expect(() => readFileSync(join(process.cwd(), ...p))).toThrow();
+    }
   });
 
-  it('public.ts tidak jatuh ke custom_config.sections sebagai sumber', () => {
-    const src = read('src', 'lib', 'builder', 'public.ts');
-    //-sectionsToRender HARUS hanya dari baris page-builder.
-    expect(src).toContain('const sectionsToRender = pageSections;');
-    expect(src).not.toMatch(/sectionsToRender = pageSections \?\?/);
+  it('lib/pages/slug (multi-page) sudah dihapus', () => {
+    expect(() => readFileSync(join(process.cwd(), 'src', 'lib', 'pages', 'slug.ts'))).toThrow();
   });
 
-  it('API tidak lagi me-reset homepage_type saat menyimpan', () => {
+  it('halaman selain "/" selalu 404', () => {
+    const src = read('app', '[...slug]', 'page.tsx');
+    expect(src).toContain('notFound()');
+    // Tidak boleh lagi render storefront per-slug.
+    expect(src).not.toContain('PublicWebsite');
+  });
+});
+
+describe('isi halaman kini dari user_templates.custom_config', () => {
+  it('public.ts membaca sections dari custom_config, bukan tabel terpisah', () => {
+    const src = read('src', 'lib', 'builder', 'public.ts');
+    expect(src).toContain('stored?.sections');
+    expect(src).toContain('stored?.is_published');
+    expect(src).not.toContain('.eq("is_homepage", true)');
+  });
+
+  it('publish=false menghasilkan 404 (bukan fallback konten basi)', () => {
+    const src = read('src', 'lib', 'builder', 'public.ts');
+    expect(src).toMatch(/if \(!isPublished\) return null;/);
+  });
+
+  it('API menyimpan is_published + meta ke custom_config', () => {
     const src = read('app', 'api', 'websites', '[websiteId]', 'website', 'route.ts');
-    const code = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
-    expect(code).not.toContain('homepage_type');
+    expect(src).toContain('is_published:');
+    expect(src).toContain('meta_title:');
+    expect(src).toContain('meta_description:');
+  });
+});
+
+describe('builder memakai satu endpoint (tanpa pageId)', () => {
+  it('route lama page-builder dihapus', () => {
+    expect(() => readFileSync(join(process.cwd(), 'app/dashboard/websites/page-builder/page.tsx'))).toThrow();
   });
 
-  it('route builder lama sudah dihapus', () => {
-    expect(() => readFileSync(join(process.cwd(), 'app/dashboard/builder/page.tsx'))).toThrow();
+  it('editor tidak lagi mengambil pageId dari URL', () => {
+    const src = read('app', 'dashboard', 'web-design', 'customize', 'page.tsx');
+    expect(src).not.toContain('useParams');
+    expect(src).not.toContain('/pages/');
   });
 
-  it('tidak ada entry point UI yang menuju /dashboard/builder', () => {
+  it('editor men-seed kanvas dari template saat config kosong', () => {
+    const src = read('app', 'dashboard', 'web-design', 'customize', 'page.tsx');
+    // Seed dari sections TEMPLATE, bukan sections global yang bisa basi.
+    expect(src).toContain('templateSections');
+    expect(src).toContain('savedPageSections.length > 0 ? savedPageSections : templateSections');
+  });
+
+  it('tidak ada entry point UI menuju /dashboard/builder', () => {
     const files = [
       ['app', 'onboarding', 'page.tsx'],
       ['app', 'dashboard', 'layout.tsx'],
@@ -60,14 +111,5 @@ describe('homepage_type tidak lagi menentukan sumber render', () => {
     const src = read('src', 'lib', 'builder', 'store.ts');
     expect(src).not.toContain('save: async');
     expect(src).not.toContain('publish: async');
-  });
-});
-
-describe('halaman kosong tetap dapat kanvas berisi', () => {
-  it('page-builder tidak lagi mewarisi custom_config.sections', () => {
-    const src = read('app', 'dashboard', 'websites', 'page-builder', '[pageId]', 'page.tsx');
-    // Seed dari template, bukan sections global.
-    expect(src).toContain('templateSections');
-    expect(src).not.toContain(': (config.sections ?? [])');
   });
 });

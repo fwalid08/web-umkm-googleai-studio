@@ -20,7 +20,6 @@ function CustomizeInner() {
   const router = useRouter();
 
   const [site, setSite] = useState<ActiveSite | null>(null);
-  const [homepagePageId, setHomepagePageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
@@ -40,14 +39,6 @@ function CustomizeInner() {
       setSite(activeSite);
 
       if (activeSite) {
-        const pagesRes = await fetch(`/api/websites/${activeSite.id}/pages`);
-        const pagesJson = await pagesRes.json();
-        if (pagesJson.success) {
-          const pages = pagesJson.data as Array<{ id: string; is_homepage: boolean }>;
-          const homepage = pages.find((p) => p.is_homepage);
-          if (homepage) setHomepagePageId(homepage.id);
-        }
-
         // Load identitas template aktif (template_id dari API).
         const configRes = await fetch(`/api/websites/${activeSite.id}/website`);
         const configJson = await configRes.json();
@@ -70,18 +61,17 @@ function CustomizeInner() {
     load();
   }, [load]);
 
-  // Tombol "Customize Homepage" di kartu template aktif.
+  // Tombol "Customize" di kartu template aktif. Single-page (lihat 044):
+  // editor tidak lagi butuh pageId store_pages.
   useEffect(() => {
-    const handleOpenPageBuilder = (e: CustomEvent<{ pageId: string }>) => {
-      if (e.detail?.pageId && homepagePageId) {
-        router.push(`/dashboard/websites/page-builder/${homepagePageId}`);
-      }
+    const handleOpenPageBuilder = () => {
+      router.push("/dashboard/web-design/customize");
     };
     window.addEventListener('open-page-builder', handleOpenPageBuilder as EventListener);
     return () => {
       window.removeEventListener('open-page-builder', handleOpenPageBuilder as EventListener);
     };
-  }, [router, homepagePageId]);
+  }, [router]);
 
   if (loading) {
     return (
@@ -135,7 +125,6 @@ function CustomizeInner() {
       <ActiveTemplateCard
         key={site.id}
         websiteId={site.id}
-        homepagePageId={homepagePageId}
         onOpenTemplateGallery={() => {
           document
             .getElementById("template-picker")

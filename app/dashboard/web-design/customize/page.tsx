@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,24 +31,23 @@ function getTemplateByIdSafe(templateId: string) {
 }
 
 /**
- * Page builder per-halaman: reuse BuilderShell + store yang sama.
- * - Layout (rows + sections) bersifat per-halaman -> store_pages.layout.
- * - Header/footer/design-style/SEO bersifat global -> user_templates.custom_config,
- *   sehingga ganti template di tab Templates mewarnai semua halaman.
+ * Page builder single-page (lihat 044_single_page_user_templates.sql).
+ *
+ * Tidak ada lagi `pageId`: satu-satunya halaman lives di
+ * `user_templates.custom_config` (sections + status tayang + meta), jadi
+ * builder memuat dan menyimpan lewat SATU endpoint /api/websites/[id]/website.
+ * Header/footer/design-style/SEO ikut di config yang sama.
  */
 export default function PageBuilderPage() {
-  const params = useParams<{ pageId: string }>();
-  const pageId = params.pageId;
   const [websiteId, setWebsiteId] = useState<string | null>(null);
   const [pageTitle, setPageTitle] = useState("");
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
-  // Status tayang halaman. undefined selama loading / builder tanpa konsep.
+  // Status tayang halaman. undefined selama loading.
   const [isPublished, setIsPublished] = useState<boolean | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadConfig = useBuilderStore((s) => s.loadConfig);
   const globalRef = useRef<Record<string, unknown> | null>(null);
-  const pageMetaRef = useRef<{ is_homepage?: boolean; slug?: string } | null>(null);
   // Template library aktif website (sumber ID + template_source saat save).
   // Tanpa ini save mengirim t.template.id yang kosong → PUT 404.
   const libMetaRef = useRef<{ id: string; source: 'saved' | 'builtin' } | null>(null);
@@ -72,16 +70,12 @@ export default function PageBuilderPage() {
         if (cancelled) return;
         setWebsiteId(id);
 
-        const [cfgRes, pageRes] = await Promise.all([
-          fetch(`/api/websites/${id}/website`),
-          fetch(`/api/websites/${id}/pages/${pageId}`),
-        ]);
-        if (!cfgRes.ok || !pageRes.ok) throw new Error("Gagal memuat data halaman");
+        const cfgRes = await fetch(`/api/websites/${id}/website`);
+        if (!cfgRes.ok) throw new Error("Gagal memuat data halaman");
         const cfgJson = await cfgRes.json();
-        const pageJson = await pageRes.json();
         if (cancelled) return;
-        if (!cfgJson.success || !pageJson.success) {
-          setError(cfgJson.error ?? pageJson.error ?? "Gagal memuat konfigurasi");
+        if (!cfgJson.success) {
+          setError(cfgJson.error ?? "Gagal memuat konfigurasi");
           return;
         }
         const config = cfgJson.data.custom_config;
@@ -89,22 +83,15 @@ export default function PageBuilderPage() {
         if (typeof cfgJson.data.subdomain_url === 'string' && cfgJson.data.subdomain_url.length > 0) {
           setSiteUrl(cfgJson.data.subdomain_url);
         }
-        const layout = (pageJson.data.layout ?? {}) as { rows?: unknown[]; sections?: unknown[] };
-        setPageTitle(pageJson.data.title ?? "");
-        pageMetaRef.current = {
-          is_homepage: pageJson.data.is_homepage === true,
-          slug: typeof pageJson.data.slug === "string" ? pageJson.data.slug : undefined,
-        };
+        setPageTitle("Halaman Utama");
         // Status tayang dari server — jadi topbar bisa menampilkan Tayang/Draft.
-        if (typeof pageJson.data.is_published === "boolean") {
-          if (!cancelled) setIsPublished(pageJson.data.is_published);
+        if (typeof config.is_published === "boolean") {
+          if (!cancelled) setIsPublished(config.is_published);
         }
-        // Halaman kosong (mis. "Tentang" baru dibuat) tidak punya layout.
-        // Seed dari sections TEMPLATE, bukan custom_config.sections: sections
-        // global sudah tidak lagi menjadi sumber kebenaran (homepage kini
-        // milik baris page-builder), jadi mewarisinya justru membuat kanvas
-        // halaman baru isinya sama dengan homepage.
-        const savedPageSections = (layout.sections ?? []) as unknown[];
+        // Kanvas kosong (mis. website baru) tidak punya sections tersimpan.
+        // Seed dari sections TEMPLATE, bukan config.sections global yang bisa
+        // jadi snapshot basi.
+        const savedPageSections = (Array.isArray(config.sections) ? config.sections : []) as unknown[];
         const templateSections =
           (BUILT_IN_CATALOG.find((t) => t.id === cfgJson.data.catalog_template_id)?.data?.sections ??
             (config as Record<string, unknown>).template_sections ??
@@ -216,7 +203,7 @@ export default function PageBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [pageId, loadConfig]);
+  }, [loadConfig]);
 
   /** Simpan: layout -> halaman, header/footer/style -> global website. */
   const handleSavePage = useCallback(async () => {
@@ -240,19 +227,10 @@ export default function PageBuilderPage() {
         : resolveChromeConfig(template, (s.footer ?? {}) as unknown as Record<string, unknown>, 'footer').config;
     const chromeHeader = { variantId: t.headerVariantId, config: baseHeader };
     const chromeFooter = { variantId: t.footerVariantId, config: baseFooter };
-    // Homepage adalah satu-satunya halaman yang sections-nya ikut menjadi
-    // sections global (sumber render homepage publik). Untuk halaman lain,
-    // sections global DIJAGA dari snapshot awal agar konten antar-halaman
-    // tidak saling menimpa (fix kebocoran lintas halaman).
-    const initialGlobalSections = Array.isArray((global as Record<string, unknown>).sections)
-      ? ((global as Record<string, unknown>).sections as unknown[])
-      : [];
-    const pageMeta = pageMetaRef.current;
-    const isHomepage = pageMeta?.is_homepage === true;
-    const sectionsForGlobal = (isHomepage ? liveSections : initialGlobalSections) as never;
+    // Single-page: sections halaman = sections global, keduanya satu config.
     const customConfig = buildWebsiteCustomConfig({
       base: global as Record<string, unknown>,
-      sections: sectionsForGlobal,
+      sections: liveSections as never,
       header: { ...chromeHeader.config, variant: chromeHeader.variantId },
       footer: { ...chromeFooter.config, variant: chromeFooter.variantId, style: chromeFooter.variantId },
       designStyleId: s.designStyleId,
@@ -275,42 +253,64 @@ export default function PageBuilderPage() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        custom_config: customConfig,
+        custom_config: { ...customConfig, is_published: globalRef.current?.is_published !== false },
         template_id: libMeta?.id ?? t.template.id,
         ...(libMeta ? { template_source: libMeta.source } : {}),
-        is_homepage: isHomepage,
       }),
     });
     const globalJson = await globalRes.json();
-    if (!globalJson.success) throw new Error(globalJson.error ?? "Gagal menyimpan global");
+    if (!globalJson.success) throw new Error(globalJson.error ?? "Gagal menyimpan");
     globalRef.current = globalJson.data.custom_config;
-
-    const pageRes = await fetch(`/api/websites/${websiteId}/pages/${pageId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ layout: { sections: liveSections } }),
-    });
-    const pageJson = await pageRes.json();
-    if (!pageJson.success) throw new Error(pageJson.error ?? "Gagal menyimpan halaman");
     // Sinkronkan kembali builder-store (sumber payload bottom-bar/topbar)
     // dengan konten live agar indikator sesudah-save konsisten.
     useBuilderStore.setState({ sections: liveSections as never, saved: true });
     useTemplateStore.setState({ saved: true });
-  }, [websiteId, pageId]);
+  }, [websiteId]);
 
   const handlePublishPage = useCallback(async () => {
     if (!websiteId) throw new Error("Website belum siap");
     await handleSavePage();
-    const res = await fetch(`/api/websites/${websiteId}/pages/${pageId}`, {
-      method: "PATCH",
+    const s = useBuilderStore.getState();
+    const t = useTemplateStore.getState();
+    const libMeta = libMetaRef.current;
+    const global = globalRef.current ?? {};
+    const liveSections = t.sections.map((sec) => instanceToBuilderSection(sec));
+    // Publish = satu-satunya halaman jadi tayang (lihat 044).
+    // `buildWebsiteCustomConfig` menyalin `base`, jadi is_published dari
+    // config tersimpan ikut terbawa; di-set eksplisit agar pasti true.
+    const customConfig = {
+      ...buildWebsiteCustomConfig({
+        base: global as Record<string, unknown>,
+        sections: liveSections as never,
+        header: s.header as unknown as Record<string, unknown>,
+        footer: s.footer as unknown as Record<string, unknown>,
+        designStyleId: s.designStyleId,
+        paletteOverride: s.paletteOverride,
+        typographyOverride: s.typographyOverride as Record<string, string>,
+        animations: t.animations as unknown[],
+        behaviours: t.behaviours as unknown[],
+        assets: t.assets as unknown[],
+        customCss: t.customCss,
+        seo: s.seo,
+        core: (s.core ?? {}) as unknown as Record<string, unknown>,
+      }),
+      is_published: true,
+    };
+    const res = await fetch(`/api/websites/${websiteId}/website`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_published: true }),
+      body: JSON.stringify({
+        custom_config: customConfig,
+        template_id: libMeta?.id ?? t.template.id,
+        ...(libMeta ? { template_source: libMeta.source } : {}),
+      }),
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error ?? "Gagal publish halaman");
+    globalRef.current = json.data.custom_config;
     // Badge Tayang/Draft di topbar harus langsungsinkron setelah publish.
     setIsPublished(true);
-  }, [websiteId, pageId, handleSavePage]);
+  }, [websiteId, handleSavePage]);
 
   if (loading) {
     return (
@@ -366,7 +366,7 @@ export default function PageBuilderPage() {
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{error || "Halaman tidak ditemukan"}</p>
           <div className="flex items-center justify-center gap-2 mt-6">
             <Button asChild className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 font-bold">
-              <Link href="/dashboard/customize">
+              <Link href="/dashboard/web-design">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Kembali ke Desain Website
               </Link>
@@ -385,7 +385,7 @@ export default function PageBuilderPage() {
       onSaveOverride={handleSavePage}
       onPublishOverride={handlePublishPage}
       isPublished={isPublished}
-      exitHref="/dashboard/customize"
+      exitHref="/dashboard/web-design"
     />
   );
 }

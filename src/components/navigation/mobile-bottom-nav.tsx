@@ -25,29 +25,29 @@ export function MobileBottomNav({ isAdminHost }: { isAdminHost: boolean }) {
     // Beranda dashboard tidak punya alias kanonik di admin host ("/" = /dashboard),
     // jadi pemetaan default tab builder mencakupnya — samakan dengan sidebar desktop.
     { name: t("nav.builder"), fullHref: "/dashboard/websites", href: dashboardNavHref("/websites", isAdminHost), icon: Palette },
-    { name: t("nav.stores"), fullHref: "/dashboard/customize", href: dashboardNavHref("/customize", isAdminHost), icon: Layers },
+    { name: t("nav.stores"), fullHref: "/dashboard/web-design", href: dashboardNavHref("/web-design", isAdminHost), icon: Layers },
   ];
 
   const isTabActive = (tab: { fullHref: string; exact?: boolean }) => {
     if (tab.exact) {
       return pathname === tab.fullHref || (pathname === "/" && tab.fullHref === "/dashboard");
     }
-    // Tab builder mencakup /websites, editor page-builder, dan /customize di semua host.
+    // Tab builder mencakup /websites, editor single-page, dan /web-design.
     if (tab.fullHref === "/dashboard/websites") {
       return (
         pathname === "/dashboard/websites" ||
         pathname === "/websites" ||
         pathname.startsWith("/dashboard/websites/") ||
-        pathname.startsWith("/dashboard/customize") ||
-        pathname === "/customize" ||
-        pathname.startsWith("/customize/")
+        pathname.startsWith("/dashboard/web-design") ||
+        pathname === "/web-design" ||
+        pathname.startsWith("/web-design/")
       );
     }
-    if (tab.fullHref === "/dashboard/customize") {
+    if (tab.fullHref === "/dashboard/web-design") {
       return (
-        pathname === "/dashboard/customize" ||
-        pathname === "/customize" ||
-        pathname.startsWith("/customize/")
+        pathname === "/dashboard/web-design" ||
+        pathname === "/web-design" ||
+        pathname.startsWith("/web-design/")
       );
     }
     return (

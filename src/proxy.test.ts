@@ -71,22 +71,22 @@ describe("admin host routing", () => {
     expect(signin.searchParams.get("callbackUrl")).toBe("/settings");
   });
 
-  it("rewrites canonical root customize alias to the existing dashboard route", async () => {
+  it("rewrites canonical root web-design alias to the existing dashboard route", async () => {
     getTokenMock.mockResolvedValueOnce({ email: "merchant@example.com" });
-    const customize = await runProxy(new NextRequest("http://admin.localhost:3000/customize"));
-    expect(new URL(customize.headers.get("x-middleware-rewrite")!).pathname).toBe("/dashboard/customize");
+    const webDesign = await runProxy(new NextRequest("http://admin.localhost:3000/web-design"));
+    expect(new URL(webDesign.headers.get("x-middleware-rewrite")!).pathname).toBe("/dashboard/web-design");
 
     getTokenMock.mockResolvedValueOnce(null);
-    const protectedCustomize = await runProxy(new NextRequest("http://admin.localhost:3000/customize"));
-    const signin = new URL(protectedCustomize.headers.get("location")!);
+    const protectedWebDesign = await runProxy(new NextRequest("http://admin.localhost:3000/web-design"));
+    const signin = new URL(protectedWebDesign.headers.get("location")!);
     expect(signin.pathname).toBe("/signin");
-    expect(signin.searchParams.get("callbackUrl")).toBe("/customize");
+    expect(signin.searchParams.get("callbackUrl")).toBe("/web-design");
   });
 
-  it("redirects dashboard-prefixed customize to the canonical root path", async () => {
-    const response = await runProxy(new NextRequest("http://admin.localhost:3000/dashboard/customize"));
+  it("redirects dashboard-prefixed web-design to the canonical root path", async () => {
+    const response = await runProxy(new NextRequest("http://admin.localhost:3000/dashboard/web-design"));
     const location = new URL(response.headers.get("location")!);
-    expect(location.pathname).toBe("/customize");
+    expect(location.pathname).toBe("/web-design");
   });
 
   it("protects onboarding and preserves its return path", async () => {

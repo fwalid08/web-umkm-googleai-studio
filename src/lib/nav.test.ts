@@ -11,7 +11,7 @@ describe("dashboardNavHref", () => {
     it("selalu memakai path penuh /dashboard/*", () => {
       expect(dashboardNavHref("/products", false)).toBe("/dashboard/products");
       expect(dashboardNavHref("/orders", false)).toBe("/dashboard/orders");
-      expect(dashboardNavHref("/customize", false)).toBe("/dashboard/customize");
+      expect(dashboardNavHref("/web-design", false)).toBe("/dashboard/web-design");
       expect(dashboardNavHref("/domain", false)).toBe("/dashboard/domain");
       expect(dashboardNavHref("/analytics", false)).toBe("/dashboard/analytics");
     });
@@ -26,7 +26,7 @@ describe("dashboardNavHref", () => {
       expect(dashboardNavHref("/products", true)).toBe("/products");
       expect(dashboardNavHref("/orders", true)).toBe("/orders");
       expect(dashboardNavHref("/customers", true)).toBe("/customers");
-      expect(dashboardNavHref("/customize", true)).toBe("/customize");
+      expect(dashboardNavHref("/web-design", true)).toBe("/web-design");
       expect(dashboardNavHref("/domain", true)).toBe("/domain");
       expect(dashboardNavHref("/websites", true)).toBe("/websites");
     });
@@ -37,12 +37,15 @@ describe("dashboardNavHref", () => {
       expect(dashboardNavHref("/", true)).toBe("/dashboard");
     });
 
-    it("page-builder tetap penuh — tidak ada alias (DASHBOARD_PATHS tidak memuatnya)", () => {
-      expect(dashboardNavHref("/websites/page-builder", true)).toBe(
-        "/dashboard/websites/page-builder"
+    it("editor single-page ikut dipendekkan (punya alias /web-design)", () => {
+      // `/web-design` ada di DASHBOARD_PATHS + rewrite next.config, jadi editor
+      // boleh memakai alias singkatnya juga.
+      expect(dashboardNavHref("/web-design/customize", true)).toBe("/web-design/customize");
+      expect(dashboardNavHref("/web-design/customize", false)).toBe(
+        "/dashboard/web-design/customize"
       );
-      expect(dashboardNavHref("/websites/page-builder/abc123", true)).toBe(
-        "/dashboard/websites/page-builder/abc123"
+      expect(dashboardNavHref("/web-design/customize/abc", true)).toBe(
+        "/web-design/customize/abc"
       );
     });
   });

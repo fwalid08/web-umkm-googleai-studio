@@ -58,8 +58,9 @@ const ADMIN_PATHS = ["/admin"];
 const DASHBOARD_PATHS = [
   "/dashboard", "/settings", "/billing", "/products", "/orders",
   "/customers", "/analytics", "/websites", "/domain", "/themes", "/announcement",
-  // Halaman Desain Website (/dashboard/customize → kanonik /customize di admin host).
-  "/customize",
+  // Halaman Desain Website (/dashboard/web-design → kanonik /web-design di
+  // admin host; editor single-page ada di /web-design/customize).
+  "/web-design",
 ];
 
 const AUTH_PATHS = ["/signin", "/signup", "/forgot", "/reset-password"];
