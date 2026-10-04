@@ -55,3 +55,38 @@ export function dashboardNavHref(path: string, isAdminHost: boolean): string {
   }
   return p;
 }
+/** Path editor website single-page, dalam bentuk kanonik (tanpa `/dashboard`). */
+export const BUILDER_PATH = "/web-design/customize";
+
+/**
+ * Buang prefix `/dashboard` kalau ada, sehingga kedua bentuk path
+ * dashboard Collapse ke satu bentuk kanonik.
+ *
+ * Dipakai karena path yang terlihat di address bar BERBEDA antar host:
+ * di admin host `proxy.ts` me-redirect `/dashboard/*` → alias root, jadi
+ * `usePathname()` mengembalikan `/web-design/customize`; di host lain
+ * path-nya tetap `/dashboard/web-design/customize`. Kode UI yang
+ * membandingkan `pathname` HARUS menutup keduanya, kalau tidak akan
+ * diam-diam salah cabut di salah satu host.
+ *
+ * MURNI: tanpa `window`/`Date.now()`, aman dipanggil di SSR & client.
+ */
+export function stripDashboardPrefix(pathname: string): string {
+  const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  if (p === "/dashboard") return "/";
+  return p.startsWith("/dashboard/") ? p.slice("/dashboard".length) : p;
+}
+
+/**
+ * Apakah pathname ini halaman editor website (page builder single-page)?
+ *
+ * Menerima KEDUA bentuk: `/web-design/customize[/...]` (admin host) dan
+ * `/dashboard/web-design/customize[/...]` (host lain).
+ *
+ * Cocok per-segmen (bukan `startsWith` buta) supaya `/web-design/customize-abc`
+ * tidak ikut dianggap builder.
+ */
+export function isBuilderPath(pathname: string): boolean {
+  const p = stripDashboardPrefix(pathname);
+  return p === BUILDER_PATH || p.startsWith(`${BUILDER_PATH}/`);
+}

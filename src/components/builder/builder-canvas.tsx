@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTemplateStore, getSectionVariant, getHeaderVariant, getFooterVariant } from '@/lib/builder/template-store';
 import { useBuilderStore } from '@/lib/builder/store';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { getDesignStyle } from '@/lib/builder/design-styles';
 import { SectionPicker } from './section-picker';
 import { GoogleFonts } from './google-fonts';
 import { BehaviourRuntime } from './behaviour-runtime';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { SectionVariant } from '@/lib/builder/template-types';
 import type { Section } from '@/lib/builder/types';
 import type { DesignStyle } from '@/lib/builder/types';
@@ -34,6 +35,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   const [showInsertPicker, setShowInsertPicker] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const palette = { ...template.theme.palette, ...themeOverride };
   const effectiveTheme = { ...template.theme, palette };
@@ -53,6 +55,23 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   const openPicker = () => {
     window.dispatchEvent(new CustomEvent('open-section-picker'));
   };
+
+  /**
+   * Gulung kanvas ke blok yang baru dipilih.
+   *
+   * Tanpa ini, memilih blok lewat daftar di sidebar sering tidak terlihat
+   * perubahannya kalau bloknya berada di luar area yang sedang digulir —
+   * user merasa "klik-nya tidak masuk". Ini juga membuat blok terpilih tetap
+   * terlihat saat navigasi pakai keyboard.
+   */
+  useEffect(() => {
+    if (preview || !selectedSectionId) return;
+    const el = document.querySelector<HTMLElement>(
+      `[data-builder-block="${CSS.escape(selectedSectionId)}"]`,
+    );
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [selectedSectionId, preview]);
   // Minta sidebar membuka form config untuk section ini. Sidebar (dan shell,
   // agar sidebar yang tertutup ikut terbuka) mendengarkan event yang sama.
   const openSectionConfig = (sectionId: string) => {
@@ -208,7 +227,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                   const isSelected = selectedSectionId === section.id;
 
                   return (
-                    <div key={section.id} id={section.anchorId}>
+                    <div key={section.id} id={section.anchorId} data-builder-block={section.id}>
                       <div
                         role={!preview ? 'button' : undefined}
                         tabIndex={!preview ? 0 : undefined}
@@ -276,7 +295,21 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
 
                         {!preview && (
                           <>
-                            <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity section-toolbar section-toolbar-right">
+                            {/* Toolbar kanvas.
+                                Semuanya `opacity-0 group-hover:opacity-100`, artinya
+                                HANYA muncul saat kursor di atas blok. Di layar sentuh
+                                tidak ada hover sama sekali — kontrol jadi mustahil
+                                dijangkau; untuk keyboard, blok tidak bisa difokus.
+                                Sekarang: tetap tampil untuk blok terpilih, tampil saat
+                                fokus di dalam, dan tetap tampil di perangkat tanpa
+                                hover (`@media (hover: none)` — lihat globals.css). */}
+                            <div
+                              className={`section-toolbar section-toolbar-right transition-opacity ${
+                                selectedSectionId === section.id
+                                  ? 'opacity-100'
+                                  : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100'
+                              }`}
+                            >
                               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold builder-tool">
                                 <span className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
                                   {index + 1}
@@ -360,13 +393,17 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                                    <Copy className="w-4 h-4" />
                                  </button>
                                  <button
-                                   onClick={() => {
-                                     if (confirm(`Hapus blok "${variant?.name || section.type}"?`)) {
-                                       deleteSection(section.id);
-                                     }
-                                   }}
+                                   onClick={() =>
+                                     requestConfirm({
+                                       title: 'Hapus blok ini?',
+                                       description: `Blok "${variant?.name || section.type}" akan dihapus dari halaman. Kalau salah, kamu bisa membatalkannya dengan Ctrl+Z.`,
+                                       confirmLabel: 'Hapus blok',
+                                       tone: 'destructive',
+                                       onConfirm: () => deleteSection(section.id),
+                                     })
+                                   }
                                    className="builder-tool builder-tool-danger"
-                                   aria-label="Hapus blok"
+                                   aria-label={`Hapus blok ${variant?.name || section.type}`}
                                  >
                                    <Trash2 className="w-4 h-4" />
                                  </button>
@@ -435,6 +472,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
           }}
         />
       )}
+      {confirmDialog}
     </main>
   );
 }

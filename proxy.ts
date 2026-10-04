@@ -61,6 +61,8 @@ const DASHBOARD_PATHS = [
   // Halaman Desain Website (/dashboard/web-design → kanonik /web-design di
   // admin host; editor single-page ada di /web-design/customize).
   "/web-design",
+  // SEO punya halaman dashboard sendiri (dipindahkan dari panel builder).
+  "/seo",
 ];
 
 const AUTH_PATHS = ["/signin", "/signup", "/forgot", "/reset-password"];

@@ -30,6 +30,7 @@ export const en: Dict = {
     analytics: "Analytics",
     settings: "Settings",
     builder: "Design",
+    seo: "SEO",
     myWebsites: "My Websites",
     billing: "Billing",
     business: "Manage Business",

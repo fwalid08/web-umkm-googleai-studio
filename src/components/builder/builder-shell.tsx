@@ -1,38 +1,119 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BuilderTopbar } from './builder-topbar';
 import { BuilderSidebar } from './builder-sidebar';
 import { BuilderCanvas } from './builder-canvas';
 import { BuilderBottomBar } from './builder-bottom-bar';
+import { SaveDialog } from './save-dialog';
 import { useBuilderStore } from '@/lib/builder/store';
 import { useTemplateStore } from '@/lib/builder/template-store';
+import {
+  clampSidebarWidth,
+  loadSidebarWidth,
+  persistSidebarWidth,
+  SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+} from '@/lib/builder/builder-ui';
 import { toast } from 'sonner';
 import { X, Monitor, Tablet, Smartphone } from 'lucide-react';
 
-export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, isPublished, exitHref }: { websiteId: string; pageTitle?: string; siteUrl?: string | null; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: () => Promise<void>; onPublishOverride?: () => Promise<void>; isPublished?: boolean; exitHref?: string }) {
+export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, isPublished }: { websiteId: string; pageTitle?: string; siteUrl?: string | null; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: (opts?: { saveAsTemplate?: boolean; libraryName?: string }) => Promise<void>; onPublishOverride?: () => Promise<void>; isPublished?: boolean }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Lebar sidebar bisa di-drag (desktop) dan disimpan antar sesi. Di HP
+  // lebarnya dikunci ke drawer — resizer hanya aktif di pointer halus.
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  // Tombol Simpan membuka dialog dua pilihan (Save As); Ctrl+S tetap
+  // "simpan saja" supaya shortcut tidak terhalang dialog.
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const saved = useBuilderStore((s) => s.saved);
   const templateSaved = useTemplateStore((s) => s.saved);
   const isSaved = saved && templateSaved;
   const sectionsCount = useTemplateStore((s) => s.sections.length);
 
-  const handleSave = useCallback(async () => {
-    setIsSaving(true);
-    try {
-      // Wajib ada override: penyimpanan configs.section pindah ke page-builder
-      // (Builder Global dipensiunkan, store.save() dihapus).
-      if (!onSaveOverride) throw new Error('Simpan hanya tersedia di page-builder');
-      await onSaveOverride();
-      toast.success('Perubahan tersimpan');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Gagal menyimpan');
-    } finally {
-      setIsSaving(false);
+  // Status histori untuk mengaktifkan tombol Undo/Redo. `past`/`future` yang
+  // diseleksi (bukan `canUndo()`) karena Zustand hanya memicu render ulang
+  // bila nilai seleksinya berubah — method reference selalu sama.
+  const templatePast = useTemplateStore((s) => s.past.length);
+  const templateFuture = useTemplateStore((s) => s.future.length);
+  const builderPast = useBuilderStore((s) => s.past.length);
+  const builderFuture = useBuilderStore((s) => s.future.length);
+  const canUndo = templatePast > 0 || builderPast > 0;
+  const canRedo = templateFuture > 0 || builderFuture > 0;
+
+  /**
+   * Lebar sidebar disimpan di localStorage, jadi hanya bisa dibaca di browser.
+   * Membacanya lewat `useState(() => loadSidebarWidth())` akan membuat HTML
+   * server (320px) berbeda dengan hasil hidrasi di klien → mismatch. Karena
+   * itu baru dimuat setelah mount.
+   */
+  useEffect(() => {
+    setSidebarWidth(loadSidebarWidth());
+  }, []);
+
+  /**
+   * Undo/redo hanya boleh menyentuh SATU store per invocation.
+   *
+   * Versi lama memanggil `templateStore.undo()` DAN `builderStore.undo()` setiap
+   * Ctrl+Z. Akibatnya satu tekan bisa membatalkan dua perubahan sekaligus —
+   * atau membatalkan sebuah perubahan dari store yang salah, karena urutan
+   * tekan tidak sinkron dengan histori kedua store. Di sini store yang punya
+   * histori diprioritaskan (kanvas selalu lebih sering berubah daripada state
+   * global), dan store lain tidak disentuh sama sekali.
+   */
+  const handleUndo = useCallback(() => {
+    const template = useTemplateStore.getState();
+    if (template.canUndo()) {
+      template.undo();
+      return;
     }
-  }, [onSaveOverride]);
+    const builder = useBuilderStore.getState();
+    if (builder.canUndo()) builder.undo();
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    const template = useTemplateStore.getState();
+    if (template.canRedo()) {
+      template.redo();
+      return;
+    }
+    const builder = useBuilderStore.getState();
+    if (builder.canRedo()) builder.redo();
+  }, []);
+
+  /**
+   * `opts.asTemplate` = "Simpan sebagai template": config saat ini disalin ke
+   * library (`user_templates`, migrasi 045) alih-alih menimpa template aktif.
+   * Pesan toast-nya dibedakan supaya user tahu apa yang sebenarnya terjadi —
+   * template aktif website tidak ikut berubah pada mode ini.
+   */
+  const handleSave = useCallback(
+    async (opts?: { asTemplate?: boolean; libraryName?: string }) => {
+      setIsSaving(true);
+      try {
+        // Wajib ada override: penyimpanan configs.section pindah ke page-builder
+        // (Builder Global dipensiunkan, store.save() dihapus).
+        if (!onSaveOverride) throw new Error('Simpan hanya tersedia di page-builder');
+        await onSaveOverride({
+          saveAsTemplate: opts?.asTemplate === true,
+          libraryName: opts?.libraryName,
+        });
+        toast.success(
+          opts?.asTemplate
+            ? `Template "${opts?.libraryName || 'Desain saya'}" tersimpan di library`
+            : 'Perubahan tersimpan',
+        );
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Gagal menyimpan');
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [onSaveOverride],
+  );
 
   const handlePublish = useCallback(async () => {
     setIsSaving(true);
@@ -42,7 +123,7 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
       await onPublishOverride();
       // Sebut nama halaman supaya jelas apa yang baru tayang.
       toast.success(
-        pageTitle ? `Halaman "${pageTitle}" berhasil ditayangkan 🎉` : 'Halaman berhasil ditayangkan 🎉',
+        pageTitle ? `Halaman "${pageTitle}" berhasil ditayangkan` : 'Halaman berhasil ditayangkan',
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal publish');
@@ -60,14 +141,10 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         void handleSave();
       } else if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
-        // Urutan: undo kanvas (template-store) dulu, lalu state global.
-        // Kedua store di-undo agar histori konsisten bila keduanya berubah.
-        useTemplateStore.getState().undo();
-        useBuilderStore.getState().undo();
+        handleUndo();
       } else if ((mod && e.key.toLowerCase() === 'y') || (mod && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
-        useTemplateStore.getState().redo();
-        useBuilderStore.getState().redo();
+        handleRedo();
       } else if (e.key === 'Escape') {
         if (isPreview) setIsPreview(false);
         else useTemplateStore.getState().selectSection(null);
@@ -75,7 +152,48 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleSave, isPreview]);
+  }, [handleSave, handleUndo, handleRedo, isPreview]);
+
+  /**
+   * Resize sidebar via drag pada handle di sisi kanvas.
+   *
+   * Pakai pointer event (bukan event mouse) supaya tetap satu jalur kode untuk
+   * mouse/pen, dan `setPointerCapture` menjaga drag walau kursor keluar dari
+   * handle. Lebar disimpan ke localStorage hanya di akhir drag — menulis tiap
+   * `pointermove` berarti ratusan write/detik dan memblokir thread utama.
+   */
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const onResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarRef.current?.getBoundingClientRect().width ?? sidebarWidth;
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+
+    const onMove = (ev: PointerEvent) => {
+      // Sidebar di kiri kanvas, jadi lebar bertambah saat kursor bergerak ke KANAN.
+      setSidebarWidth(clampSidebarWidth(startWidth + (ev.clientX - startX)));
+    };
+    const onUp = () => {
+      handle.releasePointerCapture?.(e.pointerId);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      setSidebarWidth((current) => {
+        persistSidebarWidth(current);
+        return current;
+      });
+      // Cegah drag gambar/tautan selama resize berlangsung.
+      document.body.style.removeProperty('user-select');
+      document.body.style.removeProperty('cursor');
+    };
+
+    document.body.style.setProperty('user-select', 'none');
+    document.body.style.setProperty('cursor', 'col-resize');
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  }, [sidebarWidth]);
 
   // Peringatan saat keluar dengan perubahan belum disimpan
   useEffect(() => {
@@ -98,7 +216,7 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
 
   if (isPreview) {
     return (
-      <div className="flex flex-col h-dvh w-full bg-slate-950 overflow-hidden">
+      <div className="flex flex-col h-full min-h-0 w-full bg-slate-950 overflow-hidden">
         <PreviewBar onExit={() => setIsPreview(false)} />
         {/* Kanvas tampil full-page: desktop selebar viewport (full-bleed),
             tablet/HP di tengah selebar device — tanpa bingkai kartu. */}
@@ -107,8 +225,22 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
     );
   }
 
+  /*
+   * Tinggi builder = `h-full`, BUKAN `h-dvh`.
+   *
+   * `h-dvh` benar hanya kalau builder satu-satunya isi halaman. Sekarang
+   * builder menempel di halaman dashboard, jadi ada header dashboard
+   * (h-16 sm:h-20) di atasnya — dengan `h-dvh` builder jadi satu viewport
+   * penuh, halaman ikut ter-scroll, dan bottom bar terdorong keluar layar.
+   *
+   * `h-full` bekerja untuk kedua mode tanpa perubahan lain:
+   *  - menempel: mengisi sisa ruang di kolom `h-dvh` milik dashboard shell,
+   *  - full page: mengisi wrapper `h-dvh` di dashboard shell.
+   * Sifatnya: topbar (shrink-0) / sidebar (h-full) / kanvas (flex-1 +
+   * overflow-auto) / bottom bar (shrink-0) — hanya kanvas yang scroll.
+   */
   return (
-    <div className="flex flex-col h-dvh w-full bg-gradient-to-br from-slate-100 via-emerald-100/40 to-amber-100/30 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 w-full bg-gradient-to-br from-slate-100 via-emerald-100/40 to-amber-100/30 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 overflow-hidden">
       <BuilderTopbar
         websiteId={websiteId}
         saved={isSaved}
@@ -118,35 +250,76 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onPreview={() => setIsPreview(true)}
         onSave={handleSave}
+        onOpenSaveDialog={() => setSaveDialogOpen(true)}
         // Tanpa `onPublishOverride` builder ini tidak punya konsep publish
         // (publish = alias save) → tombol Publish tidak dirender sama sekali.
         onPublish={onPublishOverride ? handlePublish : undefined}
         isPublished={isPublished}
         onShowPages={onShowPages}
         onShowTemplates={onShowTemplates}
-        exitHref={exitHref}
         siteUrl={siteUrl}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
         {/* Backdrop HP: ketuk area kanvas untuk menutup sidebar */}
         {sidebarOpen && (
           <div
-            className="sm:hidden absolute inset-0 z-20 bg-black/40"
+            className="sm:hidden absolute inset-0 z-20 bg-black/40 animate-in fade-in"
             onClick={() => setSidebarOpen(false)}
             aria-hidden="true"
           />
         )}
+        {/* Lebar desktop mengikuti state (di-drag, disimpan di localStorage),
+            di HP lebarnya dikunci w-80 sebagai drawer.
+
+            Lebar dikirim lewat CSS custom property, BUKAN `style.width`
+            langsung: inline style menang atas class Tailwind, sehingga
+            `max-sm:w-80` akan kalah dan drawer di HP ikut selebar panel
+            desktop (bisa melebihi lebar layar). Dengan custom property,
+            utility lebar yang memakainya bisa ditimpa `max-sm:w-80`
+            pada layar kecil.
+
+            Catatan: jangan menulis sintaks utility arbitrary value Tailwind
+            secara literal di file mana pun yang discan Tailwind (className,
+            JSX, atau komentar). Teksnya dibaca sebagai kandidat class dan
+            akan menghasilkan CSS yang rusak saat diparse PostCSS. */}
         <div
-          className={`shrink-0 h-full border-r border-slate-200/40 bg-white/60 dark:bg-slate-900/60 dark:border-white/[0.06] transition-all duration-200 overflow-hidden ${
-            sidebarOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 border-transparent'
-          } max-sm:absolute max-sm:z-30 max-sm:h-full max-sm:shadow-2xl ${
-            sidebarOpen ? 'max-sm:w-80' : 'max-sm:w-0'
+          className={`shrink-0 relative h-full border-r border-slate-200/40 bg-white/60 dark:bg-slate-900/60 dark:border-white/[0.06] transition-[width,opacity] duration-200 overflow-hidden max-sm:absolute max-sm:z-30 max-sm:h-full max-sm:shadow-2xl ${
+            sidebarOpen
+              ? 'w-[var(--builder-sidebar-w)] opacity-100 max-sm:w-80'
+              : 'w-0 opacity-0 border-transparent max-sm:w-0'
           }`}
+          style={{ '--builder-sidebar-w': `${sidebarWidth}px` } as React.CSSProperties}
         >
-          <div className="w-80 h-full">
-            <BuilderSidebar websiteId={websiteId} />
+          <div ref={sidebarRef} className="w-full h-full">
+            <BuilderSidebar
+              websiteId={websiteId}
+              isPublished={isPublished}
+              onCloseMobile={() => setSidebarOpen(false)}
+            />
           </div>
+
+          {/* Handle resize. `hidden` di HP: di layar sentuh lebar/lebar tidak
+              bisa di-drag dengan nyaman, jadi drawer tetap w-80. */}
+          {sidebarOpen && (
+            <div
+              onPointerDown={onResizeStart}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Ubah lebar panel pengaturan"
+              aria-valuenow={sidebarWidth}
+              aria-valuemin={SIDEBAR_MIN_WIDTH}
+              aria-valuemax={SIDEBAR_MAX_WIDTH}
+              tabIndex={-1}
+              className="absolute -right-1 top-0 h-full w-2 cursor-col-resize z-10 hidden sm:block
+                         after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2
+                         after:bg-transparent after:transition-colors hover:after:bg-emerald-400"
+            />
+          )}
         </div>
 
         <div className="flex-1 min-w-0 min-h-0 flex">
@@ -155,6 +328,19 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
       </div>
 
       <BuilderBottomBar />
+
+      <SaveDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        dirty={!isSaved}
+        saving={isSaving}
+        onSave={(choice, libraryName) => {
+          void handleSave({
+            asTemplate: choice === 'library',
+            libraryName,
+          });
+        }}
+      />
     </div>
   );
 }

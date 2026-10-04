@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard,
   Store,
@@ -27,12 +27,14 @@ import {
   AlertTriangle,
   MessageCircle,
   PanelLeft,
+  Search,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { useLang, type Lang } from "@/lib/i18n";
 import { adminUrl, tenantDisplay, tenantUrl } from "@/lib/urls";
-import { dashboardNavHref } from "@/lib/nav";
+import { dashboardNavHref, isBuilderPath } from "@/lib/nav";
+import { BuilderFullPageContext } from "@/components/builder/builder-fullpage";
 import {
   Select,
   SelectTrigger,
@@ -56,6 +58,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+/** Kunci sessionStorage untuk mode full-page builder (per-tab, bukan dibagikan). */
+const FULLPAGE_KEY = "builder:full-page";
 
 type NavigationItem = {
   name: string;
@@ -122,6 +127,37 @@ export function DashboardShell({
   const [darkMode, setDarkMode] = useState(false);
   const [sites, setSites] = useState<Array<{ id: string; name: string; subdomain: string | null; template_slug?: string | null; current_template_id?: string | null }>>([]);
   const [activeSiteId, setActiveSiteId] = useState("");
+
+  // Builder single-page punya dua mode: menempel pada halaman dashboard
+  // (sidebar + header dashboard tetap terlihat, builder mengisi sisa ruang)
+  // dan mode full-page (seluruh chrome dashboard disembunyikan).
+  const onBuilder = isBuilderPath(pathname ?? "");
+  const [builderFullPage, setBuilderFullPage] = useState(false);
+
+  // Mode full-page disimpan per-tab (sessionStorage) supaya bertahan saat
+  // refresh/reload tapi TIDAK ikut ke tab lain atau ke pengguna lain.
+  // Baru dimuat setelah mount: membaca storage di initializer akan membuat
+  // render pertama klien beda dari HTML server → hydration mismatch.
+  useEffect(() => {
+    if (!onBuilder) return;
+    try {
+      setBuilderFullPage(window.sessionStorage.getItem(FULLPAGE_KEY) === "1");
+    } catch {
+      // Storage diblokir (mode privat) → tetap mode menempel, aman.
+    }
+  }, [onBuilder]);
+
+  const toggleBuilderFullPage = useCallback(() => {
+    setBuilderFullPage((prev) => {
+      const next = !prev;
+      try {
+        window.sessionStorage.setItem(FULLPAGE_KEY, next ? "1" : "0");
+      } catch {
+        // Tidak bisa disimpan — tetap berlaku untuk sesi ini saja.
+      }
+      return next;
+    });
+  }, []);
 
   // Load websites for selector
   useEffect(() => {
@@ -216,6 +252,10 @@ export function DashboardShell({
       header: t("nav.groupWebsite"),
       items: [
         { name: t("nav.builder"), href: dashboardNavHref("/web-design", isAdminHost), fullHref: "/dashboard/web-design", icon: Palette },
+        // SEO punya halaman sendiri (tidak lagi di dalam builder): pengaturan
+        // ini milik website, bukan template, dan tetap relevan saat user tidak
+        // sedang designing.
+        { name: t("nav.seo"), href: dashboardNavHref("/seo", isAdminHost), fullHref: "/dashboard/seo", icon: Search },
         { name: t("nav.domain"), href: dashboardNavHref("/domain", isAdminHost), fullHref: "/dashboard/domain", icon: Globe },
       ],
     },
@@ -233,10 +273,11 @@ export function DashboardShell({
     if (pathname === full || (alias && (pathname === alias || pathname.startsWith(`${alias}/`)))) {
       return true;
     }
-    // Builder mencakup halaman editor full-page di bawahnya.
-    if (full === "/dashboard/web-design") {
-      return pathname.startsWith("/dashboard/web-design/customize");
-    }
+    // Builder mencakup halaman editor full-page di bawahnya (dua bentuk path:
+    // alias admin host + path penuh). Cabang khusus ini dihapus karena sudah
+    // tertangani oleh cek `alias` di atas — `/dashboard/web-design` →
+    // alias `/web-design` → `pathname.startsWith("/web-design/")` true untuk
+    // `/web-design/customize` maupun `/dashboard/web-design/customize`.
     if (full === "/dashboard/websites") {
       return pathname.startsWith("/dashboard/websites");
     }
@@ -251,18 +292,69 @@ export function DashboardShell({
   const sidebarWidth = sidebarCollapsed ? "w-20" : "w-72";
   const mainMargin = sidebarCollapsed ? "lg:pl-20" : "lg:pl-72";
 
-  // Builder memakai mode full-page: tanpa sidebar/topbar dashboard agar
-  // seluruh viewport dipakai untuk kanvas editing (seperti Canva/Webflow).
-  const isBuilderFullPage = pathname.startsWith("/dashboard/web-design/customize");
-  if (isBuilderFullPage) {
+  /*
+   * Builder punya dua mode tampilan:
+   *
+   *  - **Menempel** (default): chrome dashboard tetap tampil, tapi `<main>`
+   *    kehilangan padding + `max-w-7xl` + `mx-auto` supaya tidak ada celah
+   *    di sekeliling builder, dan builder mengisi sisa ruang vertikal.
+   *  - **Full page**: seluruh chrome dashboard disembunyikan, builder memakai
+   *    satu viewport penuh (seperti Canva/Webflow).
+   *
+   * `isBuilderPath` (bukan `startsWith("/dashboard/...")`) WAJIB dipakai di
+   * sini: di admin host `proxy.ts` me-redirect `/dashboard/*` ke alias root,
+   * jadi `pathname` berisi `/web-design/customize`. Versi lama hanya
+   * mencocokkan bentuk `/dashboard/...`, sehingga tidak pernah aktif di admin
+   * host dan builder diam-diam tampil dengan padding yang tidak diinginkan.
+   */
+  if (onBuilder && builderFullPage) {
     return (
-      <div className="h-dvh w-full bg-slate-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden">
-        {children}
-      </div>
+      <BuilderFullPageContext.Provider
+        value={{
+          fullPage: true,
+          setFullPage: setBuilderFullPage,
+          toggle: toggleBuilderFullPage,
+          available: true,
+        }}
+      >
+        <div className="h-dvh w-full bg-slate-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden">
+          {children}
+        </div>
+      </BuilderFullPageContext.Provider>
     );
   }
 
+  /*
+   * `<main>` untuk builder TIDAK boleh memakai padding/centering yang sama
+   * dengan halaman dashboard biasa:
+   *  - `p-4 sm:p-6 lg:p-8` + `max-w-7xl mx-auto` membuat celah di sekeliling
+   *    builder (persis yang ingin dihilangkan),
+   *  - `pb-28` menyisakan ruang untuk `MobileBottomNav` yang tidak dirender
+   *    di halaman builder,
+   *  - `min-h-0` wajib supaya tinggi `<main>` benar-benar mengikuti sisa
+   *    ruang di kolom `h-dvh`, bukan ikut tumbuh bersama isi halaman.
+   * Halaman dashboard lain tidak tersentuh — perubahan ini khusus rute builder.
+   */
+  const mainClassName = onBuilder
+    ? "flex-1 min-h-0 w-full overflow-hidden"
+    : "flex-1 p-4 sm:p-6 lg:p-8 pb-28 lg:pb-12 max-w-7xl w-full mx-auto";
+
+  // Kolom konten dibatasi `h-dvh` (bukan `min-h-screen`) saat di builder supaya
+  // tinggi builder = viewport - tinggi header dashboard. Dengan begitu hanya
+  // kanvas yang perlu scroll; topbar & bottom bar builder tetap terlihat.
+  const contentColumnClass = `${mainMargin} flex flex-col transition-all duration-200 ${
+    onBuilder ? "h-dvh overflow-hidden" : "min-h-screen"
+  }`;
+
   return (
+    <BuilderFullPageContext.Provider
+      value={{
+        fullPage: false,
+        setFullPage: setBuilderFullPage,
+        toggle: toggleBuilderFullPage,
+        available: onBuilder,
+      }}
+    >
     <div className="min-h-screen bg-slate-50 text-gray-900 selection:bg-slate-200 selection:text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -519,7 +611,7 @@ export function DashboardShell({
       </aside>
 
       {/* Main Content Viewport */}
-      <div className={`${mainMargin} flex flex-col min-h-screen transition-all duration-200`}>
+      <div className={contentColumnClass}>
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800">
           <div className="flex items-center justify-between h-16 sm:h-20 px-4 sm:px-6 lg:px-8 gap-4">
@@ -690,13 +782,16 @@ export function DashboardShell({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-28 lg:pb-12 max-w-7xl w-full mx-auto">
+        <main className={mainClassName}>
           {children}
         </main>
       </div>
 
-      {/* Floating mobile bottom navigation */}
-      <MobileBottomNav isAdminHost={isAdminHost} />
+      {/* Bottom nav mobile tidak dirender di builder: posisinya `fixed bottom-0`
+          dan akan menutupi bottom bar builder. Padding `pb-28` di `<main>`
+          juga tidak diperlukan di rute ini. */}
+      {!onBuilder && <MobileBottomNav isAdminHost={isAdminHost} />}
     </div>
+    </BuilderFullPageContext.Provider>
   );
 }

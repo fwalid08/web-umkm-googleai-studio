@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, Loader2, LayoutTemplate } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Check, Library, Loader2, LayoutTemplate } from "lucide-react";
+import {
+  applySavedTemplate,
+  savedToCatalogEntry,
+  type SavedTemplateEntry,
+} from "@/lib/builder/apply-template";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -45,8 +50,44 @@ export function TemplatePicker({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // Tab Katalog | Library — sama dengan galeri di dalam builder, dan memakai
+  // helper konversi yang sama (`savedToCatalogEntry`) supaya kartu keduanya
+  // identik.
+  const [tab, setTab] = useState<"catalog" | "library">("catalog");
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplateEntry[]>([]);
+  const [savedLoading, setSavedLoading] = useState(true);
   // Dialog konfirmasi sebelum template diterapkan.
   const [pending, setPending] = useState<CatalogEntry | null>(null);
+
+  // Library design milik user (disimpan lewat "Simpan sebagai Template").
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/templates?library=1");
+        const json = await res.json();
+        if (!cancelled && json?.success && Array.isArray(json.data?.saved)) {
+          setSavedTemplates(json.data.saved as SavedTemplateEntry[]);
+        }
+      } catch {
+        // Gagal memuat library tidak boleh memblokir pilihan katalog.
+      } finally {
+        if (!cancelled) setSavedLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Entri library + template katalog dasarnya, untuk dirender kartu sama. */
+  const savedEntries = useMemo(
+    () =>
+      savedTemplates
+        .map((saved) => ({ saved, entry: savedToCatalogEntry(saved, BUILT_IN_CATALOG) }))
+        .filter((x): x is { saved: SavedTemplateEntry; entry: CatalogEntry } => x.entry !== null),
+    [savedTemplates],
+  );
 
   // Reset pesan bila website berubah. Guard ref agar tidak setState
   // di effect mount pertama (menghindari cascading renders).
@@ -124,11 +165,86 @@ export function TemplatePicker({
             <span>{notice}</span>
           </div>
         )}
-        <GridSection
-          normalizedActiveId={normalizedActiveId}
-          busyId={busyId}
-          onSelect={(tpl) => setPending(tpl)}
-        />
+                {/* ============ Tab: Katalog | Library ============ */}
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-muted w-fit" role="tablist">
+          {(["catalog", "library"] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-[13px] font-bold transition-colors ${
+                tab === key
+                  ? "bg-white dark:bg-slate-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {key === "catalog" ? (
+                <>
+                  <LayoutTemplate className="w-3.5 h-3.5" /> Katalog
+                </>
+              ) : (
+                <>
+                  <Library className="w-3.5 h-3.5" /> Library
+                  {savedTemplates.length > 0 && (
+                    <span className="text-[10px] font-bold bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200 px-1.5 rounded-full tabular-nums">
+                      {savedTemplates.length}
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {tab === "catalog" ? (
+          <GridSection
+            normalizedActiveId={normalizedActiveId}
+            busyId={busyId}
+            onSelect={(tpl) => setPending(tpl)}
+          />
+        ) : savedLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : savedEntries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Library className="w-14 h-14 text-muted-foreground/30 mb-3" />
+            <p className="font-semibold">Library kamu masih kosong</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              Tekan &quot;Simpan&quot; di dalam editor lalu pilih &quot;Simpan sebagai
+              template&quot; supaya desainmu muncul di sini.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {savedEntries.map(({ saved, entry }) => (
+              <PickerCard
+                key={saved.id}
+                tpl={{ ...entry, id: saved.id, name: saved.name } as CatalogEntry}
+                isActive={false}
+                applying={busyId === saved.id}
+                isSaved
+                onSelect={() => {
+                  setError("");
+                  setNotice("");
+                  setBusyId(saved.id);
+                  void (async () => {
+                    const result = await applySavedTemplate({ websiteId, saved });
+                    if (result.ok) {
+                      setNotice(`Template "${saved.name}" sekarang dipakai website kamu.`);
+                      onTemplateApplied?.(saved.base_slug ?? saved.id);
+                    } else {
+                      setError(result.error ?? "Gagal memakai template");
+                    }
+                    setBusyId(null);
+                  })();
+                }}
+              />
+            ))}
+          </div>
+        )}
         {/* Dialog konfirmasi sebelum apply */}
         <PendingDialog
           pending={pending}
@@ -261,11 +377,14 @@ function PickerCard({
   tpl,
   isActive,
   applying,
+  isSaved = false,
   onSelect,
 }: {
   tpl: CatalogEntry;
   isActive: boolean;
   applying: boolean;
+  /** Item library user — badge & indikator menyesuaikan. */
+  isSaved?: boolean;
   onSelect: () => void;
 }) {
   const designStyleId = tpl.data?.designStyleId ?? tpl.data?.design_style_id;
@@ -294,6 +413,11 @@ function PickerCard({
         {isActive && (
           <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 text-white text-[11px] font-semibold px-2.5 py-1">
             <Check className="w-3 h-3" /> Aktif
+          </span>
+        )}
+        {isSaved && !isActive && (
+          <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-pink-500 text-white text-[11px] font-semibold px-2.5 py-1">
+            <Library className="w-3 h-3" /> Tersimpan
           </span>
         )}
         {applying && (

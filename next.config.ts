@@ -80,6 +80,8 @@ const nextConfig: NextConfig = {
       { source: "/domain/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/domain/:path*" },
       { source: "/themes/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/themes/:path*" },
       { source: "/announcement/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/announcement/:path*" },
+      // SEO (dipindah dari panel builder ke halaman dashboard sendiri)
+      { source: "/seo/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/seo/:path*" },
       // Halaman Desain Website (/dashboard/web-design → kanonik /web-design di admin host)
       { source: "/web-design/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/web-design/:path*" },
       // Auth on admin subdomain

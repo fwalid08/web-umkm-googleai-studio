@@ -1,14 +1,14 @@
 'use client';
 
-import { ArrowLeft, Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2, ExternalLink } from 'lucide-react';
+import { Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2, ExternalLink, Undo2, Redo2, Globe, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useBuilderFullPage } from './builder-fullpage';
 
 interface BuilderTopbarProps {
   websiteId: string;
@@ -20,6 +20,11 @@ interface BuilderTopbarProps {
   onPreview: () => void;
   onSave: () => void;
   /**
+   * Buka dialog "Simpan" (dua pilihan: simpan saja / simpan sebagai template).
+   * Bila tidak diisi, tombol Simpan langsung memanggil `onSave`.
+   */
+  onOpenSaveDialog?: () => void;
+  /**
    * Aksi Publish. Opsional: hanya diisi bila builder memang punya konsep
    * publish (page-builder set `is_published`). Builder lama TIDAK punya —
    * di sana tombol ini disembunyikan karena publish = alias save, sehingga
@@ -30,8 +35,16 @@ interface BuilderTopbarProps {
   isPublished?: boolean;
   onShowPages?: () => void;
   onShowTemplates?: () => void;
-  exitHref?: string;
   siteUrl?: string | null;
+  /**
+   * Aksi undo/redo. Diturunkan oleh `BuilderShell` supaya logika "store mana
+   * yang punya histori" hanya ada di satu tempat (lihat catatan di shell).
+   */
+  onUndo?: () => void;
+  onRedo?: () => void;
+  /** Nonaktifkan tombol undo/redo saat tidak ada histori. */
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 function BarButton({
@@ -79,32 +92,31 @@ export function BuilderTopbar({
   onToggleSidebar,
   onPreview,
   onSave,
+  onOpenSaveDialog,
   onPublish,
   isPublished,
   onShowPages,
   onShowTemplates,
-  exitHref = '/dashboard',
   siteUrl,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: BuilderTopbarProps) {
-  const router = useRouter();
-
-  // Catatan: undo/redo TIDAK lagi punya tombol di topbar, tapi tetap aktif lewat
-  // keyboard (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) di builder-shell.tsx — logika
-  // store-nya (pushHistory, past/future) tidak diubah sama sekali.
-
-  const handleExit = () => {
-    if (!saved) {
-      if (confirm('Anda memiliki perubahan yang belum disimpan. Yakin ingin keluar?')) {
-        router.push(exitHref);
-      }
-    } else {
-      router.push(exitHref);
-    }
-  };
+  // Mode tampilan builder (sembunyikan/tampilkan chrome dashboard). Dipanggil
+  // langsung dari context supaya tidak perlu di-drill sebagai prop dari layout.
+  const { fullPage, toggle: toggleFullPage, available: fullPageAvailable } = useBuilderFullPage();
 
   return (
     <TooltipProvider delayDuration={300}>
-      <header className="relative border-b border-slate-200/70 bg-gradient-to-r from-slate-100 via-emerald-50/50 to-slate-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 dark:border-slate-800 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-3 sm:px-4 py-2 shrink-0 sticky top-0 z-20">
+      {/* `flex-nowrap` + grup yang boleh menyusut: sebelumnya `flex-wrap`
+          membuat topbar jadi 2 baris di HP, sehingga separuh kanvas hilang
+          layar dan tombol publish terpotong. Konteks halaman kini truncate. */}
+      {/* Tanpa `sticky`: topbar ini anak dari kolom flex yang tidak pernah
+            scroll (hanya kanvas yang scroll), jadi `sticky` hanya no-op
+            yang menyesatkan — ia menyiratkan model scroll yang salah.
+            Yang menjaga topbar tetap terlihat adalah `shrink-0`. */}
+      <header className="relative border-b border-slate-200/70 bg-gradient-to-r from-slate-100 via-emerald-50/50 to-slate-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 dark:border-slate-800 flex flex-nowrap items-center justify-between gap-2 px-3 sm:px-4 py-2 shrink-0 z-20">
         {/* Progress bar saat menyimpan */}
         {isSaving && (
           <span className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-emerald-100 dark:bg-slate-800">
@@ -112,9 +124,10 @@ export function BuilderTopbar({
           </span>
         )}
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-          <BarButton title="Keluar ke Dashboard" hint="Perubahan belum disimpan akan ditanya dulu" onClick={handleExit}>
-            <ArrowLeft className="w-4 h-4" />
-          </BarButton>
+          {/* Tombol "Kembali/Keluar" dihapus: builder kini menempel di halaman
+              dashboard, jadi navigasi keluar ditangani sidebar/header dashboard
+              yang sudah ada. Menyisakan `handleExit` membuat `router`,
+              `useConfirm`, dan `exitHref` ikut tak terpakai. */}
 
           {/* Konteks halaman yang sedang diedit */}
           <div className="flex items-center gap-2 min-w-0 rounded-xl border border-emerald-200/70 bg-white/80 dark:bg-slate-800/80 dark:border-slate-700 pl-1.5 pr-2.5 py-1 shadow-sm">
@@ -154,9 +167,11 @@ export function BuilderTopbar({
             </BarButton>
           )}
 
-          {/* Status simpan playful */}
+          {/* Status simpan: dulunya `hidden md:inline-flex` sehingga hilang total di HP —
+            user tidak punya cara tahu ada perubahan yang belum disimpan. Sekarang
+            badge-nya selalu tampil, hanya TEKS-nya yang disembunyikan di layar kecil. */}
           <div
-            className={`hidden md:inline-flex items-center gap-1.5 ml-1 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 transition-colors ${
+            className={`inline-flex items-center gap-1.5 ml-1 px-2 py-1 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold border shrink-0 transition-colors ${
               isSaving
                 ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
                 : saved
@@ -176,7 +191,12 @@ export function BuilderTopbar({
                 }`}
               />
             </span>
-            {isSaving ? 'Menyimpan…' : saved ? '✨ Tersimpan' : '● Belum disimpan'}
+            {/* Label penuh disembunyikan di layar sempit, tapi TITIK statusnya
+                tetap tampil — sebelumnya badge "tersimpan" ini hilang total
+                di HP sehingga user tidak tahu ada perubahan yang belum disimpan. */}
+            <span className="hidden sm:inline">
+              {isSaving ? 'Menyimpan…' : saved ? 'Tersimpan' : 'Belum disimpan'}
+            </span>
           </div>
 
           {/* Status tayang hanya relevan bila builder punya konsep publish
@@ -184,26 +204,63 @@ export function BuilderTopbar({
               hal ini: ia soal perubahan tersimpan ke DB, bukan halaman tayang. */}
           {typeof isPublished === 'boolean' && !isSaving && (
             <div
-              className={`hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border shrink-0 ${
                 isPublished
                   ? 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800'
                   : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
               }`}
               title={
                 isPublished
-                  ? 'Halaman ini tayang di website publik'
-                  : 'Halaman masih draft — belum bisa diakses publik'
+                  ? 'Halaman ini sedang TAYANG di website publik — siapa pun bisa mengunjunginya.'
+                  : 'Halaman masih DRAFT — perubahan hanya tersimpan di editor, belum tampil untuk Pengunjung. Tekan "Tayangkan" saat sudah siap.'
               }
             >
-              {isPublished ? '🌍 Tayang' : '📄 Draft'}
+              {isPublished ? <Globe className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+              <span className="hidden lg:inline">{isPublished ? 'Tayang' : 'Draft'}</span>
+              <span className="sr-only">{isPublished ? 'Sudah tayang' : 'Masih draft'}</span>
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Undo/Redo dulu ada: dulu tombolnya dihapus dan hanya menyisakan
+              shortcut keyboard (Ctrl+Z). Sekarang store sudah menyediakan
+              `past`/`future` sehingga status disable-nya bisa dihitung. */}
+          <BarButton
+            title="Urungkan perubahan terakhir"
+            hint="Ctrl+Z"
+            onClick={onUndo}
+            disabled={!canUndo || isSaving}
+            label="Urungkan"
+          >
+            <Undo2 className="w-4 h-4" />
+          </BarButton>
+          <BarButton
+            title="Ulangi perubahan yang dibatalkan"
+            hint="Ctrl+Shift+Z"
+            onClick={onRedo}
+            disabled={!canRedo || isSaving}
+            label="Ulangi"
+          >
+            <Redo2 className="w-4 h-4" />
+          </BarButton>
+
           <BarButton title="Preview website" hint="Lihat tampilan asli (Esc untuk keluar)" onClick={onPreview} label="Preview">
             <Eye className="w-4 h-4" />
           </BarButton>
+
+          {/* Melepas builder dari halaman dashboard (sembunyikan sidebar +
+              header dashboard) — kanvas dapat seluruh viewport. */}
+          {fullPageAvailable && (
+            <BarButton
+              title={fullPage ? 'Tampilkan lagi menu dashboard' : 'Perluas ke layar penuh'}
+              hint={fullPage ? 'Kembali ke tampilan menempel di halaman dashboard' : 'Sembunyikan menu dashboard'}
+              onClick={toggleFullPage}
+              label={fullPage ? 'Kecilkan' : 'Perluas'}
+            >
+              {fullPage ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </BarButton>
+          )}
 
           {siteUrl && (
             <BarButton
@@ -222,7 +279,7 @@ export function BuilderTopbar({
                 variant="outline"
                 size="sm"
                 className="h-8 rounded-lg border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 text-emerald-800 dark:bg-slate-800 dark:text-emerald-200 dark:border-slate-700 font-semibold shadow-sm"
-                onClick={onSave}
+                onClick={onOpenSaveDialog ?? onSave}
                 disabled={isSaving}
               >
                 {isSaving ? (
@@ -235,7 +292,11 @@ export function BuilderTopbar({
             </TooltipTrigger>
             <TooltipContent side="bottom">
               <p className="font-medium">Simpan perubahan</p>
-              <p className="text-xs opacity-70">Ctrl+S</p>
+              <p className="text-xs opacity-70">
+                {onOpenSaveDialog
+                  ? 'Ctrl+S untuk simpan langsung tanpa pilih'
+                  : 'Ctrl+S'}
+              </p>
             </TooltipContent>
           </Tooltip>
 
@@ -243,19 +304,37 @@ export function BuilderTopbar({
               Di builder lama publish = alias save, jadi tombolnya disembunyikan
               agar tidak menjanjikan sesuatu yang tidak terjadi. */}
           {onPublish && (
-            <Button
-              size="sm"
-              className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-500/25 border border-emerald-400/40"
-              onClick={onPublish}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-              ) : (
-                <Rocket className="w-4 h-4 sm:mr-2" />
-              )}
-              <span className="hidden sm:inline text-[12px]">Publish 🚀</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-500/25 border border-emerald-400/40"
+                  onClick={onPublish}
+                  disabled={isSaving || isPublished === true}
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+                  ) : isPublished === true ? (
+                    <Globe className="w-4 h-4 sm:mr-2" />
+                  ) : (
+                    <Rocket className="w-4 h-4 sm:mr-2" />
+                  )}
+                  <span className="hidden sm:inline text-[12px]">
+                    {isPublished === true ? 'Sudah Tayang' : 'Tayangkan'}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="font-medium">
+                  {isPublished === true ? 'Halaman sudah tayang' : 'Tayangkan halaman ke website publik'}
+                </p>
+                <p className="text-xs opacity-70">
+                  {isPublished === true
+                    ? 'Simpan dulu bila kamu mengubah halaman — perubahan baru tampil setelah disimpan.'
+                    : 'Simpan perubahan, lalu tayangkan agar bisa diakses pengunjung.'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
         <style>{`@keyframes topbar-slide { 0% { transform: translateX(-100%);} 100% { transform: translateX(220%);} }`}</style>

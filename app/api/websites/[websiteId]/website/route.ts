@@ -26,6 +26,67 @@ import {
   STATIC_TEMPLATES,
 } from "@/lib/mock/store";
 import { cookies } from "next/headers";
+import {
+  buildLibrarySlug,
+  isLibrarySlug,
+  normalizeLibraryName,
+} from "@/lib/builder/template-library";
+
+/**
+ * Salin config saat ini ke `user_templates` sebagai template library
+ * ("Simpan sebagai Template").
+ *
+ * Berdiri sebagai helper (bukan inline di dalam handler) karena handler ini
+ * punya DUA branch yang masing-masing membangun `toStore` sendiri — menaruh
+ * logikanya inline berarti menyalinnya dua kali, dan dua salinan itu pasti
+ * menyimpang seiring waktu lalu diam-diam menulis config berbeda bentuknya.
+ *
+ * Template aktif website TIDAK tersentuh: branch upsert normal dilewati
+ * sepenuhnya saat helper ini mengembalikan response.
+ */
+async function saveAsLibraryTemplate(args: {
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  userId: string;
+  websiteId: string;
+  /** Slug katalog asal ('food'), disimpan sebagai base_slug untuk apply. */
+  baseSlug: string;
+  name: string;
+  toStore: Record<string, unknown>;
+}): Promise<NextResponse> {
+  const { supabase, userId, websiteId, baseSlug, toStore } = args;
+  const name = normalizeLibraryName(args.name);
+  // Slug sintetis `saved-<uuid>`: kalau slug katalog dipakai, constraint
+  // UNIQUE (website_id, template_slug) akan membuat tiap Simpan menimpa
+  // template sebelumnya alih-alih menambah yang baru.
+  const templateSlug = buildLibrarySlug(crypto.randomUUID());
+  const now = new Date().toISOString();
+
+  const { error } = await supabase.from("user_templates").insert({
+    user_id: userId,
+    website_id: websiteId,
+    template_slug: templateSlug,
+    base_slug: baseSlug,
+    name,
+    is_library: true,
+    // Dipaksa false: salinan library adalah aset untuk dipakai ulang, bukan
+    // konten publik. Status tayang milik template aktif.
+    custom_config: { ...toStore, is_published: false },
+    created_at: now,
+    updated_at: now,
+  });
+  if (error) {
+    console.error("Insert template library error:", error);
+    return NextResponse.json(
+      { success: false, error: "Gagal menyimpan template" },
+      { status: 500 },
+    );
+  }
+  return NextResponse.json({
+    success: true,
+    data: { library: { template_slug: templateSlug, base_slug: baseSlug, name } },
+    message: `Template "${name}" tersimpan di library`,
+  });
+}
 
 interface SessionUser {
   id: string;
@@ -289,6 +350,12 @@ export async function PUT(
     }
 
     const body = await request.json();
+    // Flag "Simpan sebagai Template": `true` = salin config saat ini ke
+    // `user_templates` sebagai template yang bisa dipilih ulang, BUKAN
+    // menyimpan template aktif website. Dibaca di luar branch `hasNewFormat`
+    // supaya kedua jalur PUT memakainya.
+    const saveAsTemplate = body?.save_as_template === true;
+    const libraryName = typeof body?.library_name === "string" ? body.library_name : "";
 
     const hasNewFormat = body?.custom_config?.design_style_id !== undefined || body?.custom_config?.sections !== undefined;
 
@@ -401,11 +468,28 @@ export async function PUT(
         catalog_template_id: slug,
         // Single-page (044): status tayang + meta halaman ikut di config yang
         // sama. Builder mengirimnya saat Simpan / Publish.
-        is_published: custom_config.is_published !== false,
+        // PENTING: `=== true`, bukan `!== false`. Config tanpa is_published
+        // (undefined) akan tersimpan sebagai TRUE bila pakai `!== false`,
+        // sehingga "Simpan" ikut menayangkan halaman dan tombol Simpan vs
+        // Tayangkan jadi tidak berbeda hasilnya. Default benar = draft.
+        is_published: custom_config.is_published === true,
         meta_title: typeof custom_config.meta_title === 'string' ? custom_config.meta_title : null,
         meta_description: typeof custom_config.meta_description === 'string' ? custom_config.meta_description : null,
         og_image_url: typeof custom_config.og_image_url === 'string' ? custom_config.og_image_url : null,
       };
+
+      // "Simpan sebagai Template" — salin ke library lalu KEMBALI. Upsert
+      // template aktif di bawah sengaja dilewati.
+      if (saveAsTemplate) {
+        return saveAsLibraryTemplate({
+          supabase,
+          userId: sessionUser.id,
+          websiteId,
+          baseSlug: slug,
+          name: libraryName,
+          toStore: toStore as Record<string, unknown>,
+        });
+      }
 
       const { error: upsertError } = await supabase.from("user_templates").upsert(
         {
@@ -505,11 +589,27 @@ export async function PUT(
       core: custom_config.core ?? {},
       seo: custom_config.seo ?? {},
       // Single-page (044): status tayang + meta halaman.
-      is_published: custom_config.is_published !== false,
+      // Penting: pakai `=== true`, BUKAN `!== false`. Dengan `!== false`,
+      // config tanpa field is_published (undefined) tersimpan sebagai TRUE —
+      // sehingga "Simpan" ikut menayangkan halaman dan tombol Simpan vs
+      // Tayangkan jadi tidak berbeda hasilnya. Default yang benar = draft.
+      is_published: custom_config.is_published === true,
       meta_title: typeof custom_config.meta_title === 'string' ? custom_config.meta_title : null,
       meta_description: typeof custom_config.meta_description === 'string' ? custom_config.meta_description : null,
       og_image_url: typeof custom_config.og_image_url === 'string' ? custom_config.og_image_url : null,
     };
+
+    // Jalur legacy (payload client lama) — hormati flag library yang sama.
+    if (saveAsTemplate) {
+      return saveAsLibraryTemplate({
+        supabase,
+        userId: sessionUser.id,
+        websiteId,
+        baseSlug: slug,
+        name: libraryName,
+        toStore: toStore as Record<string, unknown>,
+      });
+    }
 
     const { error: upsertError } = await supabase.from("user_templates").upsert(
       {

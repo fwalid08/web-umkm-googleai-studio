@@ -29,6 +29,7 @@ export const id = {
     analytics: "Analytics",
     settings: "Pengaturan",
     builder: "Desain",
+    seo: "SEO",
     myWebsites: "Website Saya",
     billing: "Billing",
     business: "Kelola Bisnis",

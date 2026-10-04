@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dashboardNavHref, isAdminHostHeader } from "./nav";
+import {
+  BUILDER_PATH,
+  dashboardNavHref,
+  isAdminHostHeader,
+  isBuilderPath,
+  stripDashboardPrefix,
+} from "./nav";
 
 /**
  * `dashboardNavHref` murni: hasilnya hanya bergantung pada (path, isAdminHost).
@@ -61,6 +67,65 @@ describe("dashboardNavHref", () => {
       expect(dashboardNavHref("", false)).toBe("/dashboard");
     });
 
+describe("stripDashboardPrefix", () => {
+  it("menormalkan kedua bentuk path ke bentuk kanonik", () => {
+    expect(stripDashboardPrefix("/dashboard/web-design/customize")).toBe(
+      "/web-design/customize"
+    );
+    expect(stripDashboardPrefix("/web-design/customize")).toBe(
+      "/web-design/customize"
+    );
+  });
+
+  it("menerima input tanpa leading slash", () => {
+    expect(stripDashboardPrefix("dashboard/products")).toBe("/products");
+  });
+
+  it("memetakan /dashboard tepat ke root", () => {
+    expect(stripDashboardPrefix("/dashboard")).toBe("/");
+  });
+
+  it("tidak menyentuh path yang tak diawali /dashboard", () => {
+    expect(stripDashboardPrefix("/products")).toBe("/products");
+    expect(stripDashboardPrefix("/")).toBe("/");
+  });
+});
+
+describe("isBuilderPath", () => {
+  it("mengenali editor di kedua bentuk path (admin host & host lain)", () => {
+    // Admin host: proxy me-redirect /dashboard/* → alias root, jadi address bar
+    // berisi path TANPA /dashboard. Host lain: path penuh. Keduanya harus true,
+    // kalau tidak builder diam-diam tampil dengan chrome dashboard yang salah.
+    expect(isBuilderPath("/web-design/customize")).toBe(true);
+    expect(isBuilderPath("/dashboard/web-design/customize")).toBe(true);
+  });
+
+  it("mengenali turunan di bawah editor", () => {
+    expect(isBuilderPath("/web-design/customize/abc")).toBe(true);
+    expect(isBuilderPath("/dashboard/web-design/customize/abc")).toBe(true);
+  });
+
+  it("menolak halaman desain yang BUKAN editor", () => {
+    expect(isBuilderPath("/web-design")).toBe(false);
+    expect(isBuilderPath("/dashboard/web-design")).toBe(false);
+  });
+
+  it("tidak ikut cocok pada prefix yang mirip (cocok per-segmen)", () => {
+    // `startsWith` buta akan salah menandai dua path ini sebagai editor.
+    expect(isBuilderPath("/web-design/customize-abc")).toBe(false);
+    expect(isBuilderPath("/web-design/customizes")).toBe(false);
+  });
+
+  it("menolak halaman dashboard lain", () => {
+    expect(isBuilderPath("/products")).toBe(false);
+    expect(isBuilderPath("/dashboard/products")).toBe(false);
+    expect(isBuilderPath("/")).toBe(false);
+  });
+
+  it("bertemu dengan BUILDER_PATH yang diekspor", () => {
+    expect(isBuilderPath(BUILDER_PATH)).toBe(true);
+  });
+});
     it("path turunan ikut dipendekkan", () => {
       expect(dashboardNavHref("/products/123/edit", true)).toBe("/products/123/edit");
       expect(dashboardNavHref("/products/123/edit", false)).toBe(

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BuilderShell } from "@/components/builder/builder-shell";
 import { useBuilderStore } from "@/lib/builder/store";
@@ -84,10 +84,11 @@ export default function PageBuilderPage() {
           setSiteUrl(cfgJson.data.subdomain_url);
         }
         setPageTitle("Halaman Utama");
-        // Status tayang dari server — jadi topbar bisa menampilkan Tayang/Draft.
-        if (typeof config.is_published === "boolean") {
-          if (!cancelled) setIsPublished(config.is_published);
-        }
+        // Status tayang dinormalisasi ke boolean. Sebelumnya `undefined` dibiarkan
+        // apa adanya sehingga badge disembunyikan dan tidak pernah menjelaskan
+        // apa pun ke user. `=== true` aman untuk data lama: migrasi 044 sudah
+        // mem-backfill is_published untuk setiap baris yang ada.
+        if (!cancelled) setIsPublished(config.is_published === true);
         // Kanvas kosong (mis. website baru) tidak punya sections tersimpan.
         // Seed dari sections TEMPLATE, bukan config.sections global yang bisa
         // jadi snapshot basi.
@@ -205,8 +206,10 @@ export default function PageBuilderPage() {
     };
   }, [loadConfig]);
 
-  /** Simpan: layout -> halaman, header/footer/style -> global website. */
-  const handleSavePage = useCallback(async () => {
+  /** Simpan: layout -> halaman, header/footer/style -> global website.
+   *  `opts.saveAsTemplate` menyalin config ke library alih-alih menimpa
+   *  template aktif (lihat 045 + helper `saveAsLibraryTemplate`). */
+  const handleSavePage = useCallback(async (opts?: { saveAsTemplate?: boolean; libraryName?: string }) => {
     if (!websiteId) throw new Error("Website belum siap");
     const s = useBuilderStore.getState();
     const t = useTemplateStore.getState();
@@ -248,24 +251,43 @@ export default function PageBuilderPage() {
     // ID template yang dikirim = template library aktif (disimpan saat load).
     // t.template.id SELALU kosong (store template tak pernah diisi dari server
     // sejak katalog statis dikosongkan) → PUT 404 "Template tidak ditemukan".
-    const libMeta = libMetaRef.current;
+        const libMeta = libMetaRef.current;
+    // Kirim status tayang EKSPLISIT. Versi lama memakai
+    // `globalRef.current?.is_published !== false`, yang bernilai true saat
+    // undefined — artinya "Simpan" diam-diam ikut menayangkan halaman, membuat
+    // tombol Simpan dan Tayangkan tidak berbeda hasilnya.
+    const publishState = isPublished === true;
+    const saveAsTemplate = opts?.saveAsTemplate === true;
     const globalRes = await fetch(`/api/websites/${websiteId}/website`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        custom_config: { ...customConfig, is_published: globalRef.current?.is_published !== false },
+        custom_config: { ...customConfig, is_published: publishState },
+        ...(saveAsTemplate
+          ? { save_as_template: true, library_name: opts?.libraryName ?? "" }
+          : {}),
         template_id: libMeta?.id ?? t.template.id,
         ...(libMeta ? { template_source: libMeta.source } : {}),
       }),
     });
     const globalJson = await globalRes.json();
     if (!globalJson.success) throw new Error(globalJson.error ?? "Gagal menyimpan");
-    globalRef.current = globalJson.data.custom_config;
+        // Respons "Simpan sebagai template" TIDAK memuat `custom_config` — hanya
+    // mengembalikan baris library yang baru dibuat. Template aktif website tidak
+    // tersentuh aksi itu, jadi jangan menimpa globalRef/status tayang; kalau
+    // tidak, `undefined?.is_published === true` mengembalikan halaman ke Draft
+    // padahal tidak ada yang berubah.
+    if (!saveAsTemplate) {
+      globalRef.current = globalJson.data.custom_config;
+      // Segarkan status tayang dari respons server. Tanpa ini badge di topbar
+      // menampilkan nilai basi setelah Simpan/Tayangkan.
+      setIsPublished(globalJson.data.custom_config?.is_published === true);
+    }
     // Sinkronkan kembali builder-store (sumber payload bottom-bar/topbar)
     // dengan konten live agar indikator sesudah-save konsisten.
     useBuilderStore.setState({ sections: liveSections as never, saved: true });
     useTemplateStore.setState({ saved: true });
-  }, [websiteId]);
+  }, [websiteId, isPublished]);
 
   const handlePublishPage = useCallback(async () => {
     if (!websiteId) throw new Error("Website belum siap");
@@ -314,7 +336,7 @@ export default function PageBuilderPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-dvh w-full bg-gradient-to-br from-slate-50 via-emerald-50/40 to-amber-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 overflow-hidden">
+      <div className="flex flex-col h-full min-h-0 w-full bg-gradient-to-br from-slate-50 via-emerald-50/40 to-amber-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 overflow-hidden">
         {/* Skeleton topbar */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-emerald-100/70 bg-white/80 dark:bg-slate-900">
           <div className="flex items-center gap-2">
@@ -350,7 +372,7 @@ export default function PageBuilderPage() {
                 ))}
               </div>
             </div>
-            <p className="text-center text-sm font-bold text-emerald-700">🎨 Menyiapkan kanvas tokomu…</p>
+            <p className="text-center text-sm font-bold text-emerald-700">Menyiapkan kanvas tokomu…</p>
           </div>
         </div>
       </div>
@@ -359,9 +381,9 @@ export default function PageBuilderPage() {
 
   if (error || !websiteId) {
     return (
-      <div className="flex items-center justify-center h-dvh bg-gradient-to-br from-amber-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 p-4">
+      <div className="flex items-center justify-center h-full min-h-0 bg-gradient-to-br from-amber-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 p-4">
         <div className="text-center max-w-md w-full rounded-3xl border border-amber-200/70 bg-white dark:bg-slate-900 p-8 shadow-xl">
-          <div className="text-5xl mb-3">🏪😢</div>
+          <Store className="w-12 h-12 mx-auto mb-3 text-emerald-400 dark:text-emerald-500" />
           <h1 className="font-extrabold text-lg">Ups, halaman belum bisa dibuka</h1>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{error || "Halaman tidak ditemukan"}</p>
           <div className="flex items-center justify-center gap-2 mt-6">
@@ -385,7 +407,6 @@ export default function PageBuilderPage() {
       onSaveOverride={handleSavePage}
       onPublishOverride={handlePublishPage}
       isPublished={isPublished}
-      exitHref="/dashboard/web-design"
     />
   );
 }

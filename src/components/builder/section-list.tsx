@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import { useTemplateStore, getSectionVariant } from '@/lib/builder/template-store';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Trash2, Edit3, Copy } from 'lucide-react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { ChevronUp, ChevronDown, Trash2, Edit3, Copy, PanelTopDashed } from 'lucide-react';
 
 interface SectionListProps {
   onEditSection: (sectionId: string) => void;
@@ -33,6 +34,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
   const deleteSection = useTemplateStore((s) => s.deleteSection);
   const duplicateSection = useTemplateStore((s) => s.duplicateSection);
   const reorderSections = useTemplateStore((s) => s.reorderSections);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const q = search.trim().toLowerCase();
   const visible = useMemo(() => {
@@ -63,25 +65,35 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
 
   if (sections.length === 0) {
     return (
-      <div className="p-6 text-center rounded-2xl border-2 border-dashed border-slate-300/50 bg-slate-50/60 dark:bg-white/[0.03] dark:border-white/10">
-        <div className="text-3xl mb-2">...</div>
-        <p className="text-sm font-extrabold">Belum ada blok</p>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Klik "Tambah" untuk pasang blok pertama — hero, produk, testimoni.</p>
-      </div>
+      <>
+        {confirmDialog}
+        <div className="p-6 text-center rounded-2xl border-2 border-dashed border-slate-300/50 bg-slate-50/60 dark:bg-white/[0.03] dark:border-white/10">
+          <PanelTopDashed className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+          <p className="text-sm font-extrabold">Belum ada blok</p>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Tambahkan blok pertama untuk menyusun halaman — coba hero, produk, lalu cara order.
+          </p>
+        </div>
+      </>
     );
   }
 
   if (visible.length === 0) {
     return (
-      <div className="p-6 text-center rounded-xl border">
-        <p className="text-sm font-medium">Tidak ada section cocok</p>
-        <p className="text-xs text-muted-foreground mt-1">Coba kata kunci lain.</p>
-      </div>
+      <>
+        {confirmDialog}
+        <div className="p-6 text-center rounded-xl border">
+          <p className="text-sm font-medium">Tidak ada blok cocok</p>
+          <p className="text-xs text-muted-foreground mt-1">Coba kata kunci lain.</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <>
+      {confirmDialog}
+      <div className="space-y-2">
       {visible.map(({ s: section, i: index }) => {
         const variant = getSectionVariant(template, section.type, section.variantId);
         const sectionType = template.sections.find((st) => st.type === section.type);
@@ -155,11 +167,16 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 hover:text-red-500"
-                onClick={() => {
-                  if (confirm(`Hapus section "${sectionType?.name || section.type}"?`)) {
-                    deleteSection(section.id);
-                  }
-                }}
+                aria-label={`Hapus blok ${sectionType?.name || section.type}`}
+                onClick={() =>
+                  requestConfirm({
+                    title: 'Hapus blok ini?',
+                    description: `Blok "${sectionType?.name || section.type}" akan dihapus dari halaman. Kalau salah, kamu bisa membatalkannya dengan Ctrl+Z.`,
+                    confirmLabel: 'Hapus blok',
+                    tone: 'destructive',
+                    onConfirm: () => deleteSection(section.id),
+                  })
+                }
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
@@ -167,6 +184,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
           </div>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 }

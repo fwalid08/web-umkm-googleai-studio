@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, Copy, Check } from 'lucide-react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useState } from 'react';
 import type { TemplateSectionInstance } from '@/lib/builder/template-types';
 
@@ -35,6 +36,7 @@ function toHexInput(value: string, fallback: string): string {
 export function SectionConfig({ section }: { section: TemplateSectionInstance }) {
   const [copied, setCopied] = useState(false);
   const [anchorCopied, setAnchorCopied] = useState(false);
+  const { requestConfirm, confirmDialog } = useConfirm();
   const template = useTemplateStore((s) => s.template);
   const updateSection = useTemplateStore((s) => s.updateSection);
   const setSectionVariant = useTemplateStore((s) => s.setSectionVariant);
@@ -78,14 +80,19 @@ export function SectionConfig({ section }: { section: TemplateSectionInstance })
 
   if (!sectionType || !variant) {
     return (
-      <div className="p-4 text-center text-muted-foreground">
-        <p className="text-sm">Section tidak ditemukan di template ini</p>
-      </div>
+      <>
+        {confirmDialog}
+        <div className="p-4 text-center text-muted-foreground">
+          <p className="text-sm">Blok ini tidak ditemukan di template aktif</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      {confirmDialog}
+      <div className="space-y-4">
       <div className="p-3 rounded-xl border border-slate-200/50 bg-gradient-to-br from-emerald-50/60 to-teal-50/40 dark:from-white/[0.04] dark:to-transparent dark:border-white/[0.06] shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
         <div className="space-y-3">
           <div className="space-y-1.5">
@@ -508,17 +515,22 @@ export function SectionConfig({ section }: { section: TemplateSectionInstance })
           variant="destructive"
           size="sm"
           className="flex-1 h-8 rounded-lg font-bold shadow-md"
-          onClick={() => {
-            if (confirm('Hapus blok ini? Bisa di-undo (Ctrl+Z).')) {
-              deleteSection(section.id);
-            }
-          }}
+          onClick={() =>
+            requestConfirm({
+              title: 'Hapus blok ini?',
+              description: 'Blok akan hilang dari halaman. Kalau salah, kamu bisa membatalkannya dengan Ctrl+Z.',
+              confirmLabel: 'Hapus blok',
+              tone: 'destructive',
+              onConfirm: () => deleteSection(section.id),
+            })
+          }
         >
           <Trash2 className="w-3.5 h-3.5 mr-1.5" />
           Hapus
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -284,6 +284,16 @@ html{scroll-behavior:smooth;scroll-padding-top:76px}
   margin: 0 2px !important;
 }
 
+/* Perangkat tanpa hover (HP/tablet sentuh) tidak punya state `:hover` yang
+   bisa dipicu, sehingga toolbar blok (`opacity-0 group-hover:opacity-100`)
+   tidak pernah muncul — kontrol jadi mustahil dijangkau pakai jari. Di sini
+   toolbar selalu tampil. */
+@media (hover: none) {
+  .section-toolbar {
+    opacity: 1 !important;
+  }
+}
+
 /* Insert block button between sections */
 .insert-block-btn {
   margin-top: -20px !important;

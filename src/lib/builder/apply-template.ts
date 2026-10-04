@@ -14,6 +14,7 @@
 import { getSectionVariant } from './sections/registry';
 import { applySectionAssets } from './template-assets';
 import { getTemplate } from './template-store';
+import { BUILT_IN_CATALOG } from './templates/catalog';
 import type { Template } from './template-types';
 import type { SectionType } from './types';
 
@@ -53,6 +54,95 @@ export interface ApplyableTemplate {
  *  mungkin sudah tersimpan sebagai template_id website — tetap didukung. */
 export function resolveTemplateId(id: string): string {
   return id.replace(/^(system|builtin)-/, "");
+}
+/** Satu item template library user (baris `is_library` di user_templates). */
+export interface SavedTemplateEntry {
+  /** `saved-<uuid>` — slug sintetis, bukan slug katalog. */
+  id: string;
+  /** Slug katalog asal, dipakai supaya template_id valid di server. */
+  base_slug: string | null;
+  name: string;
+  sections_count: number;
+  /** Config lengkap hasil simpan — sumber isinya saat switch template. */
+  custom_config: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+/**
+ * Ubah entri library menjadi item berkatalog: template katalog dasar dengan
+ * `palette_override` yang tersimpan sudah ditimpakan.
+ *
+ * Dipakai oleh KEDUA tempat yang menampilkan template (galeri builder dan
+ * halaman /web-design) supaya kartu library di keduanya benar-benar sama —
+ * bukan dua implementasi yang lama-lama pasti melenceng.
+ *
+ * Return `null` bila `base_slug` tidak ada di katalog (mis. template katalog
+ * yang dipakai sudah dihapus): pemanggil sebaiknya melewati item itu dengan
+ * diam-diam daripada menampilkan kartu yang tidak bisa dipakai.
+ */
+export function savedToCatalogEntry<T extends { id: string; theme: { palette: object }; category: string }>(
+  saved: SavedTemplateEntry,
+  catalog: readonly T[],
+): T | null {
+  const base = catalog.find((t) => t.id === saved.base_slug);
+  if (!base) return null;
+  const override = (saved.custom_config?.palette_override ?? {}) as Record<string, string>;
+  return {
+    ...base,
+    theme: { ...base.theme, palette: { ...base.theme.palette, ...override } },
+  } as T;
+}
+
+/**
+ * Terapkan template library: config tersimpan dituliskan menjadi template
+ * aktif website (switch template).
+ *
+ * Berbeda dengan `applyTemplateToWebsite` yang membangun config dari katalog,
+ * di sini configNYA SUDAH LENGKAP di `custom_config` — jadi kita hanya perlu
+ * mengirimkannya apa adanya.
+ *
+ * `is_published` sengaja TIDAK ikut: status tayang milik website, bukan milik
+ * template. Kalau ikut, memilih template lama diam-diam mengubah halaman live
+ * tanpa user menyadarinya.
+ *
+ * `template_id` wajib diisi slug katalog (`base_slug`) karena endpoint PUT
+ * menolaknya dengan 404 kalau slug tidak ada di BUILT_IN_CATALOG.
+ */
+export async function applySavedTemplate(opts: {
+  websiteId: string;
+  saved: SavedTemplateEntry;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { websiteId, saved } = opts;
+  // Slug katalog asal. Fallback ke template pertama agar tidak gagal total
+  // bila base_slug null (baris lama sebelum migrasi 045).
+  const fallback = BUILT_IN_CATALOG[0];
+  const templateId = resolveTemplateId(saved.base_slug || fallback?.id || "");
+  if (!templateId) {
+    return { ok: false, error: "Template dasar tidak ditemukan" };
+  }
+
+  const { is_published: _ignored, ...config } = saved.custom_config;
+
+  try {
+    const res = await fetch(`/api/websites/${websiteId}/website`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template_id: templateId, custom_config: config }),
+    });
+    const json = (await res.json().catch(() => null)) as
+      | { success?: boolean; error?: string }
+      | null;
+    if (!res.ok || !json?.success) {
+      return { ok: false, error: json?.error ?? `Gagal memakai template (HTTP ${res.status})` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Gagal memakai template",
+    };
+  }
 }
 
 export function isLibraryTemplate(template: { source?: string }): boolean {

@@ -27,8 +27,17 @@ import {
   Search as SearchIcon,
   Settings,
   ExternalLink,
+  ChevronRight,
+  Keyboard,
+  X,
 } from 'lucide-react';
 import { SectionList } from './section-list';
+import {
+  SIDEBAR_TITLES,
+  BUILDER_SHORTCUTS,
+  MIN_SEO_TITLE,
+  type SidebarLevel as BuilderSidebarLevel,
+} from '@/lib/builder/builder-ui';
 import {
   Dialog,
   DialogContent,
@@ -46,12 +55,14 @@ import { MockupPreview } from '@/lib/builder/mockup-preview';
 import type { BusinessCategory } from '@/lib/builder/templates/catalog';
 import {
   applyTemplateToWebsite,
+  applySavedTemplate,
   resolveStoreTemplate,
   type ApplyableTemplate,
 } from '@/lib/builder/apply-template';
 import type { Template, HeaderVariant, FooterVariant } from '@/lib/builder/template-types';
 
-type SidebarLevel = 'main' | 'sections' | 'section-config' | 'header' | 'footer' | 'seo' | 'style' | 'template-info';
+/** Level panel sidebar. Sumber tunggal: `builder-ui.ts` (dipakai juga judulnya). */
+type SidebarLevel = BuilderSidebarLevel;
 
 /**
  * Varian darurat bila template aktif tidak punya varian header/footer
@@ -103,7 +114,7 @@ function normalizeChrome(
   return out;
 }
 
-export function BuilderSidebar({ websiteId }: { websiteId: string }) {
+export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { websiteId: string; isPublished?: boolean; onCloseMobile?: () => void }) {
   const [level, setLevel] = useState<SidebarLevel>('main');
   const [showSectionPicker, setShowSectionPicker] = useState(false);
   const [sectionSearch, setSectionSearch] = useState('');
@@ -176,8 +187,33 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
 
   const renderMainMenu = () => (
     <div className="space-y-3">
-      <p className="px-1 pt-1 text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest">
-        Konten halaman
+      <p className="px-1 text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest">
+        Desain & Styles
+      </p>
+
+      {/* Template jadi pintu pertama: user paling sering mulai dari "pakai
+          template lain", bukan dari menyusun blok satu per satu. */}
+      <MenuCard
+        onClick={() => setShowTemplateGallery(true)}
+        icon={<LayoutTemplate className="w-5 h-5 text-white" />}
+        gradient="from-pink-500 to-rose-600"
+        hover="hover:border-pink-300 hover:shadow-pink-100"
+        title="Ganti Template"
+        desc="Warna, font & gaya sekaligus"
+        badge="Baru"
+        badgeClass="bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200"
+      />
+      <MenuCard
+        onClick={() => setLevel('style')}
+        icon={<Palette className="w-5 h-5 text-white" />}
+        gradient="from-teal-500 to-emerald-600"
+        hover="hover:border-teal-300 hover:shadow-teal-100"
+        title="Theme & Font"
+        desc="Ganti theme & skema warna aman"
+      />
+
+      <p className="px-1 pt-3 text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest">
+        Konfigurasi Template
       </p>
       <MenuCard
         onClick={() => setLevel('header')}
@@ -206,35 +242,29 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         desc="Info bawah, kontak & sosmed"
       />
 
-      <p className="px-1 pt-3 text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest">
-        Percantik & promosi
-      </p>
-      <MenuCard
-        onClick={() => setLevel('style')}
-        icon={<Palette className="w-5 h-5 text-white" />}
-        gradient="from-teal-500 to-emerald-600"
-        hover="hover:border-teal-300 hover:shadow-teal-100"
-        title="Tema & Warna"
-        desc="Ganti theme & skema warna aman"
-      />
-      <MenuCard
-        onClick={() => setShowTemplateGallery(true)}
-        icon={<LayoutTemplate className="w-5 h-5 text-white" />}
-        gradient="from-pink-500 to-rose-600"
-        hover="hover:border-pink-300 hover:shadow-pink-100"
-        title="Ganti Template"
-        desc="Warna, font & gaya sekaligus"
-        badge="Baru"
-        badgeClass="bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200"
-      />
-      <MenuCard
-        onClick={() => setLevel('seo')}
-        icon={<Search className="w-5 h-5 text-white" />}
-        gradient="from-amber-500 to-orange-600"
-        hover="hover:border-amber-300 hover:shadow-amber-100"
-        title="SEO Google"
-        desc="Judul & deskripsi agar mudah dicari"
-      />
+      {/* SEO dipindah ke halaman dashboard sendiri (/seo) — lihat
+          app/dashboard/seo/page.tsx. Di dalam builder tidak ada lagi, karena
+          pengaturan ini bukan bagian dari template. */}
+
+      {/* Pintasan keyboard — dulu teks `⌨️ Ctrl+S simpan • Ctrl+Z undo` hanya
+          nempel di bottom bar dan hilang di layar kecil. */}
+      <details className="group rounded-2xl border border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] overflow-hidden">
+        <summary className="flex items-center gap-2 px-3.5 py-2.5 cursor-pointer select-none text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+          <Keyboard className="w-4 h-4" />
+          Pintasan keyboard
+          <ChevronRight className="w-3.5 h-3.5 ml-auto transition-transform group-open:rotate-90" />
+        </summary>
+        <ul className="px-3.5 pb-3 space-y-1.5">
+          {BUILDER_SHORTCUTS.map((s) => (
+            <li key={s.keys} className="flex items-center justify-between gap-3">
+              <kbd className="px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 font-mono text-[10px] font-bold text-foreground">
+                {s.keys}
+              </kbd>
+              <span className="text-[11px] text-muted-foreground text-right">{s.label}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
     </div>
   );
 
@@ -400,7 +430,6 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
     </div>
   );
 
-  const renderSeoConfig = () => <SeoConfigPanel />;
   const renderStyleSelector = () => <StyleSelector />;
 
   const renderContent = () => {
@@ -415,8 +444,6 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
         return renderHeaderConfig();
       case 'footer':
         return renderFooterConfig();
-      case 'seo':
-        return renderSeoConfig();
       case 'style':
         return renderStyleSelector();
       default:
@@ -424,18 +451,7 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
     }
   };
 
-  const getTitle = () => {
-    switch (level) {
-      case 'main': return 'Builder';
-      case 'sections': return 'Sections';
-      case 'section-config': return 'Section Config';
-      case 'header': return 'Header';
-      case 'footer': return 'Footer';
-      case 'seo': return 'SEO';
-      case 'style': return 'Tema & Warna';
-      default: return 'Builder';
-    }
-  };
+  const getTitle = () => SIDEBAR_TITLES[level] ?? SIDEBAR_TITLES.main;
 
   const canGoBack = level !== 'main';
 
@@ -459,11 +475,25 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
               ) : level === 'section-config' && selectedSection ? (
                 <p className="text-xs text-muted-foreground truncate">{selectedSection.type} • {selectedSection.variantId}</p>
               ) : level === 'style' ? (
-                <p className="text-[11px] text-muted-foreground truncate mt-0.5">Theme, skema & warna — berlaku di semua halaman</p>
+                <p className="text-[11px] text-muted-foreground truncate mt-0.5">Tema, skema & warna — berlaku di semua halaman</p>
               ) : (
                 <p className="text-[11px] text-muted-foreground truncate mt-0.5">{sections.length} blok di halaman ini</p>
               )}
             </div>
+            {/* Di HP sidebar jadi drawer menumpuk di atas kanvas, jadi butuh
+                tombol tutup yang jelas — sebelumnya satu-satunya cara menutup
+                adalah mengetuk area gelap di belakang panel. */}
+            {onCloseMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg hover:bg-emerald-100 sm:hidden shrink-0"
+                onClick={onCloseMobile}
+                aria-label="Tutup panel pengaturan"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 pb-8 min-h-0">
@@ -535,6 +565,23 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
                 useBuilderStore.getState().resetPaletteOverride();
                 setShowTemplateGallery(false);
               }}
+              onApplySaved={async (saved) => {
+                setApplyError('');
+                // Ganti template: config library ditulis ulang ke template
+                // aktif website. Setelah itu kanvas dimuat ulang dari server
+                // supaya isi store = isi DB (apply lewat katalog cukup dengan
+                // `applyTemplate`, tapi apply ini menulis config dari DB
+                // sehingga store lokal jadi basi).
+                const result = await applySavedTemplate({ websiteId, saved });
+                if (!result.ok) {
+                  setApplyError(result.error ?? 'Gagal memakai template');
+                  return;
+                }
+                setShowTemplateGallery(false);
+                // Muat ulang builder supaya kanvas/header/footer mengikuti
+                // template yang baru dipakai.
+                window.location.reload();
+              }}
               onPreview={(template: any) => {
                 if (!template?.id) return;
                 window.open(`/preview/${template.id}`, '_blank');
@@ -586,84 +633,5 @@ function MenuCard({
         <span className="text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0">›</span>
       )}
     </button>
-  );
-}
-
-function SeoConfigPanel() {
-  const seo = useBuilderStore((s) => s.seo);
-  const updateSeo = useBuilderStore((s) => s.updateSeo);
-  const sections = useTemplateStore((s) => s.sections);
-
-  const checks = [
-    { label: `Meta title terisi (${seo.title.length}/60)`, ok: seo.title.trim().length >= 10 && seo.title.length <= 60 },
-    { label: `Meta description terisi (${seo.description.length}/160)`, ok: seo.description.trim().length >= 50 && seo.description.length <= 160 },
-    { label: `Minimal 3 section konten (${sections.length})`, ok: sections.length >= 3 },
-    { label: 'Template dipilih', ok: true },
-  ];
-  const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
-
-  return (
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">Meta Tags</h4>
-        <div className="space-y-2">
-          <Label>Meta Title</Label>
-          <Input
-            value={seo.title}
-            onChange={(e) => updateSeo({ title: e.target.value, description: seo.description })}
-            placeholder="Toko Saya - Produk Berkualitas"
-            maxLength={60}
-          />
-          <p className="text-xs text-muted-foreground">{seo.title.length}/60 karakter</p>
-        </div>
-        <div className="space-y-2">
-          <Label>Meta Description</Label>
-          <Textarea
-            className="min-h-[100px]"
-            value={seo.description}
-            onChange={(e) => updateSeo({ title: seo.title, description: e.target.value })}
-            placeholder="Deskripsi toko Anda untuk mesin pencari"
-            maxLength={160}
-          />
-          <p className="text-xs text-muted-foreground">{seo.description.length}/160 karakter</p>
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold">Social Preview</h4>
-        <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground leading-relaxed">
-          Preview sosial (OG image) dibuat otomatis dari judul, deskripsi, dan logo toko saat website dipublish.
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold">SEO Score</h4>
-          <span className={`text-xs font-bold px-2 py-1 rounded-full ${score >= 75 ? 'bg-emerald-100 text-emerald-700' : score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-            {score}%
-          </span>
-        </div>
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${score >= 75 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
-            style={{ width: `${score}%` }}
-          />
-        </div>
-        <div className="p-3 border rounded-lg bg-muted/40">
-          <ul className="text-xs space-y-1.5">
-            {checks.map((c) => (
-              <li key={c.label} className="flex items-start gap-2">
-                <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${c.ok ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                <span className={c.ok ? 'text-foreground' : 'text-muted-foreground'}>{c.label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
   );
 }

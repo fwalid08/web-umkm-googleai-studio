@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, ExternalLink, Lock } from 'lucide-react';
+import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, ExternalLink, Lock, Library } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Template } from '@/lib/builder/template-types';
 import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { isCatalogTemplateAllowedForTier } from '@/lib/builder/validation';
+import { savedToCatalogEntry, type SavedTemplateEntry } from '@/lib/builder/apply-template';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -23,6 +24,12 @@ interface TemplateGalleryProps {
   websiteId: string;
   onApply: (template: UnifiedTemplate) => void;
   onPreview?: (template: UnifiedTemplate) => void;
+  /**
+   * Terapkan template library user (ganti template aktif). Terpisah dari
+   * `onApply` karena bentuk datanya berbeda: item library menyimpan config
+   * lengkap, bukan referensi ke katalog.
+   */
+  onApplySaved?: (saved: SavedTemplateEntry) => void | Promise<void>;
   onClose?: () => void;
   userTier?: string;
 }
@@ -32,16 +39,47 @@ interface UnifiedTemplate {
   name: string;
   description: string;
   category: BusinessCategory;
-  source: 'builtin';
+  source: 'builtin' | 'saved';
   sectionsCount: number;
   tiers?: string[];
   data: Template;
+  /** Terisi hanya untuk `source: 'saved'` — config aslinya dari library. */
+  saved?: SavedTemplateEntry;
 }
 
-export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTier }: TemplateGalleryProps) {
+export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, onClose, userTier }: TemplateGalleryProps) {
   void websiteId;
   void onClose;
   const [loading] = useState(false);
+  // Template library user (disimpan lewat "Simpan sebagai Template"). Dimuat
+  // terpisah dari katalog statis: katalog berasal dari kode, library dari DB.
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplateEntry[]>([]);
+  const [savedLoading, setSavedLoading] = useState(true);
+  // Tab: Katalog (template bawaan dari kode) vs Library (desain tersimpan user).
+  // Satu tab untuk keduanya supaya tidak ada daftar "cuma satu" yang terasa
+  // seperti fitur setengah jadi.
+  const [tab, setTab] = useState<'catalog' | 'library'>('catalog');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/templates?library=1');
+        const json = await res.json();
+        if (cancelled) return;
+        if (json?.success && Array.isArray(json.data?.saved)) {
+          setSavedTemplates(json.data.saved as SavedTemplateEntry[]);
+        }
+      } catch {
+        // Gagal memuat library tidak boleh memblokir galeri katalog.
+      } finally {
+        if (!cancelled) setSavedLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -118,12 +156,54 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
     if (applyingTemplateId) return;
     setApplyingTemplateId(template.id);
     try {
-      await onApply(template);
+      // Item library menyimpan config-nya sendiri, jadi jalurnya berbeda dan
+      // TIDAK lewat `onApply` (yang membangun config dari katalog).
+      if (template.source === 'saved' && template.saved) {
+        await onApplySaved?.(template.saved);
+      } else {
+        await onApply(template);
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
     } finally {
       setApplyingTemplateId(null);
     }
   };
+
+  /**
+   * Ubah entri library menjadi `UnifiedTemplate` supaya bisa dirender oleh
+   * `TemplateCard` yang SAMA dengan katalog — bukan kartu terpisah yang
+   * lama-lama pasti tampilannya melenceng.
+   *
+   * `data` diambil dari template katalog dasar (base_slug) karena library
+   * hanya menyimpan config, bukan definisi template. Warna preview di-overwrite
+   * dengan palette yang tersimpan supaya kartu mencerminkan desain sebenarnya.
+   */
+  const savedUnified = useMemo<UnifiedTemplate[]>(
+    () =>
+      savedTemplates
+        .map((saved): UnifiedTemplate | null => {
+          // `savedToCatalogEntry` yang menimpakan palette override — dipakai juga
+          // oleh halaman /web-design, jadi kartu library di kedua tempat sama.
+          const data = savedToCatalogEntry(saved, BUILT_IN_CATALOG) as Template | null;
+          if (!data) return null;
+          return {
+            id: saved.id,
+            name: saved.name,
+            description: `Desain tersimpanmu — ${saved.sections_count} blok${
+              saved.updated_at
+                ? `, disimpan ${new Date(saved.updated_at).toLocaleDateString('id-ID')}`
+                : ''
+            }.`,
+            category: data.category,
+            source: 'saved',
+            sectionsCount: saved.sections_count,
+            data,
+            saved,
+          };
+        })
+        .filter((t): t is UnifiedTemplate => t !== null),
+    [savedTemplates],
+  );
 
   const getStyleColors = (template: Template) => {
     return template.theme.palette;
@@ -169,8 +249,14 @@ const colors = getStyleColors(template.data);
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <h4 className="font-semibold truncate">{template.name}</h4>
-            <Badge variant="default" className="bg-primary/10 text-primary text-[10px]">
-              <Sparkles className="w-2.5 h-2.5 mr-1" /> Bawaan
+            <Badge variant="default" className={template.source === 'saved'
+              ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200 text-[10px]'
+              : 'bg-primary/10 text-primary text-[10px]'}>
+              {template.source === 'saved' ? (
+                <><Library className="w-2.5 h-2.5 mr-1" /> Tersimpan</>
+              ) : (
+                <><Sparkles className="w-2.5 h-2.5 mr-1" /> Bawaan</>
+              )}
             </Badge>
             {locked && (
               <Badge variant="default" className="bg-amber-100 text-amber-800 text-[10px] dark:bg-amber-900/40 dark:text-amber-200">
@@ -216,12 +302,48 @@ const colors = getStyleColors(template.data);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-1 bg-muted p-1 rounded-lg w-fit">
-        <Button variant="default" size="sm" className="h-8 gap-1.5">
-          <Sparkles className="w-4 h-4" /> Katalog ({builtinUnified.length})
-        </Button>
+      {/* ============ Tab: Katalog | Library ============
+          Dua sumber template disatukan dalam satu tempat: katalog bawaan
+          (dari kode) dan library desain milik user (dari DB).
+
+          Diletakkan paling atas, langsung di bawah judul modal, supaya
+          memilih sumber template adalah keputusan pertama — bukan sesuatu
+          yang baru ditemukan setelah baris pencarian. Baris "Katalog (N)"
+          yang sebelumnya ada di posisi ini adalah sisa UI lama tanpa onClick
+          (selalu aktif, tidak pernah mengubah apa pun), makanya dihapus. */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-muted w-fit" role="tablist">
+        {(['catalog', 'library'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-[13px] font-bold transition-colors ${
+              tab === key
+                ? 'bg-white dark:bg-slate-800 text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {key === 'catalog' ? (
+              <><Layout className="w-3.5 h-3.5" /> Katalog</>
+            ) : (
+              <><Library className="w-3.5 h-3.5" /> Library
+                {savedTemplates.length > 0 && (
+                  <span className="text-[10px] font-bold bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200 px-1.5 rounded-full tabular-nums">
+                    {savedTemplates.length}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+        ))}
       </div>
 
+      {/* Pencarian + filter kategori hanya relevan untuk katalog — query-nya
+          memfilter `builtinUnified`, jadi menampilkannya di tab Library
+          memberi kendali yang tidak melakukan apa-apa. */}
+      {tab === 'catalog' && (
       <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/30 rounded-lg">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -244,21 +366,43 @@ const colors = getStyleColors(template.data);
           </Button>
         )}
       </div>
+      )}
+
 
       <p className="text-sm text-muted-foreground">
-        Menampilkan {paginatedTemplates.length} dari {filteredTemplates.length} template ({builtinUnified.length} bawaan)
+        {tab === 'catalog'
+          ? `Menampilkan ${paginatedTemplates.length} dari ${filteredTemplates.length} template (${builtinUnified.length} bawaan)`
+          : 'Desain yang kamu simpan sendiri. Memilih salah satu akan mengganti template aktif website.'}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
-        {paginatedTemplates.length === 0 ? (
+        {tab === 'catalog' ? (
+          paginatedTemplates.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+              <Layout className="w-16 h-16 text-muted-foreground/30 mb-4" />
+              <h4 className="font-semibold">Tidak ada template ditemukan</h4>
+              <p className="text-sm text-muted-foreground mt-1">Coba ubah filter atau kata kunci pencarian</p>
+            </div>
+          ) : (
+            paginatedTemplates.map((template) => (
+              <TemplateCard key={template.id} template={template} onPreview={onPreview as ((template: UnifiedTemplate) => void) | undefined} />
+            ))
+          )
+        ) : savedLoading ? (
+          <div className="col-span-full flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : savedUnified.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-            <Layout className="w-16 h-16 text-muted-foreground/30 mb-4" />
-            <h4 className="font-semibold">Tidak ada template ditemukan</h4>
-            <p className="text-sm text-muted-foreground mt-1">Coba ubah filter atau kata kunci pencarian</p>
+            <Library className="w-16 h-16 text-muted-foreground/30 mb-4" />
+            <h4 className="font-semibold">Library kamu masih kosong</h4>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              Tekan &quot;Simpan&quot; di editor lalu pilih &quot;Simpan sebagai template&quot; supaya desain ini muncul di sini.
+            </p>
           </div>
         ) : (
-          paginatedTemplates.map((template) => (
-            <TemplateCard key={template.id} template={template} onPreview={onPreview as ((template: UnifiedTemplate) => void) | undefined} />
+          savedUnified.map((template) => (
+            <TemplateCard key={template.id} template={template} />
           ))
         )}
       </div>
