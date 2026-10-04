@@ -173,7 +173,7 @@ describe('REGRESI: logika apply tidak boleh diduplikasi', () => {
    */
   const callSites = [
     ['src', 'components', 'builder', 'builder-sidebar.tsx'],
-    ['src', 'components', 'customize', 'templates-tab.tsx'],
+    ['src', 'components', 'customize', 'template-picker.tsx'],
   ];
 
   it('kedua call site memakai applyTemplateToWebsite', () => {

@@ -85,10 +85,20 @@ function resolveTemplate(
 export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGallery, refreshKey = 0, initialTemplateId = null, initialStyleId = null, initialTemplateCategory = null }: ActiveTemplateCardProps) {
   // Data awal dipasok parent (sudah fetch saat load halaman) → tidak ada flash
   // card kuning dan tidak ada double-fetch saat mount.
-  const [currentTemplate, setCurrentTemplate] = useState<SystemTemplate | null>(null);
-  const [currentStyle, setCurrentStyle] = useState<DesignStyle | null>(null);
+  //
+  // PENTING: `initialTemplateId` harus benar-benar dipakai untuk SEED state,
+  // bukan hanya untuk menentukan flag `loading`. Dulu state di-hardcode `null`
+  // sementara `loading` sudah `false` (karena parent punya id), jadi render
+  // pertama jatuh ke branch `!currentTemplate` → kartu KUNING "Belum Ada
+  // Template" muncul sesaat, lalu hilang setelah effect fetch selesai.
+  // `resolveTemplate` murni (baca BUILT_IN_CATALOG, tanpa fetch) sehingga aman
+  // dipanggil saat render dan gratis. Dipanggil SEKALI di sini lalu dipakai
+  // untuk seed ketiga state di bawah.
+  const seeded = resolveTemplate(initialTemplateId, initialStyleId, initialTemplateCategory);
+  const [currentTemplate, setCurrentTemplate] = useState<SystemTemplate | null>(seeded.template);
+  const [currentStyle, setCurrentStyle] = useState<DesignStyle | null>(seeded.style);
   // Skeleton hanya bila parent tidak punya data awal sama sekali.
-  const [loading, setLoading] = useState(() => !initialTemplateId && !initialStyleId);
+  const [loading, setLoading] = useState(!seeded.template);
 
   useEffect(() => {
     // Fetch ulang saat websiteId atau refreshKey berubah (template baru diterapkan).
@@ -115,8 +125,9 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
     return () => {
       cancelled = true;
     };
-    // initialTemplateId/initialStyleId sengaja hanya dipakai saat mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Sengaja TIDAK bergantung pada initialTemplateId/initialStyleId/
+    // initialTemplateCategory: nilai itu hanya untuk seed render pertama.
+    // Perubahan nyata datang lewat refreshKey (setelah template diterapkan).
   }, [websiteId, refreshKey]);
 
   if (loading) {

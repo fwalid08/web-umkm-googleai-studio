@@ -71,6 +71,24 @@ describe("admin host routing", () => {
     expect(signin.searchParams.get("callbackUrl")).toBe("/settings");
   });
 
+  it("rewrites canonical root customize alias to the existing dashboard route", async () => {
+    getTokenMock.mockResolvedValueOnce({ email: "merchant@example.com" });
+    const customize = await runProxy(new NextRequest("http://admin.localhost:3000/customize"));
+    expect(new URL(customize.headers.get("x-middleware-rewrite")!).pathname).toBe("/dashboard/customize");
+
+    getTokenMock.mockResolvedValueOnce(null);
+    const protectedCustomize = await runProxy(new NextRequest("http://admin.localhost:3000/customize"));
+    const signin = new URL(protectedCustomize.headers.get("location")!);
+    expect(signin.pathname).toBe("/signin");
+    expect(signin.searchParams.get("callbackUrl")).toBe("/customize");
+  });
+
+  it("redirects dashboard-prefixed customize to the canonical root path", async () => {
+    const response = await runProxy(new NextRequest("http://admin.localhost:3000/dashboard/customize"));
+    const location = new URL(response.headers.get("location")!);
+    expect(location.pathname).toBe("/customize");
+  });
+
   it("protects onboarding and preserves its return path", async () => {
     getTokenMock.mockResolvedValueOnce(null);
 

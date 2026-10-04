@@ -288,7 +288,7 @@ export default function DashboardWebsitesPage() {
                 {/* Action Buttons */}
                 <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 dark:border-slate-800">
                   <Button variant="outline" size="sm" asChild className="gap-1.5">
-                    <Link href="/dashboard/websites/customize">
+                    <Link href="/dashboard/customize">
                       <Palette className="w-3.5 h-3.5" />
                       <span>Desain</span>
                     </Link>
@@ -307,7 +307,7 @@ export default function DashboardWebsitesPage() {
                     </Button>
                   ) : (
                     <Button variant="secondary" size="sm" asChild>
-                      <Link href="/dashboard/websites/customize">
+                      <Link href="/dashboard/customize">
                         Atur
                       </Link>
                     </Button>

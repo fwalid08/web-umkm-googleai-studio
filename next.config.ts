@@ -31,14 +31,20 @@ const nextConfig: NextConfig = {
       },
       {
         // Halaman legacy (localStorage, tidak terhubung DB) — alihkan ke
-        // pengelola halaman resmi di tab Halaman.
+        // halaman Desain Website.
         source: "/dashboard/pages",
-        destination: "/dashboard/websites/customize?tab=halaman",
+        destination: "/dashboard/customize",
         permanent: true,
       },
       {
         source: "/dashboard/stores",
         destination: "/dashboard/websites",
+        permanent: true,
+      },
+      {
+        // Rute lama halaman Desain Website (pindah dari /dashboard/websites).
+        source: "/dashboard/websites/customize/:path*",
+        destination: "/dashboard/customize",
         permanent: true,
       },
     ];
@@ -60,6 +66,8 @@ const nextConfig: NextConfig = {
       { source: "/domain/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/domain/:path*" },
       { source: "/themes/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/themes/:path*" },
       { source: "/announcement/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/announcement/:path*" },
+      // Halaman Desain Website (/dashboard/customize → kanonik /customize di admin host)
+      { source: "/customize/:path*", has: [{ type: "host", value: adminHost }], destination: "/dashboard/customize/:path*" },
       // Auth on admin subdomain
       { source: "/signin", has: [{ type: "host", value: adminHost }], destination: "/signin" },
       { source: "/signup", has: [{ type: "host", value: adminHost }], destination: "/signup" },

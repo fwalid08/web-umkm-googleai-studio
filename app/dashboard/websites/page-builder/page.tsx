@@ -54,9 +54,9 @@ export default function PageBuilderIndex() {
           </h1>
           <p className="text-sm text-muted-foreground mt-2">{error}</p>
           <Button asChild className="mt-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 font-bold">
-            <Link href="/dashboard/websites/customize?tab=halaman">
+            <Link href="/dashboard/customize">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Ke Daftar Halaman
+              Ke Kustomisasi Desain
             </Link>
           </Button>
         </div>

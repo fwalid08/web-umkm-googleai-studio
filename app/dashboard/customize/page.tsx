@@ -2,18 +2,12 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PagesTab } from "@/components/customize/pages-tab";
-import { GeneralTab } from "@/components/customize/general-tab";
 import { ActiveTemplateCard } from "@/components/customize/active-template-card";
-import { TemplatesTab } from "@/components/customize/templates-tab";
-import { SeoTab } from "@/components/customize/seo-tab";
-import { useBuilderStore } from "@/lib/builder/store";
-import type { StorePage } from "@/lib/builder/types";
+import { TemplatePicker } from "@/components/customize/template-picker";
 import { ToastProvider } from "@/components/ui/toast";
 
 interface ActiveSite {
@@ -22,28 +16,16 @@ interface ActiveSite {
   subdomain: string | null;
 }
 
-// Pakai type bersama (src/lib/builder/types.ts) agar selaras dengan store_pages.
-type StorePageRef = Pick<StorePage, "id" | "title" | "slug" | "is_homepage">;
-
-const VALID_TABS = ["umum", "halaman", "seo"] as const;
-type TabKey = (typeof VALID_TABS)[number];
-
 function CustomizeInner() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const tab: TabKey = VALID_TABS.includes(tabParam as TabKey) ? (tabParam as TabKey) : "umum";
 
   const [site, setSite] = useState<ActiveSite | null>(null);
   const [homepagePageId, setHomepagePageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
-  // Identitas template aktif untuk ActiveTemplateCard (hindari double-fetch).
+  // Identitas template aktif untuk ActiveTemplateCard + TemplatePicker (hindari double-fetch).
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
-  const [activeStyleId, setActiveStyleId] = useState<string | null>(null);
-  const [activeTemplateCategory, setActiveTemplateCategory] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -61,21 +43,20 @@ function CustomizeInner() {
         const pagesRes = await fetch(`/api/websites/${activeSite.id}/pages`);
         const pagesJson = await pagesRes.json();
         if (pagesJson.success) {
-          const pages = pagesJson.data as StorePageRef[];
+          const pages = pagesJson.data as Array<{ id: string; is_homepage: boolean }>;
           const homepage = pages.find((p) => p.is_homepage);
           if (homepage) setHomepagePageId(homepage.id);
         }
 
-        // Load website config into builder store
+        // Load identitas template aktif (template_id dari API).
         const configRes = await fetch(`/api/websites/${activeSite.id}/website`);
         const configJson = await configRes.json();
-        if (configJson.success && configJson.data?.custom_config) {
-          useBuilderStore.getState().loadConfig(configJson.data.custom_config);
-        }
         if (configJson.success) {
-          setActiveTemplateId(configJson.data?.template_id ?? null);
-          setActiveStyleId(configJson.data?.custom_config?.design_style_id ?? null);
-          setActiveTemplateCategory(configJson.data?.template_name ?? null);
+          setActiveTemplateId(
+            typeof configJson.data?.template_id === "string"
+              ? configJson.data.template_id
+              : null,
+          );
         }
       }
     } catch {
@@ -89,29 +70,18 @@ function CustomizeInner() {
     load();
   }, [load]);
 
-  // Listen for custom events from TemplatesTab quick actions
+  // Tombol "Customize Homepage" di kartu template aktif.
   useEffect(() => {
     const handleOpenPageBuilder = (e: CustomEvent<{ pageId: string }>) => {
       if (e.detail?.pageId && homepagePageId) {
         router.push(`/dashboard/websites/page-builder/${homepagePageId}`);
       }
     };
-    const handleOpenCustomizeTab = (e: CustomEvent<{ tab: string }>) => {
-      if (e.detail?.tab && VALID_TABS.includes(e.detail.tab as TabKey)) {
-        switchTab(e.detail.tab);
-      }
-    };
     window.addEventListener('open-page-builder', handleOpenPageBuilder as EventListener);
-    window.addEventListener('open-customize-tab', handleOpenCustomizeTab as EventListener);
     return () => {
       window.removeEventListener('open-page-builder', handleOpenPageBuilder as EventListener);
-      window.removeEventListener('open-customize-tab', handleOpenCustomizeTab as EventListener);
     };
   }, [router, homepagePageId]);
-
-  function switchTab(v: string) {
-    router.replace(`/dashboard/websites/customize?tab=${v}`, { scroll: false });
-  }
 
   if (loading) {
     return (
@@ -154,52 +124,41 @@ function CustomizeInner() {
           </Button>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Desain Website</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Toko: <span className="font-semibold text-foreground">{site.name}</span> {"\u2014"} template,
-            halaman, dan pengaturan umum dalam satu tempat. Menu navigasi diatur
-            di Page Builder ({'\u2192'} blok Header).
+            Toko: <span className="font-semibold text-foreground">{site.name}</span> {"\u2014"} pilih
+            template di bawah untuk mengganti template aktif, lalu kustomisasi warna, font,
+            dan section lewat tombol Customize Homepage.
           </p>
         </div>
       </div>
 
-{/* Active Template Card - Above Tabs */}
+      {/* Template aktif + tombol Customize Homepage */}
       <ActiveTemplateCard
         key={site.id}
         websiteId={site.id}
         homepagePageId={homepagePageId}
-        onOpenTemplateGallery={() => setShowTemplateGallery(true)}
+        onOpenTemplateGallery={() => {
+          document
+            .getElementById("template-picker")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
         refreshKey={templateRefreshKey}
         initialTemplateId={activeTemplateId}
-        initialStyleId={activeStyleId}
-        initialTemplateCategory={activeTemplateCategory}
       />
 
-      {/* Tabs - Full Width Equal Width */}
-      <Tabs value={tab} onValueChange={switchTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="umum">Umum</TabsTrigger>
-          <TabsTrigger value="halaman">Halaman</TabsTrigger>
-          <TabsTrigger value="seo">SEO</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="umum" className="mt-6">
-          <GeneralTab websiteId={site.id} />
-        </TabsContent>
-        <TabsContent value="halaman" className="mt-6">
-          <PagesTab websiteId={site.id} />
-        </TabsContent>
-<TabsContent value="seo" className="mt-6">
-          <SeoTab websiteId={site.id} />
-        </TabsContent>
-      </Tabs>
-
-      {/* Template Gallery Modal - using TemplatesTab's internal dialog */}
-      <TemplatesTab
-        websiteId={site.id}
-        homepagePageId={homepagePageId}
-        isGalleryOpen={showTemplateGallery}
-        onGalleryClose={() => setShowTemplateGallery(false)}
-        onTemplateApplied={() => setTemplateRefreshKey((k) => k + 1)}
-      />
+      {/* Daftar template yang bisa dipilih — mengganti template di kartu aktif */}
+      <div id="template-picker" className="scroll-mt-4">
+        <TemplatePicker
+          websiteId={site.id}
+          activeTemplateId={activeTemplateId}
+          onTemplateApplied={(templateId) => {
+            // Refresh kartu template aktif: identitas dari server bila tersedia.
+            setTemplateRefreshKey((k) => k + 1);
+            if (typeof templateId === "string" && templateId.length > 0) {
+              setActiveTemplateId(templateId);
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@
  * Alur "terapkan template" — SATU implementasi untuk semua konsumen.
  *
  * Kenapa modul ini ada: `TemplateGallery` punya DUA konsumen —
- * `customize/templates-tab.tsx` dan `builder/builder-sidebar.tsx` — dan
+ * `customize/template-picker.tsx` dan `builder/builder-sidebar.tsx` — dan
  * logikanya pernah diduplikasi di keduanya. Akibatnya satu call site sempat
  * tertinggal: template hasil import ZIP gagal diterapkan di page-builder dengan
  * `Template not found in catalog: <uuid>` karena hanya call site itu yang masih

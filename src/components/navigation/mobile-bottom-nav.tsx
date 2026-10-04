@@ -4,31 +4,58 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, ShoppingBag, Store, Palette, Layers } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { dashboardNavHref } from "@/lib/nav";
 
-export function MobileBottomNav() {
+/**
+ * Navigasi bawah untuk mobile.
+ *
+ * `isAdminHost` datang dari Server Component (lihat `app/dashboard/layout.tsx`)
+ * sehingga href SSR dan render client pertama selalu sama. Jangan ganti dengan
+ * `window.location` + flag `mounted`: itu memunculkan hydration mismatch.
+ */
+export function MobileBottomNav({ isAdminHost }: { isAdminHost: boolean }) {
   const pathname = usePathname();
   const { t } = useLang();
 
   const tabs = [
-    { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard, exact: true },
-    { name: t("nav.products"), href: "/dashboard/products", icon: Store },
-    { name: t("nav.orders"), href: "/dashboard/orders", icon: ShoppingBag },
+    { name: t("nav.dashboard"), fullHref: "/dashboard", href: dashboardNavHref("/", isAdminHost), icon: LayoutDashboard, exact: true },
+    { name: t("nav.products"), fullHref: "/dashboard/products", href: dashboardNavHref("/products", isAdminHost), icon: Store },
+    { name: t("nav.orders"), fullHref: "/dashboard/orders", href: dashboardNavHref("/orders", isAdminHost), icon: ShoppingBag },
     // Tab Builder mengarah ke Kelola Website (page-builder = editor tunggal).
-    { name: t("nav.builder"), href: "/dashboard/websites", icon: Palette },
-    { name: t("nav.stores"), href: "/dashboard/websites/customize", icon: Layers },
+    // Beranda dashboard tidak punya alias kanonik di admin host ("/" = /dashboard),
+    // jadi pemetaan default tab builder mencakupnya — samakan dengan sidebar desktop.
+    { name: t("nav.builder"), fullHref: "/dashboard/websites", href: dashboardNavHref("/websites", isAdminHost), icon: Palette },
+    { name: t("nav.stores"), fullHref: "/dashboard/customize", href: dashboardNavHref("/customize", isAdminHost), icon: Layers },
   ];
 
-  const isTabActive = (tab: { href: string; exact?: boolean }) => {
-    if (tab.exact) return pathname === tab.href;
-    // Tab builder & stores sama-sama di bawah /dashboard/websites.
-    if (tab.href === "/dashboard/websites") {
+  const isTabActive = (tab: { fullHref: string; exact?: boolean }) => {
+    if (tab.exact) {
+      return pathname === tab.fullHref || (pathname === "/" && tab.fullHref === "/dashboard");
+    }
+    // Tab builder mencakup /websites, editor page-builder, dan /customize di semua host.
+    if (tab.fullHref === "/dashboard/websites") {
       return (
         pathname === "/dashboard/websites" ||
-        pathname.startsWith("/dashboard/websites/customize") ||
-        pathname.startsWith("/dashboard/websites/page-builder")
+        pathname === "/websites" ||
+        pathname.startsWith("/dashboard/websites/") ||
+        pathname.startsWith("/dashboard/customize") ||
+        pathname === "/customize" ||
+        pathname.startsWith("/customize/")
       );
     }
-    return pathname === tab.href || pathname.startsWith(tab.href + "/");
+    if (tab.fullHref === "/dashboard/customize") {
+      return (
+        pathname === "/dashboard/customize" ||
+        pathname === "/customize" ||
+        pathname.startsWith("/customize/")
+      );
+    }
+    return (
+      pathname === tab.fullHref ||
+      pathname.startsWith(tab.fullHref + "/") ||
+      pathname === tab.fullHref.slice("/dashboard".length) ||
+      pathname.startsWith(`${tab.fullHref.slice("/dashboard".length)}/`)
+    );
   };
 
   return (
@@ -44,7 +71,7 @@ export function MobileBottomNav() {
 
           return (
             <Link
-              key={tab.href}
+              key={tab.fullHref}
               href={tab.href}
               className={`flex flex-col items-center justify-center flex-1 min-w-[56px] min-h-[48px] px-1 py-1 rounded-xl transition-all select-none touch-manipulation ${
                 isActive

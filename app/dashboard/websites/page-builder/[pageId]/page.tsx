@@ -366,9 +366,9 @@ export default function PageBuilderPage() {
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{error || "Halaman tidak ditemukan"}</p>
           <div className="flex items-center justify-center gap-2 mt-6">
             <Button asChild className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 font-bold">
-              <Link href="/dashboard/websites/customize?tab=halaman">
+              <Link href="/dashboard/customize">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Kembali ke Halaman
+                Kembali ke Desain Website
               </Link>
             </Button>
           </div>
@@ -385,7 +385,7 @@ export default function PageBuilderPage() {
       onSaveOverride={handleSavePage}
       onPublishOverride={handlePublishPage}
       isPublished={isPublished}
-      exitHref="/dashboard/websites/customize?tab=halaman"
+      exitHref="/dashboard/customize"
     />
   );
 }
