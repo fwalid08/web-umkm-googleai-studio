@@ -12,7 +12,8 @@ import {
   sanitizePaletteOverride,
   type MergedSection,
 } from "@/lib/builder/validation";
-// No BUILT_IN_CATALOG import - using database queries instead
+import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
+import { resolveTemplateId } from "@/lib/builder/apply-template";
 import { ensureSectionIdentities } from "@/lib/builder/migration";
 import { getOwnedWebsite } from "@/lib/websites/active";
 import { tenantUrl } from "@/lib/urls";
@@ -25,9 +26,6 @@ import {
   STATIC_TEMPLATES,
 } from "@/lib/mock/store";
 import { cookies } from "next/headers";
-
-const TEMPLATE_FIELDS =
-  "id, name, description, color_palette, typography_config, sections_config, is_active";
 
 interface SessionUser {
   id: string;
@@ -169,40 +167,35 @@ export async function GET(
       return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
     }
 
-    // Katalog template sistem dari templates_library.
-    // CATATAN: tabel lama `templates` sudah di-DROP (migrasi 036) — query ke
-    // sana selalu kosong dan endpoint ini me-return 503 "Template belum tersedia".
-    const { data: systemTemplates } = await supabase
-      .from("templates_library")
-      .select("id, name, category, tier_requirement")
-      .eq("scope", "public")
-      .eq("is_system_template", true)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: false });
-    const list = systemTemplates ?? [];
+    // Katalog statis dari kode — satu-satunya sumber template
+    // (templates_library dihapus, migrasi 039-040).
+    const list = BUILT_IN_CATALOG;
     if (list.length === 0) {
       return NextResponse.json({ success: false, error: "Template belum tersedia" }, { status: 503 });
     }
 
     const { data: rows } = await supabase
       .from("user_templates")
-      .select("template_id, custom_config, updated_at")
+      .select("template_slug, custom_config, updated_at")
       .eq("website_id", websiteId)
       .order("updated_at", { ascending: false });
 
-    // Template aktif: current_template_id (UUID baris library) → cocok kategori
-    // bisnis → baris pertama. `template_name` dikembalikan sebagai category
-    // karena frontend mencocokkannya ke katalog public (t.category === template_name).
-    let template = site.current_template_id
-      ? list.find((t) => t.id === site.current_template_id) ?? null
-      : null;
-    if (!template) {
-      const biz = site.business_type ?? user.business_type ?? null;
-      template =
-        (biz ? list.find((t) => t.category === biz) : null) ?? list[0];
-    }
+    // Template aktif: template_slug website → cocok kategori bisnis →
+    // template pertama. `template_name` dikembalikan sebagai category
+    // karena frontend mencocokkannya ke katalog (t.category === template_name).
+    const siteSlug =
+      typeof (site as unknown as { template_slug?: unknown }).template_slug === "string"
+        ? resolveTemplateId(
+            (site as unknown as { template_slug?: string }).template_slug as string,
+          )
+        : null;
+    const template =
+      (siteSlug ? list.find((t) => t.id === siteSlug) : undefined) ??
+      (site.business_type ? list.find((t) => t.category === site.business_type) : undefined) ??
+      (user.business_type ? list.find((t) => t.category === user.business_type) : undefined) ??
+      list[0];
     const stored =
-      (rows ?? []).find((r) => r.template_id === template.id) ??
+      (rows ?? []).find((r) => (r.template_slug as string | null) === template.id) ??
       (rows ?? [])[0] ??
       null;
 
@@ -227,7 +220,7 @@ export async function GET(
       seo?: { title?: string; description?: string };
     };
     let isDefault: boolean;
-    if (stored && stored.template_id === template.id && storedConfig?.design_style_id) {
+    if (stored && storedConfig?.design_style_id) {
       customConfig = {
         design_style_id: storedConfig.design_style_id,
         sections: storedConfig.sections ?? [],
@@ -253,10 +246,7 @@ export async function GET(
 
     // Gate tier kumulatif (paket atas bisa memakai template paket bawahnya).
     // template_name = category agar frontend bisa match ke katalog public.
-    const templateLocked = !isCatalogTemplateAllowedForTier(
-      [template.tier_requirement as string],
-      user.tier,
-    );
+    const templateLocked = !isCatalogTemplateAllowedForTier(template.tiers, user.tier);
 
     return NextResponse.json({
       success: true,
@@ -311,24 +301,38 @@ export async function PUT(
 
     if (hasNewFormat) {
       const { template_id: raw_template_id, custom_config } = body;
-      let template_id = raw_template_id as string | undefined;
-      /**
-       * Template hasil import ZIP milik user sendiri (tabel `templates_library`).
-       * ID-nya bukan baris tabel `templates`, jadi TIDAK boleh di-lookup ke sana
-       * — akan 404 "Template tidak ditemukan". Isi desainnya sudah lengkap di
-       * `custom_config`; satu-satunya yang masih diambil dari tabel `templates`
-       * adalah anchor FK yang valid, jadi dipinjam dari template aktif website.
-       */
-      const isLibraryTemplate = body.template_source === 'saved';
-      console.log('[DEBUG PUT] raw_template_id:', raw_template_id, 'template_id:', template_id);
+      // Normalisasi ID: prefix legacy system-/builtin- dibuang. Hasilnya
+      // HARUS slug katalog statis (mis. 'food') — UUID library lama ditolak.
+      // `template_source` (saved/builtin) diabaikan: hanya kompatibilitas
+      // client lama, tidak lagi mempengaruhi lookup.
+      const normalizedId =
+        typeof raw_template_id === "string" && raw_template_id
+          ? resolveTemplateId(raw_template_id)
+          : "";
+      const siteSlug =
+        typeof (site as unknown as { template_slug?: unknown }).template_slug === "string"
+          ? ((site as unknown as { template_slug?: string }).template_slug as string)
+          : null;
+      const catalogTemplate =
+        (normalizedId ? BUILT_IN_CATALOG.find((t) => t.id === normalizedId) : undefined) ??
+        (siteSlug ? BUILT_IN_CATALOG.find((t) => t.id === siteSlug) : undefined) ??
+        (site.business_type
+          ? BUILT_IN_CATALOG.find((t) => t.category === site.business_type)
+          : undefined) ??
+        BUILT_IN_CATALOG[0];
+      if (!catalogTemplate) {
+        return NextResponse.json({ success: false, error: "Template belum tersedia" }, { status: 503 });
+      }
+      if (normalizedId && normalizedId !== catalogTemplate.id) {
+        return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
+      }
+      const slug = catalogTemplate.id;
 
       if (isDemoUserId(sessionUser.id)) {
-        const demoTemplateId = template_id ?? STATIC_TEMPLATES[0]?.id ?? 'food';
-        saveDemoWebsiteConfig(sessionUser.id, websiteId, demoTemplateId, custom_config);
-        const tpl = STATIC_TEMPLATES.find((t) => t.id === demoTemplateId) || STATIC_TEMPLATES[0];
+        saveDemoWebsiteConfig(sessionUser.id, websiteId, slug, custom_config);
         return NextResponse.json({
           success: true,
-          data: { website_id: websiteId, template_id: demoTemplateId, template_name: tpl.name, custom_config },
+          data: { website_id: websiteId, template_id: slug, template_name: catalogTemplate.category, custom_config },
           message: "Website berhasil disimpan",
         });
       }
@@ -357,156 +361,28 @@ export async function PUT(
         return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
       }
 
-      // Template builtin from code no longer exists - all templates are now in templates_library
-// Normalize template_id: strip 'builtin-' prefix if present (legacy)
-const normalizedTemplateId = template_id?.startsWith('builtin-') ? template_id.slice(8) : template_id;
-
-// Check if it's a system template in templates_library
-const { data: systemTemplate } = await supabase
-  .from("templates_library")
-  .select("id, category, tier_requirement, name")
-  .eq("id", normalizedTemplateId)
-  .eq("is_system_template", true)
-  .maybeSingle();
-
-const isBuiltinTemplate = !!systemTemplate;
-
-// Gate tier per-template (sumber: templates_library.tier_requirement).
-// Kumulatif: paket atas bisa memakai template paket bawahnya.
-if (systemTemplate && !isCatalogTemplateAllowedForTier([systemTemplate.tier_requirement], user.tier)) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: `Template ${systemTemplate.name} hanya untuk paket ${systemTemplate.tier_requirement}. Upgrade untuk membukanya.`,
-      upgrade_url: "/dashboard/billing",
-    },
-    { status: 403 }
-  );
-}
-
-// Builder/page-builder mengirim custom_config saja (template builtin dari kode).
-// Fallback: pakai template aktif website, lalu template aktif pertama.
-if (!template_id) {
-  const { data: allTemplatesForFallback } = await supabase
-    .from("templates_library")
-    .select("id")
-    .eq("is_system_template", true)
-    .eq("scope", "public");
-  template_id =
-    (site.current_template_id as string | null) ?? (allTemplatesForFallback?.[0]?.id as string | undefined);
-}
-
-const { data: allTemplates } = await supabase
-  .from("templates_library")
-  .select("id, name, category, tier_requirement")
-  .eq("is_system_template", true)
-  .eq("scope", "public");
-
-let dbTemplateId = normalizedTemplateId;
-let dbTemplate: { id: string; name: string } | null = null;
-
-if (isLibraryTemplate) {
-        // Anchor FK = baris template yang sudah terpasang di website ini.
-        // WAJIB baris yang ada: `user_templates.template_id` nullable dan
-        // `onConflict: (website_id, template_id)` tidak pernah conflict pada
-        // NULL, jadi menyimpan null akan menumpuk baris — dan `maybeSingle()`
-        // di GET website ikut error.
-        const { data: anchor } = await supabase
-          .from("user_templates")
-          .select("template_id")
-          .eq("website_id", websiteId)
-          .not("template_id", "is", null)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const anchorId = (anchor?.template_id as string | undefined) ?? (site.current_template_id as string | null);
-        if (!anchorId) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Website ini belum punya template dasar. Pilih salah satu template bawaan dulu, baru terapkan template library.",
-            },
-            { status: 400 },
-          );
-        }
-        dbTemplateId = anchorId;
-        dbTemplate = { id: anchorId, name: "Template Library" };
-      } else if (isBuiltinTemplate) {
-        // Map system template to templates_library by direct ID match.
-        const systemTemplates = allTemplates ?? [];
-        const dbTemplateById = systemTemplates.find((t) => t.id === normalizedTemplateId) ?? null;
-        if (dbTemplateById) {
-          dbTemplate = dbTemplateById;
-        }
-        dbTemplateId = dbTemplate?.id ?? normalizedTemplateId;
-      } else {
-        // Regular database template lookup
-        const { data: template, error: templateError } = await supabase
-          .from("templates")
-          .select(TEMPLATE_FIELDS)
-          .eq("id", template_id)
-          .eq("is_active", true)
-          .maybeSingle();
-
-        if (templateError || !template) {
-          return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
-        }
-        dbTemplate = { id: template.id, name: template.name };
-      }
-
-      // Gate tier legacy (baris DB) hanya untuk template database.
-      // Template builtin sudah dicek via CatalogTemplate.tiers di atas —
-      // dbTemplate di sana hanya anchor FK, bukan template sebenarnya.
-      // Template library milik user sendiri juga dilewati: itu hasil karyanya
-      // sendiri, bukan entitlement berbayar.
-      if (!isBuiltinTemplate && !isLibraryTemplate) {
-        const allowed = getAllowedTemplateNames(
-          user.tier,
-          null,
-          (allTemplates ?? []).map((t) => t.name as string)
+      // Gate tier per-template (saat ini semua terbuka; tetap dicek agar
+      // 403 otomatis bila katalog nanti mengunci tier tertentu).
+      if (!isCatalogTemplateAllowedForTier(catalogTemplate.tiers, user.tier)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Template ${catalogTemplate.name} hanya untuk paket tertentu. Upgrade untuk membukanya.`,
+            upgrade_url: "/dashboard/billing",
+          },
+          { status: 403 }
         );
-        if (!allowed.includes(dbTemplate?.name as string)) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Template ${dbTemplate?.name} hanya untuk paket Starter ke atas. Upgrade untuk membuka semua template.`,
-              upgrade_url: "/dashboard/billing",
-            },
-            { status: 403 }
-          );
-        }
       }
 
       // Normalisasi identitas sections di server: client lama / baris lama
       // bisa menyimpan tanpa variant+anchorId sehingga section hilang di live.
       // Aturan sama dengan seed kanvas & render publik → ketiganya sepakat.
-      const sectionTemplateRef =
-        (typeof body.template_id === 'string' && body.template_id.length > 0
-          ? body.template_id
-          : undefined) ??
-        (typeof custom_config.catalog_template_id === 'string'
-          ? (custom_config.catalog_template_id as string)
-          : undefined);
-
-      /**
-       * `ensureSectionIdentities()` mencari katalog varian lewat template ini.
-       * Kalau ref-nya ID library (tidak terdaftar di templates_library) maka
-       * `variants` kosong dan SETIAP section diam-diam ditulis ulang ke varian
-       * pertama — `booking-single`, `location-hours`, `menu-tabs`, dst. hilang
-       * tanpa error apa pun. Template library karena itu dipinjamkan ke template
-       * sistem yang jadi blueprint seluruh varian section.
-       */
-      const variantCatalogRef = isLibraryTemplate
-        ? (await supabase.from("templates_library").select("id").eq("is_system_template", true).eq("scope", "public").limit(1).maybeSingle()).data?.id ?? 'pangkas-rapi'
-        : sectionTemplateRef;
-
       const toStore = {
         design_style_id: custom_config.design_style_id ?? 'minimalist',
         // Jangan buang skema warna user: tanpanya live site selalu
         // kembali ke warna bawaan template walau kanvas sudah diganti.
         palette_override: custom_config.palette_override ?? {},
-        sections: ensureSectionIdentities(custom_config.sections ?? [], variantCatalogRef),
+        sections: ensureSectionIdentities(custom_config.sections ?? [], slug),
         header: custom_config.header ?? {},
         footer: custom_config.footer ?? {},
         theme: custom_config.theme ?? {},
@@ -520,18 +396,19 @@ if (isLibraryTemplate) {
         // CSS kustom template ikut tersimpan agar `BehaviourRuntime` bisa
         // menampilkannya di live site.
         customCss: typeof custom_config.customCss === 'string' ? custom_config.customCss : '',
-        catalog_template_id: isLibraryTemplate ? variantCatalogRef : body.template_id ?? undefined,
+        catalog_template_id: slug,
       };
 
       const { error: upsertError } = await supabase.from("user_templates").upsert(
         {
           user_id: sessionUser.id,
           website_id: websiteId,
-          template_id: dbTemplateId,
+          template_slug: slug,
+          template_id: null,
           custom_config: toStore,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "website_id,template_id" }
+        { onConflict: "website_id,template_slug" }
       );
       if (upsertError) {
         console.error("Upsert website config error:", upsertError);
@@ -545,9 +422,7 @@ if (isLibraryTemplate) {
       // layout homepage asli di store_pages.
       //
       // CATATAN: hanya page-builder yang memakai jalur ini dan dia selalu mengirim
-      // is_homepage boolean eksplisit — jadi blok reset homepage_type lama sudah
-      // dihapus (homepage_page_id/homepage_type tak lagi menentukan sumber render;
-      // lihat 033_page_builder_only.sql).
+      // is_homepage boolean eksplisit.
       const homepageSections = custom_config.sections ?? [];
       if (homepageSections.length > 0 && body.is_homepage === true) {
         // First check if homepage exists
@@ -592,7 +467,7 @@ if (isLibraryTemplate) {
 
       await supabase
         .from("websites")
-        .update({ current_template_id: dbTemplateId, updated_at: new Date().toISOString() })
+        .update({ template_slug: slug, current_template_id: null, updated_at: new Date().toISOString() })
         .eq("id", websiteId)
         .eq("user_id", sessionUser.id);
 
@@ -600,7 +475,7 @@ if (isLibraryTemplate) {
 
       return NextResponse.json({
         success: true,
-        data: { website_id: websiteId, template_id: dbTemplateId, template_name: dbTemplate?.name ?? 'Custom', custom_config: toStore },
+        data: { website_id: websiteId, template_id: slug, template_name: catalogTemplate.category, custom_config: toStore },
         message: "Website berhasil disimpan",
       });
     }
@@ -616,17 +491,17 @@ if (isLibraryTemplate) {
     let custom_config = bodyCustomConfig ?? {};
 
     if (!template_id || !bodyCustomConfig?.sections) {
-      // Fetch existing config to get template_id and merge
+      // Fetch existing config to get template slug and merge
       const { data: existing } = await supabase
         .from("user_templates")
-        .select("template_id, custom_config")
+        .select("template_slug, custom_config")
         .eq("website_id", websiteId)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (existing) {
-        template_id = template_id ?? existing.template_id;
+        template_id = template_id ?? (existing.template_slug as string | undefined);
         if (bodyCustomConfig) {
           custom_config = { ...(existing.custom_config as Record<string, unknown>), ...bodyCustomConfig };
         }
@@ -642,12 +517,18 @@ if (isLibraryTemplate) {
     }
     const { template_id: validatedTemplateId, custom_config: validatedConfig } = validation.data;
 
+    // Normalisasi ke slug katalog (tolak UUID library lama).
+    const slug = resolveTemplateId(validatedTemplateId);
+    const catalogTemplate = BUILT_IN_CATALOG.find((t) => t.id === slug);
+    if (!catalogTemplate) {
+      return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
+    }
+
     if (isDemoUserId(sessionUser.id)) {
-      saveDemoWebsiteConfig(sessionUser.id, websiteId, validatedTemplateId, custom_config);
-      const tpl = STATIC_TEMPLATES.find((t) => t.id === validatedTemplateId) || STATIC_TEMPLATES[0];
+      saveDemoWebsiteConfig(sessionUser.id, websiteId, slug, custom_config);
       return NextResponse.json({
         success: true,
-        data: { website_id: websiteId, template_id: validatedTemplateId, template_name: tpl.name, custom_config },
+        data: { website_id: websiteId, template_id: slug, template_name: catalogTemplate.category, custom_config },
         message: "Website berhasil disimpan",
       });
     }
@@ -668,11 +549,12 @@ if (isLibraryTemplate) {
       {
         user_id: sessionUser.id,
         website_id: websiteId,
-        template_id: validatedTemplateId,
+        template_slug: slug,
+        template_id: null,
         custom_config: toStore,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "website_id,template_id" }
+      { onConflict: "website_id,template_slug" }
     );
     if (upsertError) {
       console.error("Upsert website config error:", upsertError);
@@ -681,13 +563,13 @@ if (isLibraryTemplate) {
 
     await supabase
       .from("websites")
-      .update({ current_template_id: validatedTemplateId, updated_at: new Date().toISOString() })
+      .update({ template_slug: slug, current_template_id: null, updated_at: new Date().toISOString() })
       .eq("id", websiteId)
       .eq("user_id", sessionUser.id);
 
     return NextResponse.json({
       success: true,
-      data: { website_id: websiteId, template_id: validatedTemplateId, template_name: 'Custom', custom_config: toStore },
+      data: { website_id: websiteId, template_id: slug, template_name: catalogTemplate.category, custom_config: toStore },
       message: "Website berhasil disimpan",
     });
   } catch (error) {

@@ -4,10 +4,12 @@ import type { Template, SectionTypeDefinition, SectionVariant, TemplateSectionIn
 import { seedTemplateSections, sanitizeAnchor, uniqueAnchorId } from './migration';
 import { applySectionAssets } from './template-assets';
 
-export const BUILTIN_TEMPLATES: Template[] = [];
+import { BUILT_IN_CATALOG } from './templates/catalog';
+
+export const BUILTIN_TEMPLATES: Template[] = BUILT_IN_CATALOG;
 
 export function getTemplate(id: string): Template | undefined {
-  return undefined;
+  return BUILT_IN_CATALOG.find((t) => t.id === id);
 }
 
 export function getSectionType(template: Template, type: string): SectionTypeDefinition | undefined {

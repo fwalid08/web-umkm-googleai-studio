@@ -145,7 +145,7 @@ export function migrateOldConfig(oldConfig: Record<string, unknown>): Record<str
   });
 
   return {
-    template_id: 'pangkas-rapi',
+    template_id: 'food',
     header_variant_id: 'header-standard',
     footer_variant_id: 'footer-simple',
     sections: newSections,
@@ -362,7 +362,12 @@ export function ensureSectionIdentities(
       return raw as Record<string, unknown>;
     }
     const s = { ...(raw as Record<string, unknown>) };
-    const type = typeof s.type === 'string' && s.type.length > 0 ? s.type : 'hero';
+    const type =
+      (typeof s.type === "string" && s.type.length > 0 && s.type) ||
+      // Klien lama (onboarding/themes) mengirim sections berbentuk [{id}]
+      // tanpa `type` — id seed sama dengan tipe section.
+      (typeof s.id === "string" && SECTION_TYPE_MAP[s.id] ? s.id : "") ||
+      "hero";
     s.type = type;
     // No catalog available, use first variant from registry
     s.variant = s.variant || 'hero-full';

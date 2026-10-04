@@ -28,7 +28,7 @@ function instance(id: string, type = "hero"): TemplateSectionInstance {
   };
 }
 
-const template = getTemplate("warung-makan")!;
+const template = getTemplate("food")!;
 
 /**
  * Skenario inti page-builder (guard anti-kebocoran lintas halaman):
@@ -135,7 +135,7 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
   });
 
   it("template store tersedia untuk id katalog (sanity)", () => {
-    expect(template.id).toBe("warung-makan");
+    expect(template.id).toBe("food");
     expect(template.sections.length).toBeGreaterThan(0);
   });
 });
@@ -181,11 +181,11 @@ describe("submenu bertahan di jalur simpan header", () => {
   });
 
   it("resolveChromeConfig tidak membuang children saat varian ganti", () => {
-    const tpl = getTemplate("warung-makan")!;
+    const tpl = getTemplate("food")!;
     const resolved = resolveChromeConfig(
       tpl,
       {
-        variant: "header-melayang",
+        variant: "hdr-melayang",
         navItems: [
           {
             id: "n2",
@@ -203,8 +203,8 @@ describe("submenu bertahan di jalur simpan header", () => {
   });
 
   it("navItems tanpa children tetap aman (backward compat data lama)", () => {
-    const tpl = getTemplate("warung-makan")!;
-    const resolved = resolveChromeConfig(tpl, { variant: "header-klasik" }, "header");
+    const tpl = getTemplate("food")!;
+    const resolved = resolveChromeConfig(tpl, { variant: "hdr-klasik" }, "header");
     expect(Array.isArray(resolved.config.navItems)).toBe(true);
   });
 });

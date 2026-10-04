@@ -1,5 +1,12 @@
 # Panduan Membuat Template — untuk AI Eksternal (v3.4)
 
+> ⚠️ **DEPRECATED — alur ZIP/import tidak berlaku lagi.**
+> Template kini hanya kode statis di `src/lib/builder/templates/`
+> (lihat `food.ts` sebagai contoh + `docs/TEMPLATE_GUIDE.md §9`).
+> AI eksternal cukup menghasilkan konten setara `template.json`
+> (skema §4 tetap valid sebagai draf) — authoring ke `.ts` dilakukan
+> maintainer via PR. Isi dokumen ini dipertahankan sebagai arsip skema.
+
 > **Untuk siapa**: AI di luar repository (Claude, GPT, dll.) yang merancang template website UMKM.
 > **Output tunggal**: satu file `.zip` yang di-import user lewat **Customize → Templates → Import**.
 > **Versi**: 3.6 · **Terakhir diperbarui**: 2026-10-03

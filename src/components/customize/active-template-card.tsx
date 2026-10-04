@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CATEGORY_LABELS, type BusinessCategory } from "@/lib/builder/templates/catalog";
+import { CATEGORY_LABELS, BUILT_IN_CATALOG, type BusinessCategory } from "@/lib/builder/templates/catalog";
 import { DESIGN_STYLES } from "@/lib/builder/design-styles";
 import { resolveTemplateId } from "@/lib/builder/apply-template";
 
@@ -39,50 +39,47 @@ interface SystemTemplate {
   };
 }
 
-async function resolveTemplate(
+function resolveTemplate(
   templateId: string | null | undefined,
   styleId: string | null | undefined,
   templateCategory?: string | null,
-): Promise<{ template: SystemTemplate | null; style: DesignStyle | null }> {
-  let template: SystemTemplate | null = null;
-  let style: DesignStyle | null = null;
-  
-  if (templateId) {
-    // template_id lama mungkin masih berprefix (system-/builtin-) —
-    // normalisasi dulu agar fetch tidak 404.
-    const res = await fetch(`/api/templates/library/${resolveTemplateId(templateId)}`);
-    if (res.ok) {
-      const json = await res.json();
-      const t = json.data;
-      if (t) {
-        template = t;
-        style = DESIGN_STYLES.find((s) => s.id === t.template_data?.designStyleId) ?? null;
-      }
-    }
-  }
-  if (!template && templateCategory) {
-    const res = await fetch('/api/templates/library?scope=public&is_system_template=true');
-    if (res.ok) {
-      const json = await res.json();
-      const t = json.data?.find((t: any) => t.category === templateCategory);
-      if (t) {
-        template = t;
-        style = DESIGN_STYLES.find((s) => s.id === t.template_data?.designStyleId) ?? null;
-      }
-    }
-  }
-  if (!template && styleId) {
-    const res = await fetch('/api/templates/library?scope=public&is_system_template=true');
-    if (res.ok) {
-      const json = await res.json();
-      const t = json.data?.find((t: any) => t.template_data?.designStyleId === styleId);
-      if (t) {
-        template = t;
-        style = DESIGN_STYLES.find((s) => s.id === styleId) ?? null;
-      }
-    }
-  }
-  return { template, style };
+): { template: SystemTemplate | null; style: DesignStyle | null } {
+  // Katalog statis — tanpa fetch. Urutan: id slug → kategori → style.
+  const found =
+    (templateId
+      ? BUILT_IN_CATALOG.find((t) => t.id === resolveTemplateId(templateId))
+      : undefined) ??
+    (templateCategory
+      ? BUILT_IN_CATALOG.find((t) => t.category === templateCategory)
+      : undefined) ??
+    (styleId
+      ? BUILT_IN_CATALOG.find(
+          (t) => (t.data.designStyleId ?? t.data.design_style_id) === styleId,
+        )
+      : undefined) ??
+    BUILT_IN_CATALOG[0] ??
+    null;
+  if (!found) return { template: null, style: null };
+  const style =
+    DESIGN_STYLES.find(
+      (s) => s.id === (found.data.designStyleId ?? found.data.design_style_id),
+    ) ?? null;
+  return {
+    template: {
+      id: found.id,
+      name: found.name,
+      category: found.category,
+      description: found.description,
+      template_data: {
+        designStyleId: found.data.designStyleId ?? found.data.design_style_id,
+        sections: found.data.sections,
+        header: found.data.header,
+        footer: found.data.footer,
+        theme: found.data.paletteOverride ?? found.data.palette_override,
+      },
+    },
+    style,
+  };
 }
 
 export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGallery, refreshKey = 0, initialTemplateId = null, initialStyleId = null, initialTemplateCategory = null }: ActiveTemplateCardProps) {
@@ -102,7 +99,7 @@ export function ActiveTemplateCard({ websiteId, homepagePageId, onOpenTemplateGa
         const res = await fetch(`/api/websites/${websiteId}/website`);
         const json = await res.json();
         if (cancelled || !json?.success) return;
-        const resolved = await resolveTemplate(
+        const resolved = resolveTemplate(
           json.data?.template_id ?? null,
           json.data?.custom_config?.design_style_id ?? null,
           json.data?.template_name ?? null,

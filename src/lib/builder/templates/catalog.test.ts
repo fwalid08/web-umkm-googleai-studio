@@ -198,7 +198,12 @@ describe("template contract", () => {
  * (lihat `MIGRATED_TEMPLATES`) supaya suite hijau selama migrasi berjalan.
  * Tambahkan nama template ke sana setiap kali satu template selesai diotomi.
  */
-const MIGRATED_TEMPLATES = new Set(["bengkel"]);
+/**
+ * Template yang sudah diotomi (varian milik sendiri, bukan registry).
+ * Fase-1: kosong — `food` berbagi katalog registry. Tambahkan id ke sini
+ * setiap kali satu template selesai diotomi; guard di bawah otomatis menjaganya.
+ */
+const MIGRATED_TEMPLATES = new Set<string>([]);
 
 const MIN_HEADER_VARIANTS = 5;
 const MIN_FOOTER_VARIANTS = 5;
@@ -252,8 +257,8 @@ function collectConfigKeys(value: unknown, depth = 0): string[] {
 describe("kontrak karakter desain per template", () => {
   const migrated = BUILT_IN_CATALOG.filter((t) => MIGRATED_TEMPLATES.has(t.id));
 
-  it("hanya template bermigrasi yang diuji (sanity check)", () => {
-    expect(migrated.length, "tambah template ke MIGRATED_TEMPLATES setelah diotomi").toBeGreaterThan(0);
+  it("belum ada template bermigrasi (fase-1 berbagi registry)", () => {
+    expect(migrated.length).toBe(0);
   });
 
   it("setiap template punya designType yang valid", () => {
@@ -395,19 +400,11 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
     }
   });
 
-  it("template bermigrasi bukan turunan pangkas-rapi (guard regresi)", () => {
-    const pangkas = BUILT_IN_CATALOG.find((t) => t.id === "pangkas-rapi")!;
-    for (const t of migrated) {
-      expect(
-        t.headers.map((h) => h.id),
-        `${t.id}: id varian header identik pangkas-rapi — belum diotomi`,
-      ).not.toEqual(pangkas.headers.map((h) => h.id));
-      expect(
-        t.footers.map((f) => f.id),
-        `${t.id}: id varian footer identik pangkas-rapi — belum diotomi`,
-      ).not.toEqual(pangkas.footers.map((f) => f.id));
-    }
-  });
+  /**
+   * Guard regresi turunan template lama dihapus bersama katalog lama
+   * (pangkas-rapi/bengkel). Dipasang kembali saat otomi pertama selesai:
+   * varian header/footer template otomi tidak boleh identik dengan template lain.
+   */
 
   /**
    * v3.0 — `activeSections`: template menentukan section mana yang AKTIF

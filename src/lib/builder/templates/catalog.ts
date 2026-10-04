@@ -1,6 +1,7 @@
 import type { BuiltInTemplate, FullTemplateData } from "../types";
 import type { Tier } from "@/types";
 import type { Template } from "../template-types";
+import { FOOD_TEMPLATE } from "./food";
 
 export type BusinessCategory = "food" | "fashion" | "retail" | "handicraft" | "services";
 
@@ -18,7 +19,7 @@ export const CATEGORY_LABELS: Record<BusinessCategory | "all", string> = {
   services: "Jasa & Servis",
 };
 
-export const BUILT_IN_CATALOG: CatalogTemplate[] = [];
+export const BUILT_IN_CATALOG: CatalogTemplate[] = [FOOD_TEMPLATE];
 
 export const ALL_TIERS = ["free", "starter", "growth", "enterprise"] as const;
 
@@ -68,9 +69,14 @@ export function filterCatalogByTier<T extends { tiers?: readonly string[] }>(
 }
 
 export function getCatalogByCategory(category: BusinessCategory | "all"): CatalogTemplate[] {
-  return [];
+  if (category === "all") return [...BUILT_IN_CATALOG];
+  return BUILT_IN_CATALOG.filter((t) => t.category === category);
 }
 
 export function getTemplateIdByCategory(category: BusinessCategory): string | null {
-  return null;
+  return getCatalogByCategory(category)[0]?.id ?? BUILT_IN_CATALOG[0]?.id ?? null;
+}
+
+export function getCatalogTemplate(id: string): CatalogTemplate | undefined {
+  return BUILT_IN_CATALOG.find((t) => t.id === id);
 }

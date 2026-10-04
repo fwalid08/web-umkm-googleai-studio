@@ -51,348 +51,53 @@ export interface DemoOrder {
   notes: string;
 }
 
-export const STATIC_TEMPLATES = [
-  {
-    id: "tpl-food",
-    name: "food",
-    description: "Template untuk usaha makanan & minuman: warung, cafe, catering, bakery",
-    color_palette: {
-      primary: "#EA580C",
-      secondary: "#FEF3C7",
-      accent: "#F97316",
-      background: "#FFF7ED",
-      text: "#1C1917",
-      text_light: "#78716C",
-      border: "#FED7AA",
-    },
-    typography_config: {
-      heading_font: "Poppins",
-      body_font: "Inter",
-      base_size: 16,
-      scale_ratio: 1.25,
-    },
-    sections_config: [
-      {
-        id: "hero",
-        type: "hero",
-        label: "Hero Section",
-        required: true,
-        order: 1,
-        default_props: {
-          headline: "Kopi Nikmat, Rasa Hangat",
-          subheadline: "Biji kopi lokal pilihan diseduh dengan resep istimewa sejak 2018",
-          cta_text: "Lihat Menu Favorit",
-          cta_link: "#menu",
-          background_image: "",
-        },
-      },
-      {
-        id: "menu",
-        type: "product_grid",
-        label: "Menu Minuman & Makanan",
-        required: true,
-        order: 2,
-        default_props: {
-          title: "Menu Favorit",
-          subtitle: "Paling laris dipesan setiap hari",
-          columns: 3,
-          show_price: true,
-          items: [
-            { name: "Kopi Susu Aren Spesial", price: 18000, description: "Espresso robusta dengan susu murni & gula aren asli" },
-            { name: "Roti Bakar Coklat Keju", price: 15000, description: "Roti gandum bakar dengan keju cheddar melimpah" },
-            { name: "Pisang Goreng Crispy", price: 12000, description: "Pisang kepok renyah ditaburi gula kayu manis" },
-          ],
-        },
-      },
-      {
-        id: "about",
-        type: "about",
-        label: "Tentang Kami",
-        required: false,
-        order: 3,
-        default_props: {
-          title: "Tentang Warung Kopi Kami",
-          content: "Kami menyajikan kopi terbaik dengan suasana santai dan harga yang sangat bersahabat untuk semua kalangan.",
-          image: "",
-        },
-      },
-      {
-        id: "contact",
-        type: "contact_info",
-        label: "Kontak & Alamat",
-        required: true,
-        order: 4,
-        default_props: {
-          title: "Lokasi & Pemesanan",
-          phone: "081234567890",
-          whatsapp: "081234567890",
-          address: "Jl. Melati No. 45, Bandung",
-          hours: "08:00 - 21:00 WIB",
-          delivery_info: "Melayani COD & kirim via GoSend/GrabExpress",
-        },
-      },
-      {
-        id: "whatsapp",
-        type: "whatsapp_button",
-        label: "WhatsApp Button",
-        required: true,
-        order: 5,
-        default_props: {
-          phone: "081234567890",
-          message: "Halo Bu Toni, saya mau pesan kopi dan camilannya...",
-        },
-      },
-    ],
-    is_active: true,
-  },
-  {
-    id: "tpl-fashion",
-    name: "fashion",
-    description: "Template untuk usaha fashion: baju, hijab, tas, gamis & aksesoris",
-    color_palette: {
-      primary: "#7C3AED",
-      secondary: "#F3E8FF",
-      accent: "#A855F7",
-      background: "#FAF5FF",
-      text: "#1C1917",
-      text_light: "#78716C",
-      border: "#E9D5FF",
-    },
-    typography_config: {
-      heading_font: "Playfair Display",
-      body_font: "Inter",
-      base_size: 16,
-      scale_ratio: 1.2,
-    },
-    sections_config: [
-      {
-        id: "hero",
-        type: "hero",
-        label: "Hero Section",
-        required: true,
-        order: 1,
-        default_props: {
-          headline: "Anggun & Nyaman Setiap Hari",
-          subheadline: "Koleksi hijab dan busana muslimah kualitas premium dengan bahan adem",
-          cta_text: "Belanja Koleksi Terbaru",
-          cta_link: "#collection",
-          background_image: "",
-        },
-      },
-      {
-        id: "featured",
-        type: "product_grid",
-        label: "Koleksi Unggulan",
-        required: true,
-        order: 2,
-        default_props: {
-          title: "Best Seller Hijab",
-          subtitle: "Paling banyak dicari minggu ini",
-          columns: 3,
-          show_price: true,
-          items: [
-            { name: "Pashmina Ceruty Babydoll", price: 35000, description: "Jatuh, mudah dibentuk, tidak menerawang" },
-            { name: "Gamis Rayon Premium", price: 125000, description: "Bahan adem semriwing, busui friendly" },
-            { name: "Hijab Paris Jadul Original", price: 20000, description: "Tegak di dahi, nyaman seharian" },
-          ],
-        },
-      },
-      {
-        id: "contact",
-        type: "contact_info",
-        label: "Kontak & Order",
-        required: true,
-        order: 3,
-        default_props: {
-          title: "Layanan Pelanggan",
-          phone: "081223344556",
-          whatsapp: "081223344556",
-          address: "Butik Hijab Cantik, Mall ITC Kuningan Lt. 2",
-          hours: "09:00 - 20:00 WIB",
-          delivery_info: "Pengiriman seluruh Indonesia via JNE, J&T, SiCepat",
-        },
-      },
-      {
-        id: "whatsapp",
-        type: "whatsapp_button",
-        label: "WhatsApp Button",
-        required: true,
-        order: 4,
-        default_props: {
-          phone: "081223344556",
-          message: "Halo Sis, saya tertarik order gamis dan pashmina...",
-        },
-      },
-    ],
-    is_active: true,
-  },
-  {
-    id: "tpl-retail",
-    name: "retail",
-    description: "Template untuk toko retail: aksesoris, perhiasan, kosmetik, elektronik",
-    color_palette: {
-      primary: "#0891B2",
-      secondary: "#CFFAFE",
-      accent: "#06B6D4",
-      background: "#F0FDFF",
-      text: "#1C1917",
-      text_light: "#78716C",
-      border: "#A5F3FC",
-    },
-    typography_config: {
-      heading_font: "Inter",
-      body_font: "Inter",
-      base_size: 15,
-      scale_ratio: 1.2,
-    },
-    sections_config: [
-      {
-        id: "hero",
-        type: "hero",
-        label: "Hero Section",
-        required: true,
-        order: 1,
-        default_props: {
-          headline: "Aksesoris Cantik & Elegan",
-          subheadline: "Lengkapi gayamu dengan bros, jepit rambut Korea, dan cincin titanium terbaik",
-          cta_text: "Lihat Produk",
-          cta_link: "#products",
-        },
-      },
-      {
-        id: "products",
-        type: "product_grid",
-        label: "Katalog Aksesoris",
-        required: true,
-        order: 2,
-        default_props: {
-          title: "Aksesoris Populer",
-          subtitle: "Kualitas terjamin anti karat",
-          columns: 3,
-          show_price: true,
-          items: [
-            { name: "Bros Mutiara Air Tawar", price: 25000, description: "Kilau mutiara alami dengan pin kuat" },
-            { name: "Jepit Rambut Korea Pastel (Isi 4)", price: 10000, description: "Jepit cakar kuat tidak merusak rambut" },
-            { name: "Cincin Titanium Anti Karat", price: 35000, description: "Lapisan emas 18k tahan air dan keringat" },
-          ],
-        },
-      },
-      {
-        id: "contact",
-        type: "contact_info",
-        label: "Kontak Toko",
-        required: true,
-        order: 3,
-        default_props: {
-          title: "Pemesanan & CS",
-          phone: "081556677889",
-          whatsapp: "081556677889",
-          address: "Toko Aksesoris Cantik, Pasar Baru Blok B",
-          hours: "09:00 - 18:00 WIB",
-        },
-      },
-      {
-        id: "whatsapp",
-        type: "whatsapp_button",
-        label: "WhatsApp Button",
-        required: true,
-        order: 4,
-        default_props: {
-          phone: "081556677889",
-          message: "Halo Kak, mau tanya stok bros mutiara...",
-        },
-      },
-    ],
-    is_active: true,
-  },
-  {
-    id: "tpl-handicraft",
-    name: "handicraft",
-    description: "Template untuk kerajinan tangan: anyaman, keramik, ukir kayu, batik",
-    color_palette: {
-      primary: "#92400E",
-      secondary: "#FEF3C7",
-      accent: "#D97706",
-      background: "#FFFDF5",
-      text: "#1C1917",
-      text_light: "#78716C",
-      border: "#FDE68A",
-    },
-    typography_config: {
-      heading_font: "Merriweather",
-      body_font: "Inter",
-      base_size: 16,
-      scale_ratio: 1.15,
-    },
-    sections_config: [
-      {
-        id: "hero",
-        type: "hero",
-        label: "Hero Section",
-        required: true,
-        order: 1,
-        default_props: {
-          headline: "Kerajinan Tangan Asli Nusantara",
-          subheadline: "Sentuhan seni pengrajin lokal untuk mempercantik rumah Anda",
-          cta_text: "Lihat Karya",
-        },
-      },
-      {
-        id: "products",
-        type: "product_grid",
-        label: "Koleksi Kerajinan",
-        required: true,
-        order: 2,
-        default_props: {
-          title: "Karya Unggulan",
-          subtitle: "Dibuat dengan ketelitian tinggi",
-          columns: 3,
-          show_price: true,
-          items: [
-            { name: "Tas Anyaman Rotan Etnik", price: 85000, description: "Anyaman rapi dengan tali kulit sintetis" },
-            { name: "Cangkir Keramik Handmade", price: 45000, description: "Tanah liat bakar kualitas tinggi, aman untuk kopi panas" },
-          ],
-        },
-      },
-    ],
-    is_active: true,
-  },
-  {
-    id: "tpl-services",
-    name: "services",
-    description: "Template untuk penyedia jasa: laundry, servis AC, salon, fotografi",
-    color_palette: {
-      primary: "#2563EB",
-      secondary: "#DBEAFE",
-      accent: "#3B82F6",
-      background: "#EFF6FF",
-      text: "#1C1917",
-      text_light: "#78716C",
-      border: "#BFDBFE",
-    },
-    typography_config: {
-      heading_font: "Inter",
-      body_font: "Inter",
-      base_size: 15,
-      scale_ratio: 1.2,
-    },
-    sections_config: [
-      {
-        id: "hero",
-        type: "hero",
-        label: "Hero Section",
-        required: true,
-        order: 1,
-        default_props: {
-          headline: "Layanan Cepat & Bergaransi",
-          subheadline: "Solusi terpercaya untuk kebutuhan rumah tangga dan kantor Anda",
-          cta_text: "Hubungi Sekarang",
-        },
-      },
-    ],
-    is_active: true,
-  },
-];
+import { BUILT_IN_CATALOG, getTemplateIdByCategory } from "@/lib/builder/templates/catalog";
+import type { BusinessCategory } from "@/lib/builder/templates/catalog";
+
+/**
+ * Template demo (mode akun demo) — diturunkan dari katalog statis
+ * (`BUILT_IN_CATALOG`), bukan data tersendiri. Bentuk legacy v1
+ * dipertahankan karena konsumen internal (websiteConfigs) memakainya.
+ */
+function toLegacyPalette(palette: Record<string, string>) {
+  return {
+    primary: palette.primary,
+    secondary: palette.secondary,
+    accent: palette.accent,
+    background: palette.background,
+    text: palette.text,
+    text_light: palette.textMuted,
+    border: palette.border,
+  };
+}
+
+function toLegacyTypography(typography: Record<string, string | number>) {
+  return {
+    heading_font: typography.headingFont,
+    body_font: typography.bodyFont,
+    base_size: typography.baseSize,
+    scale_ratio: typography.scaleRatio,
+  };
+}
+
+export const STATIC_TEMPLATES = BUILT_IN_CATALOG.map((t) => ({
+  id: t.id,
+  name: t.category,
+  description: t.description,
+  color_palette: toLegacyPalette(t.theme.palette as unknown as Record<string, string>),
+  typography_config: toLegacyTypography(
+    t.theme.typography as unknown as Record<string, string | number>,
+  ),
+  sections_config: (t.data.sections ?? []).map((s, i) => ({
+    id: s.type,
+    type: s.type,
+    label: s.type,
+    required: true,
+    order: i + 1,
+    default_props: { ...(s.config ?? {}) },
+  })),
+  is_active: true,
+}));
 
 // --- SEED DEMO USERS ---
 const demoUsers: DemoUser[] = [
@@ -449,7 +154,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-kopibutoni",
     custom_domain: null,
     custom_domain_verified: false,
-    current_template_id: "tpl-food",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -462,7 +167,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-hijabcantik",
     custom_domain: "hijabcantik.com",
     custom_domain_verified: true,
-    current_template_id: "tpl-fashion",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -474,7 +179,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-aksesoris",
     custom_domain: null,
     custom_domain_verified: false,
-    current_template_id: "tpl-retail",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -487,7 +192,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-growthdemo",
     custom_domain: "budidesain.com",
     custom_domain_verified: true,
-    current_template_id: "tpl-services",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -499,7 +204,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-growthmarketing",
     custom_domain: null,
     custom_domain_verified: false,
-    current_template_id: "tpl-services",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -511,7 +216,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-growthtraining",
     custom_domain: "growthedu.id",
     custom_domain_verified: true,
-    current_template_id: "tpl-education",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -524,7 +229,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-enterprisedemo",
     custom_domain: "citramarketplace.com",
     custom_domain_verified: true,
-    current_template_id: "tpl-marketplace",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -536,7 +241,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-citrafashion",
     custom_domain: "citrafashion.biz",
     custom_domain_verified: true,
-    current_template_id: "tpl-fashion",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -548,7 +253,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-citraelectronics",
     custom_domain: "citratech.store",
     custom_domain_verified: true,
-    current_template_id: "tpl-retail",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -560,7 +265,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-citrahomeliving",
     custom_domain: null,
     custom_domain_verified: false,
-    current_template_id: "tpl-handicraft",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -572,7 +277,7 @@ const demoWebsites: DemoWebsite[] = [
     subdomain: "tenant-citracorporate",
     custom_domain: "citracorp.co.id",
     custom_domain_verified: true,
-    current_template_id: "tpl-services",
+    current_template_id: "food",
     created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -1029,15 +734,9 @@ export function createDemoWebsite(
   const id = `site-demo-${Date.now().toString(36)}`;
   const sub = data.subdomain || `toko-${Math.random().toString(36).slice(2, 8)}`;
   const tplId =
-    data.business_type === "food"
-      ? "tpl-food"
-      : data.business_type === "fashion"
-      ? "tpl-fashion"
-      : data.business_type === "handicraft"
-      ? "tpl-handicraft"
-      : data.business_type === "retail"
-      ? "tpl-retail"
-      : "tpl-food";
+    getTemplateIdByCategory(
+      (data.business_type as BusinessCategory | undefined) ?? "retail",
+    ) ?? "food";
 
   const site: DemoWebsite = {
     id,

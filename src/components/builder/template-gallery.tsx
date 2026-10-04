@@ -14,7 +14,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import type { Template } from '@/lib/builder/template-types';
-import { CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
+import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { isCatalogTemplateAllowedForTier } from '@/lib/builder/validation';
 
 const ITEMS_PER_PAGE = 9;
@@ -41,7 +41,7 @@ interface UnifiedTemplate {
 export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTier }: TemplateGalleryProps) {
   void websiteId;
   void onClose;
-  const [loading, setLoading] = useState(true);
+  const [loading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,29 +52,8 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
   });
   const [resolvedTier, setResolvedTier] = useState<string | null>(null);
 
-  const [systemTemplates, setSystemTemplates] = useState<Template[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/templates/library?scope=public&is_system_template=true');
-        if (res.ok) {
-          const json = await res.json();
-          if (!cancelled && json.success) {
-            setSystemTemplates(json.data);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load system templates:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Katalog statis dari kode — tanpa fetch (templates_library dihapus).
+  const systemTemplates = BUILT_IN_CATALOG;
 
   // Resolve tier tenant untuk badge/lock katalog builtin: pakai prop bila
   // diberikan parent, kalau tidak fetch /api/user/plan. Tetap null = permissive
@@ -102,27 +81,19 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onClose, userTi
 
   const builtinUnified = useMemo((): UnifiedTemplate[] => {
     return systemTemplates
-      .filter((t) => isCatalogTemplateAllowedForTier([t.tier_requirement ?? 'free'], resolvedTier))
+      .filter((t) => isCatalogTemplateAllowedForTier(t.tiers, resolvedTier))
       .map((t) => ({
-        // ID dipakai apa adanya (UUID asli) — TANPA prefix. Pembedaan asal
-        // cukup lewat field `source`. Prefix `system-`/`builtin-` terbukti
-        // bocor ke request API & tersimpan sebagai template_id website.
+        // ID = slug katalog statis (mis. 'food'). Tanpa prefix.
         id: t.id,
         name: t.name,
         description: t.description,
         category: t.category,
         source: 'builtin' as const,
-        sectionsCount: t.template_data?.sections?.length ?? 0,
-        tiers: t.tier_requirement ? [t.tier_requirement] : undefined,
-        data: {
-          ...t.template_data,
-          id: t.id,
-          name: t.name,
-          description: t.description,
-          category: t.category,
-        } as unknown as Template,
+        sectionsCount: t.data.sections?.length ?? 0,
+        tiers: t.tiers ? [...t.tiers] : undefined,
+        data: t as unknown as Template,
       }));
-  }, [systemTemplates, resolvedTier]);
+  }, [resolvedTier]);
 
   const filteredTemplates = useMemo(() => {
     return builtinUnified.filter((t) => {

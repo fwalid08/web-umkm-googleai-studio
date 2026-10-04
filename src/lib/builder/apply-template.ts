@@ -13,7 +13,6 @@
  */
 import { getSectionVariant } from './sections/registry';
 import { applySectionAssets } from './template-assets';
-import { buildLibraryTemplate } from './library-template';
 import { getTemplate } from './template-store';
 import type { Template } from './template-types';
 import type { SectionType } from './types';
@@ -176,9 +175,9 @@ export interface ApplyTemplateResult {
 /**
  * PUT template ke website. Satu-satunya implementasi apply.
  *
- * `template_source: 'saved'` wajib ikut: template library punya id dari tabel
- * `templates_library`, bukan `templates`. Tanpa penanda itu server akan
- * mencarinya di tabel yang salah dan membalas 404 "Template tidak ditemukan".
+ * `template_id` adalah slug katalog statis (mis. 'food'). `template_source`
+ * masih dikirim untuk kompatibilitas client lama, tetapi server
+ * mengabaikannya (validasi hanya ke `BUILT_IN_CATALOG`).
  */
 export async function applyTemplateToWebsite(opts: {
   websiteId: string;
@@ -219,54 +218,17 @@ export async function applyTemplateToWebsite(opts: {
 }
 
 /**
- * Bentuk objek `Template` yang valid dari isi template library.
- *
- * Delegasi ke `buildLibraryTemplate` (lib/builder/library-template.ts):
- * theme, katalog headers/footers/sections, designType, customCss, dan aset
- * dibaca dari `template_data` milik library — BUKAN dari blueprint bawaan.
- * Blueprint hanya fallback per-bagian bila kunci hilang (template lama/v2).
- */
-export function synthesizeLibraryTemplate(
-  data: TemplateDataLike,
-  meta: { id: string; name: string; description?: string; category?: string },
-): Template & { data: TemplateDataLike } {
-  return buildLibraryTemplate(data as Record<string, unknown>, {
-    id: meta.id,
-    name: meta.name,
-    ...(meta.description !== undefined ? { description: meta.description } : {}),
-    ...(meta.category !== undefined ? { category: meta.category } : {}),
-  }) as Template & { data: TemplateDataLike };
-}
-
-/**
  * Resolve template untuk store/kanvas dari item galeri — SATU-SATUNYA tempat
  * yang tahu aturan ini (jangan diduplikasi di call site).
  *
- * - Bila `data` objek non-null (kasus `saved` MAUPUN `builtin` — keduanya
- *   membawa `template_data` penuh dari API), sintesis dari data tersebut.
- *   Inilah jalur yang dipakai semua template hasil import ZIP.
- * - Hanya bila tanpa data, fallback ke `getTemplate()` untuk id statis legacy.
- * - Tidak pernah melempar; gagal → `undefined` (call site menampilkan error
- *   "Template tidak ditemukan" seperti dulu).
+ * Katalog statis adalah satu-satunya sumber: id slug (prefix legacy
+ * `system-`/`builtin-` dinormalisasi) dicari di `BUILT_IN_CATALOG`.
+ * Tidak pernah melempar; gagal → `undefined` (call site menampilkan error
+ * "Template tidak ditemukan" seperti dulu).
  */
 export function resolveStoreTemplate(
-  // `source` sengaja diterima tapi DIABAIKAN: saved maupun builtin membawa
-  // template_data penuh, jadi keduanya disintesis sama. Hanya data yang menentukan.
   applyable: Pick<ApplyableTemplate, 'id' | 'name' | 'description' | 'category' | 'source' | 'data'>,
 ): (Template & { data: TemplateDataLike }) | undefined {
-  try {
-    const data = (applyable as { data?: unknown }).data;
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
-      return synthesizeLibraryTemplate(data as TemplateDataLike, {
-        id: resolveTemplateId(applyable.id),
-        name: applyable.name ?? 'Template',
-        description: applyable.description,
-        category: applyable.category,
-      });
-    }
-  } catch {
-    return undefined;
-  }
   try {
     return getTemplate(resolveTemplateId(applyable.id)) as
       | (Template & { data: TemplateDataLike })

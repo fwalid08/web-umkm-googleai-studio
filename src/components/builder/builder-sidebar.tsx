@@ -507,17 +507,12 @@ export function BuilderSidebar({ websiteId }: { websiteId: string }) {
                 setApplyError('');
 
                 // Apply ditangani modul bersama (`lib/builder/apply-template`) —
-                // jangan diduplikasi di sini. Versi lama memakai
-                // `BUILT_IN_CATALOG.find(...)` yang gagal untuk template library
-                // (id-nya UUID dari `templates_library`) dan hanya diam-diam
-                // menulis ke console.
+                // jangan diduplikasi di sini.
                 const applyable = template as ApplyableTemplate;
 
-                // Resolve template untuk store/kanvas via helper bersama —
-                // berlaku untuk `saved` MAUPUN `builtin` (keduanya membawa
-                // template_data penuh dari API). Versi lama hanya mensintesis
-                // `saved` sehingga apply dari tab Katalog selalu gagal dengan
-                // "Template tidak ditemukan".
+                // Resolve template untuk store/kanvas via helper bersama
+                // (lookup katalog statis; undefined → error "Template tidak
+                // ditemukan").
                 let storeTemplate: Template | undefined;
                 try {
                   storeTemplate = resolveStoreTemplate(applyable);

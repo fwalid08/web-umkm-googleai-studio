@@ -726,6 +726,16 @@ prop `compact` header/footer di `< 640px`, viewport switcher builder
 
 ## 9. Template Upload System (ZIP import/export)
 
+> ⚠️ **DEPRECATED — sistem import/export ZIP dihapus.**
+> Route `POST /api/templates/library/import`, `GET .../export`, dan
+> `src/lib/builder/template-*.ts` sudah dihapus. Tabel `templates_library`
+> di-drop (migrasi 040). Template kini **hanya kode statis** di
+> `src/lib/builder/templates/` (`food.ts` pertama, `catalog.ts` pendaftar).
+> Menambah template = tambah file `<niche>.ts` → daftarkan di
+> `BUILT_IN_CATALOG` → `bun scripts/create-template.ts --validate` (bila
+> memakai draf JSON) → `bunx vitest run src/lib/builder/templates/catalog.test.ts`.
+> Isi lama di bawah dipertahankan sebagai arsip.
+
 > Ringkas untuk AI eksternal: lihat
 > [`AI_TEMPLATE_PROMPT.md`](./AI_TEMPLATE_PROMPT.md) — dokumen itu berdiri
 > sendiri dan memuat seluruh kontrak ZIP.

@@ -900,18 +900,8 @@ function DefaultMockup() {
 
 export function TemplatePreview({ templateId }: { templateId: string }) {
   switch (templateId) {
-    case 'pangkas-rapi':
-      return <PangkasRapiPreview />;
-    case 'bengkel':
-      return <BengkelPreview />;
-    case 'warung-makan':
+    case 'food':
       return <WarungMakanPreview />;
-    case 'butik-hijab':
-      return <ButikHijabPreview />;
-    case 'toko-kelontong':
-      return <TokoKelontongPreview />;
-    case 'kerajinan-tangan':
-      return <KerajinanTanganPreview />;
     default:
       return <DefaultMockup />;
   }

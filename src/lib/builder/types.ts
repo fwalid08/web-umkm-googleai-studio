@@ -94,6 +94,11 @@ export interface StorePage {
   updated_at: string;
 }
 
+/**
+ * @deprecated Tabel `templates_library` dihapus (migrasi 040). Template kini
+ * hanya kode statis (`src/lib/builder/templates/`). Interface dipertahankan
+ * sementara agar tidak merusak import lawas — jangan dipakai untuk kode baru.
+ */
 export interface TemplateLibraryItem {
   id: string;
   user_id: string;

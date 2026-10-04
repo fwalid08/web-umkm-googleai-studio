@@ -4,12 +4,8 @@ import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
-import { BUILTIN_TEMPLATES } from "@/lib/builder/template-store";
-import {
-  buildLibraryTemplate,
-  pickLibraryFooterVariant,
-  pickLibraryHeaderVariant,
-} from "@/lib/builder/library-template";
+import { getTemplate } from "@/lib/builder/template-store";
+import { resolveTemplateId } from "@/lib/builder/apply-template";
 import { applySectionAssets } from "@/lib/builder/template-assets";
 import type {
   Template,
@@ -75,76 +71,13 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
       const { templateId } = await params;
 
       try {
-        const template = BUILTIN_TEMPLATES.find(t => `builtin-${t.id}` === templateId || t.id === templateId);
+        const template =
+          getTemplate(templateId) ?? getTemplate(resolveTemplateId(templateId));
 
         if (!template) {
-          // Bukan template bawaan → coba template library milik user (hasil
-          // import ZIP). Tanpa fallback ini, pratinjau template library selalu
-          // "Template tidak ditemukan" walau templatenya tersimpan benar.
-          const res = await fetch(`/api/templates/library/${templateId}`);
-          const json = (await res.json().catch(() => null)) as
-            | { success?: boolean; data?: Record<string, unknown> }
-            | null;
-
-          if (!res.ok || !json?.success || !json.data) {
-            setError("Template tidak ditemukan");
-            return;
-          }
-
-          const row = json.data;
-          const td = (row.template_data ?? {}) as Record<string, unknown>;
-          const seed = (td.data ?? td) as Record<string, unknown>;
-          const headerCfg = (seed.header ?? {}) as Record<string, unknown>;
-          const footerCfg = (seed.footer ?? {}) as Record<string, unknown>;
-          const paletteOverride = (seed.paletteOverride ?? seed.palette_override ?? {}) as Record<string, string>;
-          const rawSections = Array.isArray(seed.sections) ? (seed.sections as Record<string, unknown>[]) : [];
-
-          // Template library ADALAH sumber kebenaran untuk dirinya sendiri:
-          // theme utuh (palet+tipografi+komponen+efek), katalog headers /
-          // footers / sections, activeSections, customCss, dan aset dibaca
-          // dari template_data hasil import. Blueprint bawaan hanya fallback
-          // per-bagian bila kunci hilang (lihat library-template.ts).
-          let library: ReturnType<typeof buildLibraryTemplate>;
-          try {
-            library = buildLibraryTemplate(td, {
-              id: String(row.id),
-              name: String(row.name ?? 'Template'),
-              description: String(row.description ?? ''),
-            });
-          } catch {
-            setError("Template tidak valid");
-            return;
-          }
-          const headerVariant = pickLibraryHeaderVariant(
-            library,
-            (headerCfg.variant as string | undefined) ?? 'standard',
-          );
-          const footerVariant = pickLibraryFooterVariant(
-            library,
-            ((footerCfg.variant ?? footerCfg.style) as string | undefined) ?? 'simple',
-          );
-          const customCss =
-            (typeof td.customCss === 'string' && td.customCss) ||
-            (typeof seed.customCss === 'string' ? seed.customCss : '');
-
-          setSiteData({
-            template: library,
-            headerVariantId: headerVariant.id,
-            footerVariantId: footerVariant.id,
-            sections: rawSections
-              .map(s => toSection(s, library))
-              .filter(Boolean),
-            seo: {
-              title: String((seed.seo as Record<string, unknown>)?.title ?? row.name ?? 'Template'),
-              description: String((seed.seo as Record<string, unknown>)?.description ?? ''),
-            },
-            themeOverride: paletteOverride,
-            headerConfig: headerCfg,
-            footerConfig: footerCfg,
-            animations: (Array.isArray(row.animations) ? row.animations : undefined) as AnimationConfig[] | undefined,
-            behaviours: (Array.isArray(row.behaviours) ? row.behaviours : undefined) as BehaviourConfig[] | undefined,
-            ...(customCss ? { customCss } : {}),
-          });
+          // Katalog statis adalah satu-satunya sumber — ID lama (UUID
+          // templates_library) sudah tidak ada yang memilikinya.
+          setError("Template tidak ditemukan");
           return;
         }
 

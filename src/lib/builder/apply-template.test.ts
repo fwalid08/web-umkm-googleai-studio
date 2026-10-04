@@ -8,10 +8,8 @@ import {
   resolveStoreTemplate,
   resolveTemplateId,
   resolveTemplateSections,
-  synthesizeLibraryTemplate,
   type ApplyableTemplate,
 } from './apply-template';
-import { BUILTIN_TEMPLATES } from './template-store';
 
 function repoFile(...parts: string[]): string {
   return readFileSync(join(process.cwd(), ...parts), 'utf-8');
@@ -96,7 +94,7 @@ describe('apply-template: template library', () => {
   it('mengenali asal template dan membuang prefix builtin-', () => {
     expect(isLibraryTemplate({ source: 'saved' })).toBe(true);
     expect(isLibraryTemplate({ source: 'builtin' })).toBe(false);
-    expect(resolveTemplateId('builtin-bengkel')).toBe('bengkel');
+    expect(resolveTemplateId('builtin-food')).toBe('food');
     expect(resolveTemplateId('be6e2957-1d0f-4ef2-89ba-1a85347ef44f')).toBe(
       'be6e2957-1d0f-4ef2-89ba-1a85347ef44f',
     );
@@ -139,30 +137,29 @@ describe('apply-template: template library', () => {
   });
 });
 
-describe('apply-template: synthesize template library', () => {
-  it('memakai katalog varian dari blueprint sehingga apply ke store tidak no-op', () => {
-    const tpl = synthesizeLibraryTemplate(libraryTemplate().data, {
-      id: 'lib-1',
-      name: 'Bengkel ZIP',
-      category: 'services',
+describe('apply-template: resolve template statis', () => {
+  it('id katalog food resolve ke template penuh dari kode', () => {
+    const tpl = resolveStoreTemplate({
+      id: 'food',
+      name: 'Warung Makan',
+      source: 'builtin',
+      category: 'food',
+      data: {},
     });
-    // `applyTemplate()` di store memakai `getTemplate()` kalau override kosong;
-    // hasil sintetis wajib punya katalog section lengkap agar tidak diam-diam.
-    expect(tpl.sections.length).toBeGreaterThan(0);
-    expect(tpl.headers.length).toBeGreaterThan(0);
-    expect(tpl.footers.length).toBeGreaterThan(0);
-    // Varian yang dipakai seed harus ketemu di katalog.
-    expect(tpl.sections.find((s) => s.type === 'hero')?.variants.some((v) => v.id === 'hero-split')).toBe(true);
-    expect(
-      tpl.sections.find((s) => s.type === 'booking')?.variants.some((v) => v.id === 'booking-single'),
-    ).toBe(true);
+    expect(tpl?.id).toBe('food');
+    expect(tpl!.sections.length).toBeGreaterThan(0);
+    expect(tpl!.headers.length).toBeGreaterThan(0);
+    expect(tpl!.footers.length).toBeGreaterThan(0);
   });
 
-  it('palet library menimpa palet blueprint, sisanya ikut bawaan', () => {
-    const tpl = synthesizeLibraryTemplate(libraryTemplate().data, { id: 'lib-2', name: 'X' });
-    expect(tpl.theme.palette.primary).toBe('#f97316');
-    expect(tpl.theme.palette.background).toBe('#0b1220');
-    expect(tpl.theme.palette.accent).toBe(BUILTIN_TEMPLATES[0].theme.palette.accent);
+  it('prefix legacy builtin- dinormalisasi', () => {
+    expect(resolveStoreTemplate({ id: 'builtin-food', data: {} })?.id).toBe('food');
+  });
+
+  it('id tak dikenal → undefined (bukan throw)', () => {
+    expect(
+      resolveStoreTemplate({ id: 'be6e2957-1d0f-4ef2-89ba-1a85347ef44f', data: {} }),
+    ).toBeUndefined();
   });
 });
 
@@ -226,21 +223,15 @@ describe('REGRESI: logika apply tidak boleh diduplikasi', () => {
   });
 });
 
-describe('resolveStoreTemplate: builtin ikut tersintesis (bukan cuma saved)', () => {
-  it('builtin + data lengkap → tersintesis dengan id ter-strip', () => {
+describe('resolveStoreTemplate: lookup katalog statis', () => {
+  it('id katalog + prefix legacy system- → template food', () => {
     const tpl = resolveStoreTemplate({
       ...libraryTemplate(),
-      id: 'system-be6e2957-1d0f-4ef2-89ba-1a85347ef44f',
+      id: 'system-food',
       source: 'builtin',
     });
     expect(tpl).toBeDefined();
-    expect(tpl!.id).toBe('be6e2957-1d0f-4ef2-89ba-1a85347ef44f');
-  });
-
-  it('saved + data lengkap → tetap seperti dulu', () => {
-    const tpl = resolveStoreTemplate(libraryTemplate());
-    expect(tpl).toBeDefined();
-    expect(tpl!.id).toBe('be6e2957-1d0f-4ef2-89ba-1a85347ef44f');
+    expect(tpl!.id).toBe('food');
   });
 
   it('tanpa data + id tak dikenal → undefined (error UX lama preserved)', () => {
@@ -252,10 +243,10 @@ describe('resolveStoreTemplate: builtin ikut tersintesis (bukan cuma saved)', ()
   it('prefix legacy builtin- juga ter-strip', () => {
     const tpl = resolveStoreTemplate({
       ...libraryTemplate(),
-      id: 'builtin-be6e2957-1d0f-4ef2-89ba-1a85347ef44f',
+      id: 'builtin-food',
       source: 'builtin',
     });
-    expect(tpl?.id).toBe('be6e2957-1d0f-4ef2-89ba-1a85347ef44f');
+    expect(tpl?.id).toBe('food');
   });
 });
 

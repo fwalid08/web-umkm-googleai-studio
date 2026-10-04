@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Layout,
   Users,
   CreditCard,
   BarChart3,
@@ -31,41 +30,6 @@ export const ADMIN_MODULES: AdminModule[] = [
     permissions: ["*"],
     order: 0,
     description: "Platform overview & key metrics",
-  },
-  {
-    id: "templates",
-    label: "Templates",
-    icon: Layout,
-    route: "/admin/templates",
-    permissions: ["templates:read"],
-    order: 1,
-    description: "Manage system & user templates",
-    children: [
-      {
-        id: "templates-list",
-        label: "All Templates",
-        icon: Package,
-        route: "/admin/templates",
-        permissions: ["templates:read"],
-        order: 1,
-      },
-      {
-        id: "templates-create",
-        label: "Create Template",
-        icon: FileText,
-        route: "/admin/templates/new",
-        permissions: ["templates:write"],
-        order: 2,
-      },
-      {
-        id: "templates-categories",
-        label: "Categories",
-        icon: Layout,
-        route: "/admin/templates/categories",
-        permissions: ["templates:write"],
-        order: 3,
-      },
-    ],
   },
   {
     id: "users",

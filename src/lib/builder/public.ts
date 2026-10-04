@@ -6,6 +6,7 @@ import type { ColorPalette, TypographyConfig, SectionConfig, SectionType } from 
 import type { AnimationConfig, BehaviourConfig, TemplateSectionInstance } from "@/lib/builder/template-types";
 import type { DesignStylePalette, DesignStyleTypography } from "@/lib/builder/types";
 import { getDemoPublicSite } from "@/lib/mock/store";
+import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { isValidSubdomain, normalizeHost, rootHost, isRootHost } from "@/lib/tenant";
 import { defaultAnchorId, uniqueAnchorId } from "@/lib/builder/migration";
 
@@ -52,7 +53,7 @@ export interface PublicSiteData {
   sections: MergedSection[];
   seo: { title: string; description: string };
   whatsapp: string;
-  /** Template ID (slug katalog, mis. 'pangkas-rapi') untuk V3 renderer. */
+  /** Template ID (slug katalog, mis. 'food') untuk V3 renderer. */
   templateId?: string;
   /** Design style ID (mis. 'minimalist') untuk V3 renderer. */
   designStyleId?: string;
@@ -101,6 +102,7 @@ interface PublicUserRow {
   business_type: string | null;
   subdomain: string | null;
   current_template_id: string | null;
+  template_slug: string | null;
 }
 
 function digitsOnly(phone: string | null | undefined): string {
@@ -205,24 +207,22 @@ async function fetchProductsForWebsite(websiteId: string): Promise<Array<{
 async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
   const supabase = createServiceSupabaseClient();
 
-  const { data: templates } = await supabase
-    .from("templates")
-    .select(TEMPLATE_FIELDS)
-    .eq("is_active", true)
-    .order("name");
-  const list = templates ?? [];
+  // Katalog statis dari kode — satu-satunya sumber template
+  // (tabel `templates`/`templates_library` sudah dihapus).
+  const list = BUILT_IN_CATALOG;
   if (list.length === 0) return null;
 
-  let template =
-    (user.current_template_id && list.find((t) => t.id === user.current_template_id)) || null;
-  if (!template && user.business_type) template = list.find((t) => t.name === user.business_type) || null;
-  if (!template) template = list[0];
+  const template =
+    (user.template_slug && list.find((t) => t.id === user.template_slug)) ||
+    (user.current_template_id && list.find((t) => t.id === user.current_template_id)) ||
+    (user.business_type && list.find((t) => t.category === user.business_type)) ||
+    list[0];
 
   const { data: row } = await supabase
     .from("user_templates")
     .select("custom_config")
     .eq("website_id", user.id)
-    .eq("template_id", template.id)
+    .eq("template_slug", template.id)
     .maybeSingle();
 
   const stored = (row?.custom_config ?? null) as {
@@ -252,28 +252,20 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     customCss?: string;
   } | null;
 
-  // Determine which template to use for section mapping
-  // If catalog_template_id is stored, use that catalog template (since sections match it)
-  // Otherwise fall back to database template
-  let sectionMappingTemplate = template;
-  let catalogTemplateId: string | null = null;
-  
-  if (stored?.catalog_template_id) {
-    // Fetch catalog template from templates_library
-    const { data: catalogTemplate } = await supabase
-      .from("templates_library")
-      .select("*")
-      .eq("id", stored.catalog_template_id)
-      .maybeSingle();
-    
-    if (catalogTemplate) {
-      sectionMappingTemplate = {
-        ...template,
-        sections_config: catalogTemplate.template_data?.sections ?? [],
-      } as typeof template;
-      catalogTemplateId = catalogTemplate.id;
-    }
-  }
+  // Template katalog untuk mapping section: selalu template statis yang
+  // sama dengan `template` di atas (`catalog_template_id` simpanan lama
+  // diabaikan — UUID library tidak lagi dikenal).
+  const sectionMappingTemplate = {
+    sections_config: template.sections.map((def, i) => ({
+      id: def.type,
+      type: def.type as SectionType,
+      label: def.name,
+      required: false,
+      order: i,
+      default_props: def.variants[0]?.defaultConfig ?? {},
+    })),
+  };
+  const catalogTemplateId: string | null = template.id;
 
   // Page Builder adalah satu-satunya sumber kebenaran homepage: homepage
   // selalu baris store_pages dengan is_homepage = true. Mode 'builder'
@@ -392,11 +384,20 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
       ? (rawPalette as Partial<ColorPalette>)
       : {};
   const palette = {
-    ...(template.color_palette as ColorPalette),
+    primary: template.theme.palette.primary,
+    secondary: template.theme.palette.secondary,
+    accent: template.theme.palette.accent,
+    background: template.theme.palette.background,
+    text: template.theme.palette.text,
+    text_light: template.theme.palette.textMuted,
+    border: template.theme.palette.border,
     ...palettePatch,
   } as ColorPalette;
   const typography = {
-    ...(template.typography_config as TypographyConfig),
+    heading_font: template.theme.typography.headingFont,
+    body_font: template.theme.typography.bodyFont,
+    base_size: template.theme.typography.baseSize,
+    scale_ratio: template.theme.typography.scaleRatio,
     ...((theme.typography ?? {}) as Partial<TypographyConfig>),
   } as TypographyConfig;
 const name = user.name || "Toko Kami";
@@ -412,14 +413,13 @@ const name = user.name || "Toko Kami";
     style?: Record<string, unknown>;
     responsive?: Record<string, unknown>;
   }> | undefined;
-// Template katalog untuk mapping variant & anchor default. Dipindah ke atas
-// agar dipakai juga saat membangun builderSections di bawah.
-const catalogTemplateForSections = catalogTemplateId
-  ? (await supabase.from("templates_library").select("*").eq("id", catalogTemplateId).maybeSingle()).data
-  : null;
+// Template katalog untuk mapping variant & anchor default.
+const catalogTemplateForSections = template;
 const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
-  catalogTemplateForSections?.template_data?.sections ??
-  [];
+  template.sections.map((def) => ({
+    type: def.type,
+    variants: def.variants.map((v) => ({ id: v.id })),
+  }));
   const resolveVariantId = (type: string, variant: unknown): string => {
     const typeDef = variantSource.find((t) => t.type === type);
     if (typeof variant === 'string' && variant.length > 0 && typeDef?.variants?.some((v) => v.id === variant)) {
@@ -471,7 +471,11 @@ const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
   // yang menyalakannya, bukan data ini. Bila simpanan belum memilikinya
   // (mis. baris lama), fallback ke data template katalog agar live site
   // tidak kehilangan gaya/animasi bawaan template.
-  const libData = (catalogTemplateForSections?.template_data ?? {}) as Record<string, unknown>;
+  const libData = {
+    animations: catalogTemplateForSections.animations ?? [],
+    behaviours: catalogTemplateForSections.behaviours ?? [],
+    customCss: catalogTemplateForSections.data.customCss ?? "",
+  };
   const nonEmptyString = (v: unknown): string | undefined =>
     typeof v === 'string' && v.trim().length > 0 ? v : undefined;
   const nonEmptyArray = <T,>(v: unknown): T[] | undefined =>
@@ -487,10 +491,10 @@ const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
 
 // Use catalog template's theme/typography for V3 renderer if available.
 const catalogTemplate = catalogTemplateForSections;
-const v3Palette = (catalogTemplate?.template_data?.theme?.palette ?? palette) as DesignStylePalette;
+const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePalette;
   const storedTypography = ((stored?.theme as Record<string, unknown> | undefined)?.typography ?? {}) as Record<string, string>;
   const v3Typography = {
-    ...((catalogTemplate?.template_data?.theme?.typography ?? typography) as DesignStyleTypography),
+    ...((catalogTemplate?.theme?.typography ?? typography) as DesignStyleTypography),
     ...(typeof storedTypography.headingFont === 'string' && storedTypography.headingFont.trim() ? { headingFont: storedTypography.headingFont.trim() } : {}),
     ...(typeof storedTypography.bodyFont === 'string' && storedTypography.bodyFont.trim() ? { bodyFont: storedTypography.bodyFont.trim() } : {}),
   } as DesignStyleTypography;
@@ -549,7 +553,7 @@ export async function getPublicSiteBySubdomain(subdomain: string): Promise<Publi
     const supabase = createServiceSupabaseClient();
     const { data: site } = await supabase
       .from("websites")
-      .select("id, user_id, name, business_type, subdomain, current_template_id")
+      .select("id, user_id, name, business_type, subdomain, current_template_id, template_slug")
       .eq("subdomain", subdomain)
       .maybeSingle();
     if (!site) return null;
@@ -564,7 +568,7 @@ export async function getPublicSiteByCustomDomain(domain: string): Promise<Publi
     const supabase = createServiceSupabaseClient();
     const { data: site, error } = await supabase
       .from("websites")
-      .select("id, user_id, name, business_type, subdomain, current_template_id")
+      .select("id, user_id, name, business_type, subdomain, current_template_id, template_slug")
       .eq("custom_domain", domain.toLowerCase())
       .eq("custom_domain_verified", true)
       .maybeSingle();

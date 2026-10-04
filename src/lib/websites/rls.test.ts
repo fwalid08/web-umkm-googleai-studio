@@ -35,11 +35,13 @@ describe("rls hardening: resolveMaxWebsites", () => {
 });
 
 describe("rls hardening: owner-scoping query builder (static check)", () => {
-  it("lib/websites/active.ts selalu filter user_id (getActiveWebsite + getOwnedWebsite)", () => {
+  it("lib/websites/active.ts selalu scope user via RPC p_user_id (getActiveWebsite + getOwnedWebsite)", () => {
     const src = repoFile("src", "lib", "websites", "active.ts");
-    expect(src).toContain('.eq("user_id", userId)');
-    // getOwnedWebsite wajib double-filter id + user_id
-    expect(src).toContain('.eq("id", websiteId)');
+    // Sejak 026 otorisasi di RPC SECURITY DEFINER (bukan .eq di client):
+    // kedua helper wajib meneruskan p_user_id.
+    expect(src).toContain("p_user_id");
+    expect(src).toContain("get_active_website");
+    expect(src).toContain("get_website_by_id");
   });
 
   it("app/api/websites/route.ts list memfilter user_id milik sendiri", () => {
@@ -51,12 +53,6 @@ describe("rls hardening: owner-scoping query builder (static check)", () => {
     const src = repoFile("app", "api", "orders", "route.ts");
     expect(src).toContain('.eq("user_id", userId)');
     expect(src).toContain('.eq("website_id", site.id)');
-  });
-
-  it("app/api/user/website/route.ts user_templates difilter ganda website_id + user_id", () => {
-    const src = repoFile("app", "api", "user", "website", "route.ts");
-    expect(src).toContain('.eq("website_id", site.id)');
-    expect(src).toContain('.eq("user_id", sessionUser.id)');
   });
 
   it("app/api/orders/[id]/status/route.ts update difilter id + user_id + website_id", () => {

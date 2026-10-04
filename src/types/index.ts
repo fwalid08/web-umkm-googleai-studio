@@ -502,6 +502,8 @@ export interface Website {
   custom_domain_verified: boolean;
   custom_domain_verified_at: string | null;
   current_template_id: string | null;
+  /** Slug katalog statis (migrasi 039). Kolom UUID lama dipertahankan sementara. */
+  template_slug?: string | null;
   created_at: string;
   updated_at: string;
 }
