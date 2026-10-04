@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { adminUrl as buildAdminUrl } from "@/lib/urls";
 
 /**
  * Ekstrak subdomain tenant dari hostname → header x-tenant-subdomain.
@@ -8,7 +9,10 @@ import { getToken } from "next-auth/jwt";
  * Host lain (custom domain) diteruskan; getTenantSite() resolve via DB.
  * Validasi terpusat di src/lib/tenant (isValidSubdomain, stripPort).
  * 
- * Ditambah: session validation untuk /dashboard dan /admin routes
+ * Routing untuk admin.localhost:3000:
+ * - /, /admin* → Admin panel (platform admin only)
+ * - /signin, /signup → Auth pages (public access)
+ * - /dashboard*, /settings*, /billing*, dll → Tenant dashboard (protected, redirect to /signin if not authenticated)
  */
 
 function stripPortLocal(host: string): string {
@@ -24,6 +28,7 @@ function stripPortLocal(host: string): string {
 }
 
 const ROOT = stripPortLocal(process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com");
+const ADMIN_HOST = `admin.${ROOT}`;
 const RESERVED = new Set([
   "admin", "api", "www", "root", "app", "dashboard", "auth",
   "login", "signin", "signup", "support", "help",
@@ -40,14 +45,34 @@ function tenantHeaders(sub: string) {
   return res;
 }
 
+function adminHeaders() {
+  const res = NextResponse.next();
+  res.headers.set("x-tenant-subdomain", "");
+  res.headers.set("x-is-tenant", "admin");
+  return res;
+}
+
 const PROTECTED_PATHS = ["/dashboard", "/admin"];
 const ADMIN_PATHS = ["/admin"];
 
-async function validateSession(request: NextRequest): Promise<NextResponse | null> {
+const DASHBOARD_PATHS = [
+  "/dashboard", "/settings", "/billing", "/products", "/orders",
+  "/customers", "/analytics", "/websites", "/domain", "/themes", "/announcement",
+];
+
+const AUTH_PATHS = ["/signin", "/signup", "/forgot", "/reset-password"];
+const ADMIN_PUBLIC_PATHS = [...AUTH_PATHS, "/privacy", "/terms"];
+
+async function validateSession(
+  request: NextRequest,
+  options: { forceProtected?: boolean; callbackPath?: string } = {}
+): Promise<NextResponse | null> {
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
-  const isAdmin = ADMIN_PATHS.some((p) => pathname.startsWith(p));
+  const isProtected = options.forceProtected || PROTECTED_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+  const isAdmin = ADMIN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (!isProtected) {
     return null;
@@ -61,7 +86,7 @@ async function validateSession(request: NextRequest): Promise<NextResponse | nul
 
   if (!token) {
     const signInUrl = new URL("/signin", request.url);
-    signInUrl.searchParams.set("callbackUrl", pathname);
+    signInUrl.searchParams.set("callbackUrl", options.callbackPath || pathname);
     return NextResponse.redirect(signInUrl);
   }
 
@@ -78,12 +103,6 @@ async function validateSession(request: NextRequest): Promise<NextResponse | nul
 export default async function proxy(request: NextRequest) {
   const { hostname, pathname } = request.nextUrl;
 
-  // Session validation untuk protected routes
-  const sessionRedirect = await validateSession(request);
-  if (sessionRedirect) {
-    return sessionRedirect;
-  }
-
   // Static/API dilewati (matcher sudah kecualikan); JANGAN pakai includes(".")
   // karena route valid bisa mengandung titik.
   if (
@@ -95,15 +114,68 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // NOTE: /admin adalah route admin sungguhan (app/(admin)/), bukan alias.
-  // Jangan redirect ke /dashboard — proteksi sudah ditangani validateSession di atas.
+  const host = stripPortLocal(request.headers.get("host") || hostname);
 
-  const host = hostname.toLowerCase();
-  if (host.startsWith("admin.")) {
-    const res = NextResponse.next();
-    res.headers.set("x-tenant-subdomain", "");
-    res.headers.set("x-is-tenant", "admin");
-    return res;
+  // Admin subdomain → tenant dashboard at root + platform admin under /admin
+  if (host === ADMIN_HOST) {
+    if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+      const canonicalPath = pathname.slice("/dashboard".length) || "/";
+      const canonicalUrl = new URL(canonicalPath, request.url);
+      canonicalUrl.search = request.nextUrl.search;
+      return NextResponse.redirect(canonicalUrl);
+    }
+
+    if (pathname === "/") {
+      const sessionRedirect = await validateSession(request, {
+        forceProtected: true,
+        callbackPath: "/",
+      });
+      if (sessionRedirect) return sessionRedirect;
+      return NextResponse.rewrite(new URL("/dashboard", request.url));
+    }
+
+    // The platform-admin layout keeps its own authorization check.
+    if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+      return adminHeaders();
+    }
+
+    // Auth and legal pages - allow public access
+    if (ADMIN_PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+      const res = NextResponse.next();
+      res.headers.set("x-tenant-subdomain", "");
+      res.headers.set("x-is-tenant", "auth");
+      return res;
+    }
+
+    // Tenant dashboard routes - require authentication
+    if (DASHBOARD_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+      const routePath = `/dashboard${pathname}`;
+      const sessionRedirect = await validateSession(request, {
+        forceProtected: true,
+        callbackPath: pathname,
+      });
+      if (sessionRedirect) {
+        return sessionRedirect;
+      }
+      return NextResponse.rewrite(new URL(routePath, request.url));
+    }
+
+    // Default: redirect to signin for unknown paths on admin subdomain
+    return NextResponse.redirect(new URL("/signin", request.url));
+  }
+
+  // Root domain (localhost:3000, saas-saya.com) → Public SaaS website
+  // Redirect auth pages to the admin subdomain
+  if (AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    const targetUrl = new URL(buildAdminUrl(pathname));
+    targetUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(targetUrl);
+  }
+
+  // Session validation untuk protected routes (non-admin subdomain)
+  const sessionRedirect = await validateSession(request);
+  if (sessionRedirect) {
+    return sessionRedirect;
   }
 
   // Root & www → landing / central dashboard

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { adminUrl } from "@/lib/urls";
 
 export const metadata = {
   title: "Syarat & Ketentuan",
@@ -55,7 +56,7 @@ export default function TermsPage() {
         <Link href="/privacy" className="text-emerald-700 underline font-semibold">
           Kebijakan Privasi
         </Link>
-        <Link href="/signup" className="text-gray-600 underline">
+        <Link href={adminUrl("/signup")} className="text-gray-600 underline">
           Kembali ke pendaftaran
         </Link>
       </div>

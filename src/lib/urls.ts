@@ -38,6 +38,18 @@ export function appBase(): string {
   return `${appProtocol()}://${rootDomain()}`;
 }
 
+/** Base URL admin, mis. http://admin.localhost:3000. */
+export function adminBase(): string {
+  const host = rootDomain();
+  const adminHost = host.startsWith("admin.") ? host : `admin.${host}`;
+  return `${appProtocol()}://${adminHost}`;
+}
+
+/** URL absolut untuk halaman di host admin. */
+export function adminUrl(path = "/"): string {
+  return `${adminBase()}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 /** URL penuh tenant: http://toko-x.localhost:3000. Null jika subdomain kosong. */
 export function tenantUrl(subdomain: string | null | undefined): string | null {
   if (!subdomain) return null;

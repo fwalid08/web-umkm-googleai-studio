@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { appProtocol, rootHost, tenantDisplay, tenantUrl } from "./urls";
+import { adminBase, adminUrl, appProtocol, rootHost, tenantDisplay, tenantUrl } from "./urls";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -11,6 +11,8 @@ describe("urls (env-driven)", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
     expect(rootHost()).toBe("localhost");
     expect(appProtocol()).toBe("http");
+    expect(adminBase()).toBe("http://admin.localhost:3000");
+    expect(adminUrl("/signin")).toBe("http://admin.localhost:3000/signin");
     expect(tenantUrl("toko-x")).toBe("http://toko-x.localhost:3000");
     expect(tenantDisplay("toko-x")).toBe("toko-x.localhost:3000");
   });
@@ -19,6 +21,8 @@ describe("urls (env-driven)", () => {
     vi.stubEnv("NEXT_PUBLIC_ROOT_DOMAIN", "saas-saya.com");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
     expect(appProtocol()).toBe("https");
+    expect(adminBase()).toBe("https://admin.saas-saya.com");
+    expect(adminUrl("dashboard")).toBe("https://admin.saas-saya.com/dashboard");
     expect(tenantUrl("toko-x")).toBe("https://toko-x.saas-saya.com");
   });
 

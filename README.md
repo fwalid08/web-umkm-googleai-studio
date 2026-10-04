@@ -58,17 +58,19 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # NextAuth
 NEXTAUTH_SECRET=your-secret-key # generate: openssl rand -base64 32
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://admin.localhost:3000
 
 # Google OAuth (https://console.cloud.google.com/apis/credentials)
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 # Kita pakai NextAuth Google provider langsung (bukan Supabase Auth Google).
-# Callback: http://localhost:3000/api/auth/callback/google (prod: ganti domain)
+# Callback: http://admin.localhost:3000/api/auth/callback/google
 
 # App
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://admin.localhost:3000
 NEXT_PUBLIC_ROOT_DOMAIN=localhost:3000
+# Prod contoh: NEXTAUTH_URL=https://admin.saas-saya.com
+# Prod contoh: NEXT_PUBLIC_APP_URL=https://admin.saas-saya.com
 # Prod contoh: NEXT_PUBLIC_ROOT_DOMAIN=saas-saya.com
 
 # Payments (Sandbox)
@@ -76,6 +78,11 @@ MIDTRANS_SERVER_KEY=SB-Mid-server-xxx
 MIDTRANS_CLIENT_KEY=SB-Mid-client-xxx
 MIDTRANS_IS_PRODUCTION=false
 ```
+
+Di production, siapkan DNS dan TLS untuk `admin.<NEXT_PUBLIC_ROOT_DOMAIN>`, lalu daftarkan
+`https://admin.<domain>/api/auth/callback/google` sebagai Google OAuth redirect URI.
+Tambahkan `http://admin.localhost:3000/reset-password` untuk development dan
+`https://admin.<domain>/reset-password` ke Supabase Auth URL Configuration redirect allow list.
 
 ### Database Setup (Supabase)
 

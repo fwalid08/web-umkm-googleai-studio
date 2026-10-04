@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { adminUrl } from "@/lib/urls";
 
 export const metadata = {
   title: "Kebijakan Privasi",
@@ -55,7 +56,7 @@ export default function PrivacyPage() {
         <Link href="/terms" className="text-emerald-700 underline font-semibold">
           Syarat &amp; Ketentuan
         </Link>
-        <Link href="/signup" className="text-gray-600 underline">
+        <Link href={adminUrl("/signup")} className="text-gray-600 underline">
           Kembali ke pendaftaran
         </Link>
       </div>

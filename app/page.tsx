@@ -7,6 +7,7 @@ import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
 import { getDesignStyle } from "@/lib/builder/design-styles";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { getSectionVariant } from "@/lib/builder/sections/registry";
+import { adminUrl } from "@/lib/urls";
 
 import { LandingPricing } from "@/components/pricing/landing-pricing";
 import { InteractiveStorePreview } from "@/components/website/interactive-preview";
@@ -146,20 +147,20 @@ function LandingPage() {
           {/* Action Links */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
-              href="/signin"
+              href={adminUrl("/signin")}
               className="text-xs sm:text-sm font-bold text-gray-700 hover:text-emerald-700 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
             >
               Masuk
             </Link>
             <Link
-              href="/signin"
+              href={adminUrl("/signin")}
               className="text-xs sm:text-sm font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 px-3.5 py-2.5 rounded-xl transition-all shadow-2xs flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span>Coba Demo</span>
             </Link>
             <Link
-              href="/signup"
+              href={adminUrl("/signup")}
               className="hidden sm:inline-flex text-xs sm:text-sm font-bold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition-all"
             >
               Daftar Gratis 14 Hari
@@ -196,14 +197,14 @@ function LandingPage() {
               {/* Action Buttons */}
               <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <Link
-                  href="/signup"
+                  href={adminUrl("/signup")}
                   className="inline-flex items-center justify-center gap-2.5 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold text-sm sm:text-base hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 hover:shadow-xl transition-all"
                 >
                   <span>Mulai Toko Gratis 14 Hari</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
-                  href="/signin"
+                  href={adminUrl("/signin")}
                   className="inline-flex items-center justify-center gap-2.5 bg-white border border-gray-300 px-7 py-4 rounded-2xl font-bold text-sm sm:text-base text-gray-800 hover:bg-gray-50 hover:border-gray-400 transition-all shadow-xs"
                 >
                   <Sparkles className="w-4 h-4 text-emerald-600" />
@@ -432,14 +433,14 @@ function LandingPage() {
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href={adminUrl("/signup")}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-emerald-900 px-8 py-4 rounded-2xl font-black text-base hover:bg-emerald-50 shadow-xl transition-all"
             >
               <span>Daftar Toko Gratis 14 Hari</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/signin"
+              href={adminUrl("/signin")}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-950/40 border border-emerald-400/40 text-white px-7 py-4 rounded-2xl font-bold text-base hover:bg-emerald-950/60 transition-all"
             >
               <Sparkles className="w-4 h-4 text-emerald-300" />
@@ -478,10 +479,10 @@ function LandingPage() {
             <div className="space-y-3 text-xs">
               <p className="font-bold text-gray-900 uppercase tracking-wider text-[11px]">Akun & Bantuan</p>
               <ul className="space-y-2 text-gray-600">
-                <li><Link href="/signin" className="hover:text-gray-900">Masuk Akun</Link></li>
-                <li><Link href="/signup" className="hover:text-gray-900">Daftar Toko Baru</Link></li>
-                <li><Link href="/signin" className="hover:text-gray-900">Akun Demo</Link></li>
-                <li><Link href="/dashboard" className="hover:text-gray-900">Panel Toko</Link></li>
+                <li><Link href={adminUrl("/signin")} className="hover:text-gray-900">Masuk Akun</Link></li>
+                <li><Link href={adminUrl("/signup")} className="hover:text-gray-900">Daftar Toko Baru</Link></li>
+                <li><Link href={adminUrl("/signin")} className="hover:text-gray-900">Akun Demo</Link></li>
+                <li><Link href={adminUrl("/")} className="hover:text-gray-900">Panel Toko</Link></li>
               </ul>
             </div>
           </div>
@@ -491,7 +492,7 @@ function LandingPage() {
             <div className="flex items-center gap-6">
               <Link href="/privacy" className="hover:text-gray-900">Kebijakan Privasi</Link>
               <Link href="/terms" className="hover:text-gray-900">Syarat & Ketentuan</Link>
-              <Link href="/signin" className="text-emerald-700 font-semibold hover:underline">Akun Demo</Link>
+              <Link href={adminUrl("/signin")} className="text-emerald-700 font-semibold hover:underline">Akun Demo</Link>
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { findDemoUser, getDemoActiveWebsite, getDemoUser, isDemoUserId } from "@/lib/mock/store";
 import { isDemoAuthEnabled } from "@/lib/auth/utils";
 import { ensureUniqueSubdomain, generateSubdomain, isValidSubdomain } from "@/lib/tenant/index";
+import { rootHost } from "@/lib/urls";
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 if (!NEXTAUTH_SECRET) {
@@ -18,6 +19,8 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 const isSecureCookie = process.env.NODE_ENV === "production";
+const isProduction = process.env.NODE_ENV === "production";
+const cookieDomain = isProduction ? `.${rootHost()}` : undefined;
 
 const nextAuth = NextAuth({
   trustHost: true,
@@ -288,6 +291,7 @@ const nextAuth = NextAuth({
         sameSite: "lax",
         path: "/",
         secure: isSecureCookie,
+        domain: cookieDomain,
       },
     },
     callbackUrl: {
@@ -296,6 +300,7 @@ const nextAuth = NextAuth({
         sameSite: "lax",
         path: "/",
         secure: isSecureCookie,
+        domain: cookieDomain,
       },
     },
     csrfToken: {
@@ -305,6 +310,7 @@ const nextAuth = NextAuth({
         sameSite: "lax",
         path: "/",
         secure: isSecureCookie,
+        domain: cookieDomain,
       },
     },
   },

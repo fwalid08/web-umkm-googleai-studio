@@ -6,12 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { adminUrl } from "@/lib/urls";
 
 function SignInForm() {
   const router = useRouter();
   const { t } = useLang();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") || adminUrl("/dashboard");
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +41,12 @@ function SignInForm() {
 
         // Sinkronisasi NextAuth session — WAJIB await sebelum navigasi agar
         // cookie JWT sempat ter-set (proxy memvalidasi JWT untuk /dashboard & /admin).
-        await signIn("credentials", { email, password: pass, redirect: false }).catch(() => {});
+        const authResult = await signIn("credentials", { email, password: pass, redirect: false });
+        if (!authResult?.ok || authResult.error) {
+          setErr(authResult?.error ? t("auth.badCreds") : t("common.networkError"));
+          setIsLoading(false);
+          return;
+        }
 
         // Navigasi instan ke halaman dashboard / callbackUrl
         window.location.href = callbackUrl || "/dashboard";
@@ -49,8 +55,8 @@ function SignInForm() {
 
       // 2. Alur login credentials standar
       const result = await signIn("credentials", { email, password: pass, redirect: false });
-      if (result?.error) {
-        setErr(t("auth.badCreds"));
+      if (result?.error || !result?.ok) {
+        setErr(result?.error ? t("auth.badCreds") : t("common.networkError"));
         setIsLoading(false);
       } else {
         window.location.href = callbackUrl || "/dashboard";

@@ -31,7 +31,7 @@ import {
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { useLang, type Lang } from "@/lib/i18n";
-import { tenantDisplay, tenantUrl } from "@/lib/urls";
+import { adminUrl, tenantDisplay, tenantUrl } from "@/lib/urls";
 import {
   Select,
   SelectTrigger,
@@ -469,9 +469,9 @@ export default function DashboardLayout({
                       localStorage.removeItem("umkm_demo_user");
                       await fetch("/api/auth/demo-logout", { method: "POST" }).catch(() => {});
                     } catch {}
-                    signOut({ callbackUrl: "/signin" });
+                    signOut({ callbackUrl: adminUrl("/signin") });
                     // Force hard redirect to ensure JWT cookie is cleared
-                    window.location.href = "/signin";
+                    window.location.href = adminUrl("/signin");
                   }}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-lg cursor-pointer dark:hover:bg-red-900/20"
                 >
