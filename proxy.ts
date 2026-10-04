@@ -61,6 +61,7 @@ const DASHBOARD_PATHS = [
 ];
 
 const AUTH_PATHS = ["/signin", "/signup", "/forgot", "/reset-password"];
+const AUTH_ONLY_PATHS = ["/signin", "/signup"];
 const ADMIN_PUBLIC_PATHS = [...AUTH_PATHS, "/privacy", "/terms"];
 
 async function validateSession(
@@ -141,6 +142,15 @@ export default async function proxy(request: NextRequest) {
 
     // Auth and legal pages - allow public access
     if (ADMIN_PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+      if (AUTH_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+        const token = await getToken({
+          req: request,
+          secret: process.env.NEXTAUTH_SECRET,
+          secureCookie: process.env.NODE_ENV === "production",
+        });
+        if (token) return NextResponse.redirect(new URL("/", request.url));
+      }
+
       const res = NextResponse.next();
       res.headers.set("x-tenant-subdomain", "");
       res.headers.set("x-is-tenant", "auth");

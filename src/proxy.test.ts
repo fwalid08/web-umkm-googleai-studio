@@ -58,6 +58,23 @@ describe("admin host routing", () => {
     expect(signin.searchParams.get("callbackUrl")).toBe("/settings");
   });
 
+  it.each(["/signin", "/signup"])("redirects authenticated users from %s to the dashboard", async (pathname) => {
+    getTokenMock.mockResolvedValueOnce({ email: "merchant@example.com" });
+
+    const response = await runProxy(new NextRequest(`http://admin.localhost:3000${pathname}`));
+
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/");
+  });
+
+  it.each(["/signin", "/signup"])("keeps %s available to anonymous users", async (pathname) => {
+    getTokenMock.mockResolvedValueOnce(null);
+
+    const response = await runProxy(new NextRequest(`http://admin.localhost:3000${pathname}`));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
   it("redirects public signin and preserves its query string", async () => {
     const response = await runProxy(new NextRequest("http://localhost:3000/signin?registered=true"));
     const location = new URL(response.headers.get("location")!);
