@@ -42,8 +42,14 @@ CREATE INDEX IF NOT EXISTS idx_websites_template_slug ON websites (template_slug
 
 -- ============================================================
 -- 5. RPC ikut mengembalikan template_slug (daftar kolom eksplisit).
+-- NOTE: Postgres tidak mengizinkan CREATE OR REPLACE bila RETURNS TABLE
+-- berubah, jadi DROP dulu (bentuk lama tanpa template_slug ada di DB remote).
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.get_website_by_id(p_website_id UUID, p_user_id UUID)
+DROP FUNCTION IF EXISTS public.get_website_by_id(UUID, UUID);
+DROP FUNCTION IF EXISTS public.get_active_website(UUID);
+DROP FUNCTION IF EXISTS public.list_websites(UUID);
+
+CREATE FUNCTION public.get_website_by_id(p_website_id UUID, p_user_id UUID)
 RETURNS TABLE (
   id UUID,
   user_id UUID,
@@ -65,7 +71,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION public.get_active_website(p_user_id UUID)
+CREATE FUNCTION public.get_active_website(p_user_id UUID)
 RETURNS TABLE (
   id UUID,
   user_id UUID,
@@ -89,7 +95,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION public.list_websites(p_user_id UUID)
+CREATE FUNCTION public.list_websites(p_user_id UUID)
 RETURNS TABLE (
   id UUID,
   user_id UUID,
