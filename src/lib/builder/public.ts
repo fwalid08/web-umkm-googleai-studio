@@ -44,7 +44,7 @@ function builderToMergedSection(
 
 export interface PublicSiteData {
   subdomain: string;
-  /** ID website (baris websites.id) — dipakai form live (booking) untuk submit. */
+  /** ID website (baris websites.id) — dipakai form live untuk submit. */
   websiteId: string;
   name: string;
   businessType: string;

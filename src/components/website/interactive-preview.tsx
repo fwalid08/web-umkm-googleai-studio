@@ -110,7 +110,7 @@ const DEMO_STORES: StoreDemo[] = [
     subdomain: "barbermasanto",
     tagline: "Potong rambut pria rapi & styling pomade modern harga bersahabat",
     bannerGradient: "from-slate-800 via-zinc-800 to-gray-900",
-    badgeText: "Booking WhatsApp",
+    badgeText: "Pesan WhatsApp",
     hours: "10:00 - 21:00 WIB",
     products: [
       { name: "Gentleman Haircut + Cuci", price: 40000, tag: "Paket Utama", desc: "Konsultasi gaya rambut, potong presisi & cuci rambut" },

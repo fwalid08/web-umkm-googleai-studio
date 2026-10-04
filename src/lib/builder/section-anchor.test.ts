@@ -14,7 +14,7 @@ describe('sanitizeAnchor', () => {
 
   it('mengubah huruf besar dan spasi', () => {
     expect(sanitizeAnchor('Daftar Harga')).toBe('daftar-harga');
-    expect(sanitizeAnchor('  BOOKING  ')).toBe('booking');
+    expect(sanitizeAnchor('  KONTAK  ')).toBe('kontak');
   });
 
   it('membuang tanda # yang ikut tersalin', () => {

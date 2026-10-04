@@ -25,7 +25,6 @@ export const en: Dict = {
   nav: {
     dashboard: "Dashboard",
     orders: "Orders",
-    bookings: "Bookings",
     products: "Products",
     customers: "Customers",
     analytics: "Analytics",

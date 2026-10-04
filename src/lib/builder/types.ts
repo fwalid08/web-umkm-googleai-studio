@@ -103,7 +103,7 @@ export interface FullTemplateData {
   palette_override?: Partial<DesignStylePalette>;
   /**
    * Section mana yang AKTIF untuk niche ini (v3.0, v3.4: boleh memuat tipe
-   * kustom milik template). Template tetap mendefinisikan SEMUA 19 tipe
+   * kustom milik template). Template tetap mendefinisikan SEMUA 18 tipe
    * predefined di katalog `sections` (+ tipe kustom bila ada), tapi hanya
    * yang di sini yang di-seed ke kanvas awal. Lihat `Template.activeSections`.
    */
@@ -193,7 +193,6 @@ export type SectionType =
   | 'faq'
   | 'cta'
   | 'contact'
-  | 'booking'
   | 'about'
   | 'gallery'
   | 'video'
@@ -205,24 +204,6 @@ export type SectionType =
   | 'menu_board'
   | 'steps'
   | 'location';
-
-/** Satu layanan yang bisa dibooking (kontrak config section `booking`). */
-export interface BookingService {
-  name: string;
-  duration: string;
-  price: string;
-}
-
-/** Key config standar section `booking` — wajib disediakan tiap varian. */
-export interface BookingSectionConfig {
-  title: string;
-  subtitle: string;
-  services: BookingService[];
-  address: string;
-  hours: string;
-  success_message: string;
-  forward_wa: string;
-}
 
 export interface SectionVariant {
   id: string;

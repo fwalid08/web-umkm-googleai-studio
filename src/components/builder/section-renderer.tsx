@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Section, DesignStyle, BookingService } from '@/lib/builder/types';
+import type { Section, DesignStyle } from '@/lib/builder/types';
 import { getOnColor, resolvePalette, resolveThemeColor, clampBlur, composeGradientCss, overlayCss, type OverlayKind } from '@/lib/builder/design-styles';
 import { autoFixMutedColor, autoFixTextColor, getSectionEffectiveBackground, resolveButtonColors, resolvePrimaryOnSectionBg } from '@/lib/builder/section-contrast';
 import { useBuilderStore } from '@/lib/builder/store';
@@ -9,7 +9,7 @@ import { useBuilderStore } from '@/lib/builder/store';
 interface SectionRendererProps {
   section: Section;
   designStyle: DesignStyle;
-  /** Diisi saat render di situs live agar form booking bisa submit. Kosong = mode editor (submit nonaktif). */
+  /** Diisi saat render di situs live. Kosong = mode editor. */
   websiteId?: string;
   anchorId?: string;
 }
@@ -156,8 +156,6 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
 
   const renderContent = () => {
     switch (section.type) {
-      case 'booking':
-        return <BookingSection section={section} websiteId={websiteId} />;
       case 'hero':
         return <HeroSection section={section} tokens={tokens} />;
       case 'features':
@@ -883,134 +881,6 @@ function ContactSection({ section, tokens }: { section: Section; tokens: React.C
     <div className="py-12 px-6 max-w-2xl mx-auto">
       {heading}
       <ContactFormFields />
-    </div>
-  );
-}
-export function BookingSection({
-  section,
-  websiteId,
-}: {
-  section: Section;
-  websiteId?: string;
-}) {
-  const config = section.config;
-  const services = (config.services as BookingService[]) || [];
-  const split = section.variant === 'booking-split';
-  const [form, setForm] = useState({ name: '', phone: '', service: '', date: '', time: '', notes: '' });
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState('');
-  const [error, setError] = useState('');
-
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!websiteId) return;
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          website_id: websiteId,
-          customer_name: form.name,
-          customer_phone: form.phone,
-          service_name: form.service,
-          booking_date: form.date,
-          booking_time: form.time,
-          notes: form.notes,
-        }),
-      });
-      const json = await res.json();
-      if (!json.success) {
-        setError(json.error ?? 'Gagal mengirim booking');
-        return;
-      }
-      setDone((config.success_message as string) || 'Terima kasih! Booking Anda diterima.');
-    } catch {
-      setError('Terjadi kesalahan jaringan');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const inputCls = 'w-full px-4 py-2.5 border rounded-md text-sm bg-white';
-  const inputStyle = { borderColor: 'var(--color-border)', borderRadius: 'var(--radius)' } as React.CSSProperties;
-
-  const formEl = (
-    <form onSubmit={submit} className="space-y-3">
-      <div className="grid grid-cols-1 @sm:grid-cols-2 gap-3">
-        <input type="text" required placeholder="Nama lengkap" value={form.name} onChange={set('name')} className={inputCls} style={inputStyle} />
-        <input type="tel" required placeholder="No. WhatsApp" value={form.phone} onChange={set('phone')} className={inputCls} style={inputStyle} />
-      </div>
-      <select required value={form.service} onChange={set('service')} className={inputCls} style={inputStyle}>
-        <option value="">— Pilih layanan —</option>
-        {services.map((s, i) => (
-          <option key={i} value={s.name}>
-            {s.name}{s.price ? ` • ${s.price}` : ''}{s.duration ? ` (${s.duration})` : ''}
-          </option>
-        ))}
-      </select>
-      <div className="grid grid-cols-2 gap-3">
-        <input type="date" required value={form.date} onChange={set('date')} className={inputCls} style={inputStyle} />
-        <input type="time" required value={form.time} onChange={set('time')} className={inputCls} style={inputStyle} />
-      </div>
-      <textarea placeholder="Catatan (opsional)" rows={3} value={form.notes} onChange={set('notes')} className={inputCls} style={inputStyle} />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {done ? (
-        <p className="text-sm font-medium p-3 rounded-md" style={{ background: 'var(--color-surface)' }}>
-          ✅ {done}
-        </p>
-      ) : (
-        <button
-          type="submit"
-          disabled={loading || !websiteId}
-          title={!websiteId ? 'Form aktif setelah website dipublish' : undefined}
-          className="w-full py-3 rounded-md font-semibold disabled:opacity-60"
-          style={{ background: 'var(--color-button)', color: 'var(--color-on-button)', borderRadius: 'var(--radius)' }}
-        >
-          {loading ? 'Mengirim…' : '📅 Booking Sekarang'}
-        </button>
-      )}
-      {!websiteId && !done && (
-        <p className="text-xs text-center" style={{ color: 'var(--color-on-section-muted)' }}>
-          Pratinjau editor — form aktif di situs live setelah publish
-        </p>
-      )}
-    </form>
-  );
-
-  return (
-    <div className="py-12 px-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold text-center mb-2" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-on-section)' }}>
-        {(config.title as string) || 'Booking Layanan'}
-      </h2>
-      <p className="text-center mb-8" style={{ color: 'var(--color-on-section-muted)' }}>
-        {(config.subtitle as string) || 'Pilih layanan dan jadwal Anda'}
-      </p>
-      {split ? (
-        <div className="grid grid-cols-1 @md:grid-cols-5 gap-6 items-start">
-          <div className="@md:col-span-3">{formEl}</div>
-          <div className="@md:col-span-2 p-5 rounded-lg space-y-3 text-sm" style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)' }}>
-            {(config.hours as string) && <p>🕘 <span className="font-semibold">Jam buka</span><br />{config.hours as string}</p>}
-            {(config.address as string) && <p>📍 <span className="font-semibold">Lokasi</span><br />{config.address as string}</p>}
-            {services.length > 0 && (
-              <div>
-                <p className="font-semibold mb-1">💈 Daftar layanan</p>
-                <ul className="space-y-1" style={{ color: 'var(--color-text-muted)' }}>
-                  {services.map((s, i) => (
-                    <li key={i}>• {s.name} — {s.price}{s.duration ? ` (${s.duration})` : ''}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="max-w-xl mx-auto">{formEl}</div>
-      )}
     </div>
   );
 }

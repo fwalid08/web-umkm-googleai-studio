@@ -8,10 +8,10 @@
  *   di dalam section existing tanpa tipe section baru).
  * - `activeSections` di Template & FullTemplateData (template menentukan
  *   section mana yang AKTIF untuk niche-nya, tapi WAJIB mendefinisikan
- *   SEMUA 19 tipe predefined agar mendukung section builder).
+ *   SEMUA 18 tipe predefined agar mendukung section builder).
  * - Aturan "tidak ada konten hardcoded": tiap key di `defaultConfig`
  *   wajib punya form field (sudah ada di catalog.test.ts, ditegaskan di sini).
- * - v3.4: tipe section KUSTOM diizinkan (di luar 19 predefined) dengan syarat
+ * - v3.4: tipe section KUSTOM diizinkan (di luar 18 predefined) dengan syarat
  *   tiap variannya punya `html` — renderer bawaan tidak punya branch untuk
  *   tipe asing sehingga html adalah satu-satunya jalur tampil.
  *
@@ -27,7 +27,7 @@ import type {
 } from './template-types';
 import type { SectionType } from './types';
 
-/** 19 tipe section predefined builder — WAJIB tersedia di tiap template. */
+/** 18 tipe section predefined builder — WAJIB tersedia di tiap template. */
 export const ALL_SECTION_TYPES_V3: readonly SectionType[] = [
   'hero',
   'features',
@@ -36,7 +36,6 @@ export const ALL_SECTION_TYPES_V3: readonly SectionType[] = [
   'faq',
   'cta',
   'contact',
-  'booking',
   'about',
   'gallery',
   'video',
@@ -56,7 +55,6 @@ export const MIN_SECTION_VARIANTS_V3 = 3;
 
 /** Tipe yang renderer-nya single-DOM — dikecualikan dari aturan 3 varian. */
 export const SINGLE_DOM_TYPES_V3: ReadonlySet<string> = new Set([
-  'booking',
   'marquee',
 ]);
 
@@ -90,7 +88,7 @@ export const VALID_CATEGORIES: readonly BusinessCategory[] = [
   'services',
 ];
 
-/** Set 19 tipe bawaan untuk pengecekan cepat. */
+/** Set 18 tipe bawaan untuk pengecekan cepat. */
 const BUILTIN_TYPE_SET: ReadonlySet<string> = new Set(ALL_SECTION_TYPES_V3);
 
 /**
@@ -121,7 +119,7 @@ export const BUILTIN_FOOTER_LAYOUTS: ReadonlySet<string> = new Set([
   'cta-overlap',
 ]);
 
-/** True bila tipe adalah salah satu dari 19 predefined builder. */
+/** True bila tipe adalah salah satu dari 18 predefined builder. */
 export function isBuiltinSectionType(type: string): boolean {
   return BUILTIN_TYPE_SET.has(type);
 }
@@ -130,7 +128,7 @@ export function isBuiltinSectionType(type: string): boolean {
 const CUSTOM_TYPE_ID_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
 
 /**
- * Validasi definisi tipe section KUSTOM (di luar 19 predefined).
+ * Validasi definisi tipe section KUSTOM (di luar 18 predefined).
  *
  * Renderer bawaan tidak punya branch untuk tipe asing — satu-satunya cara
  * tipe kustom tampil adalah `html` di tiap variannya (dirender
@@ -296,9 +294,9 @@ export function validateTemplateV3(data: unknown): ValidateTemplateResult {
     validateConfigFields(f.configFields, `footer ${(f.id as string) ?? '?'}`, errors);
   }
 
-  // --- sections: SEMUA 19 tipe wajib tersedia + tipe kustom diizinkan ---
+  // --- sections: SEMUA 18 tipe wajib tersedia + tipe kustom diizinkan ---
   //
-  // AI boleh menambah tipe section BARU di luar 19 predefined (mis.
+  // AI boleh menambah tipe section BARU di luar 18 predefined (mis.
   // `promo-gacor`, `jadwal-sholat`). Syarat tipe kustom: id kebab-case yang
   // tidak menabrak 19 bawaan, ≥1 varian, dan SETIAP varian wajib punya `html`
   // non-kosong — renderer bawaan tidak punya branch untuk tipe asing,
@@ -315,7 +313,7 @@ export function validateTemplateV3(data: unknown): ValidateTemplateResult {
     }
     for (const required of ALL_SECTION_TYPES_V3) {
       if (!available.has(required)) {
-        errors.push(`tipe section "${required}" tidak tersedia (template wajib mendukung semua 19 tipe predefined)`);
+        errors.push(`tipe section "${required}" tidak tersedia (template wajib mendukung semua 18 tipe predefined)`);
       }
     }
     for (const d of defs) {
@@ -342,7 +340,7 @@ export function validateTemplateV3(data: unknown): ValidateTemplateResult {
     }
   }
 
-  // --- data.activeSections: subset katalog (19 predefined + kustom milik template) ---
+  // --- data.activeSections: subset katalog (18 predefined + kustom milik template) ---
   const dataBlock = t.data as Record<string, unknown> | undefined;
   const activeSections =
     (t.activeSections as unknown) ?? dataBlock?.activeSections;
@@ -487,7 +485,7 @@ function collectEmptyImageFields(config: unknown, prefix: string, out: string[])
  * ia jatuh diam-diam ke branch default (tampak sama dengan varian lain).
  */
 const RENDERED_VARIANT_IDS: ReadonlySet<string> = new Set([
-  'about-centered', 'booking-split', 'contact-form-map', 'contact-split',
+  'about-centered', 'contact-form-map', 'contact-split',
   'cta-card', 'cta-split', 'divider-image', 'divider-spacer', 'faq-accordion',
   'faq-grid', 'features-2col', 'features-list', 'features-masonry',
   'features-stacked', 'gallery-carousel', 'gallery-masonry', 'hero-card',
@@ -497,7 +495,7 @@ const RENDERED_VARIANT_IDS: ReadonlySet<string> = new Set([
   'video-bg', 'video-centered',
   'hero-full', 'hero-bg-image', 'features-3col', 'product-4col', 'product-3col',
   'product-2col', 'testimonials-grid', 'faq-list', 'cta-banner', 'contact-form',
-  'booking-single', 'about-left', 'about-right', 'gallery-grid', 'video-full',
+  'about-left', 'about-right', 'gallery-grid', 'video-full',
   'team-grid', 'pricing-3tier', 'pricing-2tier', 'newsletter-inline',
   'divider-line', 'marquee-band', 'menu-tabs', 'menu-list', 'steps-3col',
   'location-hours',

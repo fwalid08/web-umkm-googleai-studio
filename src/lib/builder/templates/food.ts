@@ -236,7 +236,6 @@ export const FOOD_TEMPLATE: CatalogTemplate = {
       "features",
       "menu_board",
       "pricing",
-      "booking",
       "testimonials",
       "gallery",
       "location",
@@ -305,23 +304,6 @@ export const FOOD_TEMPLATE: CatalogTemplate = {
             { name: "Acara", price: "Rp 25rb/porsi", description: "Prasmanan hajatan dan rapat, min. 50 porsi" },
             { name: "Nasi Kotak", price: "Rp 12rb/kotak", description: "Praktis untuk rapat dan yasinan" },
           ],
-        },
-      },
-      {
-        type: "booking",
-        variant: "booking-single",
-        anchorId: "reservasi",
-        config: {
-          title: "Reservasi Meja",
-          subtitle: "Amankan tempat duduk untuk keluarga atau rombongan",
-          services: [
-            { name: "Meja kecil (2–4 orang)", duration: "2 jam", price: "Gratis" },
-            { name: "Meja besar (5–10 orang)", duration: "3 jam", price: "Gratis" },
-          ],
-          address: "Jl. Kenanga No. 12, Yogyakarta",
-          hours: "Senin–Sabtu 08.00–21.00",
-          success_message: "Reservasi diterima! Kami hubungi via WhatsApp untuk konfirmasi.",
-          forward_wa: "6281234567890",
         },
       },
       {

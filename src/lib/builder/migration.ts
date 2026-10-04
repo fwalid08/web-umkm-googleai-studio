@@ -14,7 +14,6 @@ const SECTION_TYPE_MAP: Record<string, string> = {
   faq: 'faq',
   cta: 'cta',
   contact: 'contact',
-  booking: 'booking',
   about: 'about',
   gallery: 'gallery',
   video: 'video',
@@ -64,10 +63,6 @@ const VARIANT_MAP: Record<string, Record<string, string>> = {
     'contact-form': 'contact-form',
     'contact-form-map': 'contact-form-map',
     'contact-split': 'contact-split',
-  },
-  booking: {
-    'booking-single': 'booking-single',
-    'booking-split': 'booking-split',
   },
   about: {
     'about-left': 'about-left',

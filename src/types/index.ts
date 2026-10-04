@@ -80,7 +80,6 @@ export type SectionType =
   | "faq"
   | "cta"
   | "contact"
-  | "booking"
   | "about"
   | "gallery"
   | "video"
@@ -472,24 +471,6 @@ export const updateOrderStatusSchema = z.object({
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
-
-// Booking — reservasi terjadwal dari section `booking` (terpisah dari contact).
-export const createBookingSchema = z.object({
-  website_id: z.string().uuid("Website ID tidak valid"),
-  customer_name: z.string().min(1, "Nama wajib diisi").max(100),
-  customer_phone: z.string().min(9, "Nomor HP minimal 9 digit").max(20),
-  service_name: z.string().min(1, "Layanan wajib dipilih").max(255),
-  booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid (YYYY-MM-DD)"),
-  booking_time: z.string().regex(/^\d{2}:\d{2}$/, "Jam tidak valid (HH:MM)"),
-  notes: z.string().max(1000).optional().or(z.literal("")),
-});
-
-export const updateBookingStatusSchema = z.object({
-  status: z.enum(["baru", "dikonfirmasi", "selesai", "batal"]),
-});
-
-export type CreateBookingInput = z.infer<typeof createBookingSchema>;
-export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;
 
 // Website & Plan Types (Sprint 03 — multi-website, isolasi per website_id)
 export interface Website {

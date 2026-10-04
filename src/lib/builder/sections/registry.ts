@@ -305,48 +305,6 @@ export const SECTION_REGISTRY: Record<SectionType, SectionTypeDefinition> = {
       },
     ],
   },
-  booking: {
-    type: 'booking',
-    name: 'Booking',
-    icon: 'CalendarCheck',
-    variants: [
-      {
-        id: 'booking-single',
-        name: 'Form Saja',
-        description: 'Form booking layanan satu kolom',
-        defaultConfig: {
-          title: 'Booking Layanan',
-          subtitle: 'Pilih layanan, tanggal, dan jam — kami konfirmasi via WhatsApp',
-          services: [
-            { name: 'Potong Rambut', duration: '30 menit', price: 'Rp 25rb' },
-            { name: 'Potong + Cukur Jenggot', duration: '45 menit', price: 'Rp 40rb' },
-          ],
-          address: '',
-          hours: 'Senin–Sabtu, 09.00–20.00',
-          success_message: 'Terima kasih! Booking Anda diterima. Kami akan konfirmasi via WhatsApp.',
-          forward_wa: '',
-        },
-      },
-      {
-        id: 'booking-split',
-        name: 'Form + Info',
-        description: 'Form booking berdampingan dengan info jam & lokasi',
-        defaultConfig: {
-          title: 'Booking Sekarang',
-          subtitle: 'Amankan jadwal Anda — tanpa antre lama',
-          services: [
-            { name: 'Potong Rambut', duration: '30 menit', price: 'Rp 25rb' },
-            { name: 'Potong + Cukur Jenggot', duration: '45 menit', price: 'Rp 40rb' },
-            { name: 'Creambath + Pijat', duration: '60 menit', price: 'Rp 75rb' },
-          ],
-          address: 'Jl. Merdeka No. 12, Jakarta',
-          hours: 'Senin–Sabtu, 09.00–20.00',
-          success_message: 'Terima kasih! Booking Anda diterima. Kami akan konfirmasi via WhatsApp.',
-          forward_wa: '',
-        },
-      },
-    ],
-  },
   about: {
     type: 'about',
     name: 'About',

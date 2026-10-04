@@ -47,7 +47,6 @@ function libraryTemplate(overrides: Partial<ApplyableTemplate['data']> = {}): Ap
       ],
       sections: [
         { type: 'hero', variant: 'hero-split', anchorId: 'beranda', config: { headline: 'Halo' } },
-        { type: 'booking', variant: 'booking-single', anchorId: 'booking', config: { title: 'Booking' } },
       ],
       header: {
         variant: 'standard',
@@ -71,15 +70,15 @@ describe('apply-template: kontrak payload', () => {
     expect(String(cfg.customCss)).toContain('clip-path');
     expect(Array.isArray(cfg.animations)).toBe(true);
     expect(Array.isArray(cfg.behaviours)).toBe(true);
-    expect((cfg.sections as unknown[]).length).toBe(2);
+    expect((cfg.sections as unknown[]).length).toBe(1);
   });
 
   it('section hasil resolve membawa anchorId dan variant tetap utuh', () => {
     const sections = resolveTemplateSections(libraryTemplate().data, 'services');
     // Nav template library harus tetap punya tujuan.
-    expect(sections.map((s) => s.anchorId)).toEqual(['beranda', 'booking']);
+    expect(sections.map((s) => s.anchorId)).toEqual(['beranda']);
     // Varian tidak boleh jatuh ke varian pertama.
-    expect(sections.map((s) => s.variant)).toEqual(['hero-split', 'booking-single']);
+    expect(sections.map((s) => s.variant)).toEqual(['hero-split']);
   });
 
   it('template tanpa data sama sekali tidak melempar error', () => {

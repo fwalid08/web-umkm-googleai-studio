@@ -6,7 +6,6 @@ import { isKnownHeaderVariant, isKnownFooterVariant } from "../chrome";
 import { BUILT_IN_CATALOG } from "./catalog";
 import { resolvePalette } from "../design-styles";
 import { ALL_DESIGN_TYPES, type ConfigField } from "../template-types";
-import type { BookingService } from "../types";
 
 /**
  * TEMPLATE CONTRACT — model baru:
@@ -20,7 +19,6 @@ const CORE_TYPES = [
   "hero",
   "features",
   "pricing",
-  "booking",
   "testimonials",
   "gallery",
   "location",
@@ -96,22 +94,6 @@ describe("template contract", () => {
       expect(t.data.header?.ctaText, `${t.id}: CTA header kosong`).toBeTruthy();
       expect(t.data.seo?.title?.length ?? 0, `${t.id}: seo kosong`).toBeGreaterThan(0);
       expect(t.data.footer?.text ?? "", `${t.id}: footer kosong`).toContain("{year}");
-    }
-  });
-
-  it("section booking membawa kontrak config standar", () => {    for (const t of BUILT_IN_CATALOG) {
-      const booking = (t.data.sections ?? []).filter((s) => s.type === "booking");
-      expect(booking.length, `${t.id}: section booking wajib ada`).toBeGreaterThan(0);
-      for (const b of booking) {
-        const cfg = (b.config ?? {}) as Record<string, unknown>;
-        expect(typeof cfg.title, `${t.id}: booking.title`).toBe("string");
-        const services = cfg.services as BookingService[];
-        expect(Array.isArray(services) && services.length > 0, `${t.id}: booking.services minimal 1`).toBe(true);
-        for (const s of services) {
-          expect(s.name?.length ?? 0, `${t.id}: service tanpa nama`).toBeGreaterThan(0);
-        }
-        expect(typeof cfg.success_message, `${t.id}: booking.success_message`).toBe("string");
-      }
     }
   });
 
@@ -215,7 +197,7 @@ const MIN_SECTION_VARIANTS = 3;
  */
 const ALL_SECTION_TYPES = [
   "hero", "features", "product_grid", "testimonials", "faq", "cta", "contact",
-  "booking", "about", "gallery", "video", "team", "pricing", "newsletter",
+  "about", "gallery", "video", "team", "pricing", "newsletter",
   "divider", "marquee", "menu_board", "steps", "location",
 ] as const;
 
@@ -276,18 +258,18 @@ describe("kontrak karakter desain per template", () => {
   });
 
   /**
- * Tipe yang renderer-nya hanya punya SATU DOM, jadi tidak mungkin punya 3
- * varian yang benar-benar berbeda.
- *
- * `BookingSection` dan `MarqueeSection` di `section-renderer.tsx` tidak pernah
- * membaca `section.variant` sama sekali — declare 3 varian di situ hanya akan
- * menghasilkan 3 nama untuk 1 tampilan yang sama persis, yaitu masalah yang
- * justru sedang kita perbaiki.
- *
- * Kalau nanti salah satu dapat branch baru di renderer, HAPUS dari daftar ini
- * supaya ikut aturan 3 varian.
- */
-const SINGLE_DOM_TYPES = new Set(['booking', 'marquee']);
+   * Tipe yang renderer-nya hanya punya SATU DOM, jadi tidak mungkin punya 3
+   * varian yang benar-benar berbeda.
+   *
+   * `MarqueeSection` di `section-renderer.tsx` tidak pernah
+   * membaca `section.variant` sama sekali — declare 3 varian di situ hanya akan
+   * menghasilkan 3 nama untuk 1 tampilan yang sama persis, yaitu masalah yang
+   * justru sedang kita perbaiki.
+   *
+   * Kalau nanti salah satu dapat branch baru di renderer, HAPUS dari daftar ini
+   * supaya ikut aturan 3 varian.
+   */
+  const SINGLE_DOM_TYPES = new Set(['marquee']);
 
 it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", () => {
     for (const t of migrated) {
@@ -318,7 +300,7 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
    */
   const RENDERED_VARIANTS = new Set([
     // Branch eksplisit di renderer.
-    'about-centered', 'booking-split', 'contact-form-map', 'contact-split',
+    'about-centered', 'contact-form-map', 'contact-split',
     'cta-card', 'cta-split', 'divider-image', 'divider-spacer', 'faq-accordion',
     'faq-grid', 'features-2col', 'features-list', 'features-masonry',
     'features-stacked', 'gallery-carousel', 'gallery-masonry', 'hero-card',
@@ -329,7 +311,7 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
     // Sengaja jatuh ke blok default di akhir tiap komponen.
     'hero-full', 'hero-bg-image', 'features-3col', 'product-4col', 'product-3col',
     'product-2col', 'testimonials-grid', 'faq-list', 'cta-banner', 'contact-form',
-    'booking-single', 'about-left', 'about-right', 'gallery-grid', 'video-full',
+    'about-left', 'about-right', 'gallery-grid', 'video-full',
     'team-grid', 'pricing-3tier', 'pricing-2tier', 'newsletter-inline',
     'divider-line', 'marquee-band', 'menu-tabs', 'menu-list', 'steps-3col',
     'location-hours',

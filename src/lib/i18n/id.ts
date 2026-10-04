@@ -24,7 +24,6 @@ export const id = {
   nav: {
     dashboard: "Dashboard",
     orders: "Pesanan",
-    bookings: "Booking",
     products: "Produk",
     customers: "Pelanggan",
     analytics: "Analytics",

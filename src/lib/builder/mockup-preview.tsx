@@ -21,7 +21,6 @@ function renderMockup(mockup: string) {
   if (mockup.startsWith('faq-')) return <FaqMockup variant={mockup} />;
   if (mockup.startsWith('cta-')) return <CtaMockup variant={mockup} />;
   if (mockup.startsWith('contact-')) return <ContactMockup variant={mockup} />;
-  if (mockup.startsWith('booking-')) return <BookingMockup variant={mockup} />;
   if (mockup.startsWith('about-')) return <AboutMockup variant={mockup} />;
   if (mockup.startsWith('gallery-')) return <GalleryMockup variant={mockup} />;
   if (mockup.startsWith('video-')) return <VideoMockup variant={mockup} />;
@@ -377,40 +376,6 @@ function ContactMockup({ variant }: { variant: string }) {
   );
 }
 
-function BookingMockup({ variant }: { variant: string }) {
-  if (variant === 'booking-split') {
-    return (
-      <div className="w-full h-full p-3 flex gap-2">
-        <div className="flex-[2] rounded-xl bg-white dark:bg-slate-800 p-2 shadow-sm space-y-1.5">
-          <div className="h-2.5 w-full rounded bg-slate-200 dark:bg-white/10" />
-          <div className="grid grid-cols-2 gap-1.5">
-            <div className="h-2.5 w-full rounded bg-slate-200 dark:bg-white/10" />
-            <div className="h-2.5 w-full rounded bg-slate-200 dark:bg-white/10" />
-          </div>
-          <div className="h-3.5 w-full rounded bg-emerald-500" />
-        </div>
-        <div className="flex-1 rounded-xl bg-white dark:bg-slate-800 p-2 shadow-sm space-y-1.5">
-          <div className="h-1.5 w-3/4 rounded-full bg-slate-300 dark:bg-white/20" />
-          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-white/10" />
-          <div className="h-1.5 w-2/3 rounded-full bg-slate-200 dark:bg-white/10" />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="w-full h-full p-3 space-y-2">
-      <div className="h-2.5 w-1/2 rounded-full bg-slate-300 dark:bg-white/20 mx-auto" />
-      <div className="space-y-1.5">
-        <div className="h-2.5 w-full rounded bg-slate-200 dark:bg-white/10" />
-        <div className="grid grid-cols-2 gap-1.5">
-          <div className="h-2.5 w-full rounded bg-slate-200 dark:bg-white/10" />
-          <div className="h-2.5 w-full rounded bg-slate-200 dark:bg-white/10" />
-        </div>
-        <div className="h-3.5 w-full rounded bg-emerald-500" />
-      </div>
-    </div>
-  );
-}
 
 function AboutMockup({ variant }: { variant: string }) {
   if (variant === 'about-centered') {

@@ -224,13 +224,13 @@ export interface Template {
    * Section mana yang AKTIF secara default untuk niche ini (v3.0, v3.4:
    * boleh memuat tipe kustom milik template).
    *
-   * Template WAJIB mendefinisikan SEMUA 19 tipe section di `sections`
+   * Template WAJIB mendefinisikan SEMUA 18 tipe section di `sections`
    * (agar mendukung section predefined builder) + tipe kustom bila ada,
    * tapi hanya subset yang aktif di `data.sections` / kanvas awal —
    * ditentukan di sini sesuai kebutuhan konten jenis usaha UMKM.
    *
    * Contoh warung makan: ["hero","menu_board","testimonials","location",...]
-   * Contoh bengkel: ["hero","features","pricing","booking",...]
+   * Contoh bengkel: ["hero","features","pricing","contact",...]
    *
    * Kosong/undefined = semua tipe yang ada di `data.sections` dianggap aktif.
    */

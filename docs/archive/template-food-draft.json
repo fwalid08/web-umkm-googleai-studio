@@ -1696,85 +1696,6 @@
       ]
     },
     {
-      "type": "booking",
-      "name": "Booking",
-      "variants": [
-        {
-          "id": "booking-single",
-          "name": "Form Saja",
-          "description": "Form Saja — varian booking",
-          "layout": "booking-single",
-          "mockup": "booking-single",
-          "configFields": [
-            {
-              "key": "title",
-              "label": "Judul",
-              "type": "text"
-            },
-            {
-              "key": "subtitle",
-              "label": "Subtitle",
-              "type": "textarea"
-            },
-            {
-              "key": "items",
-              "label": "Layanan",
-              "type": "list",
-              "itemFields": [
-                {
-                  "key": "name",
-                  "label": "Nama",
-                  "type": "text"
-                },
-                {
-                  "key": "duration",
-                  "label": "Durasi",
-                  "type": "text"
-                },
-                {
-                  "key": "price",
-                  "label": "Harga",
-                  "type": "text"
-                }
-              ]
-            },
-            {
-              "key": "hours",
-              "label": "Jam operasional",
-              "type": "text"
-            },
-            {
-              "key": "address",
-              "label": "Alamat",
-              "type": "textarea"
-            },
-            {
-              "key": "success_message",
-              "label": "Pesan sukses",
-              "type": "textarea"
-            }
-          ],
-          "defaultConfig": {
-            "title": "",
-            "subtitle": "",
-            "services": [],
-            "hours": "",
-            "address": "",
-            "success_message": ""
-          },
-          "defaultStyle": {
-            "padding": {
-              "top": 64,
-              "right": 24,
-              "bottom": 64,
-              "left": 24
-            },
-            "background": "transparent"
-          }
-        }
-      ]
-    },
-    {
       "type": "about",
       "name": "Tentang",
       "variants": [
@@ -3312,7 +3233,6 @@
     "hero",
     "features",
     "pricing",
-    "booking",
     "testimonials",
     "gallery",
     "location",
@@ -3336,7 +3256,6 @@
       "hero",
       "features",
       "pricing",
-      "booking",
       "testimonials",
       "gallery",
       "location",
@@ -3371,19 +3290,6 @@
         "config": {
           "title": "",
           "items": []
-        }
-      },
-      {
-        "type": "booking",
-        "variant": "booking-single",
-        "anchorId": "booking",
-        "config": {
-          "title": "",
-          "subtitle": "",
-          "services": [],
-          "hours": "",
-          "address": "",
-          "success_message": ""
         }
       },
       {

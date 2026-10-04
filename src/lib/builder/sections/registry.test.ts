@@ -3,12 +3,12 @@ import { SECTION_REGISTRY, getSectionVariant } from "./registry";
 
 /** Guard: setiap tipe section terdaftar lengkap agar picker, canvas, dan live site konsisten. */
 describe("SECTION_REGISTRY", () => {
-  it("memuat 19 tipe section termasuk booking", () => {
+  it("memuat 18 tipe section", () => {
     const keys = Object.keys(SECTION_REGISTRY);
-    for (const t of ["hero", "marquee", "menu_board", "steps", "location", "about", "testimonials", "booking", "contact"]) {
+    for (const t of ["hero", "marquee", "menu_board", "steps", "location", "about", "testimonials", "contact"]) {
       expect(keys, `tipe ${t} hilang`).toContain(t);
     }
-    expect(keys.length).toBeGreaterThanOrEqual(19);
+    expect(keys.length).toBeGreaterThanOrEqual(18);
   });
 
   it("setiap tipe punya ≥1 varian dengan defaultConfig objek", () => {
@@ -37,18 +37,6 @@ describe("SECTION_REGISTRY", () => {
           expect(pad.left, `${def.type}/${v.id}`).toBe(24);
         }
       }
-    }
-  });
-
-  it("varian booking membawa kontrak config standar", () => {
-    for (const variantId of ["booking-single", "booking-split"]) {
-      const v = getSectionVariant("booking", variantId);
-      expect(v, variantId).toBeDefined();
-      const cfg = v!.defaultConfig as Record<string, unknown>;
-      expect(typeof cfg.title).toBe("string");
-      const services = cfg.services as Array<{ name: string }>;
-      expect(services.length).toBeGreaterThan(0);
-      expect(typeof cfg.success_message).toBe("string");
     }
   });
 

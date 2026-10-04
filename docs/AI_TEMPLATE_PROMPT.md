@@ -48,14 +48,14 @@ varian, form di sidebar otomatis berubah mengikuti `configFields` varian itu.
 > 1. **Satu file ZIP saja** sebagai output. Tidak ada file lain, tidak ada patch kode.
 > 2. **HTML BOLEH** — dua jalur (§3): `variant.html` (section-level) dan field
 >    bertipe `html` (field-level). Ini cara template berekspresi bebas.
-> 3. **19 tipe Tabel 2 WAJIB didefinisikan semua** (§5) — plus kamu BOLEH
+> 3. **18 tipe Tabel 2 WAJIB didefinisikan semua** (§5) — plus kamu BOLEH
 >    menambah tipe section kustom sendiri (§5.10), dengan syarat tiap variannya
 >    punya `html` (tanpa html, tipe asing tidak bisa tampil).
 > 4. **`activeSections`** menentukan section mana yang AKTIF untuk niche ini (§5.5).
 > 5. **Tidak ada konten hardcoded** (§6): tiap teks/gambar/video/icon/list/background
 >    wajib punya `configFields` dengan tipe field yang sesuai.
 > 6. **Minimal varian**: ≥5 header, ≥5 footer, ≥3 untuk tiap tipe section (§5.6).
->    Pengecualian: `booking` dan `marquee` (renderer single-DOM) boleh 1 varian.
+>    Pengecualian: `marquee` (renderer single-DOM) boleh 1 varian.
 > 7. **Thumbnail + preview** disarankan kuat (§8): `thumbnail.png` di root + `data` lengkap
 >    agar preview/demo identik dengan hasil apply. Tanpa thumbnail import tetap
 >    sukses, tapi kartu galeri kosong.
@@ -70,7 +70,7 @@ varian, form di sidebar otomatis berubah mengikuti `configFields` varian itu.
 >     ≥1 kali oleh config (`assets/nama-file`), dan tiap field gambar di seed
 >     wajib terisi (path `assets/…` atau URL eksplisit) — field kosong tampil
 >     kosong di preview dan diisi foto generik di kanvas.
-> 12. **Tipe kustom diizinkan** (§5.10): id kebab-case tak menabrak 19 bawaan,
+> 12. **Tipe kustom diizinkan** (§5.10): id kebab-case tak menabrak 18 bawaan,
 >     ≥1 varian, tiap varian wajib `html` + `configFields` + `defaultConfig`.
 > 13. **Header & Footer milik template** (§5.11): chrome custom wajib punya `html`,
 >     layout kustom tanpa html = error, layout bawaan tanpa html = warning.
@@ -92,8 +92,8 @@ menghasilkan SATU file .zip yang bisa di-import langsung ke builder.
 
 ATURAN WAJIB:
 1. Output hanya satu file .zip. Jangan menulis atau mengubah kode aplikasi.
-2. Definisikan SEMUA 19 tipe section (Tabel 2), masing-masing ≥3 varian
-   (kecuali booking & marquee yang boleh 1 varian). Kamu BOLEH menambah tipe
+2. Definisikan SEMUA 18 tipe section (Tabel 2), masing-masing ≥3 varian
+   (kecuali marquee yang boleh 1 varian). Kamu BOLEH menambah tipe
    section kustom (§5.10): id kebab-case baru, ≥1 varian, tiap varian wajib html.
 3. Tentukan activeSections: section yang AKTIF untuk niche ini (boleh memuat
    tipe kustom milikmu, asal terdefinisi di katalog).
@@ -418,7 +418,7 @@ teks tombol vs primary    >= 4.5:1
   "designStyleId":   "dark-mode",  // Tabel 4 (10 style bawaan)
   "paletteOverride": { …8 warna… }, // WAJIB: palet yang kamu rancang
   "customCss":       "…",           // §8.4 — CSS bebas, kunci pembeda utama
-  "activeSections":  ["hero","features","pricing","booking","testimonials","gallery","location","faq","contact"],
+   "activeSections":  ["hero","features","pricing","testimonials","gallery","location","faq","contact"],
   "sections":        [ … ],          // seed HANYA section aktif + konten lengkap
   "header": {
     "variant":   "bk-hdr-workshop", // id varian header milikmu (bukan layout global)
@@ -429,7 +429,7 @@ teks tombol vs primary    >= 4.5:1
       { "id": "n1", "label": "Layanan", "url": "#layanan",
         "isExternal": false, "enabled": true }
     ],
-    "ctaText":      "Booking Servis",
+    "ctaText":      "Chat WhatsApp",
     "ctaLink":      "https://wa.me/6281234567890",
     "showCta":      true,
     "sticky":       true,
@@ -538,14 +538,13 @@ pintu masuk, dan simpan fitur premium untuk tier berbayar.
 > Nilai lain (termasuk string kosong) ditolak saat publish. Kolom `category`
 > hanya menerima 5 nilai Tabel 1 — kategori di luar itu ditolak.
 
-### Tabel 2 — 19 tipe section predefined (SEMUA wajib didefinisikan + boleh tambah tipe kustom §5.10)
+### Tabel 2 — 18 tipe section predefined (SEMUA wajib didefinisikan + boleh tambah tipe kustom §5.10)
 
 | `type` | Contoh varian (≥3 tiap tipe) |
 |---|---|
 | `hero` | `hero-full`, `hero-split`, `hero-card`, `hero-video-bg` |
 | `features` | `features-3col`, `features-list`, `features-stacked`, `features-masonry` |
 | `pricing` | `pricing-2tier`, `pricing-3tier`, + 1 varian kreasimu |
-| `booking` | `booking-single`, `booking-split` (boleh 1–2 — single-DOM) |
 | `testimonials` | `testimonials-grid`, `testimonials-carousel`, `testimonials-single` |
 | `gallery` | `gallery-grid`, `gallery-masonry`, `gallery-carousel` |
 | `location` | `location-hours`, + 2 varian kreasimu |
@@ -611,10 +610,6 @@ JANGAN isi objek (`[{ "text": "…" }]`) — itu membuat seluruh halaman crash
 putih. Renderer menoleransinya agar tidak roboh, tapi bentuk kanonis tetap
 string polos.)
 
-**booking** — WAJIB `title` (text), `subtitle` (textarea), `services` (list:
-`name` text, `duration` text, `price` text, minimal 1), `address` (textarea),
-`hours` (text), `success_message` (textarea, WAJIB), `forward_wa` (text)
-
 **testimonials** — `title` (text), `items` (list: `name` text, `text` textarea,
 `rating` number 1–5, `avatar` image opsional)
 
@@ -637,18 +632,18 @@ atau `html`), `image` (image), `members` (list), `items` (list),
 
 ### 5.5 `activeSections` — section mana yang aktif untuk niche ini
 
-`activeSections` = subset 19 tipe yang **di-seed ke kanvas** (`data.sections`):
+`activeSections` = subset 18 tipe yang **di-seed ke kanvas** (`data.sections`):
 
 ```jsonc
-"activeSections": ["hero","features","menu_board","pricing","booking","testimonials","gallery","location","faq","contact"]
+"activeSections": ["hero","features","menu_board","pricing","testimonials","gallery","location","faq","contact"]
 ```
 
 Aturan:
 
-- Wajib subset dari 19 tipe Tabel 2 (yang tak dikenal dibuang saat import).
+- Wajib subset dari 18 tipe Tabel 2 (yang tak dikenal dibuang saat import).
 - `data.sections` hanya berisi tipe yang ada di `activeSections`, berurutan
   sesuai alur halaman (hero dulu, contact terakhir).
-- 9 section inti UMKM **wajib aktif**: `hero`, `features`, `pricing`, `booking`,
+- 8 section inti UMKM **wajib aktif**: `hero`, `features`, `pricing`,
   `testimonials`, `gallery`, `location`, `faq`, `contact`.
 - Sisa 10 tipe (`about`, `steps`, `menu_board`, `cta`, `marquee`, `divider`,
   `newsletter`, `team`, `video`, `product_grid`) aktifkan bila relevan dengan
@@ -660,7 +655,7 @@ Aturan:
 |---|---|
 | Header | ≥5 varian, layout benar-benar dirender (Tabel 5), tiap punya `mockup` |
 | Footer | ≥5 varian, layout benar-benar dirender (Tabel 6), tiap punya `mockup` |
-| Tiap tipe section | ≥3 varian, tiap punya `mockup` — kecuali `booking` & `marquee` (boleh 1) |
+| Tiap tipe section | ≥3 varian, tiap punya `mockup` — kecuali `marquee` (boleh 1) |
 
 ### 5.7 Aturan `anchorId` dan nav
 
@@ -708,7 +703,7 @@ mayoritas dari HP — halaman yang rusak di 375px = template ditolak.
 9. **Sembunyikan section per perangkat bila relevan** lewat `responsive`
    (`hideOnMobile` / `hideOnTablet` / `hideOnDesktop`) — mis. marquee hiasan
    disembunyikan di HP, tabel harga lebar diganti varian ringkas. Jangan
-   menyembunyikan konten inti (hero, kontak, CTA booking) di perangkat mana pun.
+   menyembunyikan konten inti (hero, kontak, CTA) di perangkat mana pun.
 
 **Aturan `customCss` responsif:**
 
@@ -1140,12 +1135,12 @@ anjuran kualitas — import tetap sukses tapi hasilnya bisa rusak/kosong.
 - [ ] `version: "3.0"` terisi (metadata; tidak divalidasi)
 - [ ] `thumbnail.png` di **root** (800×600, <1MB) — sangat disarankan; tanpanya kartu galeri kosong
 - [ ] `designType` salah satu dari 5 (Tabel 1b); `category` salah satu dari 5 (Tabel 1)
-- [ ] `sections` katalog memuat **semua 19 tipe** Tabel 2 (+ tipe kustom bila ada, §5.10)
-- [ ] Tiap tipe (kecuali `booking`/`marquee`) punya **≥3 varian** berisi `mockup`
+- [ ] `sections` katalog memuat **semua 18 tipe** Tabel 2 (+ tipe kustom bila ada, §5.10)
+- [ ] Tiap tipe (kecuali `marquee`) punya **≥3 varian** berisi `mockup`
 - [ ] Tiap tipe kustom: id kebab-case tak menabrak bawaan, ≥1 varian, **tiap varian punya `html`** (§5.10)
 - [ ] `headers` ≥5 varian, `footers` ≥5 varian, tiap punya `mockup` **dan `html`**
-- [ ] `activeSections` = tipe terdefinisi di katalog (boleh kustom), memuat 9 inti
-  (hero, features, pricing, booking, testimonials, gallery, location, faq, contact)
+- [ ] `activeSections` = tipe terdefinisi di katalog (boleh kustom), memuat 8 inti
+  (hero, features, pricing, testimonials, gallery, location, faq, contact)
 - [ ] `data.sections` hanya berisi tipe aktif, `config` **lengkap**, `anchorId` unik
 - [ ] Tiap key `defaultConfig` punya `configFields` (§6) — tidak ada konten mati
 - [ ] Tipe field sesuai isi (image/gallery/color/switch/html/list)
@@ -1158,7 +1153,6 @@ anjuran kualitas — import tetap sukses tapi hasilnya bisa rusak/kosong.
   nav jadi hamburger, form 1 kolom full-width
 - [ ] Target sentuh ≥44px; body ≥14px; CTA header ringkas di HP
 - [ ] Tiap `url` nav (`#…`) punya section ber-anchor cocok
-- [ ] `booking` punya `services` (≥1, semua punya `name`) + `success_message`
 - [ ] `footer.text` memuat `{year}`; `header.navItems` non-kosong + `ctaText` terisi
 - [ ] `seo.title` + `seo.description` (≥50 karakter) terisi
 - [ ] Palet 8 kunci, lolos kontras 4.5:1; font = nama Google Fonts

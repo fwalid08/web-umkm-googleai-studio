@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, Layout, Grid, ShoppingBag, Quote, HelpCircle, Megaphone, Mail, CalendarCheck, Info, Image as ImageIcon, Play, Users, DollarSign, Send, Minus, MoveHorizontal, Coffee, ListOrdered, MapPin } from 'lucide-react';
+import { Search, X, Layout, Grid, ShoppingBag, Quote, HelpCircle, Megaphone, Mail, Info, Image as ImageIcon, Play, Users, DollarSign, Send, Minus, MoveHorizontal, Coffee, ListOrdered, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import type { SectionTypeDefinition, SectionVariant } from '@/lib/builder/template-types';
 import { MockupPreview } from '@/lib/builder/mockup-preview';
@@ -20,7 +20,6 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   faq: <HelpCircle className="w-5 h-5" />,
   cta: <Megaphone className="w-5 h-5" />,
   contact: <Mail className="w-5 h-5" />,
-  booking: <CalendarCheck className="w-5 h-5" />,
   about: <Info className="w-5 h-5" />,
   gallery: <ImageIcon className="w-5 h-5" />,
   video: <Play className="w-5 h-5" />,
@@ -34,7 +33,7 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   location: <MapPin className="w-5 h-5" />,
 };
 
-const POPULAR: string[] = ['hero', 'product_grid', 'testimonials', 'cta', 'menu_board', 'booking'];
+const POPULAR: string[] = ['hero', 'product_grid', 'testimonials', 'cta', 'menu_board'];
 
 const TYPE_TINT: Record<string, string> = {
   hero: 'from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/30',
@@ -46,7 +45,6 @@ const TYPE_TINT: Record<string, string> = {
   faq: 'from-cyan-100 to-sky-100 dark:from-cyan-950/40 dark:to-sky-950/20',
   pricing: 'from-lime-100 to-emerald-100 dark:from-lime-950/30 dark:to-emerald-950/30',
   menu_board: 'from-orange-100 to-amber-100 dark:from-orange-950/40 dark:to-amber-950/20',
-  booking: 'from-teal-100 to-emerald-100 dark:from-teal-950/40 dark:to-emerald-950/20',
 };
 
 function tintFor(type: string) {

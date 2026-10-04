@@ -162,16 +162,14 @@ Template baru **wajib** memenuhi:
 2. Setiap `data.sections[].type` ada di `template.sections`.
 3. Setiap `data.sections[].variant` ada di varian tipe tersebut **dan**
    `builderSectionToInstance()` resolve ke varian yang sama (tanpa fallback diam-diam).
-4. **Sembilan section inti ada**: `hero`, `features`, `pricing`, `booking`,
+4. **Sembilan section inti ada**: `hero`, `features`, `pricing`,
    `testimonials`, `gallery`, `location`, `faq`, `contact`.
 5. `data.header.navItems` non-kosong; `data.header.ctaText` terisi.
 6. `data.seo.title` terisi; `data.footer.text` memuat `{year}`.
-7. Config `booking`: `title` string, `services` array non-kosong (tiap item punya
-   `name`), `success_message` string.
-8. `tiers` hanya berisi tier yang dikenal **dan** terbuka untuk keempat tier.
-9. `data.header.variant` terdaftar di `HEADER_VARIANTS`;
+7. `tiers` hanya berisi tier yang dikenal **dan** terbuka untuk keempat tier.
+8. `data.header.variant` terdaftar di `HEADER_VARIANTS`;
    `data.footer.style` di `FOOTER_VARIANTS`.
-10. Palet hasil override + design style-nya lolos kontras.
+9. Palet hasil override + design style-nya lolos kontras.
 
 ### Registrasi GANDA (lupa salah satu = template tidak jalan)
 
@@ -417,10 +415,10 @@ interface SectionTypeDefinition {
 }
 ```
 
-`SectionType` adalah union tertutup berisi **19 nilai**:
+`SectionType` adalah union tertutup berisi **18 nilai**:
 
 ```
-hero · features · product_grid · pricing · booking · testimonials · gallery
+hero · features · product_grid · pricing · testimonials · gallery
 location · faq · contact · about · video · team · newsletter · divider
 marquee · menu_board · steps
 ```
@@ -476,7 +474,6 @@ interface SectionStyle {
 | `faq` | FAQ | Pertanyaan umum |
 | `cta` | CTA | Call to action banner |
 | `contact` | Kontak | Form kontak |
-| `booking` | Booking | Form booking layanan |
 | `about` | Tentang | Tentang bisnis |
 | `gallery` | Galeri | Galeri gambar |
 | `video` | Video | Video embed |
@@ -1208,7 +1205,7 @@ Test yang berlaku:
 
 | File | Yang dijaga |
 |---|---|
-| `templates/catalog.test.ts` | Kontrak template katalog (9 section inti, kontras, booking, `{year}`, tier, chrome terdaftar) |
+| `templates/catalog.test.ts` | Kontrak template katalog (8 section inti, kontras, `{year}`, tier, chrome terdaftar) |
 | `template.test.ts` | 7 varian header, `maxNavDepth` konsisten, `contentWidth` lengkap, jumlah tipe section, configFields |
 | `section-variants.test.ts` | Tiap varian me-render markup berbeda (282 varian dicek) |
 | `section-contrast.test.ts` | Skema warna tidak merusak kontras |
@@ -1362,9 +1359,8 @@ variants: [
 
 ```typescript
 if (mockup.startsWith('hero-')) return <HeroMockup variant={mockup} />;
-if (mockup.startsWith('booking-')) return <BookingMockup variant={mockup} />;
 // … dan seterusnya untuk: features- product- testimonials- faq- cta-
-// contact- booking- about- gallery- video- team- pricing- newsletter-
+// contact- about- gallery- video- team- pricing- newsletter-
 // divider- marquee- menu- steps- location- header- footer-
 ```
 
@@ -1380,7 +1376,6 @@ mockup**, tanpa tambah kode. Yang salah prefix jatuh ke `DefaultMockup`.
 | `features-` | `features-3col`, `features-list`, `features-stacked`, `features-masonry` |
 | `product-` | `product-2col`, `product-3col`, `product-4col`, `product-carousel` |
 | `pricing-` | `pricing-2tier`, `pricing-3tier` |
-| `booking-` | `booking-single`, `booking-split` |
 | `testimonials-` | `testimonials-grid`, `testimonials-carousel`, `testimonials-single` |
 | `gallery-` | `gallery-grid`, `gallery-masonry`, `gallery-carousel` |
 | `contact-` | `contact-form`, `contact-form-map`, `contact-split` |
@@ -1399,7 +1394,7 @@ mockup**, tanpa tambah kode. Yang salah prefix jatuh ke `DefaultMockup`.
 | `footer-` | `footer-simple`, `footer-columns`, `footer-centered`, `footer-minimal` |
 
 > Id yang lebih dulu tertulis di versi dokumen ini — `video-default`,
-> `booking-form`, `marquee-default`, `steps-default`, `location-default`,
+> `marquee-default`, `steps-default`, `location-default`,
 > `menu-classic` — **tidak pernah ada**. Gunakan id pada tabel.
 
 #### Opsi 2: Buat Mockup Custom
@@ -1527,7 +1522,7 @@ Untuk memastikan preview bekerja:
 
 ### 14.1 Anchor Links
 - Nav items harus menggunakan anchor links untuk single page navigation
-- Format: `#section-id` (mis. `#tarif`, `#layanan`, `#booking`)
+- Format: `#section-id` (mis. `#tarif`, `#layanan`, `#kontak`)
 - Setiap section harus punya `anchorId` yang match dengan nav URL
 
 ### 14.2 Smooth Scroll
@@ -1577,7 +1572,7 @@ Untuk memastikan preview bekerja:
   `hideOnTablet` / `hideOnDesktop` (lihat kontrak §15.7).
 - Tombol CTA di header bisa di-hide di mobile via `mobileMenu.showCta`.
 - Contoh: CTA header yang ramai di desktop boleh disembunyikan di HP agar header ringkas.
-- Jangan menyembunyikan konten inti (hero, kontak, CTA booking) di perangkat
+- Jangan menyembunyikan konten inti (hero, kontak, CTA) di perangkat
   mana pun — hide hanya untuk hiasan atau varian ringkas pengganti.
 
 ### 15.3 Menu Mobile: Dua Opsi Drawer (Bukan Dropdown)

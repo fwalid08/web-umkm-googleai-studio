@@ -19,7 +19,6 @@ const TYPE_DOT: Record<string, string> = {
   gallery: 'bg-gradient-to-br from-fuchsia-400 to-purple-500',
   faq: 'bg-gradient-to-br from-cyan-400 to-sky-500',
   pricing: 'bg-gradient-to-br from-lime-400 to-emerald-500',
-  booking: 'bg-gradient-to-br from-teal-400 to-emerald-500',
 };
 
 function dotFor(type: string) {

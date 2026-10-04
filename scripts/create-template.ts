@@ -201,16 +201,6 @@ function buildSections(): Array<Record<string, unknown>> {
       ),
     },
     {
-      type: 'booking', name: 'Booking',
-      variants: [
-        sectionVariant('booking', 'booking-single', 'Form Saja',
-          [t('title', 'Judul'), ta('subtitle', 'Subtitle'),
-            list('Layanan', [t('name', 'Nama'), t('duration', 'Durasi'), t('price', 'Harga')]),
-            t('hours', 'Jam operasional'), ta('address', 'Alamat'), ta('success_message', 'Pesan sukses')],
-          { title: '', subtitle: '', services: [], hours: '', address: '', success_message: '' }),
-      ],
-    },
-    {
       type: 'about', name: 'Tentang',
       variants: ['about-left', 'about-right', 'about-centered'].map((id) =>
         sectionVariant('about', id, id,
@@ -343,7 +333,7 @@ function buildTemplate(opts: { category: string; design: string; name: string; d
       footerVariant('ftr-news', 'Newsletter', 'newsletter', siteTitle),
     ],
     sections: buildSections(),
-    activeSections: ['hero', 'features', 'pricing', 'booking', 'testimonials', 'gallery', 'location', 'faq', 'contact'],
+    activeSections: ['hero', 'features', 'pricing', 'testimonials', 'gallery', 'location', 'faq', 'contact'],
     data: {
       designStyleId: 'minimalist',
       paletteOverride: {
@@ -352,12 +342,11 @@ function buildTemplate(opts: { category: string; design: string; name: string; d
         text: '#111827', textMuted: '#6b7280', border: '#e5e7eb',
       },
       customCss: '/* Gaya kreatif template di sini — sasar [data-tpl-type] / [data-tpl-variant], pakai var(--color-*). */',
-      activeSections: ['hero', 'features', 'pricing', 'booking', 'testimonials', 'gallery', 'location', 'faq', 'contact'],
+      activeSections: ['hero', 'features', 'pricing', 'testimonials', 'gallery', 'location', 'faq', 'contact'],
       sections: [
         { type: 'hero', variant: 'hero-full', anchorId: 'beranda', config: { headline: '', subheadline: '', cta_text: '', cta_link: '#kontak' } },
         { type: 'features', variant: 'features-3col', anchorId: 'keunggulan', config: { title: '', items: [] } },
         { type: 'pricing', variant: 'pricing-3tier', anchorId: 'harga', config: { title: '', items: [] } },
-        { type: 'booking', variant: 'booking-single', anchorId: 'booking', config: { title: '', subtitle: '', services: [], hours: '', address: '', success_message: '' } },
         { type: 'testimonials', variant: 'testimonials-grid', anchorId: 'testimoni', config: { title: '', items: [] } },
         { type: 'gallery', variant: 'gallery-grid', anchorId: 'galeri', config: { title: '', images: [] } },
         { type: 'location', variant: 'location-hours', anchorId: 'lokasi', config: { title: '', address: '', hours: [] } },
