@@ -157,6 +157,15 @@ export default async function proxy(request: NextRequest) {
       return res;
     }
 
+    if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
+      const sessionRedirect = await validateSession(request, {
+        forceProtected: true,
+        callbackPath: `${pathname}${request.nextUrl.search}`,
+      });
+      if (sessionRedirect) return sessionRedirect;
+      return adminHeaders();
+    }
+
     // Tenant dashboard routes - require authentication
     if (DASHBOARD_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
       const routePath = `/dashboard${pathname}`;

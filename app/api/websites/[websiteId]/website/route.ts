@@ -391,7 +391,6 @@ export async function PUT(
           user_id: sessionUser.id,
           website_id: websiteId,
           template_slug: slug,
-          template_id: null,
           custom_config: toStore,
           updated_at: new Date().toISOString(),
         },
@@ -454,7 +453,7 @@ export async function PUT(
 
       await supabase
         .from("websites")
-        .update({ template_slug: slug, current_template_id: null, updated_at: new Date().toISOString() })
+        .update({ template_slug: slug, updated_at: new Date().toISOString() })
         .eq("id", websiteId)
         .eq("user_id", sessionUser.id);
 
@@ -537,7 +536,6 @@ export async function PUT(
         user_id: sessionUser.id,
         website_id: websiteId,
         template_slug: slug,
-        template_id: null,
         custom_config: toStore,
         updated_at: new Date().toISOString(),
       },
@@ -550,7 +548,7 @@ export async function PUT(
 
     await supabase
       .from("websites")
-      .update({ template_slug: slug, current_template_id: null, updated_at: new Date().toISOString() })
+      .update({ template_slug: slug, updated_at: new Date().toISOString() })
       .eq("id", websiteId)
       .eq("user_id", sessionUser.id);
 

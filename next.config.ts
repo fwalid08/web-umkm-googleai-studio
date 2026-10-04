@@ -2,10 +2,13 @@ import type { NextConfig } from "next";
 
 const rootHost = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "saas-saya.com").replace(/:\d+$/, "");
 const adminHost = `admin.${rootHost}`;
+// Tenant subdomain (mis. tenant-kopibutoni.rabasha.id) harus diizinkan di dev server,
+// kalau tidak aset/Server Action dari host tenant diblokir cross-origin.
+const tenantWildcard = `*.${rootHost}`;
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  allowedDevOrigins: [rootHost, adminHost],
+  allowedDevOrigins: [rootHost, adminHost, tenantWildcard],
   async redirects() {
     return [
       {

@@ -11,4 +11,8 @@ describe("websiteStatus", () => {
   it("ada template id = publish", () => {
     expect(websiteStatus({ current_template_id: "tpl-food-1" })).toBe("publish");
   });
+
+  it("ada template slug = publish", () => {
+    expect(websiteStatus({ template_slug: "food" })).toBe("publish");
+  });
 });

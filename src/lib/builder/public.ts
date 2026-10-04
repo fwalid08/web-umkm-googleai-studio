@@ -101,7 +101,7 @@ interface PublicUserRow {
   name: string | null;
   business_type: string | null;
   subdomain: string | null;
-  current_template_id: string | null;
+  current_template_id?: string | null;
   template_slug: string | null;
 }
 
@@ -553,7 +553,7 @@ export async function getPublicSiteBySubdomain(subdomain: string): Promise<Publi
     const supabase = createServiceSupabaseClient();
     const { data: site } = await supabase
       .from("websites")
-      .select("id, user_id, name, business_type, subdomain, current_template_id, template_slug")
+      .select("id, user_id, name, business_type, subdomain, template_slug")
       .eq("subdomain", subdomain)
       .maybeSingle();
     if (!site) return null;
@@ -568,7 +568,7 @@ export async function getPublicSiteByCustomDomain(domain: string): Promise<Publi
     const supabase = createServiceSupabaseClient();
     const { data: site, error } = await supabase
       .from("websites")
-      .select("id, user_id, name, business_type, subdomain, current_template_id, template_slug")
+      .select("id, user_id, name, business_type, subdomain, template_slug")
       .eq("custom_domain", domain.toLowerCase())
       .eq("custom_domain_verified", true)
       .maybeSingle();

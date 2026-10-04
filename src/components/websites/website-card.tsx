@@ -17,6 +17,7 @@ export interface WebsiteCardSite {
   subdomain: string | null;
   custom_domain: string | null;
   custom_domain_verified: boolean;
+  template_slug?: string | null;
   current_template_id?: string | null;
 }
 

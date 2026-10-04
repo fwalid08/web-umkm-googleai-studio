@@ -33,6 +33,23 @@ describe("urls (env-driven)", () => {
     expect(tenantUrl("toko-x")).toBe("https://toko-x.localhost:3000");
   });
 
+  it("development with custom root uses localhost tenant hosts", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_ROOT_DOMAIN", "rabasha.id");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://admin.rabasha.id");
+    expect(tenantUrl("toko-x")).toBe("http://toko-x.localhost:3000");
+    expect(tenantDisplay("toko-x")).toBe("toko-x.localhost:3000");
+  });
+
+  it("development can opt into a custom wildcard tenant domain", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_ROOT_DOMAIN", "rabasha.id");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://admin.rabasha.id");
+    vi.stubEnv("NEXT_PUBLIC_DEV_TENANT_DOMAIN", "rabasha.id");
+    expect(tenantUrl("toko-x")).toBe("https://toko-x.rabasha.id");
+    expect(tenantDisplay("toko-x")).toBe("toko-x.rabasha.id");
+  });
+
   it("null-safe", () => {
     expect(tenantUrl(null)).toBeNull();
     expect(tenantDisplay(undefined)).toBe("-");

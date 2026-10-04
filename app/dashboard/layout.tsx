@@ -104,7 +104,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [sites, setSites] = useState<Array<{ id: string; name: string; subdomain: string | null }>>([]);
+  const [sites, setSites] = useState<Array<{ id: string; name: string; subdomain: string | null; template_slug?: string | null; current_template_id?: string | null }>>([]);
   const [activeSiteId, setActiveSiteId] = useState("");
 
   // Load websites for selector
@@ -116,7 +116,13 @@ export default function DashboardLayout({
         const json = await res.json();
         if (json.success && json.data.websites) {
           setSites(json.data.websites);
-          setActiveSiteId(json.data.active_website_id ?? json.data.websites[0]?.id ?? "");
+          const activeId = json.data.active_website_id ?? json.data.websites[0]?.id ?? "";
+          setActiveSiteId(activeId);
+          const activeSite = json.data.websites.find((site: { id: string }) => site.id === activeId);
+          if (activeSite && !activeSite.template_slug && !activeSite.current_template_id) {
+            const returnTo = `${window.location.pathname}${window.location.search}`;
+            window.location.replace(adminUrl(`/onboarding?returnTo=${encodeURIComponent(returnTo)}`));
+          }
         }
       } catch {
         // fail silently

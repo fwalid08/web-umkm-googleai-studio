@@ -35,18 +35,23 @@ describe("rls hardening: resolveMaxWebsites", () => {
 });
 
 describe("rls hardening: owner-scoping query builder (static check)", () => {
-  it("lib/websites/active.ts selalu scope user via RPC p_user_id (getActiveWebsite + getOwnedWebsite)", () => {
+  it("lib/websites/active.ts scopes service-role lookups by the session user", () => {
     const src = repoFile("src", "lib", "websites", "active.ts");
-    // Sejak 026 otorisasi di RPC SECURITY DEFINER (bukan .eq di client):
-    // kedua helper wajib meneruskan p_user_id.
-    expect(src).toContain("p_user_id");
-    expect(src).toContain("get_active_website");
-    expect(src).toContain("get_website_by_id");
+    expect(src).toContain('.eq("user_id", userId)');
+    expect(src).toContain('.eq("id", websiteId)');
+    expect(src).toContain("active_website_id");
+    expect(src).not.toContain("get_website_by_id");
   });
 
   it("app/api/websites/route.ts list memfilter user_id milik sendiri", () => {
     const src = repoFile("app", "api", "websites", "route.ts");
     expect(src).toContain('.eq("user_id", userId)');
+  });
+
+  it("website list reads template_slug after migration 040 drops current_template_id", () => {
+    const src = repoFile("app", "api", "websites", "route.ts");
+    expect(src).toContain("template_slug");
+    expect(src).not.toContain("current_template_id");
   });
 
   it("app/api/orders/route.ts GET mengisolasi user_id + website aktif", () => {

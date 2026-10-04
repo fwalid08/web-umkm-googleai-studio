@@ -11,9 +11,19 @@ function getSessionUserId(session: unknown): string | null {
 }
 
 async function owned(userId: string, id: string) {
-  const site = await getOwnedWebsite(userId, id);
-  if (!site) return null;
-  return site;
+  if (isDemoUserId(userId)) return getOwnedWebsite(userId, id);
+
+  const { data, error } = await createServiceSupabaseClient()
+    .from("websites")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    console.error("Owned website lookup error:", error);
+    return null;
+  }
+  return data;
 }
 
 // GET /api/websites/[websiteId] — detail website milik sendiri

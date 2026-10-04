@@ -175,7 +175,7 @@ const nextAuth = NextAuth({
             if (error) console.error("Google auto-create profile error", error);
             const { data: site } = await supabase
               .from("websites")
-              .insert({ user_id: newId, name: user.name || "Website Utama", business_type: "retail", subdomain })
+              .insert({ user_id: newId, name: "Website Utama", business_type: "retail", subdomain })
               .select("id")
               .single();
             if (site) await supabase.from("users").update({ active_website_id: site.id }).eq("id", newId);

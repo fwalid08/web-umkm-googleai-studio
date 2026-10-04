@@ -53,12 +53,26 @@ export function adminUrl(path = "/"): string {
 /** URL penuh tenant: http://toko-x.localhost:3000. Null jika subdomain kosong. */
 export function tenantUrl(subdomain: string | null | undefined): string | null {
   if (!subdomain) return null;
+  const devTenantDomain = stripSlash(process.env.NEXT_PUBLIC_DEV_TENANT_DOMAIN || "");
+  if (process.env.NODE_ENV === "development" && devTenantDomain) {
+    return `${appProtocol()}://${subdomain}.${devTenantDomain}`;
+  }
+  if (process.env.NODE_ENV === "development" && !isLocalHost(rootHost())) {
+    return `http://${subdomain}.localhost:3000`;
+  }
   return `${appProtocol()}://${subdomain}.${rootDomain()}`;
 }
 
 /** Tampilan: toko-x.localhost:3000 (tanpa protokol). */
 export function tenantDisplay(subdomain: string | null | undefined): string {
   if (!subdomain) return "-";
+  const devTenantDomain = stripSlash(process.env.NEXT_PUBLIC_DEV_TENANT_DOMAIN || "");
+  if (process.env.NODE_ENV === "development" && devTenantDomain) {
+    return `${subdomain}.${devTenantDomain}`;
+  }
+  if (process.env.NODE_ENV === "development" && !isLocalHost(rootHost())) {
+    return `${subdomain}.localhost:3000`;
+  }
   return `${subdomain}.${rootDomain()}`;
 }
 

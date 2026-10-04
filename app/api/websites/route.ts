@@ -47,14 +47,18 @@ export async function GET() {
 
     // Service-role + filter user_id: akurat untuk semua provider (termasuk Google).
     const supabase = createServiceSupabaseClient();
-    const [{ data: sites }, { data: user }] = await Promise.all([
+    const [{ data: sites, error: sitesError }, { data: user }] = await Promise.all([
       supabase
         .from("websites")
-        .select("id, name, business_type, subdomain, custom_domain, custom_domain_verified, current_template_id, created_at")
+        .select("id, name, business_type, subdomain, custom_domain, custom_domain_verified, template_slug, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: true }),
       supabase.from("users").select("active_website_id").eq("id", userId).maybeSingle(),
     ]);
+    if (sitesError) {
+      console.error("List websites query error:", sitesError);
+      return NextResponse.json({ success: false, error: "Gagal memuat website" }, { status: 500 });
+    }
     const { max } = await checkWebsiteLimit(userId);
     const list = sites ?? [];
     return NextResponse.json({

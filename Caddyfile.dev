@@ -2,7 +2,9 @@
 	auto_https disable_redirects
 }
 
-https://rabasha.id, https://admin.rabasha.id {
+# Wildcard host WAJIB ada agar subdomain tenant (mis. tenant-kopibutoni.rabasha.id)
+# ikut dilayani di lokal. Butuh cert dengan SAN *.rabasha.id (lihat README).
+https://rabasha.id, https://admin.rabasha.id, https://*.rabasha.id {
 	tls .cert/localhost.pem .cert/localhost-key.pem
 	reverse_proxy 127.0.0.1:3000
 }

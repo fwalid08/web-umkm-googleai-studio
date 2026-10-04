@@ -71,6 +71,22 @@ describe("admin host routing", () => {
     expect(signin.searchParams.get("callbackUrl")).toBe("/settings");
   });
 
+  it("protects onboarding and preserves its return path", async () => {
+    getTokenMock.mockResolvedValueOnce(null);
+
+    const protectedOnboarding = await runProxy(
+      new NextRequest("http://admin.localhost:3000/onboarding?returnTo=%2Fsettings")
+    );
+    const signin = new URL(protectedOnboarding.headers.get("location")!);
+    expect(signin.pathname).toBe("/signin");
+    expect(signin.searchParams.get("callbackUrl")).toBe("/onboarding?returnTo=%2Fsettings");
+
+    getTokenMock.mockResolvedValueOnce({ email: "merchant@example.com" });
+    const onboarding = await runProxy(new NextRequest("http://admin.localhost:3000/onboarding"));
+    expect(onboarding.status).toBe(200);
+    expect(onboarding.headers.get("x-is-tenant")).toBe("admin");
+  });
+
   it.each(["/signin", "/signup"])("redirects authenticated users from %s to the dashboard", async (pathname) => {
     getTokenMock.mockResolvedValueOnce({ email: "merchant@example.com" });
 
@@ -111,5 +127,15 @@ describe("admin host routing", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
+  });
+});
+
+describe("tenant host routing", () => {
+  it("recognizes .localhost tenant hosts", async () => {
+    const response = await runProxy(new NextRequest("http://toko-x.localhost:3000/"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-tenant-subdomain")).toBe("toko-x");
+    expect(response.headers.get("x-is-tenant")).toBe("true");
   });
 });

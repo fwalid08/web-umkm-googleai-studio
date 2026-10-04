@@ -79,35 +79,85 @@ MIDTRANS_CLIENT_KEY=SB-Mid-client-xxx
 MIDTRANS_IS_PRODUCTION=false
 ```
 
-Untuk development lokal dengan `admin.rabasha.id`, arahkan host ke loopback di `/etc/hosts`:
+#### Development Admin HTTPS Lokal (`admin.rabasha.id` + tenant `*.rabasha.id`)
 
-```text
-127.0.0.1 rabasha.id admin.rabasha.id
+Development lokal berjalan sebagai HTTP internal di port 3000; Caddy di port 443 yang menerminasi
+TLS. Karena domain tenant berupa wildcard (`<subdomain>.rabasha.id`), ada **tiga hal** yang harus
+diaktifkan — melewatkan salah satunya membuat subdomain tenant tidak bisa dibuka.
+
+> ⚠️ Entri `*.rabasha.id` di `/etc/hosts` **tidak berfungsi** — `/etc/hosts` tidak mendukung
+> wildcard, jadi itu hanya string biasa dan `<subdomain>.rabasha.id` tetap NXDOMAIN. Gunakan
+> dnsmasq (langkah 1) untuk wildcard yang sebenarnya.
+
+**1. Wildcard DNS → loopback.** Jalankan skrip idempotent (butuh sudo):
+
+```bash
+sudo bash scripts/setup-local-wildcard-dns.sh rabasha.id
 ```
 
-Buat cert/key lokal yang dipercaya browser (direktori `.cert/` diabaikan Git):
+Skrip memasang dnsmasq di `127.0.0.1:53` yang menjawab seluruh `<apa pun>.rabasha.id` dengan
+`127.0.0.1`, merutekan domain tersebut lewat `systemd-resolved` (`resolvectl dns <link> 127.0.0.1`
+saja — upstream publik tidak boleh ikut menempel di link yang sama karena `rabasha.id` tidak
+terdaftar publik dan balasan NXDOMAIN-nya bisa memenangkan balapan melawan jawaban dnsmasq),
+mempersistensinya via dispatcher script NetworkManager
+(`/etc/NetworkManager/dispatcher.d/99-rabasha-local-dns`, karena profil koneksi netplan dibuat
+ulang setiap boot sehingga `nmcli modify` tidak persisten), dan membersihkan entri wildcard palsu
+di `/etc/hosts`. Upstream DNS lain tetap normal karena diteruskan oleh dnsmasq (`server=`).
+Verifikasi: `resolvectl query probe.rabasha.id` → `127.0.0.1`.
+
+**2. Wildcard TLS cert.** Cert harus punya SAN `*.rabasha.id`, jadi sertakan wildcard saat membuat:
 
 ```bash
 mkcert -install
 mkdir -p .cert
-mkcert -cert-file .cert/localhost.pem -key-file .cert/localhost-key.pem rabasha.id admin.rabasha.id
+mkcert -cert-file .cert/localhost.pem -key-file .cert/localhost-key.pem \
+  rabasha.id admin.rabasha.id "*.rabasha.id"
 ```
 
-Setel env lokal ke origin tanpa port:
+Cek SAN: `openssl x509 -in .cert/localhost.pem -noout -text | grep -A1 'Subject Alternative Name'`.
+
+**3. Host wildcard di Caddy.** `Caddyfile.dev` sudah memuat `https://*.rabasha.id`:
+
+```caddyfile
+https://rabasha.id, https://admin.rabasha.id, https://*.rabasha.id {
+	tls .cert/localhost.pem .cert/localhost-key.pem
+	reverse_proxy 127.0.0.1:3000
+}
+```
+
+**4. Setel env** ke origin tanpa port, plus aktifkan domain tenant nyata di dev:
 
 ```env
 NEXTAUTH_URL=https://admin.rabasha.id
 NEXT_PUBLIC_APP_URL=https://admin.rabasha.id
 NEXT_PUBLIC_ROOT_DOMAIN=rabasha.id
+# Tanpa ini, link tenant di dashboard jatuh ke http://<subdomain>.localhost:3000.
+# Butuh wildcard DNS + cert *.rabasha.id (langkah 1 & 2).
+NEXT_PUBLIC_DEV_TENANT_DOMAIN=rabasha.id
 ```
 
-Jalankan Next.js dalam HTTP internal pada port 3000 dengan `pnpm dev`. Pasang binary Caddy sesuai
-distro Anda. Di terminal kedua, jalankan Caddy dari root repo pada HTTPS standar port 443; Linux
-membutuhkan hak bind privileged untuk port ini:
+**5. Jalankan.** Next.js (HTTP, port 3000) di satu terminal, Caddy (HTTPS, port 443) di terminal
+lain:
 
 ```bash
-sudo caddy run --config Caddyfile.dev
+pnpm dev
+sudo caddy run --config Caddyfile.dev   # or: sudo caddy reload --config Caddyfile.dev
 ```
+
+Verifikasi cepat:
+
+```bash
+resolvectl query tenant-kopibutoni.rabasha.id              # → 127.0.0.1
+curl -sI https://tenant-kopibutoni.rabasha.id/             # → HTTP/2 200
+```
+
+`next.config.ts` juga mengizinkan `*.rabasha.id` lewat `allowedDevOrigins` supaya aset dan Server
+Action dari host tenant tidak diblokir cross-origin oleh dev server.
+
+Tanpa langkah dnsmasq di atas, alternatif paling ringan adalah biarkan
+`NEXT_PUBLIC_DEV_TENANT_DOMAIN` kosong: link tenant otomatis memakai
+`http://<subdomain>.localhost:3000` (tanpa perlu Caddy/TLS sama sekali).
+
 
 Port 443 termasuk privileged port pada Linux, sehingga Caddy perlu hak bind port tersebut. Di Google
 Cloud OAuth Client, tambahkan JavaScript origin `https://admin.rabasha.id` dan redirect URI

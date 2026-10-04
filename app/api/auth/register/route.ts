@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       .from("websites")
       .insert({
         user_id: authData.user.id,
-        name,
+        name: "Website Utama",
         business_type,
         subdomain,
       })

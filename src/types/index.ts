@@ -14,7 +14,8 @@ export interface User {
   custom_domain_verified: boolean;
   custom_domain_verified_at: string | null;
   trial_ends_at: string | null;
-  current_template_id: string | null;
+  current_template_id?: string | null;
+  template_slug?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -482,8 +483,8 @@ export interface Website {
   custom_domain: string | null;
   custom_domain_verified: boolean;
   custom_domain_verified_at: string | null;
-  current_template_id: string | null;
-  /** Slug katalog statis (migrasi 039). Kolom UUID lama dipertahankan sementara. */
+  current_template_id?: string | null;
+  /** Slug katalog statis (migrasi 039). */
   template_slug?: string | null;
   created_at: string;
   updated_at: string;

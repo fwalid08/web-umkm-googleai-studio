@@ -6,7 +6,7 @@
  * Dipakai website fresh (current_template_id null). Tanpa migrasi baru.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLang } from "@/lib/i18n";
@@ -23,40 +23,92 @@ interface Template {
   sections_config: { id: string }[];
 }
 
+function safeReturnTo(value: string | null): string {
+  if (!value) return "/";
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return "/";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { t } = useLang();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [biz, setBiz] = useState<string>("food");
+  const [returnTo, setReturnTo] = useState("/");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [websiteId, setWebsiteId] = useState("");
   const [subdomain, setSubdomain] = useState("");
+  const [isLoadingSetup, setIsLoadingSetup] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const setupStarted = useRef(false);
 
   useEffect(() => {
+    if (setupStarted.current) return;
+    setupStarted.current = true;
     (async () => {
       try {
         const [wRes, tRes] = await Promise.all([fetch("/api/websites"), fetch("/api/templates")]);
         const wJson = await wRes.json();
         const tJson = await tRes.json();
-        if (wJson.success && wJson.data.websites.length > 0) {
-          setWebsiteId(wJson.data.active_website_id ?? wJson.data.websites[0].id);
-          const w = wJson.data.websites[0];
-          if (w.name && !w.name.startsWith("tenant-")) setName(w.name);
-          setSubdomain(wJson.data.websites.find((x: { id: string }) => x.id === (wJson.data.active_website_id ?? wJson.data.websites[0].id))?.subdomain ?? w.subdomain ?? "");
+        if (!wRes.ok || !wJson.success) {
+          setError(wJson.error ?? t("common.networkError"));
+          return;
+        }
+        if (!tRes.ok || !tJson.success) {
+          setError(tJson.error ?? t("common.networkError"));
+          return;
+        }
+        const destination = safeReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
+        setReturnTo(destination);
+        let websites = wJson.data.websites;
+        let activeId = wJson.data.active_website_id;
+        if (!websites.length) {
+          const createRes = await fetch("/api/websites", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "Website Utama", business_type: "retail" }),
+          });
+          const createJson = await createRes.json();
+          if (!createRes.ok || !createJson.success || !createJson.data?.website) {
+            setError(createJson.error ?? t("common.networkError"));
+            return;
+          }
+          websites = [createJson.data.website];
+          activeId = createJson.data.active_website_id ?? createJson.data.website.id;
+        }
+        const activeWebsite = websites.find((website: { id: string }) => website.id === activeId) ?? websites[0];
+        setWebsiteId(activeWebsite.id);
+        if (activeWebsite.name && activeWebsite.name !== "Website Utama" && !activeWebsite.name.startsWith("tenant-")) {
+          setName(activeWebsite.name);
+        }
+        if (BIZ.includes(activeWebsite.business_type)) setBiz(activeWebsite.business_type);
+        setSubdomain(activeWebsite.subdomain ?? "");
+        if (activeWebsite.template_slug || activeWebsite.current_template_id) {
+          router.replace(destination);
+          return;
         }
         if (tJson.success) setTemplates(tJson.data.templates);
       } catch {
         setError(t("common.networkError"));
+      } finally {
+        setIsLoadingSetup(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function saveNameBiz() {
-    if (!name.trim() || !websiteId) return;
+    if (!name.trim() || !websiteId || isLoadingSetup) {
+      setError(t("common.networkError"));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -135,7 +187,7 @@ export default function OnboardingPage() {
               />
               <button
                 onClick={() => name.trim() && setStep(2)}
-                disabled={!name.trim()}
+                disabled={isLoadingSetup || !websiteId || !name.trim()}
                 className="w-full py-3 rounded-xl text-white font-medium bg-green-600 hover:bg-green-700 disabled:opacity-50"
               >
                 {t("common.next")}
@@ -163,7 +215,7 @@ export default function OnboardingPage() {
               </div>
               <button
                 onClick={saveNameBiz}
-                disabled={busy}
+                disabled={busy || isLoadingSetup || !websiteId}
                 className="w-full py-3 rounded-xl text-white font-medium bg-green-600 hover:bg-green-700 disabled:opacity-50"
               >
                 {busy ? t("common.saving") : t("common.next")}
@@ -208,20 +260,20 @@ export default function OnboardingPage() {
               <p className="text-gray-500 text-sm">{t("onboarding.doneDesc")}</p>
               <code className="inline-block bg-gray-100 px-3 py-1 rounded">{tenantDisplay(subdomain)}</code>
               <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => router.push(returnTo)}
+                  className="flex-1 py-3 rounded-xl text-white font-medium bg-green-600 hover:bg-green-700"
+                >
+                  {t("onboarding.toWorkspace")}
+                </button>
                 <a
                   href={tenantUrl(subdomain) ?? "/dashboard"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-3 rounded-xl text-white font-medium bg-green-600 hover:bg-green-700 text-center"
+                  className="flex-1 py-3 rounded-xl border font-medium hover:bg-gray-50 text-center"
                 >
                   {t("onboarding.viewSite")}
                 </a>
-                <button
-                  onClick={() => router.push('/dashboard/websites')}
-                  className="flex-1 py-3 rounded-xl border font-medium hover:bg-gray-50"
-                >
-                  {t("onboarding.toWorkspace")}
-                </button>
               </div>
             </CardContent>
           </Card>
