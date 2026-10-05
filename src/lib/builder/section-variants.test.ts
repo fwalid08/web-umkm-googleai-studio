@@ -59,6 +59,7 @@ describe('section variants render parity', () => {
         components: t.theme.components,
         effects: t.theme.effects || {},
         thumbnailUrl: '',
+        sections: t.sections as unknown as DesignStyle['sections'],
       };
       for (const st of t.sections) {
         for (const v of st.variants) {

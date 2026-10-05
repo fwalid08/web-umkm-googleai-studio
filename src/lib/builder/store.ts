@@ -8,6 +8,7 @@ import { builderConfigSchema } from '@/types';
 export interface TypographyOverride {
   headingFont?: string;
   bodyFont?: string;
+  accentFont?: string;
 }
 
 interface Snapshot {
@@ -399,8 +400,8 @@ export const useBuilderStore = create<BuilderState>()(
           if (typo && typeof typo === 'object' && !Array.isArray(typo)) {
             const next: TypographyOverride = {};
             for (const [k, v] of Object.entries(typo as Record<string, unknown>)) {
-              if ((k === 'headingFont' || k === 'bodyFont') && typeof v === 'string' && v.trim().length > 0) {
-                next[k as 'headingFont' | 'bodyFont'] = v.trim();
+              if ((k === 'headingFont' || k === 'bodyFont' || k === 'accentFont') && typeof v === 'string' && v.trim().length > 0) {
+                next[k as 'headingFont' | 'bodyFont' | 'accentFont'] = v.trim();
               }
             }
             state.typographyOverride = next;

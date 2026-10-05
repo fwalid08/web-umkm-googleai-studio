@@ -1,6 +1,6 @@
 import type { SectionTypeDefinition, SectionType } from '../types';
 
-export const SECTION_REGISTRY: Record<SectionType, SectionTypeDefinition> = {
+export const SECTION_REGISTRY: Partial<Record<SectionType, SectionTypeDefinition>> = {
   hero: {
     type: 'hero',
     name: 'Hero',

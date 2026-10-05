@@ -255,12 +255,16 @@ User bisa menambahkan domain sendiri:
 
 ## 💰 Pricing Tiers
 
+> Kebenaran harga: DB `plans` (migrasi `012_pricing_unify.sql`) + fallback
+> `TIER_PRICE_FALLBACK` di `src/lib/billing/pricing.ts`.
+> Tidak ada lagi trial 14 hari (dihapus migrasi `015`; Free permanen dengan limit).
+
 | Tier | Harga/Bulan | Fitur Utama |
 |------|-------------|-------------|
-| **Free** | Rp 0 | 3 template, 5 produk, trial 14 hari |
-| **Starter** | Rp 99.000 | 5 template, produk unlimited, order dashboard |
-| **Growth** | Rp 299.000 | Analytics, auto-followup, 2 payment gateway |
-| **Enterprise** | Custom | Repeat order, API, multi-store, custom template |
+| **Free** | Rp 0 | 1 website, 5 produk, template dasar, subdomain gratis |
+| **Starter** | Rp 99.000 (hemat Rp 79.000/bln bila tahunan) | 3 website, 50 produk, semua template, custom domain |
+| **Growth** | Rp 249.000 (hemat Rp 199.000/bln bila tahunan) | 10 website, 200 produk, analytics export |
+| **Enterprise** | Rp 599.000 (hemat Rp 479.000/bln bila tahunan) | 999 website, 9999 produk |
 
 ## 🧪 Testing
 

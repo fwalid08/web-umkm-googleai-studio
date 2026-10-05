@@ -227,6 +227,20 @@ export function BuilderTopbar({
               </span>
             </div>
           )}
+          {/* Perubahan kanvas (ganti skema, edit blok, ganti template) hanya
+              hidup di builder sampai "Tayangkan" ditekan — live site selalu
+              menampilkan status tayang terakhir. Badge ini mencegah kebingungan
+              "kok live tidak ikut berubah". */}
+          {isPublished && !saved && !isSaving && (
+            <div
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border shrink-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800"
+              title="Kanvas punya perubahan yang belum ditayangkan. Live site masih menampilkan versi tayang terakhir."
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="hidden lg:inline">Belum ditayangkan</span>
+              <span className="sr-only">Ada perubahan yang belum ditayangkan</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">

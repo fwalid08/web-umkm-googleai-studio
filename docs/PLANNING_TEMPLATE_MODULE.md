@@ -1,9 +1,9 @@
 # Planning Template & Module — Website Builder SaaS UMKM
 
 > **Status:** Planning (tanpa implementasi).
-> **Tanggal:** 2026-10-05.
+> **Tanggal:** 2026-10-05 (dimutakhirkan 2026-10-05: konvensi prefix §5.6 dikunci).
 > **Ruang lingkup sesi:** online_shop dulu; blog/booking/sekolah ditunda; payment buyer manual dulu.
-> **Keputusan kunci:** template terikat `site_type`; fitur dijual sebagai **Feature Pack per tipe website + Add-on Website (ikut tier) + Modul Global (subscription mandiri)**; pricing table wajib pilih jenis website dulu.
+> **Keputusan kunci:** template terikat `site_type`; fitur dijual sebagai **Feature Pack per tipe website + Add-on Website (ikut tier) + Modul Global (subscription mandiri)**; pricing table wajib pilih jenis website dulu; **tiap modul wajib prefix unik (§5.6)**.
 
 ---
 
@@ -208,13 +208,38 @@ Aturan:
 4. Disable diblokir bila masih ada dependen aktif (cth. tidak bisa matikan `hrm_core` selama `payroll` aktif).
 5. `conflicts[]` disediakan untuk eksklusivitas one-time di masa depan; untuk online_shop fase ini tidak ada konflik (COD + QRIS boleh jalan bareng).
 
+### 5.6 Konvensi Prefix Modul (Dikunci 2026-10-05)
+
+Setiap modul **wajib** memakai prefix unik yang pendek di nama tabel, view, index, RLS policy, dan konstanta/type/enum yang di-export. Tidak berlaku untuk nama kolom.
+
+1. Prefix 2–5 huruf + underscore (`^[a-z]{2,5}_$`), turunan nama folder `src/lib/*`.
+2. Didaftarkan sekali di `src/lib/modules/prefixes.ts` (`MODULE_PREFIXES`); prefix baru wajib tambah baris di registry — tidak boleh dikarang bebas.
+3. `mod_` = khusus inti sistem modul (features/packs/addons/usage), **bukan** prefix global. Tabel non-modul dilarang pakai `mod_`.
+4. Tabel lama di-retrofit via `RENAME` + view compat 1 rilis, lalu view di-drop (Fase B→D, lihat §6 catatan kompatibilitas).
+
+| Modul (`src/lib/*`) | Prefix | Contoh tabel |
+|---|---|---|
+| billing | `bill_` | `bill_plans`, `bill_tier_limits`, `bill_subscriptions` |
+| websites | `ws_` | `ws_websites`, `ws_settings` |
+| products | `prod_` | `prod_products`, `prod_images`, `prod_variants`, `prod_stock_movements` |
+| orders | `ord_` | `ord_orders` |
+| domains | `dom_` | `dom_orders` |
+| builder | `bld_` | `bld_templates`, `bld_user_templates` |
+| users | `usr_` | `usr_api_keys` (tabel `users` dikecualikan, tetap `users`) |
+| modules (inti baru) | `mod_` | `mod_features`, `mod_packs`, `mod_pack_features`, `mod_site_prices`, `mod_sub_addons`, `mod_global_subs`, `mod_usage` |
+
+Pola nama policy: `<prefix>_<tabel>_<aksi>` (cth. `ws_websites_owner_all`).
+Pola nama index: `idx_<tabel>_<kolom>` (cth. `idx_ws_websites_user_id`).
+Konstanta: `TIER_PRICE_FALLBACK`→`BILL_TIER_PRICE_FALLBACK`, `PRODUCT_TIER_LIMITS`→`PROD_TIER_LIMITS`, `TIER_RANK`→`BLD_TIER_RANK` (alias deprecated 1 rilis).
+Enforcement: `src/lib/modules/prefixes.test.ts` + `scripts/lint-prefix.mjs` di CI (gagal bila ada tabel/konstanta tanpa prefix atau klaim prefix ganda).
+
 ---
 
 ## 6. Desain Data (Rencana Migrasi `047-049`)
 
 ```sql
--- 047_features: katalog atom
-CREATE TABLE features(
+-- 047_mod_features: katalog atom (prefix mod_ = inti sistem modul, lihat §5.6)
+CREATE TABLE mod_features(
   id TEXT PRIMARY KEY,                 -- 'cek_ongkir'
   name TEXT NOT NULL,
   category TEXT NOT NULL,              -- 'logistik','keuangan','sdm','operasional',...
@@ -227,20 +252,20 @@ CREATE TABLE features(
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- 048_packs: pack per site_type + harga matriks
-CREATE TABLE feature_packs(
+-- 048_mod_packs: pack per site_type + harga matriks
+CREATE TABLE mod_packs(
   id TEXT PRIMARY KEY,                 -- 'online_shop_pack'
   site_type TEXT NOT NULL,             -- 'online_shop'
   name TEXT NOT NULL
 );
-CREATE TABLE pack_features(
-  pack_id TEXT REFERENCES feature_packs(id) ON DELETE CASCADE,
-  feature_id TEXT REFERENCES features(id) ON DELETE CASCADE,
+CREATE TABLE mod_pack_features(
+  pack_id TEXT REFERENCES mod_packs(id) ON DELETE CASCADE,
+  feature_id TEXT REFERENCES mod_features(id) ON DELETE CASCADE,
   quota INT NULL,                      -- cth. products:5 ; NULL = boolean ON
   included_tiers TEXT[] NOT NULL DEFAULT '{}', -- '{starter,growth,enterprise}'
   PRIMARY KEY(pack_id, feature_id)
 );
-CREATE TABLE site_plan_prices(
+CREATE TABLE mod_site_prices(
   site_type TEXT NOT NULL,
   tier TEXT NOT NULL CHECK (tier IN ('free','starter','growth','enterprise')),
   cycle TEXT NOT NULL CHECK (cycle IN ('monthly','yearly')),
@@ -252,11 +277,11 @@ CREATE TABLE site_plan_prices(
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS site_type TEXT DEFAULT 'online_shop';
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS pack_id TEXT NULL;
 
-CREATE TABLE subscription_addons(
+CREATE TABLE mod_sub_addons(
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   subscription_id UUID NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
   website_id UUID NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
-  feature_id TEXT NOT NULL REFERENCES features(id),
+  feature_id TEXT NOT NULL REFERENCES mod_features(id),
   status TEXT NOT NULL DEFAULT 'incomplete'
     CHECK (status IN ('active','past_due','canceled','incomplete','incomplete_expired')),
   billing_cycle TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly','yearly','once')),
@@ -269,13 +294,13 @@ CREATE TABLE subscription_addons(
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(subscription_id, website_id, feature_id)
 );
-CREATE INDEX idx_sub_addons_website ON subscription_addons(website_id);
-CREATE INDEX idx_sub_addons_sub ON subscription_addons(subscription_id);
+CREATE INDEX idx_mod_sub_addons_website ON mod_sub_addons(website_id);
+CREATE INDEX idx_mod_sub_addons_sub ON mod_sub_addons(subscription_id);
 
-CREATE TABLE global_module_subscriptions(
+CREATE TABLE mod_global_subs(
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  feature_id TEXT NOT NULL REFERENCES features(id),
+  feature_id TEXT NOT NULL REFERENCES mod_features(id),
   status TEXT NOT NULL DEFAULT 'incomplete'
     CHECK (status IN ('active','past_due','canceled','incomplete','incomplete_expired')),
   billing_cycle TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly','yearly','once')),
@@ -288,20 +313,20 @@ CREATE TABLE global_module_subscriptions(
   UNIQUE(user_id, feature_id)
 );
 
-CREATE TABLE module_usage(
+CREATE TABLE mod_usage(
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   website_id UUID REFERENCES websites(id) ON DELETE CASCADE,
-  feature_id TEXT NOT NULL REFERENCES features(id),
+  feature_id TEXT NOT NULL REFERENCES mod_features(id),
   qty INT NOT NULL DEFAULT 1,
   reference_id TEXT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX idx_module_usage_lookup ON module_usage(user_id, website_id, feature_id, created_at);
+CREATE INDEX idx_mod_usage_lookup ON mod_usage(user_id, website_id, feature_id, created_at);
 ```
 
 Catatan kompatibilitas:
-* `plans` dan `tier_limits` lama **dipertahankan** sebagai fallback khusus `online_shop` selama migrasi.
+* `plans` dan `tier_limits` lama **dipertahankan** sebagai fallback khusus `online_shop` selama migrasi, lalu di-retrofit menjadi `bill_plans` / `bill_tier_limits` (plus `subscriptions`→`bill_subscriptions`) via `RENAME` + view compat 1 rilis (lihat §5.6). Referensi `subscriptions`/`websites` di SQL rencana mengikuti nama baru setelah retrofit.
 * `subscriptions.payment_reference UNIQUE` + `paid_at` tetap jadi kunci idempoten webhook.
 
 ---
@@ -321,11 +346,11 @@ POST /api/billing/checkout
   body: { site_type, tier: starter|growth|enterprise, billing_cycle: monthly|yearly,
           website_id?: uuid, addon_w_ids?: string[] }
 → gross = site_plan_prices(site_type,tier,cycle) + Σ addon_w
-→ orderId 'umkm-...' → subscriptions(incomplete) + subscription_addons(incomplete)
+→ orderId 'umkm-...' → subscriptions(incomplete) + mod_sub_addons(incomplete)
 
 POST /api/modules/global/checkout
   body: { feature_id, billing_cycle }
-→ gross = flat price → orderId 'modg-...' → global_module_subscriptions(incomplete)
+→ gross = flat price → orderId 'modg-...' → mod_global_subs(incomplete)
 
 POST /api/subscription/addons/disable
   body: { website_id, feature_id }
@@ -333,8 +358,8 @@ POST /api/subscription/addons/disable
 
 Webhook (perluas webhook billing existing):
 → tier paid ⇒ subscriptions.active + paid_at (+ update users.tier bila tier != free)
-→ addon_w paid ⇒ subscription_addons.active + paid_at
-→ modg paid ⇒ global_module_subscriptions.active + paid_at
+→ addon_w paid ⇒ mod_sub_addons.active + paid_at
+→ modg paid ⇒ mod_global_subs.active + paid_at
 → deny ⇒ past_due ; expire/cancel ⇒ canceled (per baris masing-masing)
 ```
 

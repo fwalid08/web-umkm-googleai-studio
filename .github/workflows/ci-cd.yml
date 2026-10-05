@@ -96,6 +96,16 @@ jobs:
           last=$(echo "$nums" | tail -1)
           echo "✅ Migrations OK: $count file, berurutan 001..$last, tidak ada yang kosong."
 
+  prefix-check:
+    name: Prefix Convention (§5.6)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Lint module prefixes (tanpa deps)
+        run: node scripts/lint-prefix.mjs
+
   lint-and-typecheck:
     name: Lint & TypeCheck
     runs-on: ubuntu-latest

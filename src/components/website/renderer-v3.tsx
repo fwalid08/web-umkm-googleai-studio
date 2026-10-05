@@ -1,5 +1,6 @@
 import type { Template, TemplateSectionInstance, AnimationConfig, BehaviourConfig } from '@/lib/builder/template-types';
 import { getOnColor } from '@/lib/builder/design-styles';
+import { buildThemeTokens } from '@/lib/builder/theme-tokens';
 import { getGoogleFontsUrl } from '@/lib/builder/font-categories';
 import { MobileDrawer } from './mobile-drawer';
 import { SectionRenderer } from '@/components/builder/section-renderer';
@@ -18,7 +19,7 @@ export interface PublicSiteDataV3 {
   sections: TemplateSectionInstance[];
   websiteId?: string;
   themeOverride?: Record<string, string>;
-  typographyOverride?: { headingFont?: string; bodyFont?: string };
+  typographyOverride?: { headingFont?: string; bodyFont?: string; accentFont?: string };
   /** Config header/footer efektif (default varian + simpanan user). */
   headerConfig?: Record<string, unknown>;
   footerConfig?: Record<string, unknown>;
@@ -44,11 +45,11 @@ interface ChromeNavItem {
 export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
   const { template, sections, seo, websiteId, themeOverride, typographyOverride, animations, behaviours, customCss } = site;
   const palette = { ...template.theme.palette, ...themeOverride };
-  const onPrimary = getOnColor(palette.primary);
   const typography = {
     ...template.theme.typography,
     ...(typographyOverride?.headingFont ? { headingFont: typographyOverride.headingFont } : {}),
     ...(typographyOverride?.bodyFont ? { bodyFont: typographyOverride.bodyFont } : {}),
+    ...(typographyOverride?.accentFont ? { accentFont: typographyOverride.accentFont } : {}),
   };
 
   // Build DesignStyle from template theme for SectionRenderer
@@ -63,22 +64,13 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
     thumbnailUrl: '',
   };
 
+  // Token tema dari helper bersama kanvas (theme-tokens.ts) — kedua
+  // permukaan render selalu sepakat.
   const tokens = {
-    '--color-primary': palette.primary,
-    '--color-secondary': palette.secondary,
-    '--color-accent': palette.accent,
-    '--color-background': palette.background,
-    '--color-surface': palette.surface,
-    '--color-text': palette.text,
-    '--color-text-muted': palette.textMuted,
-    '--color-border': palette.border,
-    '--color-on-primary': onPrimary,
-    '--font-heading': typography.headingFont,
-    '--font-body': typography.bodyFont,
-    '--radius': `${template.theme.components.borderRadius}px`,
+    ...buildThemeTokens(palette, typography, template.theme.components.borderRadius),
   } as React.CSSProperties;
 
-  const fontFamilies = [...new Set([typography.headingFont, typography.bodyFont].map((f) => (f ?? '').trim()).filter(Boolean))];
+  const fontFamilies = [...new Set([typography.headingFont, typography.bodyFont, typography.accentFont].map((f) => (f ?? '').trim()).filter(Boolean))];
 
   const jsonLd = {
     '@context': 'https://schema.org',

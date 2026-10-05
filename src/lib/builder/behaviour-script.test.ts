@@ -62,4 +62,50 @@ describe("renderVariantHtml + navItems (kasus kilau laundry)", () => {
     const out = renderVariantHtml("{{tags}}", { tags: ["a", "b"] });
     expect(out).toBe("a,b");
   });
+
+  it("array record tanpa loop tidak jadi [object Object]", () => {
+    const out = renderVariantHtml("{{items}}", {
+      items: [{ name: "Cuci Kering", price: "Rp 8rb" }],
+    });
+    expect(out).not.toContain("[object Object]");
+  });
+});
+
+describe("renderVariantHtml loop {{#items}}", () => {
+  it("mengulang blok per item record", () => {
+    const html = "{{#items}}<div><h3>{{name}}</h3><p>{{price}}</p></div>{{/items}}";
+    const out = renderVariantHtml(html, {
+      items: [
+        { name: "Cuci Kering", price: "Rp 8rb" },
+        { name: "Setrika", price: "Rp 5rb" },
+      ],
+    });
+    expect(out).not.toContain("[object Object]");
+    expect(out).toContain("<h3>Cuci Kering</h3>");
+    expect(out).toContain("<p>Rp 5rb</p>");
+  });
+
+  it("item jatuh kembali ke config induk bila key tak ada di item", () => {
+    const out = renderVariantHtml("{{#items}}<a>{{cta_text}}: {{name}}</a>{{/items}}", {
+      cta_text: "Pesan",
+      items: [{ name: "Express" }],
+    });
+    expect(out).toContain("Pesan: Express");
+  });
+
+  it("elemen primitif lewat {{.}}; array kosong/non-array jadi string kosong", () => {
+    expect(
+      renderVariantHtml("{{#images}}<img src=\"{{.}}\">{{/images}}", { images: ["a.jpg", "b.jpg"] }),
+    ).toBe('<img src="a.jpg"><img src="b.jpg">');
+    expect(renderVariantHtml("{{#items}}x{{/items}}", { items: [] })).toBe("");
+    expect(renderVariantHtml("{{#items}}x{{/items}}", {})).toBe("");
+  });
+
+  it("nilai item di-escape (XSS aman)", () => {
+    const out = renderVariantHtml("{{#items}}<p>{{name}}</p>{{/items}}", {
+      items: [{ name: '<img src=x onerror=1>' }],
+    });
+    expect(out).not.toContain("<img");
+    expect(out).toContain("&lt;img");
+  });
 });

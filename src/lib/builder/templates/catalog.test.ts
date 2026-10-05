@@ -337,6 +337,14 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
     'location-hours',
     // Branch yang ditambahkan saat migrasi bengkel (lihat section-renderer.tsx).
     'steps-horizontal', 'location-hours-wide', 'menu-grid', 'steps-numbered', 'location-card',
+    // Varian unik template laundry-emerald — semua punya html sendiri (§18).
+    'laundry-emerald:hero-arch', 'laundry-emerald:welcome-dividers',
+    'laundry-emerald:luxury-split', 'laundry-emerald:process-arch',
+    'laundry-emerald:service-cards', 'laundry-emerald:comfort-band',
+    'laundry-emerald:faq-emerald', 'laundry-emerald:testimoni-bg',
+    'laundry-emerald:booking-band', 'laundry-emerald:gallery-luxe',
+    'laundry-emerald:artikel-grid', 'laundry-emerald:location-panel',
+    'laundry-emerald:contact-cards',
   ]);
 
   it("id varian section harus yang DI-RENDER (bukan id karangan)", () => {

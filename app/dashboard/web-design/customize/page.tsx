@@ -312,6 +312,19 @@ export default function PageBuilderPage() {
     const libMeta = libMetaRef.current;
     const global = globalRef.current ?? {};
     const liveSections = t.sections.map((sec) => instanceToBuilderSection(sec));
+    // Chrome WAJIB dari template-store (sumber kanvas) — bukan builder-store
+    // generik. Tanpa ini live header/footer kembali ke default lama walau
+    // kanvas menampilkan chrome template (kasus nyata: template emerald).
+    // Sama persis dengan jalur Simpan di atas.
+    const template = t.template;
+    const pubHeader =
+      t.headerConfig && Object.keys(t.headerConfig).length > 0
+        ? t.headerConfig
+        : resolveChromeConfig(template, (s.header ?? {}) as unknown as Record<string, unknown>, 'header').config;
+    const pubFooter =
+      t.footerConfig && Object.keys(t.footerConfig).length > 0
+        ? t.footerConfig
+        : resolveChromeConfig(template, (s.footer ?? {}) as unknown as Record<string, unknown>, 'footer').config;
     // Publish = satu-satunya halaman jadi tayang (lihat 044).
     // `buildWebsiteCustomConfig` menyalin `base`, jadi is_published dari
     // config tersimpan ikut terbawa; di-set eksplisit agar pasti true.
@@ -319,8 +332,8 @@ export default function PageBuilderPage() {
       ...buildWebsiteCustomConfig({
         base: global as Record<string, unknown>,
         sections: liveSections as never,
-        header: s.header as unknown as Record<string, unknown>,
-        footer: s.footer as unknown as Record<string, unknown>,
+        header: { ...pubHeader, variant: t.headerVariantId },
+        footer: { ...pubFooter, variant: t.footerVariantId, style: t.footerVariantId },
         paletteOverride: s.paletteOverride,
         typographyOverride: s.typographyOverride as Record<string, string>,
         animations: t.animations as unknown[],

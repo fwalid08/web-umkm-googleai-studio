@@ -151,6 +151,12 @@ export interface DesignStylePalette {
 export interface DesignStyleTypography {
   headingFont: string;
   bodyFont: string;
+  /**
+   * Font aksen/script untuk eyebrow/ornamen teks (token ketiga resmi, §18.4).
+   * Opsional — renderer memakai `headingFont` sebagai fallback bila kosong.
+   * Wajib terdaftar di `FONT_CATEGORIES` bila diisi.
+   */
+  accentFont?: string;
   baseSize: number;
   scaleRatio: number;
   headingWeight: number;
@@ -181,6 +187,7 @@ export interface DesignStyle {
   components: DesignStyleComponents;
   effects: DesignStyleEffects;
   thumbnailUrl: string;
+  sections?: SectionTypeDefinition[];
 }
 
 export type SectionType =
@@ -201,7 +208,9 @@ export type SectionType =
   | 'marquee'
   | 'menu_board'
   | 'steps'
-  | 'location';
+  | 'location'
+  | 'stats-band'
+  | 'articles';
 
 export interface SectionVariant {
   id: string;

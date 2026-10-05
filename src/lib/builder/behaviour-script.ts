@@ -186,6 +186,73 @@ export function sanitizeTemplateHtml(html: string): string {
   return out;
 }
 
+/** True bila nilai adalah record polos (item kartu/list). */
+function isRecordItem(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+/** Substitusi satu placeholder dengan scope tertentu (dipakai loop & top-level). */
+function resolvePlaceholder(
+  key: string,
+  scope: Record<string, unknown>,
+  htmlFieldKeys: Set<string>,
+  triple: boolean,
+): string {
+  // `{{.}}` / `{{this}}` di dalam loop = nilai item primitif itu sendiri.
+  const v =
+    key === '.' || key === 'this'
+      ? (scope['.'] ?? scope['this'])
+      : scope[key];
+  if (v === undefined || v === null) return '';
+  if (isExpandableLinkList(v)) return renderNavItems(v);
+  if (Array.isArray(v)) {
+    // Array primitif (mis. tags) = perilaku lama "a,b". Array record tanpa
+    // loop = string kosong (hindari "[object Object],…").
+    if (v.length > 0 && v.every((it) => !isRecordItem(it))) return escapeHtmlValue(v);
+    return '';
+  }
+  if (triple || htmlFieldKeys.has(key)) return sanitizeTemplateHtml(String(v));
+  return escapeHtmlValue(v);
+}
+
+/**
+ * Ekspansi blok loop `{{#items}}…{{/items}}` (satu tingkat).
+ *
+ * - Elemen record: placeholder di dalam blok di-resolve dari item itu sendiri
+ *   (jatuh kembali ke config induk bila key tak ada di item).
+ * - Elemen primitif: pakai `{{.}}` di dalam blok.
+ * - Bukan array / kosong: blok hilang (string kosong).
+ */
+function expandLoops(
+  tpl: string,
+  config: Record<string, unknown>,
+  htmlFieldKeys: Set<string>,
+): string {
+  return tpl.replace(
+    /\{\{#\s*([\w.]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g,
+    (_m, key: string, inner: string) => {
+      const v = config[key];
+      if (!Array.isArray(v) || v.length === 0) return '';
+      return v
+        .map((item) => {
+          const scope: Record<string, unknown> = isRecordItem(item)
+            ? { ...config, ...item }
+            : { ...config, '.': item, this: item };
+          let s = inner.replace(
+            /\{\{\{\s*([\w.]+)\s*\}\}\}/g,
+            (_mm, k: string) => resolvePlaceholder(k, scope, htmlFieldKeys, true),
+          );
+          s = s.replace(
+            /\{\{\s*([\w.]+)\s*\}\}/g,
+            (_mm, k: string) => resolvePlaceholder(k, scope, htmlFieldKeys, false),
+          );
+          return s;
+        })
+        .join('');
+    },
+  );
+}
+
 /**
  * Render HTML kustom varian dengan nilai config (v3.0).
  *
@@ -194,6 +261,9 @@ export function sanitizeTemplateHtml(html: string): string {
  *   (untuk field bertipe `html`).
  * - Array homogen item link `{label, url}` (mis. `navItems`) diekspan jadi
  *   deretan `<a>` — tanpa ini tertulis "[object Object],…".
+ * - Blok loop `{{#items}}…{{/items}}` mengulang isi per elemen (kartu,
+ *   artikel, statistik, langkah, galeri). Di dalam blok, `{{field}}`
+ *   diambil dari item; `{{.}}` untuk elemen primitif.
  * - Hasil akhir disanitasi lewat `sanitizeTemplateHtml`.
  */
 export function renderVariantHtml(
@@ -202,19 +272,14 @@ export function renderVariantHtml(
   htmlFieldKeys: Set<string> = new Set(),
 ): string {
   const raw = template ?? '';
+  // Loop dulu agar placeholder di dalamnya di-scope per item.
+  let out = expandLoops(raw, config ?? {}, htmlFieldKeys);
   // Triple-brace dulu agar tidak tertelan replacer double-brace.
-  let out = raw.replace(/\{\{\{\s*([\w.]+)\s*\}\}\}/g, (_m, key: string) => {
-    const v = config[key];
-    if (v === undefined || v === null) return '';
-    if (isExpandableLinkList(v)) return renderNavItems(v);
-    return sanitizeTemplateHtml(String(v));
+  out = out.replace(/\{\{\{\s*([\w.]+)\s*\}\}\}/g, (_m, key: string) => {
+    return resolvePlaceholder(key, config ?? {}, htmlFieldKeys, true);
   });
   out = out.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, key: string) => {
-    const v = config[key];
-    if (v === undefined || v === null) return '';
-    if (isExpandableLinkList(v)) return renderNavItems(v);
-    if (htmlFieldKeys.has(key)) return sanitizeTemplateHtml(String(v));
-    return escapeHtmlValue(v);
+    return resolvePlaceholder(key, config ?? {}, htmlFieldKeys, false);
   });
   return sanitizeTemplateHtml(out);
 }

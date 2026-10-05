@@ -488,6 +488,7 @@ const RENDERED_VARIANT_IDS: ReadonlySet<string> = new Set([
   'divider-line', 'marquee-band', 'menu-tabs', 'menu-list', 'steps-3col',
   'location-hours',
   'steps-horizontal', 'location-hours-wide', 'menu-grid', 'steps-numbered', 'location-card',
+  'hero-split-arch', 'pricing-spa-card',
 ]);
 
 export interface AssetCoverageInput {

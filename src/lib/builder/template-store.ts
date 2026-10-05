@@ -284,7 +284,19 @@ export const useTemplateStore = create<TemplateState>()(
         state.selectedSectionId = null;
         state.themeOverride = {};
         state.animations = template.animations || [];
-        state.customCss = (template as { customCss?: string }).customCss ?? '';
+        // customCss/behaviours hidup di `data` pada CatalogTemplate (§18) —
+        // baca dari sana dulu, fallback ke root untuk kompatibilitas lama.
+        // Tanpa ini kanvas kehilangan customCss template sementara live site
+        // mendapatkannya via fallback katalog (public.ts) → keduanya beda.
+        const tplCreative = (
+          template as unknown as {
+            data?: { customCss?: unknown; animations?: unknown; behaviours?: unknown };
+          }
+        ).data;
+        state.customCss =
+          (typeof tplCreative?.customCss === 'string' && tplCreative.customCss) ||
+          (template as { customCss?: string }).customCss ||
+          '';
         state.behaviours = template.behaviours || [];
         state.assets = template.assets || [];
         state.future = [];

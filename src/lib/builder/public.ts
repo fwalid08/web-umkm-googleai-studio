@@ -8,7 +8,7 @@ import type { DesignStylePalette, DesignStyleTypography } from "@/lib/builder/ty
 import { getDemoPublicSite } from "@/lib/mock/store";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { isValidSubdomain, normalizeHost, rootHost, isRootHost } from "@/lib/tenant";
-import { defaultAnchorId, uniqueAnchorId } from "@/lib/builder/migration";
+import { defaultAnchorId, mergeConfigWithVariantDefaults, uniqueAnchorId } from "@/lib/builder/migration";
 
 /** Convert builder section format to MergedSection format for public rendering. */
 function builderToMergedSection(
@@ -379,10 +379,10 @@ const name = user.name || "Toko Kami";
   const templateId = catalogTemplateId || template.id;
   // Template katalog untuk mapping variant & anchor default.
 const catalogTemplateForSections = template;
-const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
+const variantSource: Array<{ type: string; variants?: Array<{ id: string; defaultConfig?: Record<string, unknown> }> }> =
   template.sections.map((def) => ({
     type: def.type,
-    variants: def.variants.map((v) => ({ id: v.id })),
+    variants: def.variants.map((v) => ({ id: v.id, defaultConfig: (v.defaultConfig ?? {}) as Record<string, unknown> })),
   }));
   const resolveVariantId = (type: string, variant: unknown): string => {
     const typeDef = variantSource.find((t) => t.type === type);
@@ -390,6 +390,17 @@ const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
       return variant;
     }
     return typeDef?.variants?.[0]?.id ?? 'hero-full';
+  };
+  /**
+   * Default config varian hasil resolve — di-merge DI BAWAH config tersimpan
+   * supaya placeholder `{{key}}`/`{{#items}}` tidak pernah render kosong
+   * bila config lama milik template lain (key tidak cocok). Tanpa ini live
+   * site tampil kerangka tanpa isi setelah ganti template.
+   */
+  const resolveVariantDefaults = (type: string, variantId: string): Record<string, unknown> => {
+    const typeDef = variantSource.find((t) => t.type === type);
+    const variant = typeDef?.variants?.find((v) => v.id === variantId) ?? typeDef?.variants?.[0];
+    return { ...(variant?.defaultConfig ?? {}) };
   };
   // Samakan dengan seed kanvas: tipe tak dikenal dipetakan ke hero agar
   // section tidak hilang diam-diam di live site.
@@ -418,7 +429,10 @@ const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
       type: resolvedType,
       variantId,
       anchorId,
-      config: s.config ?? {},
+      config: mergeConfigWithVariantDefaults(
+        resolveVariantDefaults(resolvedType, variantId),
+        (s.config ?? {}) as Record<string, unknown>,
+      ),
       style: {
         padding: { top: 48, right: 24, bottom: 48, left: 24 },
         background: 'transparent' as const,
@@ -461,6 +475,7 @@ const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePal
     ...((catalogTemplate?.theme?.typography ?? typography) as DesignStyleTypography),
     ...(typeof storedTypography.headingFont === 'string' && storedTypography.headingFont.trim() ? { headingFont: storedTypography.headingFont.trim() } : {}),
     ...(typeof storedTypography.bodyFont === 'string' && storedTypography.bodyFont.trim() ? { bodyFont: storedTypography.bodyFont.trim() } : {}),
+    ...(typeof storedTypography.accentFont === 'string' && storedTypography.accentFont.trim() ? { accentFont: storedTypography.accentFont.trim() } : {}),
   } as DesignStyleTypography;
 
   // Determine page slug and meta

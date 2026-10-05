@@ -46,7 +46,8 @@ export function StyleSelector() {
 
   const effHeadingFont = typographyOverride.headingFont || template.theme.typography.headingFont;
   const effBodyFont = typographyOverride.bodyFont || template.theme.typography.bodyFont;
-  const fontOverrideCount = [typographyOverride.headingFont, typographyOverride.bodyFont].filter(
+  const effAccentFont = typographyOverride.accentFont || template.theme.typography.accentFont || template.theme.typography.headingFont;
+  const fontOverrideCount = [typographyOverride.headingFont, typographyOverride.bodyFont, typographyOverride.accentFont].filter(
     (v) => typeof v === 'string' && v.trim().length > 0,
   ).length;
 
@@ -240,6 +241,7 @@ export function StyleSelector() {
           [
             { key: 'headingFont' as const, label: 'Judul (heading)', current: effHeadingFont },
             { key: 'bodyFont' as const, label: 'Isi (body)', current: effBodyFont },
+            { key: 'accentFont' as const, label: 'Aksen script (eyebrow)', current: effAccentFont },
           ]
         ).map((row) => (
           <div key={row.key} className="space-y-1">

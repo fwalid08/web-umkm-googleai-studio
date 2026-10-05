@@ -25,6 +25,8 @@ const SECTION_TYPE_MAP: Record<string, string> = {
   menu_board: 'menu_board',
   steps: 'steps',
   location: 'location',
+  'stats-band': 'stats-band',
+  articles: 'articles',
 };
 
 const VARIANT_MAP: Record<string, Record<string, string>> = {
@@ -258,6 +260,23 @@ export function instanceToBuilderSection(instance: TemplateSectionInstance): Sec
     responsive: { ...(instance.responsive ?? {}) },
     anchorId: instance.anchorId,
   };
+}
+
+/**
+ * Gabung default config varian DI BAWAH config tersimpan.
+ *
+ * Dipakai render publik: bila config lama milik template lain (key tidak
+ * cocok dengan varian aktif), placeholder `{{key}}` tetap terisi dari
+ * default — live site tidak pernah tampil kerangka kosong setelah ganti
+ * template. Array diganti utuh (bukan digabung per elemen).
+ */
+export function mergeConfigWithVariantDefaults(
+  variantDefaults: Record<string, unknown> | undefined | null,
+  storedConfig: Record<string, unknown> | undefined | null,
+): Record<string, unknown> {
+  const base = variantDefaults && typeof variantDefaults === "object" ? variantDefaults : {};
+  const over = storedConfig && typeof storedConfig === "object" ? storedConfig : {};
+  return { ...base, ...over };
 }
 
 function pickChromeVariant(

@@ -5,6 +5,7 @@ import type { Section, DesignStyle } from '@/lib/builder/types';
 import { getOnColor, resolvePalette, resolveThemeColor, clampBlur, composeGradientCss, overlayCss, type OverlayKind } from '@/lib/builder/design-styles';
 import { autoFixMutedColor, autoFixTextColor, getSectionEffectiveBackground, resolveButtonColors, resolvePrimaryOnSectionBg } from '@/lib/builder/section-contrast';
 import { useBuilderStore } from '@/lib/builder/store';
+import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer';
 
 interface SectionRendererProps {
   section: Section;
@@ -86,6 +87,7 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
     '--color-primary-on-section': resolvePrimaryOnSectionBg(effBg, palette),
     '--font-heading': designStyle.typography.headingFont,
     '--font-body': designStyle.typography.bodyFont,
+    '--font-accent': designStyle.typography.accentFont || designStyle.typography.headingFont,
     '--radius': `${designStyle.components.borderRadius}px`,
   } as React.CSSProperties;
 
@@ -193,6 +195,21 @@ export function SectionRenderer({ section, designStyle, websiteId, anchorId }: S
       case 'location':
         return <LocationSection section={section} />;
       default:
+        if (typeof section.variant === 'string') {
+          const variant = designStyle.sections?.find((s) => s.type === section.type)?.variants.find((v) => v.id === section.variant) as { html?: string; configFields?: import('@/lib/builder/template-types').ConfigField[] } | undefined;
+          if (variant && typeof variant.html === 'string' && variant.html.trim().length > 0) {
+            return (
+              <VariantHtmlRenderer
+                type={section.type}
+                variantId={section.variant}
+                html={variant.html}
+                config={section.config as Record<string, unknown>}
+                configFields={variant.configFields}
+                anchorId={section.anchorId}
+              />
+            );
+          }
+        }
         return <div className="p-8 text-center text-muted-foreground">Section: {section.type}</div>;
     }
   };

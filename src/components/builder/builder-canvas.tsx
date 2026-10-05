@@ -10,6 +10,7 @@ import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer'
 import { SiteHeader } from '@/components/builder/site-header-shared';
 import { SiteFooter } from '@/components/builder/site-footer-shared';
 import { DEFAULT_COMPONENTS, DEFAULT_TYPOGRAPHY } from '@/lib/builder/design-styles';
+import { buildThemeTokens } from '@/lib/builder/theme-tokens';
 import { SectionPicker } from './section-picker';
 import { GoogleFonts } from './google-fonts';
 import { BehaviourRuntime } from './behaviour-runtime';
@@ -30,6 +31,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   const headerVariantId = useTemplateStore((s) => s.headerVariantId);
   const footerVariantId = useTemplateStore((s) => s.footerVariantId);
   const themeOverride = useTemplateStore((s) => s.themeOverride);
+  const builderPaletteOverride = useBuilderStore((s) => s.paletteOverride);
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [showInsertPicker, setShowInsertPicker] = useState(false);
@@ -37,7 +39,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
 
-  const palette = { ...template.theme.palette, ...themeOverride };
+  const palette = { ...template.theme.palette, ...themeOverride, ...builderPaletteOverride };
   const effectiveTheme = { ...template.theme, palette };
 
   const viewportWidth = useBuilderStore((s) => s.viewportWidth);
@@ -95,7 +97,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   // manual. Katalog DESIGN_STYLES sudah dihapus (migrasi 046); palet,
   // tipografi, dan komponen semuanya berasal dari template, dengan
   // DEFAULT_TYPOGRAPHY/DEFAULT_COMPONENTS sebagai jaring pengaman.
-  const paletteOverride = useBuilderStore((s) => s.paletteOverride);
+  const paletteOverride = builderPaletteOverride;
   const typographyOverride = useBuilderStore((s) => s.typographyOverride);
   // Urutan merge: bawaan template → override user (dua store disinkronkan
   // di StyleSelector) → pastikan token theme:* selalu resolve ke warna aktif.
@@ -110,6 +112,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
       ...baseTypography,
       ...(typographyOverride.headingFont ? { headingFont: typographyOverride.headingFont } : {}),
       ...(typographyOverride.bodyFont ? { bodyFont: typographyOverride.bodyFont } : {}),
+      ...(typographyOverride.accentFont ? { accentFont: typographyOverride.accentFont } : {}),
     },
     components: template.theme.components ?? DEFAULT_COMPONENTS,
     effects: template.theme.effects ?? {},
@@ -151,7 +154,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
         if (!preview && e.target === e.currentTarget) selectSection(null);
       }}
     >
-      <GoogleFonts fonts={[designStyle.typography.headingFont, designStyle.typography.bodyFont]} />
+      <GoogleFonts fonts={[designStyle.typography.headingFont, designStyle.typography.bodyFont, designStyle.typography.accentFont]} />
       {/*
         customCss SELALU dipasang (mode edit maupun preview): sebagian besar
         desain template library tinggal di sini (wave divider, neon, grid).
@@ -181,8 +184,11 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
         <div
           className={frameChrome}
           style={{
-            background: palette.background,
-            color: palette.text,
+            // Token tema — SAMA seperti live site (theme-tokens.ts). Tanpa ini
+            // seluruh `variant.html` bertoken tampil rusak di kanvas.
+            ...buildThemeTokens(mergedPalette, designStyle.typography, designStyle.components.borderRadius),
+            background: mergedPalette.background,
+            color: mergedPalette.text,
             fontFamily: template.theme.typography.bodyFont,
           }}
         >

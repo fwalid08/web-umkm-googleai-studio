@@ -1,8 +1,16 @@
 # Template Guide — Page Builder
 
 > **Target Audience**: Developer, Designer
-> **Version**: 1.4
+> **Version**: 1.5
 > **Last Updated**: 2026-10-05
+>
+> v1.5: Kontrak **template unik saja** (spesifikasi penuh: `UNIQUE_TEMPLATE_SPEC.md`
+> §18) — sistem UI/UX generik dihapus bertahap: tidak ada lagi warisan
+> `SECTION_REGISTRY` / `registrySections()` / `compose.ts`, tidak ada lagi 7+7
+> layout header/footer generik (`chrome.ts`), setiap varian **wajib `html`**
+> dengan ID namespaced per template, nol warna/font hardcoded (token adaptif
+> + `accentFont` ketiga). Bagian dokumen yang masih merujuk sistem generik
+> ditandai `SUPERSEDED → §18`.
 >
 > v1.4: Sinkronisasi penuh ke kode saat ini — katalog tunggal (`food.ts` via
 > `registrySections()` + `compose.ts`), penghapusan `DESIGN_STYLES`
@@ -34,6 +42,9 @@
 13. [Template Preview System](#13-template-preview-system)
 14. [Single Page Navigation](#14-single-page-navigation)
 15. [Mobile-First Requirements (Spek v3.1)](#15-mobile-first-requirements-spek-v31)
+16. [Creative Layer](#16-creative-layer-customcss-hook-dan-themeeffects)
+17. [Mobile App-like Requirements](#17-mobile-app-like-requirements)
+18. [Template Unik Saja — Pengganti Sistem Generik](#18-template-unik-saja-pengganti-sistem-generik)
 
 ---
 
@@ -81,31 +92,38 @@ Semua editing layout kini lewat Page Builder:
 src/lib/builder/
 ├── template-types.ts          # Schema definitions (Template, HeaderVariant, …)
 ├── template-schema.ts         # Kontrak validasi v3 (validateTemplateV3, ALL_SECTION_TYPES_V3)
-├── chrome.ts                  # Registry varian header/footer (HEADER_VARIANTS, FOOTER_VARIANTS)
+├── chrome.ts                  # Utilitas chrome (konstanta generik DIHAPUS bertahap → §18)
 ├── template-store.ts          # State zustand; BUILTIN_TEMPLATES = alias BUILT_IN_CATALOG
 ├── behaviour-script.ts        # Denylist script & CSS (server + client)
 ├── migration.ts               # Normalisasi section & identitas anchor
 ├── templates/
-│   ├── food.ts                # Satu-satunya template katalog saat ini ("Warung Makan", id `food`)
-│   ├── compose.ts             # registrySections(): petakan SECTION_REGISTRY → template.sections
-│   └── catalog.ts             # BUILT_IN_CATALOG + tier gating (TIER_RANK, kumulatif)
-├── sections/registry.ts       # Katalog section generik (sumber compose.ts)
+│   ├── food.ts                # Template kuliner ("Warung Makan", id `food`) —
+│   │                           # sedang dibangun ulang mengikuti kontrak unik §18
+│   ├── catalog.ts             # BUILT_IN_CATALOG + tier gating (TIER_RANK, kumulatif)
 ├── config-form.tsx            # Dynamic config form
 ├── mockup-preview.tsx         # Mockup visual per variant + TemplatePreview
 └── design-styles.ts           # Helper palet/gradasi (katalog DESIGN_STYLES dihapus di migrasi 046)
 src/components/builder/
-├── section-renderer.tsx       # Section renderer
+├── section-renderer.tsx       # Section renderer (dispatcher variant.html, §18)
 ├── variant-html-renderer.tsx  # Renderer `html` kustom per varian
 ├── behaviour-runtime.tsx      # Runner animations[] & behaviours[] + customCss
 ├── builder-canvas.tsx         # Builder canvas
 └── template-gallery.tsx       # Template picker + tombol Pratinjau
 ```
 
-> **Catatan soal `sections/registry.ts` vs `template.sections`.** Alur saat ini:
+> **SUPERSEDED → §18.** `sections/registry.ts` (`SECTION_REGISTRY`),
+> `templates/compose.ts` (`registrySections()`), dan konstanta generik
+> `chrome.ts` (`HEADER_VARIANTS` / `FOOTER_VARIANTS`) **dihapus bertahap** dan
+> tidak boleh dipakai template baru. Setiap template mendeklarasikan
+> variannya sendiri (semua bervarian `html`, ID namespaced).
+
+> **Catatan soal `sections/registry.ts` vs `template.sections`.** Alur lama
 > `SECTION_REGISTRY` → `registrySections()` (`compose.ts`) → `template.sections`
-> (`food.ts`). Sumber kebenaran untuk validasi adalah `template.sections`
-> (yang dibaca renderer, kanvas, sidebar, dan `catalog.test.ts`) — jangan
-> memvalidasi seed section terhadap `SECTION_REGISTRY` secara langsung.
+> hanya berlaku untuk kode existing selama migrasi data (§18.7) dan **dilarang
+> untuk template baru**. Sumber kebenaran untuk validasi adalah
+> `template.sections` (yang dibaca renderer, kanvas, sidebar, dan
+> `catalog.test.ts`) — jangan memvalidasi seed section terhadap
+> `SECTION_REGISTRY` secara langsung.
 
 ---
 
@@ -170,8 +188,8 @@ interface FullTemplateData {
 `templates/catalog.test.ts` adalah penentu — bukan daftar di dokumen ini.
 Template baru **wajib** memenuhi:
 
-1. `theme.palette` (8 kunci) + `theme.typography` terisi; font heading/body
-   terdaftar di `FONT_CATEGORIES`.
+1. `theme.palette` (8 kunci) + `theme.typography` terisi; font heading/body/accent
+   terdaftar di `FONT_CATEGORIES` (lihat §18.4 — `accentFont` token ketiga resmi).
 2. Setiap `data.sections[].type` ada di `template.sections`.
 3. Setiap `data.sections[].variant` ada di varian tipe tersebut **dan**
    `builderSectionToInstance()` resolve ke varian yang sama (tanpa fallback diam-diam).
@@ -182,10 +200,14 @@ Template baru **wajib** memenuhi:
 7. `tiers` hanya berisi tier yang dikenal; kontrak saat ini = semua template
    terbuka untuk keempat tier (`free`, `starter`, `growth`, `enterprise`,
    gating kumulatif via `TIER_RANK`).
-8. `data.header.variant` terdaftar di `HEADER_VARIANTS`;
-   `data.footer.style` di `FOOTER_VARIANTS`.
+8. **SUPERSEDED → §18.** Poin lama "`data.header.variant` terdaftar di
+   `HEADER_VARIANTS`; `data.footer.style` di `FOOTER_VARIANTS`" tidak berlaku
+   untuk template baru — chrome generik dihapus; header/footer wajib `html`
+   kustom unik dengan ID namespaced.
 9. Palet efektif (`theme.palette` + `paletteOverride`) lolos
    `validateColorScheme()`.
+10. **(Baru, §18)** Setiap varian/header/footer punya `html`; ID namespaced
+    per template; nol warna/font hardcoded (dijaga guard §18.6).
 
 ### Registrasi TUNGGAL (satu tempat saja)
 
@@ -238,8 +260,11 @@ interface DesignStylePalette {
 
 ```typescript
 interface DesignStyleTypography {
-  headingFont: string;   // Font untuk heading (Google Fonts)
-  bodyFont: string;      // Font untuk body text
+  headingFont: string;   // Font untuk heading (Google Fonts, --font-heading)
+  bodyFont: string;      // Font untuk body text (--font-body)
+  accentFont?: string;   // Font aksen/script untuk eyebrow (Google Fonts, --font-accent).
+                         // Token ketiga resmi (§18.4); fallback = headingFont.
+                         // DILARANG font-family literal di html/css — hanya var(--font-*).
   baseSize: number;      // Ukuran dasar (px)
   scaleRatio: number;    // Rasio skala heading
   headingWeight: number; // Font weight heading (400-900)
@@ -278,14 +303,18 @@ interface DesignStyleEffects {
 
 ```typescript
 interface HeaderVariant {
-  id: string;                    // Unique identifier (kebab-case)
+  id: string;                    // Unique identifier — WAJIB namespaced per template
+                                 // (e.g. `laundry-emerald:hdr-arch`), lihat §18.3
   name: string;                  // Display name
   description: string;           // Short description
-  layout: string;                // WAJIB salah satu dari 7 layout di bawah
+  layout: string;                // SUPERSEDED → §18: bebas unik per template
+                                 // (dulu WAJIB salah satu 7 layout generik)
   configFields: ConfigField[];   // Form fields for header config
   defaultConfig: Record<string, unknown>;
   mockup: string;                // Mockup visual identifier
   mobileMenu?: MobileMenuConfig;
+  html?: string;                 // WAJIB diisi (§18) — chrome generik dihapus,
+                                 // renderer hanya dispatch variant.html
   /**
    * Kedalaman menu: 1 (default, datar) atau 2 (boleh dropdown 1 tingkat).
    * WAJIB konsisten di seluruh varian header satu template — kalau satu varian
@@ -296,11 +325,13 @@ interface HeaderVariant {
 }
 ```
 
-### Supported Layouts — TEPAT 7
+### Supported Layouts — SUPERSEDED → §18
 
-Semuanya diimplementasikan `site-header-shared.tsx` dan didaftarkan di
-`HEADER_VARIANTS` (`chrome.ts`). Kolom `layout` varian header WAJIB salah satu
-dari 7 ini (contoh id varian diambil dari `templates/food.ts`):
+> Tabel 7 layout generik di bawah **arsip migrasi saja**. `site-header-shared.tsx`
+> dan `chrome.ts` (`HEADER_VARIANTS`) dihapus bertahap; template baru **dilarang**
+> memakai layout generik — setiap varian header wajib `html` kustom unik dengan
+> ID namespaced. `data.header.variant` berisi id varian milik template
+> (e.g. `laundry-emerald:hdr-arch`), bukan id layout generik.
 
 | Layout (kunci renderer) | Contoh id di `food.ts` | Description |
 |--------|-----------|-------------|
@@ -314,8 +345,8 @@ dari 7 ini (contoh id varian diambil dari `templates/food.ts`):
 
 > `data.header.variant` berisi **id layout** (`standard`, `floating`, … —
 > nilai yang dibandingkan `catalog.test.ts` ke `HEADER_VARIANTS`), bukan id
-> varian header (`hdr-klasik`). Menambah layout = isi juga
-> `site-header-shared.tsx` dan `chrome.ts`.
+> varian header (`hdr-klasik`). **Arsip migrasi** — tidak berlaku untuk template
+> baru (§18).
 
 ### Default Config Keys
 
@@ -369,21 +400,23 @@ sebaris dengan footer dan section hero/produk.
 
 ```typescript
 interface FooterVariant {
-  id: string;                    // Unique identifier (kebab-case)
+  id: string;                    // Unique identifier — WAJIB namespaced per template (§18.3)
   name: string;                  // Display name
   description: string;           // Short description
-  layout: string;                // Layout identifier (must match renderer)
+  layout: string;                // SUPERSEDED → §18: bebas unik per template
   configFields: ConfigField[];   // Form fields for footer config
   defaultConfig: Record<string, unknown>; // Default values
   mockup: string;                // Mockup visual identifier
+  html?: string;                 // WAJIB diisi (§18)
 }
 ```
 
-### Supported Layouts — 7 terdaftar
+### Supported Layouts — SUPERSEDED → §18 (arsip migrasi)
 
-Terdaftar di `FOOTER_VARIANTS` (`chrome.ts`) dan diterima
-`BUILTIN_FOOTER_LAYOUTS` (`template-schema.ts`). Contoh id varian dari
-`templates/food.ts`:
+> Tabel 7 layout generik di bawah **arsip migrasi saja**. `FOOTER_VARIANTS`
+> (`chrome.ts`) dihapus bertahap; template baru **dilarang** memakai layout
+> generik — setiap varian footer wajib `html` kustom unik. Contoh id varian
+> dari `templates/food.ts`:
 
 | Layout (kunci renderer) | Contoh id di `food.ts` | Description |
 |--------|-----------|-------------|
@@ -396,9 +429,8 @@ Terdaftar di `FOOTER_VARIANTS` (`chrome.ts`) dan diterima
 | `cta-overlap` | *(belum dipakai `food.ts`)* | Blok CTA dengan tombol besar, penuh lebar |
 
 > `data.footer.style` berisi **id layout** (`simple`, `columns`, … — nilai yang
-> dibandingkan `catalog.test.ts` ke `FOOTER_VARIANTS`). Versi lama dokumen ini
-> menyebut `newsletter`/`social` sebagai dead config — itu sudah tidak berlaku;
-> keduanya terdaftar dan dipakai (`ftr-news`).
+> dibandingkan `catalog.test.ts` ke `FOOTER_VARIANTS`). **Arsip migrasi** —
+> tidak berlaku untuk template baru (§18).
 
 ### Default Config Keys
 
@@ -443,17 +475,22 @@ location · faq · contact · about · video · team · newsletter · divider
 marquee · menu_board · steps · cta
 ```
 
-Menambah tipe predefined baru berarti menambah ke union ini **dan** ke
-`SECTION_REGISTRY` (`sections/registry.ts`) — seluruh template turunan
-mewarisi lewat `registrySections()` (`templates/compose.ts`). Tipe di luar
-daftar ini adalah tipe **kustom** milik template (wajib `html` di tiap
-varian, lihat `validateCustomSectionType` di `template-schema.ts`).
+Menambah tipe predefined baru berarti menambah ke union ini. **SUPERSEDED → §18:**
+kalimat lama "dan ke `SECTION_REGISTRY` (`sections/registry.ts`) — seluruh
+template turunan mewarisi lewat `registrySections()` (`templates/compose.ts`)"
+**tidak berlaku lagi** — registry dihapus, tiap template mendeklarasikan
+variannya sendiri (semua bervarian `html`). Tipe di luar daftar ini adalah tipe
+**kustom** milik template (wajib `html` di tiap varian — dan setelah §18,
+tipe predefined pun wajib `html`, lihat `validateCustomSectionType` di
+`template-schema.ts`).
 
 ### SectionVariant Interface
 
 ```typescript
 interface SectionVariant {
-  id: string;                    // Unique identifier (kebab-case)
+  id: string;                    // Unique identifier — WAJIB namespaced per template
+                                 // (e.g. `laundry-emerald:service-cards-luxe`), §18.3.
+                                 // ID telanjang generik (hero-full, features-3col, …) DITOLAK test.
   name: string;                  // Display name
   description: string;           // Short description
   layout: string;                // Layout identifier (must match renderer)
@@ -467,6 +504,7 @@ interface SectionVariant {
     backgroundGradient?: string;
   };
   mockup: string;                // Mockup visual identifier
+  html?: string;                 // WAJIB diisi (§18.3) — renderer hanya dispatch variant.html
 }
 ```
 
@@ -583,7 +621,8 @@ interface ConfigFieldOption {
 
 ### Theme Color References
 
-Gunakan format `theme:{key}` untuk reference warna dari theme:
+Gunakan format `theme:{key}` untuk reference warna dari theme (pada
+`defaultStyle` / `style` per-section):
 
 | Reference | Description |
 |-----------|-------------|
@@ -594,6 +633,23 @@ Gunakan format `theme:{key}` untuk reference warna dari theme:
 | `theme:surface` | Warna permukaan |
 
 **Penting**: Saat user mengganti skema warna, section yang menggunakan theme reference akan otomatis mengikuti.
+
+### Token Adaptif di `variant.html` (normatif, §18.4)
+
+Di dalam `html` kustom **dilarang** hex / `rgb()` / `font-family` literal.
+Satu-satunya warna & font yang boleh muncul adalah token — disediakan
+`buildThemeTokens()` di kanvas + live site (sumber tunggal):
+
+| Token | Untuk |
+|---|---|
+| `var(--color-primary/secondary/accent/background/surface/text/textMuted/border)` | Semua latar, teks, garis, dekorasi |
+| `var(--color-on-primary)` | Teks di atas latar primary |
+| Tombol di atas latar TERANG: `background: var(--color-primary)` + `color: var(--color-on-primary)` | CTA/kartu terang |
+| Tombol di atas latar GELAP/primary: `background: var(--color-accent)` + `color: var(--color-primary)` | CTA/kartu gelap |
+| `var(--font-heading)` / `var(--font-body)` / `var(--font-accent)` | Headline / body / eyebrow script |
+
+Ornamen (lengkung, daun, divider, badge) memakai `currentColor` atau
+`var(--color-*)`. Detail + contoh sebelum/sesudah: §18.4.
 
 ### Background Image Options
 
@@ -684,9 +740,14 @@ prop `compact` header/footer di `< 640px`, viewport switcher builder
 
 ### Penamaan
 
-- **ID**: kebab-case, unik per template (e.g., `hero-full`, `header-klasik`)
+- **ID template**: kebab-case unik (e.g., `laundry-emerald`)
+- **ID varian/header/footer**: WAJIB namespaced per template —
+  `<template>-<nama-unik>` (e.g., `laundry-emerald:hero-arch`,
+  `laundry-emerald:hdr-arch`), lihat §18.3. ID telanjang generik
+  (`hero-full`, `features-3col`, `hdr-klasik`, …) DITOLAK test.
 - **Name**: Title Case, user-friendly (e.g., `Full Width`, `Klasik`)
-- **Layout**: snake_case, harus match dengan renderer (e.g., `hero-full`, `features-grid-3col`)
+- **Layout**: string bebas unik per template (dulu wajib match renderer
+  generik — SUPERSEDED → §18; renderer hanya dispatch `variant.html`)
 
 ### Kontras Warna
 
@@ -699,12 +760,12 @@ prop `compact` header/footer di `< 640px`, viewport switcher builder
 
 - Aturan user: warna teks tidak boleh nabrak background parent-nya; bila parent transparan, telusuri parent berikutnya terus sampai latar section (`getSectionEffectiveBackground()` sudah melakukan ini)
 - Semua teks yang duduk langsung di atas latar section **WAJIB** memakai token autofix: `--color-on-section` / `--color-on-section-muted`
-- Aksen primer sebagai teks (mis. harga menu) **WAJIB** memakai `--color-primary-on-section` (primer dipertahankan bila lolos ≥4.5, di-autofix bila nabrak) — JANGAN `var(--color-primary)` langsung
+- Aksen primer sebagai teks (mis. harga menu) pada branch generik **WAJIB** memakai `--color-primary-on-section` — JANGAN `var(--color-primary)` langsung. Pada `variant.html` (token itu tak tersedia) pakai `var(--color-primary)` di atas latar terang.
 - Input form wajib punya latar sendiri (`surface`) + warna teks (`text`) agar ketikan terbaca di section gelap
 
 ### Tombol vs Latar Section (Anti Tumpang-Tindih)
 
-- **WAJIB**: Semua background tombol memakai token `var(--color-button)` + teks `var(--color-on-button)` — JANGAN `var(--color-primary)` langsung
+- **WAJIB**: Background tombol pada branch generik memakai token `var(--color-button)` + teks `var(--color-on-button)` — JANGAN `var(--color-primary)` langsung. Pada `variant.html` pakai pasangan konteks §18.4 (terang: primary+on-primary; gelap: accent+primary).
 - Token dihitung per section oleh `resolveButtonColors()` (`section-contrast.ts`): latar efektif section di-traverse (style → parent → halaman), bila primary tabrakan (hex sama atau kontras < 1,5) fallback berurutan `secondary → accent → surface → text`
 - Latar gradient: tabrakan bila cocok salah satu stop; latar foto: primary dipertahankan (overlay gelap dipaksa)
 - **WAJIB**: Setiap varian dalam satu tipe harus me-render markup berbeda (dijaga test `section-variants.test.ts`)
@@ -717,8 +778,11 @@ prop `compact` header/footer di `< 640px`, viewport switcher builder
 
 ### Theme Color References
 
-- **WAJIB**: Gunakan `theme:primary`, `theme:secondary`, dll untuk warna yang harus mengikuti skema
-- **HINDARI**: Hardcoded hex colors untuk warna yang harus mengikuti skema
+- **WAJIB**: Gunakan `theme:primary`, `theme:secondary`, dll untuk warna yang harus mengikuti skema (pada `defaultStyle`/`style` per-section)
+- **WAJIB**: Di dalam `variant.html` hanya token `var(--color-*)` /
+  `var(--color-on-*)` / `var(--color-button)` / `var(--font-*)` (tabel §7) —
+  **HINDARI**: hex (`#fff`, `#0E7C66`), `rgb()/rgba()/hsl()`, `white`/`black`,
+  dan `font-family:` literal dalam bentuk apa pun (dijaga test §18.6)
 - **CONTOH**: `backgroundColor: 'theme:primary'` bukan `backgroundColor: '#047857'`
 
 ### Config Fields
@@ -747,10 +811,11 @@ prop `compact` header/footer di `< 640px`, viewport switcher builder
 > ⚠️ **DEPRECATED — sistem import/export ZIP dihapus dan tidak dipakai lagi.**
 > Route `POST /api/templates/library/import`, `GET .../export`, dan tabel
 > `templates_library` sudah dihapus (migrasi 040). Template kini **hanya kode
-> statis** di `src/lib/builder/templates/` (`food.ts` satu-satunya template,
-> `catalog.ts` pendaftar, `compose.ts` komposer dari registry).
+> statis** di `src/lib/builder/templates/` (`food.ts`, `catalog.ts` pendaftar;
+> `compose.ts` komposer dari registry — DIHAPUS bertahap, §18.7).
 > Menambah template = tambah file `<niche>.ts` → daftarkan di
-> `BUILT_IN_CATALOG` → `bunx vitest run src/lib/builder/templates/catalog.test.ts`.
+> `BUILT_IN_CATALOG` → `bunx vitest run src/lib/builder/templates/catalog.test.ts`
+> (cara membuat template baru yang berlaku: §12 + kontrak unik §18).
 > `scripts/create-template.ts` hanya menghasilkan **kerangka draf JSON v3.0**
 > untuk diisi developer dan divalidasi via `validateTemplateV3` — bukan ZIP
 > dan bukan jalur import ke database.
@@ -982,7 +1047,11 @@ async function exportTemplate(templateId: string) {
 
 ## 10. Contoh Implementasi
 
-### Contoh Section Type Lengkap
+> **Catatan §18.** Contoh di bawah memakai ID namespaced + `html` wajib.
+> Contoh lama ber-ID telanjang generik (`hero-full`, `layout: standard/simple`)
+> adalah arsip — jangan ditiru untuk template baru.
+
+### Contoh Section Type Lengkap (unik, adaptif)
 
 ```typescript
 {
@@ -991,55 +1060,41 @@ async function exportTemplate(templateId: string) {
   icon: 'Layout',
   variants: [
     {
-      id: 'hero-full',
-      name: 'Full Width',
-      description: 'Background full width dengan konten terpusat',
-      layout: 'hero-full',
-      mockup: 'hero-full',
-      configFields: [
-        { key: 'headline', label: 'Headline', type: 'text', placeholder: 'Selamat Datang' },
-        { key: 'subheadline', label: 'Subheadline', type: 'textarea', placeholder: 'Deskripsi singkat' },
-        { key: 'cta_text', label: 'Teks CTA', type: 'text', placeholder: 'Belanja Sekarang' },
-        { key: 'cta_link', label: 'Link CTA', type: 'text', placeholder: '/produk' },
-        {
-          key: 'background_type',
-          label: 'Tipe Background',
-          type: 'select',
-          options: [
-            { label: 'Warna', value: 'color' },
-            { label: 'Gambar', value: 'image' },
-            { label: 'Gradient', value: 'gradient' },
-          ],
-        },
-        { key: 'background_color', label: 'Warna Background', type: 'color' },
-        { key: 'background_image', label: 'Background Gambar', type: 'image' },
-      ],
+      id: 'laundry-emerald:hero-arch',
+      name: 'Hero Arch Emerald',
+      description: 'Band hijau tua + lengkung emas + foto arch',
+      layout: 'laundry-emerald:hero-arch',
+      mockup: 'laundry-emerald:hero-arch',
+      // ...configFields seperti biasa (headline, subheadline, cta_text, cta_link, image)...
       defaultConfig: {
-        headline: 'Selamat Datang di Toko Kami',
-        subheadline: 'Produk berkualitas untuk kebutuhan Anda',
-        cta_text: 'Belanja Sekarang',
-        cta_link: '/produk',
-        background_type: 'color',
-        background_color: 'theme:primary',
-        background_image: '',
+        eyebrow: 'Antar-Jemput Gratis',
+        headline: 'Cuci Bersih, Wangi, Siap Pakai',
+        subheadline: '...',
+        cta_text: 'Pesan Sekarang',
+        cta_link: '#layanan',
+        image: 'https://...',
       },
       defaultStyle: {
         padding: { top: 48, right: 24, bottom: 48, left: 24 },
       },
+      // WAJIB: html adaptif — hanya token var(--color-*) / var(--font-*),
+      // tanpa hex dan tanpa font-family literal. Lihat §18.4.
+      html: `<section data-tpl-type="hero" data-tpl-variant="laundry-emerald:hero-arch" style="background: var(--color-primary); ...">...</section>`,
     },
   ],
 }
 ```
 
-### Contoh Header Variant
+### Contoh Header Variant (unik, adaptif)
 
 ```typescript
 {
-  id: 'header-klasik',
-  name: 'Klasik',
-  description: 'Logo kiri, menu tengah, tombol CTA kanan',
-  layout: 'standard',
-  mockup: 'header-standard',
+  id: 'laundry-emerald:hdr-arch',
+  name: 'Emerald Arch',
+  description: 'Bar hijau tua + lengkung emas + CTA pill',
+  layout: 'laundry-emerald:hdr-arch',
+  mockup: 'laundry-emerald:hdr-arch',
+  // WAJIB: html kustom unik bertoken (var(--color-*) / var(--font-*)).
   configFields: [
     { key: 'logoUrl', label: 'Logo URL', type: 'image', placeholder: 'https://...' },
     { key: 'siteTitle', label: 'Nama Toko', type: 'text', placeholder: 'Toko Saya' },
@@ -1074,15 +1129,16 @@ async function exportTemplate(templateId: string) {
 }
 ```
 
-### Contoh Footer Variant
+### Contoh Footer Variant (unik, adaptif)
 
 ```typescript
 {
-  id: 'footer-satu-baris',
-  name: 'Satu Baris',
-  description: 'Baris tunggal bersih: teks, menu, ikon sosial',
-  layout: 'simple',
-  mockup: 'footer-simple',
+  id: 'laundry-emerald:ftr-gold-rule',
+  name: 'Kolom Emerald',
+  description: 'Tiga kolom + garis aksen emas',
+  layout: 'laundry-emerald:ftr-gold-rule',
+  mockup: 'laundry-emerald:ftr-gold-rule',
+  // WAJIB: html kustom unik bertoken (var(--color-*) / var(--font-*)).
   configFields: [
     { key: 'text', label: 'Teks Footer', type: 'text', placeholder: '© {year} Toko Saya' },
     {
@@ -1117,27 +1173,31 @@ async function exportTemplate(templateId: string) {
 - [ ] Template punya `name` (Title Case)
 - [ ] Template punya `description`
 - [ ] Template punya `category` yang valid
-- [ ] Template punya `theme` lengkap (palette, typography, components)
+- [ ] Template punya `theme` lengkap (palette 8 kunci, typography heading/body/accent)
+- [ ] Ketiga font terdaftar di `FONT_CATEGORIES` (§18.4)
+- [ ] Semua varian section + header + footer punya `html` (§18.3)
+- [ ] Semua ID varian namespaced per template; nol ID telanjang generik (§18.3, §18.6)
 - [ ] Template punya minimal 1 `header` variant
 - [ ] Template punya minimal 1 `footer` variant
 - [ ] Template punya minimal 1 `section` type
 
 ### Header/Footer Level
 
-- [ ] Setiap variant punya `id` unik
+- [ ] Setiap variant punya `id` unik namespaced per template (§18.3)
 - [ ] Setiap variant punya `name` dan `description`
-- [ ] Setiap variant punya `layout` yang valid
+- [ ] Setiap variant punya `layout` unik (bukan layout generik — SUPERSEDED → §18)
 - [ ] Setiap variant punya `mockup` identifier
 - [ ] Setiap variant punya `configFields` lengkap
 - [ ] Setiap variant punya `defaultConfig` lengkap
+- [ ] Setiap variant punya `html` kustom unik bertoken (§18.4)
 - [ ] Semua konten (logo, nav, CTA) konfigurable
 
 ### Section Level
 
 - [ ] Setiap section type punya `type` unik
-- [ ] Setiap section type punya minimal 3 variants (kecuali `marquee` 1-DOM)
-- [ ] Setiap variant punya `id` yang dirender renderer (cek `RENDERED_VARIANTS` di `catalog.test.ts`) atau `html` kustom
-- [ ] Setiap variant punya `layout` yang valid
+- [ ] Setiap variant punya `id` namespaced (bukan `hero-full`/`features-3col`/… — ditolak test §18.6)
+- [ ] Setiap variant punya `html` kustom unik (wajib, §18.3)
+- [ ] Setiap variant punya `layout` unik per template
 - [ ] Setiap variant punya `mockup` identifier
 - [ ] Setiap variant punya `configFields` lengkap
 - [ ] Setiap variant punya `defaultConfig` lengkap
@@ -1147,20 +1207,30 @@ async function exportTemplate(templateId: string) {
 ### Style Level
 
 - [ ] Background menggunakan theme color references (bukan hardcoded)
+- [ ] `html` hanya memakai token `var(--color-*)` / `var(--font-*)` — nol hex,
+      nol `rgb()/rgba()`, nol `font-family:` literal (dijaga test §18.6)
 - [ ] Padding reasonable (tidak terlalu besar/kecil)
 - [ ] Kontras warna teks vs background sudah benar
 - [ ] Background image options lengkap (blur, size, overlay)
 
-### Mobile Level (Spek v3.1 — lihat §15)
+### Mobile Level (Spek v3.1 — lihat §15; App-like — lihat §17)
 
 - [ ] Lolos uji tiga viewport: 375 / 768 / 1024 (tanpa scroll horizontal di HP)
 - [ ] Isi section dibox (default `6xl`, rata tengah); `variant.html` membawa
   wadahnya sendiri; verifikasi tepi rata di 1440px
 - [ ] Grid 1 kolom default → multi-kolom via `@md:`; tanpa width fixed > 480px
 - [ ] Gambar `max-width:100%;height:auto`; target sentuh ≥ 44px; body ≥ 14px
-- [ ] Nav jadi hamburger/drawer di HP; form 1 kolom full-width di HP
+- [ ] Nav jadi hamburger + drawer (`drawer-top`/`drawer-sidebar`) di HP;
+  form 1 kolom full-width di HP
 - [ ] Flag `responsive` (bila dipakai) hanya menyembunyikan hiasan/varian
   pengganti — bukan konten inti
+- [ ] Bottom bar: config `data.bottomBar` terisi (maks 5 item, semua berikon),
+  mati di ≥ 1024px (kontrak §17.3)
+- [ ] Native-like: `100dvh`, safe-area bottom/top, tap-highlight transparan,
+  input ≥ 16px, tanpa interaksi hover-only (§17.4)
+- [ ] Varian `hero-carousel` tersedia dengan config slides + autoplay (§17.5)
+- [ ] Popup welcome/promo: config `data.popup` tersedia, default nonaktif,
+  sekali per pengunjung (§17.6)
 
 ### Config Fields Level
 
@@ -1182,13 +1252,14 @@ async function exportTemplate(templateId: string) {
 
 ```typescript
 import { BUILT_IN_CATALOG } from '@/lib/builder/templates/catalog';
-import { getTemplate, getSectionVariant } from '@/lib/builder/template-store';
+import { getTemplate } from '@/lib/builder/template-store';
 
 // Get template by ID
 const template = getTemplate('food');
 
-// Get section variant
-const variant = getSectionVariant(template!, 'hero', 'hero-full');
+// Get section variant (ID namespaced per template, §18.3)
+const def = template!.sections.find((s) => s.type === 'hero');
+const variant = def?.variants.find((v) => v.id === 'food:hero-arang');
 
 // Access config fields
 variant?.configFields.forEach(field => {
@@ -1198,27 +1269,32 @@ variant?.configFields.forEach(field => {
 
 ### Cara Membuat Template Baru
 
-1. **Duplikat** `src/lib/builder/templates/food.ts` menjadi `<niche>.ts`
-   (contoh: `fashion.ts`) — ganti `id`, `name`, `description`, `category`,
-   `theme`, `headers`, `footers`, dan `data` (seed + copywriting niche).
-   Untuk katalog section, pakai `registrySections()` dari `compose.ts`
-   (seperti `food.ts`) kecuali butuh varian milik sendiri.
+1. **Buat file baru** `src/lib/builder/templates/<niche>.ts` (contoh:
+   `laundry-emerald.ts`) — **JANGAN duplikat-tempel template lain lalu hanya
+   mengganti warna** (§18.2). Deklarasikan sendiri: `id`, `name`, `description`,
+   `category`, `theme` (palet 8 kunci + 3 font), `headers` (≥5, semua `html`),
+   `footers` (≥5, semua `html`), `sections` (semua varian `html`,
+   ID namespaced), dan `data` (seed + copywriting niche).
+   DILARANG memakai `registrySections()` dari `compose.ts` (dihapus, §18.7).
 2. **Isi `theme` + `headers` + `footers` + `sections` + `data`** sesuai kontrak §2
-   (8 section inti di seed, `navItems` + `ctaText`, footer `{year}`, `seo.title`).
+   (8 section inti di seed, `navItems` + `ctaText`, footer `{year}`, `seo.title`)
+   + kontrak unik §18 (html wajib, token adaptif, kreativitas minimal).
 3. **Registrasi tunggal**: tambahkan ke `BUILT_IN_CATALOG` di
    `templates/catalog.ts`. `BUILTIN_TEMPLATES` (`template-store.ts`) adalah
    alias otomatis — tidak perlu edit file kedua.
 4. **Thumbnail**: pakai `mockup` dengan prefix yang sudah dikenal
    `renderMockup()` (`lib/builder/mockup-preview.tsx`), atau tambah
    case baru di `TemplatePreview` untuk thumbnail galeri.
-5. **Jalankan `bun run test`** — `templates/catalog.test.ts` +
-   `section-variants.test.ts` + `section-contrast.test.ts` adalah penjaga kontrak.
-6. **Uji manual** di `/preview/<id-template>` (contoh: `/preview/food`).
+5. **Jalankan `bun run test`** — guard kontrak: `templates/catalog.test.ts` +
+   guard unik §18.6 + `section-contrast.test.ts` adalah penjaga kontrak.
+6. **Uji manual** di `/preview/<id-template>` (contoh: `/preview/food`) pada
+   tiga viewport (375/768/1024) × tiga skema warna × tiga font (§18.7).
 
-> Untuk tipe/variant section **baru** (bukan mewarisi registry), perlu
-> tambahan: union `SectionType` (`types.ts`), definisi di
-> `sections/registry.ts`, branch renderer di
-> `components/builder/section-renderer.tsx`, dan mockup.
+> Untuk tipe section **baru**, cukup deklarasikan di file template itu sendiri
+> (tipe + varian `html`, ID namespaced, §18.3). Arus lama — tambah ke union
+> `SectionType` (`types.ts`) + definisi di `sections/registry.ts` + branch
+> renderer di `components/builder/section-renderer.tsx` + mockup — **tidak
+> berlaku lagi** (registry + branch generik dihapus, §18.7).
 
 ### Cara Memvalidasi Template
 
@@ -1226,7 +1302,7 @@ Tidak ada fungsi `validateTemplate()` di codebase — versi lama dokumen ini
 menyebutnya, padahal tidak pernah ada. Yang nyata:
 
 ```bash
-bun run test     # templates/catalog.test.ts + section-variants + section-contrast
+bun run test     # templates/catalog.test.ts + guard unik §18.6 + section-contrast
 bun run typecheck
 bun run lint
 ```
@@ -1241,8 +1317,8 @@ Test yang berlaku:
 
 | File | Yang dijaga |
 |---|---|
-| `templates/catalog.test.ts` | Kontrak template katalog (8 section inti, seed resolve tanpa fallback, `{year}`, tier, chrome terdaftar, palet, font, `RENDERED_VARIANTS`) |
-| `section-variants.test.ts` | Tiap varian me-render markup berbeda |
+| `templates/catalog.test.ts` | Kontrak template katalog (8 section inti, seed resolve tanpa fallback, `{year}`, tier, palet, font) |
+| guard unik §18.6 | `html` wajib, ID namespaced, nol hardcoded, nol impor generik, fingerprint unik |
 | `section-contrast.test.ts` | Skema warna tidak merusak kontras |
 | `template-schema-custom-type.test.ts` | Aturan tipe section kustom (`html` wajib, `activeSections`) |
 | `template-coverage.test.ts` | Cakupan aset (`findAssetCoverageIssues`: aset tak dirujuk, field gambar kosong, varian mati) |
@@ -1271,7 +1347,10 @@ for (const t of BUILT_IN_CATALOG) {
 | `varian <v> tak ada di template` | Samakan `variant` dengan id di `template.sections` |
 | `resolve jadi <v2> (fallback)` | Id varian salah ketik — akan ditulis ulang diam-diam |
 | `kontras gagal` | Gelapkan `textMuted`, atau sesuaikan `paletteOverride` (tidak ada lagi `designStyleId`) |
-| `Layout not found` | `layout` harus salah satu dari 7 header / 7 footer terdaftar (§3, §4) |
+| `Layout not found` | `layout` lama tak dikenal — template baru memakai ID unik + `html` sendiri (§18); jangan tambah layout generik |
+| `ID generik ditolak` | ID varian telanjang (`hero-full`, …) — ganti namespaced `<template>-<nama>` (§18.3) |
+| `html wajib` | Varian/header/footer tanpa `html` — isi `html` adaptif bertoken (§18.4) |
+| `hardcoded ditolak` | hex/`rgb()`/`font-family` literal di `html` — ganti token `var(--color-*)` / `var(--font-*)` (§18.4) |
 | `Mockup not found` | Pakai id dengan prefix yang terdaftar di `renderMockup()`, atau tambah case baru |
 | `tidak konsisten antar varian header` | Samakan `maxNavDepth` di seluruh varian header |
 | `Template tidak ditemukan` (saat apply) | Website belum punya template dasar — pilih template bawaan dulu |
@@ -1366,13 +1445,13 @@ if (mockup.startsWith('hero-')) return <HeroMockup variant={mockup} />;
 Artinya: **varian baru dengan prefix yang sudah terdaftar otomatis dapat
 mockup**, tanpa tambah kode. Yang salah prefix jatuh ke `DefaultMockup`.
 
-**Mockup yang dipakai template bawaan** (dari `SECTION_REGISTRY` via
-`templates/food.ts` — `registrySections()` memakai id varian registry sebagai
-`mockup`, sehingga prefix-nya otomatis dikenal `renderMockup()`):
+> **SUPERSEDED → §18.** Tabel prefix generik di bawah **arsip migrasi saja**.
+> Template baru memakai ID namespaced (`<template>-<nama>`) + `html` wajib;
+> prefix generik (`hero-`, `features-`, …) tidak boleh dipakai untuk varian baru.
 
 | Prefix | Id yang dipakai |
 |---|---|
-| `hero-` | `hero-full`, `hero-split`, `hero-card`, `hero-video-bg` |
+| `hero-` | `hero-full`, `hero-split`, `hero-card`, `hero-video-bg`, `hero-carousel` (wajib, §17.5) |
 | `features-` | `features-3col`, `features-list`, `features-stacked`, `features-masonry` |
 | `product-` | `product-2col`, `product-3col`, `product-4col`, `product-carousel` |
 | `pricing-` | `pricing-2tier`, `pricing-3tier` |
@@ -1470,10 +1549,10 @@ Untuk memastikan preview bekerja:
 | `src/lib/builder/template-schema.ts` | Kontrak validasi v3 (`validateTemplateV3`) |
 | `src/lib/builder/template-store.ts` | State management (zustand) |
 | `src/lib/builder/templates/catalog.ts` | `BUILT_IN_CATALOG` + tier gating |
-| `src/lib/builder/templates/food.ts` | Satu-satunya template katalog |
-| `src/lib/builder/templates/compose.ts` | `registrySections()` registry → template |
-| `src/lib/builder/chrome.ts` | `HEADER_VARIANTS` / `FOOTER_VARIANTS` |
-| `src/lib/builder/sections/registry.ts` | Katalog section generik |
+| `src/lib/builder/templates/food.ts` | Template kuliner (dibangun ulang mengikuti §18) |
+| `src/lib/builder/templates/compose.ts` | DIHAPUS bertahap (§18.7) — `registrySections()` registry → template |
+| `src/lib/builder/chrome.ts` | Utilitas chrome (konstanta generik `HEADER_VARIANTS` / `FOOTER_VARIANTS` DIHAPUS bertahap, §18.7) |
+| `src/lib/builder/sections/registry.ts` | DIHAPUS bertahap (§18.7) — katalog section generik |
 | `src/lib/builder/config-form.tsx` | Dynamic config form |
 | `src/lib/builder/mockup-preview.tsx` | Mockup visual + `TemplatePreview` |
 | `src/lib/builder/behaviour-script.ts` | Sanitasi script & CSS |
@@ -1675,14 +1754,23 @@ responsif ada pada penulis template — bukan renderer:
 
 ---
 
-## 16. Creative Layer — `customCss`, hook, dan `theme.effects`
+## 16. Creative Layer — `variant.html` (utama), `customCss`/hook/`theme.effects` (opsional)
 
-Bagian ini yang membuat desain template **tidak monoton**. Tanpa ini, seluruh
-variasi visual hanya sebatas palet + font + 47 layout bawaan.
+> **Reframing §18.** Cara utama membuat desain unik adalah **`variant.html`
+> per varian** (dispatcher murni, §18.3) — bukan menambal branch generik.
+> `customCss`, hook `data-tpl-*`, dan `theme.effects` di bawah adalah lever
+> **opsional** untuk efek lanjutan (shadow, filter, clip-path, animasi) di atas
+> `html` milik template. Keduanya (html maupun css) **wajib bertoken**
+> (`var(--color-*)` / `var(--font-*)`, §18.4).
 
 ### 16.1 Kenapa lever ini ada
 
-Fakta yang terukur di `section-renderer.tsx`:
+> **Catatan §18.** Fakta ukur di bawah berasal dari era branch generik
+> (dihapus). Setelah penghapusan, `variant.html` adalah cara utama desain unik;
+> `customCss` tetap berguna untuk efek lanjutan (shadow, filter, clip-path,
+> animasi) yang tidak praktis ditulis inline.
+
+Fakta yang terukur di `section-renderer.tsx` (era generik, arsip):
 
 ```
 grep -cE "boxShadow|border:" section-renderer.tsx   →  0
@@ -1812,4 +1900,295 @@ Test yang memverifikasi creative layer lewat kode nyata (bukan klaim):
 > Versi lama dokumen ini merujuk `bengkel-creative.test.ts` (15 test) — file
 > itu tidak ada di repository. Daftar di atas adalah penggantinya yang
 > terverifikasi.
+
+---
+
+## 17. Mobile App-like Requirements
+
+> Bagian ini **normatif untuk template**: setiap template baru wajib memenuhi
+> §17.1–§17.6. Status implementasi renderer ditandai ✅ (jalan) / 🔜 (kontrak,
+> wiring menyusul — template menyediakan data/config sesuai skema, renderer
+> mengikuti kemudian tanpa mengubah kontrak).
+
+### 17.1 Wajib Mobile-First
+
+- Template dirancang **dari 375px ke atas** (satu kolom default, multi-kolom
+  hanya via breakpoint naik) — melengkapi §15.1, bukan menggantikannya.
+- Tidak ada scroll horizontal di 375px; tidak ada `width`/`min-width` fixed
+  di atas 480px; gambar `max-width:100%;height:auto`.
+- Semua konten primer (hero, produk/menu, harga, kontak/CTA) wajib tercapai
+  dalam ≤ 3 tap dari halaman pertama di HP.
+
+### 17.2 Hamburger + Sidebar Slide di Mobile ✅
+
+- Di layar sempit (< 640px) navigasi header **wajib** menciut menjadi tombol
+  **hamburger** (ikon `Menu` ↔ `X`, target sentuh ≥ 44px, `aria-label` jelas,
+  `aria-expanded` mengikuti status buka/tutup).
+- Menu mobile **wajib** salah satu dari dua drawer (`mobileMenu.style`,
+  dirender `mobile-menu.tsx`) — **dilarang dropdown**: `drawer-top`
+  (meluncur dari atas) atau `drawer-sidebar` (meluncur dari sisi + overlay
+  gelap). Pilihan drawer ditentukan template via `mobileMenu.style`.
+- Sub-menu 1 tingkat memakai pola expand/collapse (accordion) dengan ikon
+  indikator; menu tertutup otomatis setelah item diklik lalu scroll ke section
+  (`scrollIntoView({ behavior: 'smooth' })`).
+- Status: ✅ jalan (`site-header-shared.tsx` + `mobile-menu.tsx`).
+
+### 17.3 Bottom Bar di Mobile 🔜
+
+- Setiap template **wajib** menyediakan konfigurasi bottom bar (navigasi bawah
+  ala aplikasi native) khusus mobile:
+
+```typescript
+// FullTemplateData (kontrak — wiring renderer menyusul)
+bottomBar?: {
+  enabled?: boolean;   // default true di < 1024px, selalu mati di ≥ 1024px
+  items?: Array<{      // MAKS 5 item
+    id: string;
+    label: string;     // pendek, maks ~12 karakter
+    icon: string;      // nama ikon (wajib — bottom bar tanpa ikon dilarang)
+    url: string;       // '#anchor' section atau URL
+    isExternal?: boolean;
+    enabled?: boolean;
+    badge?: string;    // teks badge kecil, mis. "Promo"
+  }>;
+}
+```
+
+- Aturan: maks 5 item; tiap item ikon + label; item aktif ditandai warna
+  primer; bar `position: sticky/fixed` bawah dengan padding
+  `env(safe-area-inset-bottom)`; tidak menutupi CTA/konten (tambah padding
+  bawah halaman setinggi bar); disembunyikan di desktop dan saat popup
+  (§17.6) sedang terbuka.
+- Status: 🔜 kontrak (skema di atas dikunci; renderer + seed + sidebar
+  menyusul tanpa mengubah kontrak).
+
+### 17.4 Tampilan Mobile Menyerupai Aplikasi Native
+
+- Pola navigasi app-like: hamburger + drawer (§17.2) dan/atau bottom bar
+  (§17.3) — tidak ada menu teks horizontal yang meluap di HP.
+- Detail yang membuat terasa native (wajib di `variant.html` maupun varian
+  bawaan bila menyentuh area ini):
+  - `min-height: 100dvh` untuk kanvas halaman (bukan `100vh` yang melompat
+    saat address bar muncul/hilang).
+  - Hormati notch/gesture bar: `padding-bottom: env(safe-area-inset-bottom)`
+    pada bar bawah; `env(safe-area-inset-top)` bila header fixed di paling atas.
+  - `-webkit-tap-highlight-color: transparent` pada elemen interaktif;
+    `overscroll-behavior-y: contain` pada drawer/popup agar scroll dalam
+    tidak menarik halaman belakang.
+  - Input form `font-size` ≥ 16px (mencegah auto-zoom iOS); tombol/input
+    setinggi ≥ 44px; tanpa interaksi yang **hanya** bisa hover.
+  - Feedback sentuh instan: status `:active` terlihat pada tombol, item
+    bottom bar, dan item drawer; transisi ≤ 200ms.
+  - Skeleton/spinner untuk gambar agar layout tidak melompat saat gambar
+    dimuat (tetapkan `width`/`height` atau rasio aspek).
+
+### 17.5 Varian Hero Carousel (wajib ada) 🔜
+
+> **Catatan §18.** ID wajib namespaced per template
+> (e.g. `laundry-emerald:hero-carousel`, bukan `hero-carousel` telanjang) dan
+> diimplementasikan sebagai `html` kustom — bukan branch renderer baru, bukan
+> entri registry (keduanya dihapus).
+
+- Setiap template **wajib** menyediakan varian hero carousel dengan id
+  **`hero-carousel`** (tipe `hero`), sehingga tiap niche punya hero geser
+  untuk promo/produk unggulan.
+- Kontrak config (`defaultConfig` + `configFields` lengkap, bisa diedit sidebar):
+
+```typescript
+{
+  slides: [  // 2–5 slide
+    { image: string; headline: string; subheadline?: string;
+      cta_text?: string; cta_link?: string; }  // cta_link default '#kontak'
+  ],
+  autoplayMs?: number;   // 0 = mati; default 5000
+  showDots?: boolean;    // default true
+  showArrows?: boolean;  // default false di mobile, true di desktop
+}
+```
+
+- Perilaku: swipe sentuh + dots + (opsional) panah; autoplay berhenti saat
+  disentuh/hover; gambar tiap slide `max-width:100%`; teks di atas foto wajib
+  memakai overlay + token kontras (§8); tinggi slide proporsional di 375px
+  (jangan full-viewport bila menenggelamkan konten di bawahnya).
+- Jalur implementasi: varian `html` kustom + `customCss`/`behaviours[]` untuk
+  autoplay — langsung jalan tanpa ubah renderer (jalur branch renderer baru
+  tidak berlaku lagi, §18).
+- Status: 🔜 — kontrak id (namespaced, §18.3) + config di atas dikunci agar
+  template yang membuatnya duluan tetap kompatibel.
+
+### 17.6 Popup Welcome / Promo 🔜
+
+- Setiap template **wajib** mendukung popup selamat datang/promosi yang
+  dikonfigurasi dari data template (bukan hardcoded di renderer):
+
+```typescript
+// FullTemplateData (kontrak — wiring renderer menyusul)
+popup?: {
+  enabled?: boolean;       // default false (opt-in per template/merchant)
+  kind?: 'welcome' | 'promo';
+  title?: string;
+  text?: string;
+  image?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  dismissText?: string;    // default "Tutup"
+  delayMs?: number;        // default 1500; 0 = langsung
+  showOnce?: boolean;      // default true (sekali per pengunjung via localStorage)
+};
+```
+
+- Aturan perilaku (berlaku saat wiring tiba, template tidak perlu berbuat
+  apa-apa selain mengisi config): muncul setelah `delayMs`; `showOnce`
+  memakai `localStorage` (pengunjung yang menutup tidak diganggu lagi);
+  tombol tutup ≥ 44px + tutup via klik overlay dan `Esc`; fokus masuk ke
+  dialog saat terbuka dan kembali saat ditutup; scroll halaman belakang
+  dikunci selama popup terbuka; tidak tampil bersamaan dengan bottom bar
+  interaksi (§17.3 disembunyikan sementara); tidak pernah tampil di dalam
+  kanvas builder (hanya live site + preview).
+- Status: 🔜 kontrak (skema di atas dikunci; komponen dialog + trigger +
+  panel merchant menyusul tanpa mengubah kontrak).
+
+---
+
+## 18. Template Unik Saja — Pengganti Sistem Generik
+
+> **Normatif untuk semua template baru.** Spesifikasi penuh:
+> `docs/UNIQUE_TEMPLATE_SPEC.md` (v1.0). Bagian ini adalah ringkasan
+> operasionalnya di dalam Guide. Template `laundry-fresh` dihapus dan diganti
+> template baru yang unik; `food.ts` dibangun ulang menyusul dengan kontrak
+> yang sama.
+
+### 18.1 Keputusan
+
+1. Setiap template punya UI/UX **unik miliknya sendiri** — dilarang tampil
+   sebagai "template lama yang hanya diganti warna + border-radius".
+2. Sumber UI generik dihapus dari kode agar keunikan **dipaksa arsitektur**,
+   bukan imbauan.
+3. Semua template tetap **adaptif penuh** terhadap skema warna dan font bawaan:
+   nol warna hardcoded, nol font hardcoded, di header + section + footer.
+
+### 18.2 Yang dilarang (pengganti sistem generik)
+
+| Dilarang | Pengganti |
+|---|---|
+| Impor `sections/registry.ts` / `templates/compose.ts` (`registrySections()`) | Deklarasikan varian sendiri di file template |
+| ID telanjang generik (`hero-full`, `features-3col`, `pricing-3tier`, `testimonials-grid`, `gallery-grid`, `contact-form`, `faq-accordion`, `steps-3col`, `location-hours`, `hdr-klasik`, …) | ID namespaced `<template>-<nama-unik>` |
+| Varian tanpa `html` (mengandalkan branch renderer) | Setiap varian/header/footer wajib `html` |
+| Layout header/footer generik (`standard`, `floating`, `columns`, …) | `html` kustom unik per varian |
+| Duplikat-tempel varian template lain + ganti warna | Karya baru: minimal 3 pembeda (bentuk/komposisi/dekorasi) |
+| hex / `rgb()` / `font-family:` literal di `html`/`customCss` | Token §18.4 |
+
+### 18.3 Kontrak varian unik
+
+1. **Setiap varian wajib punya `html`.** Renderer hanya dispatch
+   `variant.html` (`VariantHtmlRenderer`); tidak ada branch generik untuk
+   jatuh kembali. Varian tanpa `html` ditolak test.
+2. **ID namespaced per template.** Format `<template>-<nama-unik>`, contoh
+   `laundry-emerald:hero-arch`. ID telanjang generik ditolak test.
+3. **Header/footer wajib `html` kustom dan unik** (≥5 varian tiap chrome,
+   mengikuti `MIN_HEADER_VARIANTS_V3`/`MIN_FOOTER_VARIANTS_V3` di
+   `template-schema.ts`). UX boleh sama (navigasi, CTA, copyright), gaya
+   visual harus beda.
+4. **Kreativitas minimal.** Setiap varian berbeda markup-nya dari varian lain
+   dalam tipe yang sama **dan** dari template lain (uji fingerprint HTML
+   setelah strip warna+font+teks, di bawah ambang kemiripan).
+5. **Referensi desain diterjemahkan, bukan ditempel** — lihat §18.5.
+
+### 18.4 Kontrak adaptif (nol hardcoded)
+
+**Warna — hanya token** (disediakan `buildThemeTokens()` di kanvas +
+live site — sumber tunggal, lihat guard parity §18.6):
+
+| Token | Untuk |
+|---|---|
+| `var(--color-primary/secondary/accent/background/surface/text/textMuted/border)` | Latar, teks, garis, dekorasi |
+| `var(--color-on-primary)` | Teks di atas latar primary |
+| Tombol di atas latar TERANG: `background: var(--color-primary)` + `color: var(--color-on-primary)` | CTA/kartu terang |
+| Tombol di atas latar GELAP/primary: `background: var(--color-accent)` + `color: var(--color-primary)` | CTA/kartu gelap |
+
+> Token `--color-button` / `--color-on-button` / `--color-on-section` /
+> `--color-primary-on-section` HANYA ada di dalam `SectionRenderer` generik
+> (dihapus) — **tidak tersedia** di jalur `variant.html` (kanvas + live).
+> Jangan memakainya di `html` template (ditolak guard parity §18.6).
+
+Pada `defaultStyle`/`style` per-section gunakan `theme:<token>`
+(e.g. `backgroundColor: 'theme:primary'`).
+
+**Font — hanya token:** `var(--font-heading)` headline,
+`var(--font-body)` body, `var(--font-accent)` eyebrow script/aksen.
+`accentFont` adalah token ketiga resmi (`DesignStyleTypography.accentFont?`,
+fallback = `headingFont`; plumbing `--font-accent` di `section-renderer.tsx`,
+`renderer-v3.tsx`, `builder-canvas.tsx`, loader `GoogleFonts`,
+persist `public.ts` + `store.ts`). Ketiga font wajib terdaftar di
+`FONT_CATEGORIES`. Ornamen memakai `currentColor` / `var(--color-*)`.
+
+Contoh — salah vs benar:
+
+```html
+<!-- SALAH: mati saat ganti skema/font -->
+<h1 style="color: #fff; font-family: 'Cormorant Garamond', serif;">Judul</h1>
+<a style="background: var(--color-primary); color: #fff;">Pesan</a>
+
+<!-- BENAR: adaptif (pasangan token sesuai konteks latar) -->
+<h1 style="color: var(--color-text); font-family: var(--font-heading);">Judul</h1>
+<a style="background: var(--color-primary); color: var(--color-on-primary);">Pesan</a>
+<div style="font-family: var(--font-accent); color: var(--color-accent);">Eyebrow script</div>
+```
+
+### 18.5 Workflow referensi → template
+
+Diberi gambar/foto desain web:
+
+1. **Ekstrak palet → petakan ke 8 token** (`primary/secondary/accent/
+   background/surface/text/textMuted/border`). Jangan bawa hex referensi
+   mentah ke `html` — hanya token.
+2. **Ekstrak tipografi → petakan ke 3 font builtin** (display →
+   `headingFont`, sans → `bodyFont`, script/italic → `accentFont`, semua dari
+   `FONT_CATEGORIES`).
+3. **Bedah komposisi per section** (susunan, bentuk khas seperti arch/oval/
+   inset `rounded-2xl`, dekorasi, hierarki tombol).
+4. **Bangun `html` baru per section** dengan komposisi + dekorasi tersebut
+   memakai token §18.4 (ornamen = inline SVG/div bertoken; `<style>`
+   diblokir sanitizer, responsif via inline style + kelas breakpoint).
+5. **Header/footer unik** — UX boleh meniru referensi, komposisi visual +
+   dekorasi harus karya baru.
+6. **Isi tetap niche template** (struktur boleh meniru referensi, copywriting
+   + gambar milik niche — e.g. laundry: kiloan/express/antar-jemput).
+
+### 18.6 Guard otomatis
+
+| Guard | Menolak |
+|---|---|
+| `no-hardcoded-template-style` | `#[0-9a-fA-F]{3,8}`, `rgba?\(`, `hsla?\(`, `:\s*white\b`, `:\s*black\b`, `font-family:` yang nilainya bukan `var(--font-*)` di `html`/`customCss` |
+| `unique-variant-id` | ID telanjang generik |
+| `template-uniqueness` | Fingerprint HTML mirip antar template/varian |
+| `no-generic-import` | Impor `sections/registry` / `templates/compose` |
+| `variant-html-required` | Varian/header/footer tanpa `html` |
+| `accentFont-registered` | `accentFont` tak ada di `FONT_CATEGORIES` |
+
+Guard lama yang diganti: whitelist `RENDERED_VARIANTS`, guard
+`isKnownHeader/FooterVariant`, "minimal 3 varian per tipe". Guard yang
+dipertahankan: 8 section inti, seed resolve tanpa fallback, `{year}`, tier,
+palet+font, `maxNavDepth` seragam (`catalog.test.ts`).
+
+### 18.7 Penghapusan bertahap + migrasi data
+
+Urutan wajib: **renderer fail-closed dulu → template baru jadi → registry
+generik dihapus fisik → (dokumen ini) selesai**. Dilarang menghapus branch
+generik sebelum migrasi data selesai — situs existing yang menyimpan
+`hero-full`/`features-3col`/… akan blank.
+
+1. Audit DB: `store_pages.layout` + `custom_config` yang memakai varian/chrome
+   generik.
+2. Skrip migrasi tiap varian generik → varian unik padanan; tanpa padanan =
+   read-only + pemberitahuan.
+3. Kriteria hapus fisik: nol rujukan ID generik + semua guard §18.6 hijau +
+   uji 375/768/1024 × tiga skema × tiga font.
+
+File yang dihapus saat waktunya tiba: `sections/registry.ts(+test)`,
+`templates/compose.ts`, konstanta generik `chrome.ts` (kecuali
+`resolveContentWidthClass`), subkomponen generik `section-renderer.tsx`,
+layout generik `site-header/footer-shared.tsx`, renderer legacy
+`website/renderer.tsx` (bila tak dipakai), scaffold generik
+`scripts/create-template.ts`, acuan generik `template-reference-v3.json`.
 
