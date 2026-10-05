@@ -2192,3 +2192,105 @@ layout generik `site-header/footer-shared.tsx`, renderer legacy
 `website/renderer.tsx` (bila tak dipakai), scaffold generik
 `scripts/create-template.ts`, acuan generik `template-reference-v3.json`.
 
+---
+
+## 19. Kontras Warna — Token Pasangan, Bukan Warna Mentah
+
+> **Status (2026-10-05): wajib.** Suite `contrast-contract.test.ts` menguji
+> setiap varian terhadap **seluruh** skema warna di `COLOR_SCHEMES`. Template
+> yang hanya aman di paletnya sendiri akan gagal test.
+
+### 19.1 Masalah yang diselesaikan
+
+Template menulis `color: var(--color-accent)` di atas
+`background: var(--color-primary)`. Itu aman di palet bawaan template
+(emas `#C6A15B` di hijau tua = 5.15:1) tapi **hancur** begitu user memilih
+skema lain. Pada skema `emerald-fresh` aksen jadi hijau muda di atas hijau
+terang → **1.32:1**: eyebrow nyaris tak terlihat, tombol CTA pucat.
+
+Guard yang hanya mengukur palet template sendiri tidak akan pernah menangkap
+ini. Karena itu pengujiannya wajib **lintas skema**.
+
+### 19.2 Aturan wajib
+
+| Aturan | Contoh |
+|---|---|
+| Warna teks di atas latar berwarna **WAJIB** pakai token pasangan | `color: var(--color-accent-on-primary)` |
+| Warna **latar** boleh tetap warna mentah | `background: var(--color-primary)` |
+| Token yang dikoreksi otomatis hanya berlaku bila rasionya gagal | — |
+| Warna dekoratif (border, shape, garis) boleh warna mentah | `border: 3px solid var(--color-accent)` |
+
+**Larang keras:** `color: var(--color-accent)` (atau `primary`/`secondary`)
+di mana pun latar-nya juga berwarna. Ini termasuk string di dalam helper
+template seperti `eyebrow("Teks", "var(--color-secondary)")`.
+
+### 19.3 Nama token
+
+```
+--color-<fg>-on-<bg>     teks <fg> di atas <bg>, dijamin ≥ 4.5:1
+--color-on-<bg>          teks otomatis (putih/hitam terbaik) di atas <bg>
+```
+
+`<fg>` ∈ `primary, secondary, accent, text, textMuted`
+`<bg>` ∈ `primary, secondary, accent, background, surface`
+
+Semua kombinasi tersedia otomatis — **author tidak perlu mendeklarasikan
+apapun**. Token bernilai warna asli bila sudah lolos, warna terkoreksi bila
+belum. Ini yang menjaga identitas visual: emas tetap emas di latar yang
+mendukungnya, dan hanya berubah di latar yang memang tak sempat.
+
+### 19.4 Contoh benar vs salah
+
+```html
+<!-- SALAH: ganti skema warna lain akan rusak -->
+<div style="background:var(--color-primary);">
+  <span style="color:var(--color-accent);">Eyebrow</span>
+</div>
+
+<!-- BENAR -->
+<div style="background:var(--color-primary);">
+  <span style="color:var(--color-accent-on-primary);">Eyebrow</span>
+</div>
+
+<!-- BENAR: dekorasi boleh warna mentah -->
+<div style="background:var(--color-primary);">
+  <span style="border:1px solid var(--color-accent);">Lencana</span>
+</div>
+```
+
+### 19.5 `contrast.pairs` — opsional, untuk dokumentasi
+
+```ts
+contrast: {
+  pairs: [
+    { fg: 'accent', bg: 'primary', role: 'body', note: 'eyebrow di band' },
+    { fg: 'primary', bg: 'accent', role: 'body', note: 'tombol WhatsApp' },
+  ],
+}
+```
+
+- `role` menentukan ambang: `body`/`muted` = 4.5, `heading`/`non-text` = 3.0
+- `minRatio` manual menang atas `role`
+- `note` hanya untuk pesan diagnostik
+
+**Wajib diisi?** Tidak. Nilainya selalu berasal dari matriks. Kontrak berguna
+untuk (a) menurunkan ambang pasangan non-teks tertentu, (b) mengaudit cakupan.
+Pasangan `on-*` tak perlu dideklarasikan — `getOnColor` sudah menjamin
+≥ 4.5:1 untuk setiap warna sRGB.
+
+### 19.6 Cara menguji
+
+```ts
+import { COLOR_SCHEMES, mergeSchemePalette } from '@/lib/builder/color-schemes';
+import { findContrastViolations } from '@/lib/builder/contrast-contract';
+
+for (const scheme of COLOR_SCHEMES) {
+  const palette = mergeSchemePalette(scheme, template.theme.palette);
+  expect(findContrastViolations(variantHtml, palette, template.contrast))
+    .toEqual([]);
+}
+```
+
+`findContrastViolations()` menerjemahkan token pasangan ke warna efektifnya
+lalu mengukur HTML yang benar-benar dirender — bukan menebak dari palet.
+

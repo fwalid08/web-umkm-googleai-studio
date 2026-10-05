@@ -1,4 +1,9 @@
 import { getOnColor } from './design-styles';
+import {
+  buildOnColorTokens,
+  resolveContrastTokens,
+  type ContrastContract,
+} from './contrast-contract';
 import type { DesignStylePalette, DesignStyleTypography } from './types';
 
 /**
@@ -8,13 +13,36 @@ import type { DesignStylePalette, DesignStyleTypography } from './types';
  * `--font-*` di div root, tapi kanvas builder tidak — sehingga seluruh
  * `variant.html` yang bertoken tampil rusak di kanvas sementara sempurna
  * di live. Dengan helper bersama, kedua permukaan mustahil meleset lagi.
+ *
+ * Kontrak kontras template (§19) diterapkan DI SINI, bukan di tiap renderer,
+ * supaya token turunan tersedia di kedua permukaan dengan perhitungan sama.
  */
+
+export interface ThemeTokenOptions {
+  /**
+   * Kontrak kontras template. Bila diisi, pasangan yang rasionya di bawah
+   * ambang menghasilkan token turunan (`--color-<fg>-on-<bg>`).
+   *
+   * Opsional supaya template lama (tanpa kontrak) tetap dirender persis seperti
+   * sebelumnya — kontrak bersifat tambahan, bukan syarat.
+   */
+  contrast?: ContrastContract | null;
+  /**
+   * Token `--color-on-<key>` untuk tiap warna solid di palet.
+   *
+   * Default `true`: inilah yang membuat lencana di dalam tombol ikut mengikuti
+   * warna latar tombolnya. Opt-out lewat `false` bila perlu determinisme penuh.
+   */
+  onColorTokens?: boolean;
+}
+
 export function buildThemeTokens(
   palette: DesignStylePalette,
   typography: DesignStyleTypography,
   radius: number,
+  options: ThemeTokenOptions = {},
 ): Record<string, string> {
-  return {
+  const tokens: Record<string, string> = {
     '--color-primary': palette.primary,
     '--color-secondary': palette.secondary,
     '--color-accent': palette.accent,
@@ -29,6 +57,15 @@ export function buildThemeTokens(
     '--font-accent': typography.accentFont || typography.headingFont,
     '--radius': `${radius}px`,
   };
+
+  // Token turunan ditulis SETELAH base supaya koreksi fg-only (mis.
+  // `--color-text`) menimpa nilai palet — bukan sebaliknya.
+  if (options.onColorTokens !== false) {
+    Object.assign(tokens, buildOnColorTokens(palette));
+  }
+  Object.assign(tokens, resolveContrastTokens(palette, options.contrast).tokens);
+
+  return tokens;
 }
 
 /** Daftar semua `var(--x)` yang dipakai sebuah string HTML/CSS. */

@@ -1,4 +1,7 @@
 import type { DesignStylePalette, DesignStyleTypography, DesignStyleComponents, DesignStyleEffects } from './types';
+// Tipe saja — `contrast-contract.ts` mengimpor `design-styles` + `section-contrast`,
+// jadi impor nilai di sini akan membuat siklus modul.
+import type { ContrastContract } from './contrast-contract';
 
 // Re-export agar impor lama dari template-types tetap jalan (mis. public.ts).
 export type { DesignStylePalette, DesignStyleTypography } from './types';
@@ -200,6 +203,21 @@ export interface Template {
    * Kosong/undefined = semua tipe yang ada di `data.sections` dianggap aktif.
    */
   activeSections?: string[];
+
+  /**
+   * Kontrak rasio kontras milik template ini (v3.5, §19).
+   *
+   * Menjawab pertanyaan "warna teks mana yang aman di atas warna latar mana".
+   * Tanpa kontrak ini, ganti skema warna bisa membuat teks tak terbaca di
+   * bagian template yang tidak pernah disentuh renderer generik.
+   *
+   * Pasangan dideklarasikan manual (sumber kebenaran). `auditContrastCoverage`
+   * hanya membandingkan deklarasi itu dengan hasil pindai `variant.html` dan
+   * mengembalikan WARNING — tidak pernah memblokir.
+   *
+   * Lihat `contrast-contract.ts` untuk aturan token fg-only vs dual-role.
+   */
+  contrast?: ContrastContract;
 }
 
 export interface TemplateInstance {

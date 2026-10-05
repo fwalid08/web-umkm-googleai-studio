@@ -186,7 +186,12 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
           style={{
             // Token tema — SAMA seperti live site (theme-tokens.ts). Tanpa ini
             // seluruh `variant.html` bertoken tampil rusak di kanvas.
-            ...buildThemeTokens(mergedPalette, designStyle.typography, designStyle.components.borderRadius),
+            // Kontrak kontras template diteruskan supaya token turunan
+            // (`--color-accent-on-surface` dst) ikut ada di kanvas — kalau
+            // tidak, kanvas dan live site akan menampilkan berbeda.
+            ...buildThemeTokens(mergedPalette, designStyle.typography, designStyle.components.borderRadius, {
+              contrast: template.contrast,
+            }),
             background: mergedPalette.background,
             color: mergedPalette.text,
             fontFamily: template.theme.typography.bodyFont,

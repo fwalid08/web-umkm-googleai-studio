@@ -145,7 +145,12 @@ describe("kontrak template unik (§18)", () => {
     // mengunci kedua sisinya (dipakai vs disediakan).
     for (const t of uniqueTemplates) {
       const provided = new Set(
-        Object.keys(buildThemeTokens(t.theme.palette, t.theme.typography, t.theme.components.borderRadius)),
+        Object.keys(buildThemeTokens(t.theme.palette, t.theme.typography, t.theme.components.borderRadius, {
+          // Kontrak kontras template wajib ikut: token turunan
+          // (`--color-accent-on-surface` dst) memang bagian dari token tema,
+          // dan dihitung dari palet yang sama di kanvas maupun live site.
+          contrast: t.contrast,
+        })),
       );
       const check = (label: string, src?: unknown) => {
         if (typeof src !== "string" || !src) return;

@@ -212,6 +212,16 @@ const NAV_STYLE =
   "display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 20px;" +
   "color:var(--color-text);font-family:var(--font-body),sans-serif;font-size:0.875rem;";
 
+/**
+ * Lencana bundar di header.
+ *
+ * `fg` WAJIB berupa token `--color-on-<bg>` yang cocok dengan `bg` — bukan
+ * warna tetap. Kasus nyata: header "Pill Melayang" memakai accent emas
+ * `#C6A15B`; bila teksnya ikut `var(--color-on-primary)` (putih, dihitung dari
+ * primary hijau tua) rasionya cuma ~2.3:1 dan inisial "E" nyaris tak terlihat.
+ * `--color-on-accent` selalu ≥ 4.5:1 untuk warna sRGB mana pun, jadi lencana
+ * aman di latar apa pun tanpa perlu autofix per varian.
+ */
 function brandMark(bg: string, fg: string, size: number): string {
   return (
     `<span style="display:inline-flex;align-items:center;justify-content:center;` +
@@ -241,7 +251,7 @@ const HEADERS: HeaderVariant[] = [
       ${brandMark("var(--color-primary)", "var(--color-on-primary)", 44)}
       <div style="min-width:0;">
         <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.25rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
-        <div style="font-family:var(--font-accent),cursive;font-size:1rem;color:var(--color-accent);line-height:1.2;">{{tagline}}</div>
+        <div style="font-family:var(--font-accent),cursive;font-size:1rem;color:var(--color-accent-on-surface);line-height:1.2;">{{tagline}}</div>
       </div>
     </div>
     <nav style="${NAV_STYLE}">{{navItems}}</nav>
@@ -261,7 +271,7 @@ const HEADERS: HeaderVariant[] = [
     html: `<div style="padding:12px 16px 0 16px;background:transparent;">
   <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:999px;padding:10px 12px 10px 12px;box-shadow:0 12px 32px color-mix(in srgb, var(--color-text) 18%, transparent);">
     <div style="display:flex;align-items:center;gap:10px;min-width:0;padding-left:8px;">
-      ${brandMark("var(--color-accent)", "var(--color-on-primary)", 36)}
+      ${brandMark("var(--color-accent)", "var(--color-on-accent)", 36)}
       <span style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.1rem;color:var(--color-text);white-space:nowrap;">{{siteTitle}}</span>
     </div>
     <nav style="${NAV_STYLE}">{{navItems}}</nav>
@@ -325,7 +335,7 @@ const HEADERS: HeaderVariant[] = [
       ${brandMark("var(--color-primary)", "var(--color-on-primary)", 52)}
       <div style="min-width:0;">
         <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.4rem;color:var(--color-text);line-height:1.15;">{{siteTitle}}</div>
-        <div style="font-family:var(--font-accent),cursive;font-size:1.05rem;color:var(--color-accent);line-height:1.2;">{{tagline}}</div>
+        <div style="font-family:var(--font-accent),cursive;font-size:1.05rem;color:var(--color-secondary-on-surface);line-height:1.2;">{{tagline}}</div>
       </div>
     </div>
     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 28px;">
@@ -346,7 +356,7 @@ const HEADERS: HeaderVariant[] = [
     maxNavDepth: 1,
     html: `<header style="background:var(--color-surface);border-bottom:3px double var(--color-accent);padding:16px 24px 12px 24px;text-align:center;">
   <div style="max-width:1152px;margin:0 auto;">
-    <div style="font-family:var(--font-accent),cursive;font-size:1.2rem;color:var(--color-accent);">{{tagline}}</div>
+    <div style="font-family:var(--font-accent),cursive;font-size:1.2rem;color:var(--color-secondary-on-surface);">{{tagline}}</div>
     <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.75rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 16px;margin-top:12px;">
       <nav style="${NAV_STYLE}">{{navItems}}</nav>
@@ -432,7 +442,7 @@ const FOOTERS: FooterVariant[] = [
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:32px;">
       <div>
         <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.5rem;line-height:1.2;">{{siteTitle}}</div>
-        <div style="font-family:var(--font-accent),cursive;font-size:1.1rem;color:var(--color-accent);margin:4px 0 12px 0;">{{tagline}}</div>
+        <div style="font-family:var(--font-accent),cursive;font-size:1.1rem;color:var(--color-accent-on-primary);margin:4px 0 12px 0;">{{tagline}}</div>
         <p style="font-size:0.875rem;line-height:1.6;opacity:0.85;font-family:var(--font-body),sans-serif;">{{address}}</p>
       </div>
       <div>
@@ -442,7 +452,7 @@ const FOOTERS: FooterVariant[] = [
       <div>
         <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:0.7;font-family:var(--font-body),sans-serif;">{{contactTitle}}</div>
         <p style="font-size:0.9rem;line-height:1.8;font-family:var(--font-body),sans-serif;">{{phone}}<br />{{email}}</p>
-        <a href="{{whatsappLink}}" style="display:inline-block;margin-top:12px;background:var(--color-accent);color:var(--color-primary);padding:10px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;">{{whatsappText}}</a>
+        <a href="{{whatsappLink}}" style="display:inline-block;margin-top:12px;background:var(--color-accent);color:var(--color-primary-on-accent);padding:10px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;">{{whatsappText}}</a>
       </div>
     </div>
     <div style="border-top:1px solid var(--color-accent);margin-top:40px;padding-top:20px;text-align:center;font-size:0.8rem;opacity:0.75;font-family:var(--font-body),sans-serif;">{{text}}</div>
@@ -460,7 +470,7 @@ const FOOTERS: FooterVariant[] = [
     mockup: vid("ftr-centered"),
     html: `<footer style="background:var(--color-surface);border-top:3px double var(--color-accent);padding:48px 24px 24px 24px;text-align:center;">
   <div style="max-width:1152px;margin:0 auto;">
-    <div style="font-family:var(--font-accent),cursive;font-size:1.25rem;color:var(--color-accent);">{{strapline}}</div>
+    <div style="font-family:var(--font-accent),cursive;font-size:1.25rem;color:var(--color-secondary-on-surface);">{{strapline}}</div>
     <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:2rem;color:var(--color-text);line-height:1.2;margin:4px 0 16px 0;">{{siteTitle}}</div>
     <nav style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 24px;font-size:0.9rem;color:var(--color-text);font-family:var(--font-body),sans-serif;">{{navItems}}</nav>
     <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px;">
@@ -499,7 +509,7 @@ const FOOTERS: FooterVariant[] = [
   <div style="max-width:1152px;margin:0 auto;">
     <div style="background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:28px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px;">
       <div style="min-width:min(100%,280px);flex:1;">
-        <div style="font-family:var(--font-accent),cursive;font-size:1.15rem;color:var(--color-accent);">{{kicker}}</div>
+        <div style="font-family:var(--font-accent),cursive;font-size:1.15rem;color:var(--color-secondary-on-surface);">{{kicker}}</div>
         <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.4rem;line-height:1.3;">{{newsletterTitle}}</div>
         <p style="font-size:0.9rem;color:var(--color-text-muted);margin-top:6px;font-family:var(--font-body),sans-serif;">{{newsletterText}}</p>
       </div>
@@ -525,12 +535,12 @@ const FOOTERS: FooterVariant[] = [
   <div style="max-width:1152px;margin:0 auto;">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:20px;">
       <div style="background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:24px;">
-        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-body),sans-serif;">{{panelVisitTitle}}</div>
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-secondary-on-surface);margin-bottom:8px;font-family:var(--font-body),sans-serif;">{{panelVisitTitle}}</div>
         <p style="font-size:0.95rem;line-height:1.6;font-family:var(--font-body),sans-serif;">{{address}}</p>
         <p style="font-size:0.85rem;color:var(--color-text-muted);margin-top:8px;font-family:var(--font-body),sans-serif;">{{hours}}</p>
       </div>
       <div style="background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:24px;">
-        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-body),sans-serif;">{{panelContactTitle}}</div>
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-secondary-on-surface);margin-bottom:8px;font-family:var(--font-body),sans-serif;">{{panelContactTitle}}</div>
         <p style="font-size:0.95rem;line-height:1.8;font-family:var(--font-body),sans-serif;">{{phone}}<br />{{email}}</p>
       </div>
     </div>
@@ -544,8 +554,8 @@ const FOOTERS: FooterVariant[] = [
   },
 ];
 
-function eyebrow(text = "{{eyebrow}}"): string {
-  return `<div style="${SCRIPT}font-size:1.2rem;color:var(--color-accent);margin-bottom:8px;">${text}</div>`;
+function eyebrow(text = "{{eyebrow}}", color = "var(--color-secondary-on-surface)"): string {
+  return `<div style="${SCRIPT}font-size:1.2rem;color:${color};margin-bottom:8px;">${text}</div>`;
 }
 
 function sectionShell(inner: string, bg: string, pad = "72px 24px"): string {
@@ -595,12 +605,12 @@ const HERO_HTML = `<section style="background:var(--color-primary);color:var(--c
   <div style="position:absolute;bottom:-160px;right:-100px;width:380px;height:380px;border-radius:50%;background:var(--color-accent);opacity:0.12;"></div>
   <div style="max-width:1152px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:48px;align-items:center;position:relative;">
     <div>
-      <div style="display:inline-block;border:1px solid var(--color-accent);color:var(--color-accent);padding:8px 18px;border-radius:999px;font-size:0.8rem;font-weight:600;letter-spacing:0.06em;margin-bottom:20px;${BODY}">✦ {{badge}}</div>
-      ${eyebrow()}
+      <div style="display:inline-block;border:1px solid var(--color-accent);color:var(--color-accent-on-primary);padding:8px 18px;border-radius:999px;font-size:0.8rem;font-weight:600;letter-spacing:0.06em;margin-bottom:20px;${BODY}">✦ {{badge}}</div>
+      ${eyebrow("Laundry premium kesayangan keluarga", "var(--color-accent-on-primary)")}
       <h1 style="${HEADING}font-size:clamp(2.2rem,5vw,3.4rem);font-weight:700;line-height:1.15;margin:0 0 16px 0;">{{headline}}</h1>
       <p style="font-size:1.05rem;line-height:1.7;opacity:0.9;margin:0 0 28px 0;${BODY}">{{subheadline}}</p>
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-        <a href="{{cta_link}}" style="display:inline-block;background:var(--color-accent);color:var(--color-primary);padding:15px 34px;border-radius:999px;font-weight:700;text-decoration:none;font-size:1rem;${BODY}">{{cta_text}}</a>
+        <a href="{{cta_link}}" style="display:inline-block;background:var(--color-accent);color:var(--color-primary-on-accent);padding:15px 34px;border-radius:999px;font-weight:700;text-decoration:none;font-size:1rem;${BODY}">{{cta_text}}</a>
         <a href="{{cta2_link}}" style="display:inline-block;border:1px solid var(--color-on-primary);color:var(--color-on-primary);padding:14px 30px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.95rem;${BODY}">{{cta2_text}}</a>
       </div>
       <p style="font-size:0.85rem;margin:20px 0 0 0;opacity:0.8;${BODY}">★ {{rating_text}} · ☎ {{phone}}</p>
@@ -627,7 +637,7 @@ const FEATURES_CONFIG = {
 };
 
 const FEATURES_HTML = sectionShell(
-  `<div style="text-align:center;margin-bottom:40px;">${eyebrow()}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2><p style="${BODY}font-size:1rem;color:var(--color-text-muted);margin:12px auto 0 auto;max-width:640px;line-height:1.6;">{{subtitle}}</p></div>
+  `<div style="text-align:center;margin-bottom:40px;">${eyebrow("Selamat datang di", "var(--color-secondary-on-background)")}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2><p style="${BODY}font-size:1rem;color:var(--color-text-muted);margin:12px auto 0 auto;max-width:640px;line-height:1.6;">{{subtitle}}</p></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:0;">
     {{#items}}<div style="text-align:center;padding:28px 20px;border-left:1px solid var(--color-border);">
       <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--color-surface);border:1px solid var(--color-accent);font-size:1.5rem;margin-bottom:14px;">{{icon}}</div>
@@ -662,7 +672,7 @@ const ABOUT_HTML = sectionShell(
       <div style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);border:2px solid var(--color-accent);border-radius:999px;padding:10px 22px;font-weight:700;margin-top:-24px;position:relative;${BODY}">{{badge_text}} Pengalaman</div>
     </div>
     <div>
-      ${eyebrow()}
+      ${eyebrow("Rapi, Wangi, Seperti Baru", "var(--color-secondary-on-background)")}
       <h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0 0 16px 0;line-height:1.25;">{{title}}</h2>
       <p style="${BODY}font-size:1rem;color:var(--color-text-muted);line-height:1.7;margin:0 0 20px 0;">{{content}}</p>
       <div style="border-left:3px solid var(--color-accent);background:var(--color-surface);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin-bottom:24px;">
@@ -693,16 +703,16 @@ const PRICING_CONFIG = {
 };
 
 const PRICING_HTML = sectionShell(
-  `<div style="text-align:center;margin-bottom:40px;">${eyebrow()}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2><p style="${BODY}font-size:1rem;color:var(--color-text-muted);margin:12px 0 0 0;">{{subtitle}}</p></div>
+  `<div style="text-align:center;margin-bottom:40px;">${eyebrow("Layanan kami", "var(--color-secondary-on-background)")}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2><p style="${BODY}font-size:1rem;color:var(--color-text-muted);margin:12px 0 0 0;">{{subtitle}}</p></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:24px;">
     {{#items}}<div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);overflow:hidden;">
       <img src="{{image}}" alt="{{name}}" style="width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;display:block;" />
       <div style="padding:20px;">
-        <div style="${SCRIPT}font-size:1rem;color:var(--color-accent);">{{label}}</div>
+        <div style="${SCRIPT}font-size:1rem;color:var(--color-secondary-on-surface);">{{label}}</div>
         <div style="${HEADING}font-weight:700;font-size:1.15rem;color:var(--color-text);margin:2px 0 6px 0;">{{name}}</div>
         <p style="${BODY}font-size:0.875rem;color:var(--color-text-muted);line-height:1.6;margin:0 0 12px 0;">{{description}}</p>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-          <span style="${BODY}font-weight:700;font-size:1rem;color:var(--color-primary);">{{price}}</span>
+          <span style="${BODY}font-weight:700;font-size:1rem;color:var(--color-primary-on-surface);">{{price}}</span>
           <a href="{{cta_link}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:10px 22px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.85rem;${BODY}">{{cta_text}}</a>
         </div>
       </div>
@@ -730,7 +740,7 @@ const STATS_CONFIG = {
 const STATS_HTML = `<section style="background:var(--color-background);padding:40px 24px;">
   <div style="max-width:1152px;margin:0 auto;background:var(--color-primary);color:var(--color-on-primary);border-radius:calc(var(--radius) * 1.5);padding:56px 40px;">
     <div style="text-align:center;margin-bottom:36px;">
-      <div style="${SCRIPT}font-size:1.2rem;color:var(--color-accent);">{{eyebrow}}</div>
+      <div style="${SCRIPT}font-size:1.2rem;color:var(--color-accent-on-primary);">{{eyebrow}}</div>
       <h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;margin:0;">{{title}}</h2>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:32px;align-items:center;">
@@ -745,7 +755,7 @@ const STATS_HTML = `<section style="background:var(--color-background);padding:4
       </div>
       <div style="text-align:center;">
         <p style="${BODY}font-size:1rem;line-height:1.7;opacity:0.9;margin:0 0 8px 0;">{{subtitle}}</p>
-        <p style="${SCRIPT}font-size:1.25rem;color:var(--color-accent);margin:0;">{{side_text}}</p>
+        <p style="${SCRIPT}font-size:1.25rem;color:var(--color-accent-on-primary);margin:0;">{{side_text}}</p>
       </div>
     </div>
   </div>
@@ -776,12 +786,12 @@ const PROCESS_HTML = sectionShell(
       </div>
     </div>
     <div style="order:1;">
-      ${eyebrow()}
+      ${eyebrow("Panduan mudah", "var(--color-secondary-on-surface)")}
       <h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0 0 16px 0;line-height:1.25;">{{title}}</h2>
       <p style="${BODY}font-size:1rem;color:var(--color-text-muted);line-height:1.7;margin:0 0 24px 0;">{{content}}</p>
       <div style="display:grid;gap:14px;margin-bottom:28px;">
         {{#points}}<div style="display:flex;gap:14px;align-items:flex-start;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:16px 18px;">
-          <span style="${HEADING}font-weight:700;color:var(--color-accent);font-size:1.1rem;">{{no}}</span>
+          <span style="${HEADING}font-weight:700;color:var(--color-secondary-on-surface);font-size:1.1rem;">{{no}}</span>
           <div><div style="${BODY}font-weight:700;color:var(--color-text);">{{title}}</div>
           <p style="${BODY}font-size:0.875rem;color:var(--color-text-muted);margin:4px 0 0 0;line-height:1.6;">{{description}}</p></div>
         </div>{{/points}}
@@ -808,7 +818,7 @@ const FAQ_CONFIG = {
 
 const FAQ_HTML = sectionShell(
   `<div style="max-width:768px;margin:0 auto;">
-    <div style="text-align:center;margin-bottom:32px;">${eyebrow()}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2></div>
+    <div style="text-align:center;margin-bottom:32px;">${eyebrow("Butuh jawaban cepat?", "var(--color-secondary-on-background)")}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2></div>
     <div style="display:grid;gap:12px;">
       {{#items}}<details {{open}} style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:18px 20px;">
         <summary style="${BODY}font-weight:700;color:var(--color-text);cursor:pointer;font-size:0.95rem;">{{question}}</summary>
@@ -838,15 +848,15 @@ const TESTI_HTML = `<section style="padding:0 0 72px 0;background:var(--color-ba
     <img src="{{bg_image}}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.25;" />
     <div style="position:relative;text-align:center;">
       <div style="${HEADING}font-size:clamp(2rem,5vw,3rem);font-weight:700;color:var(--color-on-primary);">{{overlayTitle}}</div>
-      <div style="${SCRIPT}font-size:1.3rem;color:var(--color-accent);">{{eyebrow}}</div>
+      <div style="${SCRIPT}font-size:1.3rem;color:var(--color-accent-on-primary);">{{eyebrow}}</div>
     </div>
   </div>
   <div style="max-width:1152px;margin:0 auto;padding:0 24px;">
     <h2 style="${HEADING}font-size:clamp(1.5rem,3.5vw,2rem);font-weight:700;color:var(--color-text);margin:40px 0 24px 0;text-align:center;">{{title}}</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:20px;">
       {{#items}}<div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:24px;">
-        <div style="color:var(--color-accent);letter-spacing:0.15em;margin-bottom:4px;" aria-hidden="true">{{stars}}</div>
-        <div style="${BODY}font-size:0.8rem;font-weight:700;color:var(--color-primary);margin-bottom:12px;">{{rating}} dari 5</div>
+        <div style="color:var(--color-secondary-on-surface);letter-spacing:0.15em;margin-bottom:4px;" aria-hidden="true">{{stars}}</div>
+        <div style="${BODY}font-size:0.8rem;font-weight:700;color:var(--color-primary-on-surface);margin-bottom:12px;">{{rating}} dari 5</div>
         <p style="${BODY}font-size:0.9rem;color:var(--color-text);line-height:1.7;margin:0 0 14px 0;">“{{text}}”</p>
         <div style="${BODY}font-weight:700;font-size:0.9rem;color:var(--color-text);">— {{name}}</div>
       </div>{{/items}}
@@ -869,12 +879,12 @@ const STEPS_CONFIG = {
 
 const STEPS_HTML = `<section style="background:var(--color-background);padding:0 24px 72px 24px;">
   <div style="max-width:1152px;margin:0 auto;background:var(--color-primary);color:var(--color-on-primary);border-radius:calc(var(--radius) * 1.5);padding:56px 40px;text-align:center;">
-    <div style="${SCRIPT}font-size:1.2rem;color:var(--color-accent);">{{eyebrow}}</div>
+    <div style="${SCRIPT}font-size:1.2rem;color:var(--color-accent-on-primary);">{{eyebrow}}</div>
     <h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;margin:0 0 8px 0;">{{title}}</h2>
     <p style="${BODY}font-size:0.95rem;opacity:0.85;margin:0 0 32px 0;">{{subtitle}}</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:20px;text-align:left;">
       {{#items}}<div style="background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:24px;">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:var(--color-accent);color:var(--color-primary);font-weight:700;font-size:1.1rem;margin-bottom:12px;${BODY}">{{no}}</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:var(--color-accent);color:var(--color-primary-on-accent);font-weight:700;font-size:1.1rem;margin-bottom:12px;${BODY}">{{no}}</span>
         <div style="${BODY}font-weight:700;font-size:1.05rem;margin-bottom:6px;">{{title}}</div>
         <p style="${BODY}font-size:0.875rem;color:var(--color-text-muted);line-height:1.6;margin:0;">{{description}}</p>
       </div>{{/items}}
@@ -891,7 +901,7 @@ const GALLERY_CONFIG = {
 };
 
 const GALLERY_HTML = sectionShell(
-  `<div style="text-align:center;margin-bottom:32px;">${eyebrow()}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2></div>
+  `<div style="text-align:center;margin-bottom:32px;">${eyebrow("Galeri", "var(--color-secondary-on-background)")}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px;">
     {{#images}}<div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--color-border);"><img src="{{image}}" alt="Hasil laundry" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;display:block;" /></div>{{/images}}
   </div>`,
@@ -913,14 +923,14 @@ const ARTICLES_CONFIG = {
 };
 
 const ARTICLES_HTML = sectionShell(
-  `<div style="margin-bottom:32px;">${eyebrow()}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2></div>
+  `<div style="margin-bottom:32px;">${eyebrow("Tips & trik", "var(--color-secondary-on-surface)")}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:20px;">
     {{#items}}<a href="{{url}}" style="display:block;text-decoration:none;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);overflow:hidden;">
       <img src="{{image}}" alt="{{title}}" style="width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;display:block;" />
       <div style="padding:18px;">
         <div style="${HEADING}font-weight:700;font-size:1rem;color:var(--color-text);line-height:1.4;">{{title}}</div>
         <p style="${BODY}font-size:0.85rem;color:var(--color-text-muted);line-height:1.6;margin:8px 0 0 0;">{{excerpt}}</p>
-        <span style="${BODY}font-size:0.85rem;font-weight:700;color:var(--color-primary);">{{readMore}}</span>
+        <span style="${BODY}font-size:0.85rem;font-weight:700;color:var(--color-primary-on-surface);">{{readMore}}</span>
       </div>
     </a>{{/items}}
   </div>`,
@@ -948,12 +958,12 @@ const LOCATION_CONFIG = {
 const LOCATION_HTML = sectionShell(
   `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:24px;align-items:stretch;">
     <div style="background:var(--color-primary);color:var(--color-on-primary);border-radius:var(--radius);padding:32px;">
-      <div style="${SCRIPT}font-size:1.15rem;color:var(--color-accent);">{{eyebrow}}</div>
+      <div style="${SCRIPT}font-size:1.15rem;color:var(--color-accent-on-primary);">{{eyebrow}}</div>
       <h2 style="${HEADING}font-size:1.6rem;font-weight:700;margin:0 0 16px 0;">{{title}}</h2>
       <p style="${BODY}font-size:0.95rem;line-height:1.7;margin:0;">{{address}}</p>
       <p style="${BODY}font-size:0.9rem;margin:12px 0 0 0;opacity:0.9;">🕘 {{hours}}</p>
       <p style="${BODY}font-size:0.875rem;margin:12px 0 20px 0;opacity:0.85;line-height:1.6;">{{note}}</p>
-      <a href="{{button_link}}" style="display:inline-block;background:var(--color-accent);color:var(--color-primary);padding:13px 30px;border-radius:999px;font-weight:600;text-decoration:none;${BODY}">{{button_text}}</a>
+      <a href="{{button_link}}" style="display:inline-block;background:var(--color-accent);color:var(--color-primary-on-accent);padding:13px 30px;border-radius:999px;font-weight:600;text-decoration:none;${BODY}">{{button_text}}</a>
     </div>
     <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:32px;display:flex;flex-direction:column;justify-content:center;gap:14px;">
       <div style="${BODY}font-weight:700;color:var(--color-text);">{{panelTitle}}</div>
@@ -976,7 +986,7 @@ const CONTACT_CONFIG = {
 
 const CONTACT_HTML = sectionShell(
   `<div style="max-width:768px;margin:0 auto;text-align:center;">
-    <div>${eyebrow()}</div>
+    <div>${eyebrow("Fast respon di jam buka", "var(--color-secondary-on-surface)")}</div>
     <h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2>
     <p style="${BODY}font-size:1rem;color:var(--color-text-muted);margin:12px 0 28px 0;">{{subtitle}}</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:16px;">
@@ -1069,6 +1079,41 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
   headers: HEADERS,
   footers: FOOTERS,
   sections: SECTIONS,
+  /**
+   * Kontrak kontras template (§19).
+   *
+   * Setiap pasangan = "warna teks X aman di atas latar Y dengan rasio
+   * minimal Z". Pasangan yang paling rawan justru yang DUA ARAH:
+   * `accent` di atas `primary` (eyebrow emas di band hijau tua) dan
+   * `primary` di atas `accent` (tombol WhatsApp emas) — satu nilai palet
+   * dipakai sebagai teks DAN sebagai latar, jadi tidak boleh "diperbaiki"
+   * di satu tempat dan merusak yang lain.
+   *
+   * `on-primary` sengaja ikut meski bukan kunci palet: `brandMark()` memakai
+   * `--color-on-<bg>` supaya teks lencana mengikuti latar lencana itu
+   * sendiri (lihat `buildOnColorTokens`).
+   */
+  contrast: {
+    pairs: [
+      // Permukaan terang — teks utama & redup.
+      { fg: "text", bg: "background", role: "body" },
+      { fg: "text", bg: "surface", role: "body" },
+      { fg: "textMuted", bg: "background", role: "muted" },
+      { fg: "textMuted", bg: "surface", role: "muted" },
+      { fg: "secondary", bg: "background", role: "body", note: "strapline footer" },
+      { fg: "secondary", bg: "surface", role: "body" },
+      { fg: "primary", bg: "surface", role: "body" },
+      // Emas `#C6A15B` di atas krem hanya ~2.3:1, jadi yang dipakai di latar
+      // terang adalah token TURUNAN, bukan `accent` langsung. Kontrak ini
+      // yang menghitungkannya (`buildThemeTokens` menerapkannya).
+      { fg: "accent", bg: "surface", role: "body", note: "tagline header (regresi emas di krem)" },
+      { fg: "accent", bg: "background", role: "body" },
+      // Band hijau tua — emas di sini justru aman, teks lewat on-primary.
+      { fg: "accent", bg: "primary", role: "body", note: "eyebrow emas di band hijau" },
+      // Emas jadi LAYAR (tombol/lencana) → teks gelap di atasnya.
+      { fg: "primary", bg: "accent", role: "body", note: "tombol WhatsApp emas" },
+    ],
+  },
   data: {
     paletteOverride: {
       primary: "#0C3B2E",
@@ -1125,10 +1170,13 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       tagline: "Cuci bersih, wangi, siap pakai",
     },
     customCss: [
+      // Header/footer berlatar `surface` memakai token turunan
+      // (`--color-accent-on-surface`) karena emas #C6A15B di atas krem hanya
+      // ~2.3:1. Footer berlatar `primary` boleh emas langsung.
+      '[data-tpl-type="header"] nav a:hover{color:var(--color-accent-on-surface);}',
       '[data-tpl-type="header"] nav a{font-weight:600;text-decoration:none;}',
-      '[data-tpl-type="header"] nav a:hover{color:var(--color-accent);}',
       '[data-tpl-type="footer"] nav a{text-decoration:none;}',
-      '[data-tpl-type="footer"] nav a:hover{color:var(--color-accent);}',
+      '[data-tpl-type="footer"] nav a:hover{color:var(--color-accent-on-primary);}',
       '[data-tpl-type="faq"] details summary{cursor:pointer;}',
     ].join("\n"),
   },

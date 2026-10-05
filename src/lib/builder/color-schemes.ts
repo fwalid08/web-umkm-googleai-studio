@@ -1,18 +1,35 @@
 import { getContrastRatio, getOnColor, MIN_CONTRAST_NORMAL_TEXT } from './design-styles';
+import {
+  normalizePaletteForContract,
+  validateContrastContract,
+  type ContrastContract,
+} from './contrast-contract';
+import type { DesignStylePalette } from './types';
+
+/**
+ * Palet skema warna.
+ *
+ * `secondary` opsional dengan sengaja: data skema di bawah sudah ditulis
+ * sebelum token `secondary` masuk ke palet template. Caller meneruskan
+ * `base` (palet template) agar gap itu terisi — tanpa itu, menerapkan skema
+ * akan membuat pasangan `secondary` ikut hilang dari `palette_override`.
+ */
+export type ColorSchemePalette = {
+  background: string;
+  surface: string;
+  primary: string;
+  accent: string;
+  text: string;
+  textMuted: string;
+  border: string;
+  secondary?: string;
+};
 
 export interface ColorScheme {
   id: string;
   name: string;
   category: 'light' | 'dark';
-  palette: {
-    background: string;
-    surface: string;
-    primary: string;
-    accent: string;
-    text: string;
-    textMuted: string;
-    border: string;
-  };
+  palette: ColorSchemePalette;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -89,7 +106,15 @@ function fixPrimaryForContrast(bg: string, preferred: string): string {
   return bestRatio >= MIN_CONTRAST_NORMAL_TEXT ? best : preferred;
 }
 
-export const COLOR_SCHEMES: ColorScheme[] = [
+/**
+ * Preset warna dalam bentuk ASLI (apa yang ditulis author).
+ *
+ * Dipisah dari `COLOR_SCHEMES` supaya autofix tidak pernah memutasikan data
+ * yang diimpor — sebelumnya `forEach` di top-level mengubah `scheme.palette`
+ * saat modul di-load, yang membuat modul ini punya efek samping dan
+ * menulis ke console di setiap server render.
+ */
+const AUTHORED_COLOR_SCHEMES: ColorScheme[] = [
   {
     id: 'ocean-blue',
     name: 'Ocean Blue',
@@ -212,9 +237,79 @@ export const COLOR_SCHEMES: ColorScheme[] = [
   },
 ];
 
-export function validateColorScheme(scheme: ColorScheme): { valid: boolean; issues: string[] } {
+/**
+ * Preset siap pakai yang SUDAH dinormalisasi.
+ *
+ * Perbaikan rasio dilakukan sekali lewat fungsi murni (data aslinya tidak
+ * disentuh) alih-alih `forEach` yang memutasikan data saat import.
+ * Konsekuensinya: `console.warn` yang dulu muncul di setiap server render
+ * hilang, tapi nilai palet yang dipakai UI tetap sama seperti sebelumnya —
+ * penting karena `style-selector` menandai skema aktif dengan membandingkan
+ * nilai ini dengan override user.
+ */
+export const COLOR_SCHEMES: ColorScheme[] = AUTHORED_COLOR_SCHEMES.map((scheme) => {
+  const p = mergeSchemePalette(scheme, null);
+  const fixed: DesignStylePalette = {
+    ...p,
+    text: fixTextColor(p.surface, fixTextColor(p.background, p.text)),
+    textMuted: fixTextColor(p.surface, fixTextColor(p.background, p.textMuted)),
+    primary: fixPrimaryForContrast(p.surface, p.primary),
+  };
+  return { ...scheme, palette: { ...fixed } };
+});
+
+/**
+ * Gabungkan palet skema dengan palet template sebagai dasar.
+ *
+ * Skema hanya menyimpan 7 token; `secondary` (dan apa pun yang menambah
+ * token baru di masa depan) diambil dari `base` bila tidak ada di skema.
+ * Tanpa ini, cek kontrak akan diam-diam melewati setiap pasangan yang
+ * involve `secondary`.
+ */
+export function mergeSchemePalette(
+  scheme: ColorScheme,
+  base?: DesignStylePalette | null,
+): DesignStylePalette {
+  const p = scheme.palette;
+  const fallbackSecondary = base?.secondary ?? p.secondary ?? p.primary;
+  return {
+    primary: p.primary,
+    secondary: p.secondary ?? fallbackSecondary,
+    accent: p.accent,
+    background: p.background,
+    surface: p.surface,
+    text: p.text,
+    textMuted: p.textMuted,
+    border: p.border,
+  };
+}
+
+/**
+ * Validasi skema warna.
+ *
+ * Tanpa `contract`, hanya 4 pasangan generik yang dicek (perilaku lama).
+ * Dengan `contract`, SELURUH pasangan yang dideklarasikan template ikut
+ * diperiksa — inilah yang membuat skema tidak bisa dianggap "lolos" padahal
+ * membuat teks di bagian template tertentu tak terbaca.
+ *
+ * `base` (palet template) mengisi token yang tidak ada di skema, terutama
+ * `secondary`.
+ */
+export function validateColorScheme(
+  scheme: ColorScheme,
+  contract?: ContrastContract | null,
+  base?: DesignStylePalette | null,
+): { valid: boolean; issues: string[] } {
   const issues: string[] = [];
-  const { palette } = scheme;
+  const palette = mergeSchemePalette(scheme, base);
+
+  if (contract) {
+    for (const issue of validateContrastContract(palette, contract)) {
+      issues.push(
+        `${issue.fg} on ${issue.bg}: ${issue.ratio.toFixed(2)}:1 → ${issue.fixedRatio.toFixed(2)}:1 (min ${issue.minRatio}:1)`,
+      );
+    }
+  }
 
   const textOnBg = getContrastRatio(palette.text, palette.background);
   if (textOnBg < MIN_CONTRAST_NORMAL_TEXT) {
@@ -238,18 +333,6 @@ export function validateColorScheme(scheme: ColorScheme): { valid: boolean; issu
   }
 
   return { valid: issues.length === 0, issues };
-}
-
-function autoFixColorScheme(scheme: ColorScheme): ColorScheme {
-  const fixed = { ...scheme, palette: { ...scheme.palette } };
-
-  fixed.palette.text = fixTextColor(fixed.palette.background, fixed.palette.text);
-  fixed.palette.text = fixTextColor(fixed.palette.surface, fixed.palette.text);
-  fixed.palette.textMuted = fixTextColor(fixed.palette.background, fixed.palette.textMuted);
-  fixed.palette.textMuted = fixTextColor(fixed.palette.surface, fixed.palette.textMuted);
-  fixed.palette.primary = fixPrimaryForContrast(fixed.palette.surface, fixed.palette.primary);
-
-  return fixed;
 }
 
 export function getContrastIssue(
@@ -291,17 +374,37 @@ export function getHeaderContrastIssues(palette: {
   return issues;
 }
 
-COLOR_SCHEMES.forEach(scheme => {
-  const result = validateColorScheme(scheme);
-  if (!result.valid) {
-    const fixed = autoFixColorScheme(scheme);
-    const fixedResult = validateColorScheme(fixed);
-    if (fixedResult.valid) {
-      scheme.palette = fixed.palette;
-      console.warn(`Color scheme "${scheme.name}" auto-fixed for contrast`);
-    } else {
-      // Tetap warn (bukan error) agar tidak memicu overlay error Next.js dev.
-      console.warn(`Color scheme "${scheme.name}" cannot be auto-fixed:`, fixedResult.issues);
-    }
-  }
-});
+/**
+ * Normalisasi skema agar layak disimpan sebagai `palette_override`.
+ *
+ * Dipanggil saat user MEMILIH skema di Style Selector — bukan saat modul
+ * di-import. Versi lama memutasikan `scheme.palette` di top-level module,
+ * yang berarti efek samping berjalan di setiap server render dan tidak
+ * pernah tahu template mana yang sedang diedit.
+ *
+ * Dengan kontrak, koreksi hanya menyentuh token fg-only (`text`,
+ * `textMuted`); sisanya ditangani sebagai token turunan saat render.
+ */
+export function normalizeColorScheme(
+  scheme: ColorScheme,
+  contract?: ContrastContract | null,
+  base?: DesignStylePalette | null,
+): { palette: Record<string, string>; issues: string[] } {
+  const merged = mergeSchemePalette(scheme, base);
+  // Autofix lama (4 pasangan generik) dulu, lalu kontrak template.
+  const genericFixed: DesignStylePalette = {
+    ...merged,
+    text: fixTextColor(merged.background, merged.text),
+    textMuted: fixTextColor(merged.background, merged.textMuted),
+    primary: fixPrimaryForContrast(merged.surface, merged.primary),
+  };
+  // `text` juga harus aman di atas surface, bukan hanya background.
+  genericFixed.text = fixTextColor(genericFixed.surface, genericFixed.text);
+  genericFixed.textMuted = fixTextColor(genericFixed.surface, genericFixed.textMuted);
+
+  const safe = contract ? normalizePaletteForContract(genericFixed, contract) : genericFixed;
+  return {
+    palette: safe as unknown as Record<string, string>,
+    issues: validateColorScheme({ ...scheme, palette: safe }, contract, base).issues,
+  };
+}

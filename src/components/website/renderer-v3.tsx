@@ -67,7 +67,9 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
   // Token tema dari helper bersama kanvas (theme-tokens.ts) — kedua
   // permukaan render selalu sepakat.
   const tokens = {
-    ...buildThemeTokens(palette, typography, template.theme.components.borderRadius),
+    ...buildThemeTokens(palette, typography, template.theme.components.borderRadius, {
+      contrast: template.contrast,
+    }),
   } as React.CSSProperties;
 
   const fontFamilies = [...new Set([typography.headingFont, typography.bodyFont, typography.accentFont].map((f) => (f ?? '').trim()).filter(Boolean))];

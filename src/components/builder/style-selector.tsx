@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTemplateStore } from '@/lib/builder/template-store';
 import { useBuilderStore } from '@/lib/builder/store';
 import { PALETTE_FIELDS } from '@/lib/builder/design-styles';
-import { COLOR_SCHEMES } from '@/lib/builder/color-schemes';
+import { COLOR_SCHEMES, normalizeColorScheme, type ColorScheme } from '@/lib/builder/color-schemes';
 import { FONT_CATEGORIES } from '@/lib/builder/font-categories';
 import { Check, RotateCcw, Type, Palette, SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -64,10 +64,28 @@ export function StyleSelector() {
     setColorTab('custom');
   };
 
-  const applyScheme = (palette: Record<string, string>) => {
+  /**
+   * Terapkan skema warna.
+   *
+   * Palet yang disimpan adalah hasil normalisasi kontrak kontras template,
+   * bukan input mentah — sehingga apa yang tersimpan sudah terjamin terbaca,
+   * dan kanvas/live site langsung sama karena keduanya menghitung token dari
+   * palet yang sama.
+   */
+  const applyScheme = (scheme: ColorScheme) => {
+    const { palette, issues } = normalizeColorScheme(
+      scheme,
+      template.contrast,
+      template.theme.palette,
+    );
     updateThemeOverride({ ...palette });
     builderUpdatePaletteOverride({ ...palette });
     setColorTab('preset');
+    if (issues.length > 0) {
+      // Sengaja hanya info: pasangan dual-role diperbaiki lewat token turunan
+      // saat render, jadi `issues` di sini belum berarti tampilan rusak.
+      console.info(`Skema "${scheme.name}" disesuaikan kontrak:`, issues);
+    }
   };
 
   const resetAll = () => {
@@ -132,7 +150,7 @@ export function StyleSelector() {
                   <button
                     key={scheme.id}
                     type="button"
-                    onClick={() => applyScheme(scheme.palette)}
+                    onClick={() => applyScheme(scheme)}
                     title={`${scheme.name} — skema ${scheme.category === 'dark' ? 'gelap' : 'terang'}`}
                     className={`w-full flex items-center gap-3 rounded-lg border-2 px-2.5 py-1.5 text-[13px] transition-all ${
                       active
