@@ -217,6 +217,63 @@ describe("kontrak template unik (§18)", () => {
     }
   });
 
+  const allFooters = () => uniqueTemplates.flatMap((t) => t.footers.map((f) => ({ t, f })));
+
+  it("tiap toggle footer benar-benar mengubah render (bukan field UI mati)", () => {
+    // Regresi nyata: `FOOTER_BASE` mendeklarasikan `showNav`/`showSocial`
+    // untuk kelima varian, tapi HTML-nya tidak pernah memakai `{{#if}}`-nya.
+    // `inferFields` tetap membuat sakelar dari key itu, jadi user drag dan
+    // tidak terjadi apa pun. Field UI yang berbohong lebih buruk dari
+    // field yang tidak ada.
+    for (const { t, f } of allFooters()) {
+      const cfg = f.defaultConfig as Record<string, unknown>;
+      const html = f.html as string;
+      const hasToggle = typeof cfg.showNav === "boolean" || typeof cfg.showSocial === "boolean";
+      if (typeof cfg.showNav === "boolean") {
+        expect(html.includes("{{#if showNav}}"), `${t.id}/${f.id}: showNav tanpa {{#if}}`).toBe(true);
+      }
+      if (typeof cfg.showSocial === "boolean") {
+        expect(html.includes("{{#if showSocial}}"), `${t.id}/${f.id}: showSocial tanpa {{#if}}`).toBe(true);
+        // Sakelar tanpa data = tidak ada yang bisa dimunculkan.
+        expect(Array.isArray(cfg.socials) && cfg.socials.length > 0,
+          `${t.id}/${f.id}: showSocial tanpa data socials`).toBe(true);
+      }
+      // Varian tanpa nav/sosmed sama sekali tak boleh merendernya.
+      if (!hasToggle) {
+        expect(html, `${t.id}/${f.id}: nav tak dideklarasikan tapi dirender`).not.toContain("{{navItems}}");
+      }
+
+      // Bukti nyata: matikan toggle, cek isinya benar-benar hilang.
+      const countLinks = (s: string) => (s.match(/<a /g) ?? []).length;
+      if (typeof cfg.showNav === "boolean") {
+        const off = renderVariantHtml(html, { ...cfg, showNav: false });
+        const on = renderVariantHtml(html, cfg);
+        expect(countLinks(off), `${t.id}/${f.id}: nav tetap muncul saat showNav=false`)
+          .toBeLessThan(countLinks(on));
+      }
+      if (typeof cfg.showSocial === "boolean") {
+        const off = renderVariantHtml(html, { ...cfg, showSocial: false });
+        const on = renderVariantHtml(html, cfg);
+        expect(off.length, `${t.id}/${f.id}: sosmed tetap muncul saat showSocial=false`)
+          .toBeLessThan(on.length);
+      }
+    }
+  });
+
+  it("varian tanpa toggle benar-benar bebas dari konten terkait", () => {
+    let silent = 0;
+    for (const { t, f } of allFooters()) {
+      const c = f.defaultConfig as Record<string, unknown>;
+      if (typeof c.showNav === "boolean" || typeof c.showSocial === "boolean") continue;
+      silent++;
+      expect((f.html as string).includes("{{navItems}}"),
+        `${t.id}/${f.id}: nav dirender tanpa toggle`).toBe(false);
+      expect(c.siteTitleInitial,
+        `${t.id}/${f.id}: siteTitleInitial hanya dipakai brandMark (header)`).toBeUndefined();
+    }
+    expect(silent, "tidak ada varian tanpa toggle — guard ini jadi tak berarti").toBeGreaterThan(0);
+  });
+
   it("setiap varian footer TIDAK menampilkan {year} mentah ke pengguna", () => {
     // Regresi nyata: `{year}` hanya diganti di branch renderer GENERIK
     // (`site-footer-shared.tsx`), sedangkan varian unik keluar lewat

@@ -266,18 +266,19 @@ describe('kontrak bawaan laundry-emerald', () => {
   it('setiap pasangan kontrak TERPENUHI setelah token turunan dipakai', () => {
     // Invariant yang benar bukan "semua pair sudah aman" — template sah
     // boleh punya pasangan yang gagal, itu justru yang dikoreksi sistem.
-    // Yang wajib benar: SESUDAH token turunan dipakai, tiap pasangan
-    // sudah mencapai ambangnya.
+    // Yang wajib benar: SESUDAH token pasangan dipakai (nilai matriks),
+    // tiap pasangan sudah mencapai ambangnya.
     const { tokens } = resolveContrastTokens(tpl!.theme.palette, tpl!.contrast);
     const palette = tpl!.theme.palette;
     const offenders: string[] = [];
     for (const pair of tpl!.contrast!.pairs) {
       const bg = resolveContrastToken(pair.bg, palette)!;
       const min = minRatioForPair(pair);
-      const fixedToken = isInPlaceFixable(pair.fg)
-        ? tokens[`--color-${pair.fg}`]
-        : tokens[contrastTokenName(pair)];
-      const fg = fixedToken ?? resolveContrastToken(pair.fg, palette)!;
+      // Matriks selalu menyediakan nilai untuk pasangan fg/bg. Fallback ke
+      // warna mentah hanya untuk pasangan yang tak ada di matriks (mis.
+      // `on-*`, yang memang dijamin oleh getOnColor).
+      const fg = tokens[`--color-${pair.fg}-on-${pair.bg}`]
+        ?? resolveContrastToken(pair.fg, palette)!;
       const ratio = getContrastRatio(fg, bg);
       if (ratio < min) offenders.push(`${pair.fg}/${pair.bg} = ${ratio.toFixed(2)} < ${min}`);
     }

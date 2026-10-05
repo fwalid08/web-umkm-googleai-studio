@@ -371,18 +371,31 @@ const HEADERS: HeaderVariant[] = [
 /* Footers — 5 varian unik, semua html kustom bertoken                   */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Field dasar footer.
+ *
+ * `showNav` / `showSocial` SENGAJA TIDAK ada di sini. `inferFields` membuat
+ * form field dari setiap key config, jadi mendeklarasikan toggle yang tidak
+ * pernah dibaca HTML menghasilkan sakelar di sidebar yang saat user drag
+ * tidak terjadi apa pun. Toggle dideklarasikan per varian, hanya di varian
+ * yang benar-benar merender isinya.
+ *
+ * `siteTitleInitial` juga dihapus: hanya `brandMark()` yang memakainya, dan
+ * itu khusus header.
+ */
 const FOOTER_BASE = {
   siteTitle: BRAND,
-  siteTitleInitial: "E",
   logoUrl: "",
   text: `© {year} ${BRAND}. Cuci bersih, wangi, siap pakai.`,
   navItems: NAV_ITEMS.slice(0, 4),
-  showNav: true,
-  showSocial: true,
   poweredText: "Powered by Rabasha",
   poweredUrl: "https://rabasha.web.id",
   showPowered: true,
 };
+
+/** Data sosmed default — dipakai varian yang punya blok sosial. */
+const SOCIALS = [{ label: "IG" }, { label: "FB" }, { label: "WA" }];
+
 const BODY = "font-family:var(--font-body),sans-serif;";
 const HEADING = "font-family:var(--font-heading),serif;";
 const SCRIPT = "font-family:var(--font-accent),cursive;";
@@ -391,8 +404,27 @@ function poweredBar(color: string): string {
   return `{{#if showPowered}}<div style="text-align:center;margin-top:16px;font-size:0.75rem;${BODY}"><a href="{{poweredUrl}}" style="color:${color};text-decoration:none;opacity:0.7;">{{poweredText}}</a></div>{{/if}}`;
 }
 
+/**
+ * Blok sosmed.
+ *
+ * `fg` WAJIB token pasangan yang cocok dengan latar footernya. Footer
+ * `ftr-columns` berlatar `primary` (gelap) sementara `ftr-centered` berlatar
+ * `surface` (terang) — memakai warna teks yang sama untuk keduanya berarti
+ * salah satunya pasti tak terbaca. Token `--color-text-on-<bg>` dijamin
+ * ≥ 4.5:1 untuk background itu apa pun skema warnanya.
+ *
+ * `border` sengaja boleh warna mentah: garis lingkaran sosmed itu dekoratif,
+ * bukan informasi.
+ */
+function socialRow(fg: string, border: string): string {
+  return `{{#if showSocial}}<div style="display:flex;gap:8px;margin-top:16px;">{{#socials}}<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid ${border};color:${fg};font-size:0.7rem;font-weight:700;font-family:var(--font-body),sans-serif;">{{label}}</span>{{/socials}}</div>{{/if}}`;
+}
+
 const FTR_COLUMNS_CONFIG = {
   ...FOOTER_BASE,
+  showNav: true,
+  showSocial: true,
+  socials: SOCIALS,
   tagline: "Cuci bersih, wangi, siap pakai",
   menuTitle: "Jelajahi",
   contactTitle: "Hubungi Kami",
@@ -405,12 +437,15 @@ const FTR_COLUMNS_CONFIG = {
 
 const FTR_CENTERED_CONFIG = {
   ...FOOTER_BASE,
+  showNav: true,
+  showSocial: true,
+  socials: SOCIALS,
   strapline: "Terima kasih telah mempercayakan cucian Anda",
-  socials: [{ label: "IG" }, { label: "FB" }, { label: "WA" }],
 };
 
 const FTR_NEWS_CONFIG = {
   ...FOOTER_BASE,
+  showNav: true,
   kicker: "Penawaran spesial",
   newsletterTitle: "Dapat kabar promo tiap pekan",
   newsletterText: "Diskon cuci bedcover 20% untuk 50 pendaftar pertama bulan ini.",
@@ -418,6 +453,8 @@ const FTR_NEWS_CONFIG = {
   newsletterButtonLink: "https://wa.me/6281234567890?text=Halo%20Emerald%20Laundry",
 };
 
+// Tanpa nav & sosmed — toggle-nya tidak dideklarasikan sama sekali.
+const FTR_MINI_CONFIG = { ...FOOTER_BASE };
 const FTR_CONTACT_CONFIG = {
   ...FOOTER_BASE,
   panelVisitTitle: "Kunjungi Kami",
@@ -447,7 +484,8 @@ const FOOTERS: FooterVariant[] = [
       </div>
       <div>
         <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:0.7;font-family:var(--font-body),sans-serif;">{{menuTitle}}</div>
-        <nav style="display:flex;flex-direction:column;gap:8px;font-size:0.9rem;font-family:var(--font-body),sans-serif;color:var(--color-on-primary);">{{navItems}}</nav>
+        {{#if showNav}}<nav style="display:flex;flex-direction:column;gap:8px;font-size:0.9rem;font-family:var(--font-body),sans-serif;color:var(--color-on-primary);">{{navItems}}</nav>{{/if}}
+        ${socialRow("var(--color-text-on-primary)", "var(--color-accent)")}
       </div>
       <div>
         <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:0.7;font-family:var(--font-body),sans-serif;">{{contactTitle}}</div>
@@ -472,10 +510,8 @@ const FOOTERS: FooterVariant[] = [
   <div style="max-width:1152px;margin:0 auto;">
     <div style="font-family:var(--font-accent),cursive;font-size:1.25rem;color:var(--color-secondary-on-surface);">{{strapline}}</div>
     <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:2rem;color:var(--color-text);line-height:1.2;margin:4px 0 16px 0;">{{siteTitle}}</div>
-    <nav style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 24px;font-size:0.9rem;color:var(--color-text);font-family:var(--font-body),sans-serif;">{{navItems}}</nav>
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px;">
-      {{#socials}}<span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--color-border);color:var(--color-text);font-size:0.7rem;font-weight:700;font-family:var(--font-body),sans-serif;">{{label}}</span>{{/socials}}
-    </div>
+    {{#if showNav}}<nav style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 24px;font-size:0.9rem;color:var(--color-text);font-family:var(--font-body),sans-serif;">{{navItems}}</nav>{{/if}}
+    ${socialRow("var(--color-text-on-surface)", "var(--color-border)")}
     <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:20px;font-family:var(--font-body),sans-serif;">{{text}}</p>
     ${poweredBar("var(--color-text-muted)")}
   </div>
@@ -486,8 +522,8 @@ const FOOTERS: FooterVariant[] = [
     name: "Mini",
     description: "Satu baris ringkas: brand + copyright",
     layout: vid("ftr-mini"),
-    configFields: inferFields(FOOTER_BASE),
-    defaultConfig: { ...FOOTER_BASE },
+    configFields: inferFields(FTR_MINI_CONFIG),
+    defaultConfig: { ...FTR_MINI_CONFIG },
     mockup: vid("ftr-mini"),
     html: `<footer style="background:var(--color-surface);border-top:1px solid var(--color-border);padding:16px 24px;">
   <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;">
@@ -516,7 +552,7 @@ const FOOTERS: FooterVariant[] = [
       <a href="{{newsletterButtonLink}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:14px 30px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.95rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{newsletterButtonText}}</a>
     </div>
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:24px;">
-      <nav style="display:flex;flex-wrap:wrap;gap:8px 20px;font-size:0.875rem;font-family:var(--font-body),sans-serif;color:var(--color-on-primary);">{{navItems}}</nav>
+      {{#if showNav}}<nav style="display:flex;flex-wrap:wrap;gap:8px 20px;font-size:0.875rem;font-family:var(--font-body),sans-serif;color:var(--color-on-primary);">{{navItems}}</nav>{{/if}}
       <span style="font-size:0.8rem;opacity:0.75;font-family:var(--font-body),sans-serif;">{{text}}</span>
     </div>
     ${poweredBar("inherit")}
@@ -1109,6 +1145,7 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       { fg: "accent", bg: "surface", role: "body", note: "tagline header (regresi emas di krem)" },
       { fg: "accent", bg: "background", role: "body" },
       // Band hijau tua — emas di sini justru aman, teks lewat on-primary.
+      { fg: "text", bg: "primary", role: "body", note: "footer band + panel lokasi" },
       { fg: "accent", bg: "primary", role: "body", note: "eyebrow emas di band hijau" },
       // Emas jadi LAYAR (tombol/lencana) → teks gelap di atasnya.
       { fg: "primary", bg: "accent", role: "body", note: "tombol WhatsApp emas" },
