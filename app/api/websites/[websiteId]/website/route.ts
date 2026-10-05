@@ -9,12 +9,10 @@ import {
   isCatalogTemplateAllowedForTier,
   isTrialActive,
   mergeAndValidateSections,
-  sanitizePaletteOverride,
   type MergedSection,
 } from "@/lib/builder/validation";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { resolveTemplateId } from "@/lib/builder/apply-template";
-import { ensureSectionIdentities } from "@/lib/builder/migration";
 import { getOwnedWebsite } from "@/lib/websites/active";
 import { tenantUrl } from "@/lib/urls";
 import {
@@ -31,6 +29,14 @@ import {
   isLibrarySlug,
   normalizeLibraryName,
 } from "@/lib/builder/template-library";
+import {
+  buildActiveCustomConfig,
+  buildDefaultCustomConfig,
+  buildStoredCustomConfig,
+  hasStoredCustomConfig,
+  resolveNextIsPublished,
+  type ActiveCustomConfig,
+} from "@/lib/builder/website-config";
 
 /**
  * Salin config saat ini ke `user_templates` sebagai template library
@@ -86,6 +92,43 @@ async function saveAsLibraryTemplate(args: {
     data: { library: { template_slug: templateSlug, base_slug: baseSlug, name } },
     message: `Template "${name}" tersimpan di library`,
   });
+}
+
+/**
+ * Baca config template AKTIF website yang sudah tersimpan.
+ *
+ * Dipakai `PUT` untuk mempertahankan `is_published` saat payload tidak
+ * mengirimnya (jalur "terapkan template"). Tanpa ini, aturan lama
+ * `custom_config.is_published === true` mengubah payload tanpa field menjadi
+ * `false` — yaitu menerapkan template diam-diam mengembalikan website ke Draft
+ * dan live site ikut 404.
+ *
+ * `slugs` dicoba berurutan: slug template yang SEDANG aktif dulu, baru slug
+ * tujuan. Penting — status tayang milik WEBSITE, jadi saat user apply template
+ * lain (slug berbeda) status lama tetap yang dicari. Kalau hanya slug tujuan
+ * yang dicek, baris tujuannya belum ada sehingga hasilnya `null` dan website
+ * tetap jatuh ke Draft.
+ *
+ * `is_library = false` wajib: baris library bukan template aktif.
+ */
+async function readExistingActiveConfig(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  websiteId: string,
+  slugs: Array<string | null | undefined>,
+): Promise<Record<string, unknown> | null> {
+  for (const slug of slugs) {
+    if (!slug) continue;
+    const { data } = await supabase
+      .from("user_templates")
+      .select("custom_config")
+      .eq("website_id", websiteId)
+      .eq("template_slug", slug)
+      .eq("is_library", false)
+      .maybeSingle();
+    const config = (data?.custom_config ?? null) as Record<string, unknown> | null;
+    if (config) return config;
+  }
+  return null;
 }
 
 interface SessionUser {
@@ -226,10 +269,16 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Template belum tersedia" }, { status: 503 });
     }
 
+    // `is_library = false` WAJIB: baris library ("Simpan sebagai Template",
+    // slug `saved-<uuid>`) juga punya website_id yang sama. Tanpa filter ini
+    // baris library ikut jadi kandidat `stored` di bawah — dan karena
+    // urut `updated_at` DESC, baris library terbaru bisa dipakai sebagai
+    // config aktif website (design user "ditimpa" desain karangan).
     const { data: rows } = await supabase
       .from("user_templates")
       .select("template_slug, custom_config, updated_at")
       .eq("website_id", websiteId)
+      .eq("is_library", false)
       .order("updated_at", { ascending: false });
 
     // Template aktif: template_slug website → cocok kategori bisnis →
@@ -251,63 +300,24 @@ export async function GET(
       (rows ?? [])[0] ??
       null;
 
-    type StoredConfig = {
-      design_style_id?: string;
-      sections?: unknown[];
-      header?: Record<string, unknown>;
-      footer?: Record<string, unknown>;
-      theme?: Record<string, unknown>;
-      core?: Record<string, unknown>;
-      seo?: { title?: string; description?: string };
-      // Single-page (044): status tayang + meta halaman.
-      is_published?: boolean;
-      meta_title?: string;
-      meta_description?: string;
-      og_image_url?: string;
-    };
-    const storedConfig = (stored?.custom_config ?? null) as StoredConfig | null;
+    const storedConfig = (stored?.custom_config ?? null) as Record<string, unknown> | null;
 
-    let customConfig: {
-      design_style_id?: string;
-      sections?: unknown[];
-      header?: Record<string, unknown>;
-      footer?: Record<string, unknown>;
-      theme?: Record<string, unknown>;
-      core?: Record<string, unknown>;
-      seo?: { title?: string; description?: string };
-      is_published?: boolean;
-      meta_title?: string;
-      meta_description?: string;
-      og_image_url?: string;
-    };
+    // Config aktif untuk builder. WAJIB lewat `buildActiveCustomConfig` —
+    // versi lama memakai whitelist tulisan tangan yang lebih sempit, sehingga
+    // `palette_override` (warna tema), `customCss`, `animations`, `behaviours`,
+    // dan `assets` yang SUDAH tersimpan tidak pernah dikirim ke builder.
+    // Akibatnya setiap reload kanvas kembali ke warna bawaan template
+    // katalog, dan template hasil "Simpan sebagai Template" tampak
+    // "tidak berubah" saat diterapkan lagi.
+    let customConfig: ActiveCustomConfig;
     let isDefault: boolean;
-    if (stored && storedConfig?.design_style_id) {
-      customConfig = {
-        design_style_id: storedConfig.design_style_id,
-        sections: storedConfig.sections ?? [],
-        header: storedConfig.header ?? {},
-        footer: storedConfig.footer ?? {},
-        theme: storedConfig.theme ?? {},
-        core: storedConfig.core ?? {},
-        seo: { ...(storedConfig.seo ?? {}) },
-        // Single-page (044): status tayang & meta dibawa ke builder.
-        is_published: storedConfig.is_published !== false,
-        meta_title: storedConfig.meta_title,
-        meta_description: storedConfig.meta_description,
-        og_image_url: storedConfig.og_image_url,
-      };
+    if (hasStoredCustomConfig(stored, storedConfig)) {
+      customConfig = buildActiveCustomConfig(storedConfig);
       isDefault = false;
     } else {
-      customConfig = {
-        design_style_id: (site as unknown as { design_style_id?: string }).design_style_id ?? 'minimalist',
-        sections: [],
-        header: {},
-        footer: {},
-        theme: {},
-        core: {},
-        seo: {},
-        is_published: true,
-      };
+      customConfig = buildDefaultCustomConfig(
+        (site as unknown as { design_style_id?: string }).design_style_id,
+      );
       isDefault = true;
     }
 
@@ -443,39 +453,25 @@ export async function PUT(
         );
       }
 
-      // Normalisasi identitas sections di server: client lama / baris lama
-      // bisa menyimpan tanpa variant+anchorId sehingga section hilang di live.
-      // Aturan sama dengan seed kanvas & render publik → ketiganya sepakat.
+      // Config aktif saat ini — sumber untuk mempertahankan `is_published`.
+      // `siteSlug` (template yang SEDANG dipakai) dicoba lebih dulu supaya
+      // status tayang website ikut saat user apply template lain.
+      const existingActiveConfig = await readExistingActiveConfig(supabase, websiteId, [
+        siteSlug,
+        slug,
+      ]);
+      // Whitelist simpan = `buildStoredCustomConfig` (satu-satunya definisi,
+      // sama untuk branch format baru & legacy). Normalisasi identitas
+      // sections, sanitasi palette, dan creative layer ditangani di sana.
+      const storedBase = buildStoredCustomConfig(custom_config, slug);
+      // Status tayang milik WEBSITE, bukan milik template. `applyTemplateToWebsite`
+      // (katalog) dan `applySavedTemplate` (library) sengaja tidak mengirim
+      // `is_published`; dengan aturan lama (`=== true`) payload tanpa field itu
+      // menjadi Draft dan live site ikut 404. Payload yang memang mengirim
+      // boolean (tombol Simpan/Tayangkan, panel SEO) tetap dihormati.
       const toStore = {
-        design_style_id: custom_config.design_style_id ?? 'minimalist',
-        // Jangan buang skema warna user: tanpanya live site selalu
-        // kembali ke warna bawaan template walau kanvas sudah diganti.
-        palette_override: custom_config.palette_override ?? {},
-        sections: ensureSectionIdentities(custom_config.sections ?? [], slug),
-        header: custom_config.header ?? {},
-        footer: custom_config.footer ?? {},
-        theme: custom_config.theme ?? {},
-        core: custom_config.core ?? {},
-        seo: custom_config.seo ?? {},
-        // Animasi/behaviour template ikut tersimpan agar `BehaviourRuntime`
-        // bisa menjalankannya di live site. Template tanpa animasi → array kosong,
-        // bukan undefined, supaya template lama yang disimpan ulang bersih.
-        animations: Array.isArray(custom_config.animations) ? custom_config.animations : [],
-        behaviours: Array.isArray(custom_config.behaviours) ? custom_config.behaviours : [],
-        // CSS kustom template ikut tersimpan agar `BehaviourRuntime` bisa
-        // menampilkannya di live site.
-        customCss: typeof custom_config.customCss === 'string' ? custom_config.customCss : '',
-        catalog_template_id: slug,
-        // Single-page (044): status tayang + meta halaman ikut di config yang
-        // sama. Builder mengirimnya saat Simpan / Publish.
-        // PENTING: `=== true`, bukan `!== false`. Config tanpa is_published
-        // (undefined) akan tersimpan sebagai TRUE bila pakai `!== false`,
-        // sehingga "Simpan" ikut menayangkan halaman dan tombol Simpan vs
-        // Tayangkan jadi tidak berbeda hasilnya. Default benar = draft.
-        is_published: custom_config.is_published === true,
-        meta_title: typeof custom_config.meta_title === 'string' ? custom_config.meta_title : null,
-        meta_description: typeof custom_config.meta_description === 'string' ? custom_config.meta_description : null,
-        og_image_url: typeof custom_config.og_image_url === 'string' ? custom_config.og_image_url : null,
+        ...storedBase,
+        is_published: resolveNextIsPublished(custom_config.is_published, existingActiveConfig),
       };
 
       // "Simpan sebagai Template" — salin ke library lalu KEMBALI. Upsert
@@ -534,19 +530,27 @@ export async function PUT(
     // If partial update (only seo, etc), fetch existing and merge
     let template_id = bodyTemplateId;
     let custom_config = bodyCustomConfig ?? {};
+    // Config aktif yang sudah tersimpan. Dipakai untuk merge partial update
+    // DAN untuk mempertahankan `is_published` (status milik website).
+    let existingActiveConfig: Record<string, unknown> | null = null;
 
     if (!template_id || !bodyCustomConfig?.sections) {
-      // Fetch existing config to get template slug and merge
+      // Fetch existing config to get template slug and merge.
+      // `is_library = false` wajib: tanpa itu baris library (slug
+      // `saved-<uuid>`) bisa terpilih dan meng-override `template_id` website
+      // dengan slug yang tidak dikenal katalog.
       const { data: existing } = await supabase
         .from("user_templates")
         .select("template_slug, custom_config")
         .eq("website_id", websiteId)
+        .eq("is_library", false)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (existing) {
         template_id = template_id ?? (existing.template_slug as string | undefined);
+        existingActiveConfig = (existing.custom_config ?? null) as Record<string, unknown> | null;
         if (bodyCustomConfig) {
           custom_config = { ...(existing.custom_config as Record<string, unknown>), ...bodyCustomConfig };
         }
@@ -578,25 +582,17 @@ export async function PUT(
       });
     }
 
-    // Save partial update to user_templates
+    // Save partial update ke user_templates. Whitelist sama dengan branch format
+    // baru (`buildStoredCustomConfig`) — sebelumnya branch ini punya versi
+    // sendiri yang membuang `assets` dan `customCss`, jadi payload lama bisa
+    // menghapus creative layer yang baru saja disimpan.
+    // `is_published`: kalau payload tidak mengirimnya, status milik website
+    // dipertahankan (lihat `resolveNextIsPublished`).
+    const legacyExistingConfig =
+      existingActiveConfig ?? (await readExistingActiveConfig(supabase, websiteId, [slug]));
     const toStore = {
-      design_style_id: custom_config.design_style_id ?? 'minimalist',
-      palette_override: sanitizePaletteOverride(custom_config.palette_override),
-      sections: custom_config.sections ?? [],
-      header: custom_config.header ?? {},
-      footer: custom_config.footer ?? {},
-      theme: custom_config.theme ?? {},
-      core: custom_config.core ?? {},
-      seo: custom_config.seo ?? {},
-      // Single-page (044): status tayang + meta halaman.
-      // Penting: pakai `=== true`, BUKAN `!== false`. Dengan `!== false`,
-      // config tanpa field is_published (undefined) tersimpan sebagai TRUE —
-      // sehingga "Simpan" ikut menayangkan halaman dan tombol Simpan vs
-      // Tayangkan jadi tidak berbeda hasilnya. Default yang benar = draft.
-      is_published: custom_config.is_published === true,
-      meta_title: typeof custom_config.meta_title === 'string' ? custom_config.meta_title : null,
-      meta_description: typeof custom_config.meta_description === 'string' ? custom_config.meta_description : null,
-      og_image_url: typeof custom_config.og_image_url === 'string' ? custom_config.og_image_url : null,
+      ...buildStoredCustomConfig(custom_config, slug),
+      is_published: resolveNextIsPublished(custom_config.is_published, legacyExistingConfig),
     };
 
     // Jalur legacy (payload client lama) — hormati flag library yang sama.

@@ -67,10 +67,16 @@ describe('isi halaman kini dari user_templates.custom_config', () => {
   });
 
   it('API menyimpan is_published + meta ke custom_config', () => {
-    const src = read('app', 'api', 'websites', '[websiteId]', 'website', 'route.ts');
-    expect(src).toContain('is_published:');
-    expect(src).toContain('meta_title:');
-    expect(src).toContain('meta_description:');
+    // Whitelist config pindah ke `website-config.ts` (satu-satunya definisi,
+    // dipakai kedua branch PUT). Route tetap yang memanggilnya.
+    const route = read('app', 'api', 'websites', '[websiteId]', 'website', 'route.ts');
+    expect(route).toContain('is_published:');
+    expect(route).toContain('buildStoredCustomConfig(');
+    const config = read('src', 'lib', 'builder', 'website-config.ts');
+    expect(config).toContain('is_published:');
+    expect(config).toContain('meta_title:');
+    expect(config).toContain('meta_description:');
+    expect(config).toContain('og_image_url:');
   });
 });
 

@@ -13,6 +13,7 @@
  */
 import { getSectionVariant } from './sections/registry';
 import { applySectionAssets } from './template-assets';
+import { isLibrarySlug } from './template-library';
 import { getTemplate } from './template-store';
 import { BUILT_IN_CATALOG } from './templates/catalog';
 import type { Template } from './template-types';
@@ -147,6 +148,48 @@ export async function applySavedTemplate(opts: {
 
 export function isLibraryTemplate(template: { source?: string }): boolean {
   return template.source === 'saved';
+}
+
+/**
+ * Hapus satu template library user ("Simpan sebagai Template").
+ *
+ * Params lewat query (`?libraryId=`) mengikuti pola `DELETE /api/user/products`
+ * yang sudah dipakai di repo — DELETE dengan body tidak praktis di `fetch`/
+ * `EventSource` dan sering drop oleh proxy.
+ *
+ * Keamanan ditangani di server: `.eq("user_id", ...)` + `.eq("is_library", true)`
+ * + `isLibrarySlug(...)`. RLS dimatikan di 026, jadi seluruh pembatasan TIDAK
+ * boleh bergantung pada database — harus di sini.
+ *
+ * Baris template AKTIF (`is_library = false`) tidak akan pernah ikut terhapus
+ * walau slug-nya lolos cek, jadi menghapus item library tidak bisa merusak
+ * desain yang sedang dipakai website.
+ */
+export async function deleteSavedTemplate(opts: {
+  libraryId: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const id = opts.libraryId;
+  if (!id || !isLibrarySlug(id)) {
+    return { ok: false, error: "Template tidak valid" };
+  }
+
+  try {
+    const res = await fetch(`/api/templates?libraryId=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    const json = (await res.json().catch(() => null)) as
+      | { success?: boolean; error?: string }
+      | null;
+    if (!res.ok || !json?.success) {
+      return { ok: false, error: json?.error ?? `Gagal menghapus template (HTTP ${res.status})` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Gagal menghapus template',
+    };
+  }
 }
 
 /** Katalog varian milik template (dipakai sebelum registry statis). */

@@ -93,8 +93,15 @@ export default function PageBuilderPage() {
         // Seed dari sections TEMPLATE, bukan config.sections global yang bisa
         // jadi snapshot basi.
         const savedPageSections = (Array.isArray(config.sections) ? config.sections : []) as unknown[];
+        // `catalog_template_id` ada DI DALAM custom_config (hasil PUT whitelist),
+        // bukan di `data` tingkat atas — membacanya dari `cfgJson.data` selalu
+        // undefined sehingga seed sections template tidak pernah kepakai.
+        const catalogTemplateId =
+          typeof (config as Record<string, unknown>).catalog_template_id === "string"
+            ? ((config as Record<string, unknown>).catalog_template_id as string)
+            : null;
         const templateSections =
-          (BUILT_IN_CATALOG.find((t) => t.id === cfgJson.data.catalog_template_id)?.data?.sections ??
+          (BUILT_IN_CATALOG.find((t) => t.id === catalogTemplateId)?.data?.sections ??
             (config as Record<string, unknown>).template_sections ??
             []) as unknown[];
         const pageSections =
@@ -148,6 +155,13 @@ export default function PageBuilderPage() {
             template: seedTemplate,
             headerVariantId,
             footerVariantId,
+            // Warna tema tersimpan hanya hidup di `palette_override`
+            // (builder-store). Tanpa mirror ke `themeOverride` di sini, kanvas
+            // masih benar karena `paletteOverride` ikut di-merge, TAPI
+            // StyleSelector menghitung "N diubah" dari `themeOverride` — jadi
+            // panel Tema tampak kosong padahal warnanya sudah tersimpan.
+            // Efek sampingnya: preset warna aktif tidak terdeteksi.
+            themeOverride: (cfgRec.palette_override ?? {}) as Record<string, string>,
             ...(typeof cfgRec.customCss !== "string" || !cfgRec.customCss
               ? { customCss: (seedTemplate as { customCss?: string }).customCss ?? "" }
               : {}),

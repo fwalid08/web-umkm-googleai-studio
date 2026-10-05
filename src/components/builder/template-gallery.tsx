@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, ExternalLink, Lock, Library } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, ExternalLink, Lock, Library, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -30,6 +30,13 @@ interface TemplateGalleryProps {
    * lengkap, bukan referensi ke katalog.
    */
   onApplySaved?: (saved: SavedTemplateEntry) => void | Promise<void>;
+  /**
+   * Hapus template library user. Hanya berlaku untuk item `source: 'saved'` —
+   * template bawaan (katalog) tidak bisa dihapus. Setelah berhasil, galeri
+   * memuat ulang daftarnya sendiri supaya kartu yang dihapus hilang tanpa
+   * reload halaman.
+   */
+  onDeleteSaved?: (saved: SavedTemplateEntry) => void | Promise<void>;
   onClose?: () => void;
   userTier?: string;
 }
@@ -47,7 +54,7 @@ interface UnifiedTemplate {
   saved?: SavedTemplateEntry;
 }
 
-export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, onClose, userTier }: TemplateGalleryProps) {
+export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, onDeleteSaved, onClose, userTier }: TemplateGalleryProps) {
   void websiteId;
   void onClose;
   const [loading] = useState(false);
@@ -59,6 +66,35 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, o
   // Satu tab untuk keduanya supaya tidak ada daftar "cuma satu" yang terasa
   // seperti fitur setengah jadi.
   const [tab, setTab] = useState<'catalog' | 'library'>('catalog');
+
+  /**
+ * Muat ulang daftar library saja.
+ *
+ * Dipisah dari effect mount supaya bisa dipanggil ulang setelah hapus tanpa
+ * menyalakan ulang seluruh state UI (tab, pencarian, paginasi) dan tanpa
+ * reload halaman.
+ */
+  const loadSavedTemplates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/templates?library=1');
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data?.saved)) {
+        setSavedTemplates(json.data.saved as SavedTemplateEntry[]);
+      }
+    } catch {
+      // Gagal memuat library tidak boleh memblokir galeri katalog.
+    }
+  }, []);
+
+  // Id template yang sedang dihapus — menonaktifkan + spinner hanya pada kartu
+  // itu, bukan seluruh galeri.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Dialog konfirmasi hapus. Dipisah dari `showApplyDialog` karena aksi ini
+  // merusak (hapus aset user) dan harus punya konfirmasi tersendiri.
+  const [showDeleteDialog, setShowDeleteDialog] = useState<{
+    saved: SavedTemplateEntry | null;
+    open: boolean;
+  }>({ saved: null, open: false });
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +205,20 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, o
     }
   };
 
+  const handleDeleteSaved = async (saved: SavedTemplateEntry) => {
+    if (!onDeleteSaved) return;
+    setDeletingId(saved.id);
+    try {
+      await onDeleteSaved(saved);
+      // Muat ulang daftar supaya kartu hilang sesuai kondisi server. Kalau
+      // hapus ternyata gagal, daftar tidak berubah dan pesan error dari parent
+      // yang tampil — jadi tidak ada state yang mengklaim berhasil padahal tidak.
+      await loadSavedTemplates();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   /**
    * Ubah entri library menjadi `UnifiedTemplate` supaya bisa dirender oleh
    * `TemplateCard` yang SAMA dengan katalog — bukan kartu terpisah yang
@@ -227,10 +277,19 @@ const colors = getStyleColors(template.data);
     setShowApplyDialog({ template, open: true });
   };
 
+  const handleDelete = () => {
+    // Hanya item library yang punya entri `saved`; template bawaan tidak bisa
+    // dihapus sehingga tombolnya tidak pernah dirender untuk mereka.
+    if (!template.saved) return;
+    setShowDeleteDialog({ saved: template.saved, open: true });
+  };
+
+  const isDeleting = deletingId === template.id;
+
     return (
       <div
         key={template.id}
-        className={`group h-full flex flex-col p-3 gap-2.5 transition-all border-2 rounded-xl border-primary/20 bg-primary/5 hover:border-primary/50 hover:shadow-md ${applyingTemplateId === template.id ? 'opacity-70 pointer-events-none' : ''}`}
+        className={`group h-full flex flex-col p-3 gap-2.5 transition-all border-2 rounded-xl border-primary/20 bg-primary/5 hover:border-primary/50 hover:shadow-md ${applyingTemplateId === template.id || isDeleting ? 'opacity-70 pointer-events-none' : ''}`}
         role="button"
         tabIndex={0}
       >
@@ -285,6 +344,26 @@ const colors = getStyleColors(template.data);
             {onPreview && (
               <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
                 <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
+              </Button>
+            )}
+            {template.saved && (
+              // `e.stopPropagation()` wajib: kartu punya role="button" dan
+              // `handleApply`, jadi tanpa itu klik Hapus ikut membuka dialog
+              // "Terapkan".
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2.5 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
+                disabled={isDeleting}
+                title="Hapus template ini dari library"
+                aria-label={`Hapus template ${template.name}`}
+                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+              >
+                {isDeleting ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menghapus</>
+                ) : (
+                  <><Trash2 className="w-3.5 h-3.5 mr-1" /> Hapus</>
+                )}
               </Button>
             )}
 </div>
@@ -444,6 +523,53 @@ const colors = getStyleColors(template.data);
             </Button>
             <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={() => { handleApply(showApplyDialog.template!); setShowApplyDialog({ template: null, open: false }); }} disabled={applyingTemplateId === showApplyDialog.template?.id}>
               {applyingTemplateId === showApplyDialog.template?.id ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Konfirmasi hapus library. Tone destructive + menyebut nama template
+          supaya user tidak salah klik saat daftar sudah panjang. */}
+      <Dialog
+        open={showDeleteDialog.open}
+        onOpenChange={(open) => setShowDeleteDialog({ ...showDeleteDialog, open })}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-red-600" /> Hapus template tersimpan?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Template <strong>{showDeleteDialog.saved?.name}</strong> akan dihapus permanen dari
+            library. Website yang sedang dipakai <strong>tidak</strong> ikut berubah — hanya
+            salinan desainnya yang hilang.
+          </p>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 flex-1"
+              onClick={() => setShowDeleteDialog({ saved: null, open: false })}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 px-2.5 flex-1"
+              disabled={!showDeleteDialog.saved || deletingId !== null}
+              onClick={() => {
+                const target = showDeleteDialog.saved;
+                setShowDeleteDialog({ saved: null, open: false });
+                if (target) void handleDeleteSaved(target);
+              }}
+            >
+              {deletingId ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menghapus...</>
+              ) : (
+                <><Trash2 className="w-3.5 h-3.5 mr-1" /> Ya, Hapus</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

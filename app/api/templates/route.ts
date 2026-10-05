@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { isCatalogTemplateAllowedForTier } from "@/lib/builder/templates/catalog";
-import { DEFAULT_LIBRARY_NAME } from "@/lib/builder/template-library";
+import { DEFAULT_LIBRARY_NAME, isLibrarySlug } from "@/lib/builder/template-library";
 
 /**
  * GET /api/templates — daftar template statis + flag locked per tier.
@@ -84,6 +84,82 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Templates error:", error);
+    return NextResponse.json({ success: false, error: "Terjadi kesalahan server" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/templates?libraryId=saved-<uuid> — hapus template library user.
+ *
+ * Kenapa `libraryId` harus prefix `saved-`: `user_templates` dipakai dua
+ * peran — baris `is_library = true` (aset yang bisa dipilih ulang) dan
+ * `is_library = false` (template AKTIF website). Kalau filter `is_library`
+ * dilepas, user bisa menghapus desain yang sedang dipakai hanya dengan
+ * mengetik slug katalog ('food') — website jadi kehilangan config-nya.
+ *
+ * Validasi berlapis, semua wajib:
+ *   1. `isLibrarySlug` — tolak slug katalog sebelum menyentuh DB.
+ *   2. `.eq("user_id", userId)` — RLS dimatikan di 026, jadi scoping hanya
+ *      bisa dilakukan di sini. Tanpa ini satu user bisa hapus library user lain.
+ *   3. `.eq("is_library", true)` — hanya baris aset library.
+ * Baris yang tidak ketemu mengembalikan 404, bukan sukses diam-diam, supaya
+ * UI bisa membedakan "hapus gagal" dari "sudah terhapus".
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth().catch(() => null);
+    const userId = (session?.user as { id?: string })?.id;
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const libraryId = request.nextUrl.searchParams.get("libraryId") ?? "";
+    if (!isLibrarySlug(libraryId)) {
+      return NextResponse.json({ success: false, error: "Template tidak valid" }, { status: 400 });
+    }
+
+    const jar = await cookies();
+    const authToken =
+      jar.get("authjs.session-token")?.value ??
+      jar.get("__Secure-authjs.session-token")?.value;
+    const supabase = await createServerSupabaseClient(authToken);
+
+    const { data: rows, error: selectError } = await supabase
+      .from("user_templates")
+      .select("template_slug, name")
+      .eq("user_id", userId)
+      .eq("template_slug", libraryId)
+      .eq("is_library", true)
+      .limit(1);
+
+    if (selectError) {
+      console.error("Select library template error:", selectError);
+      return NextResponse.json({ success: false, error: "Gagal menghapus template" }, { status: 500 });
+    }
+    const row = (rows ?? [])[0] as { template_slug?: string; name?: string } | undefined;
+    if (!row) {
+      return NextResponse.json({ success: false, error: "Template tidak ditemukan" }, { status: 404 });
+    }
+
+    const { error: deleteError } = await supabase
+      .from("user_templates")
+      .delete()
+      .eq("user_id", userId)
+      .eq("template_slug", libraryId)
+      .eq("is_library", true);
+
+    if (deleteError) {
+      console.error("Delete library template error:", deleteError);
+      return NextResponse.json({ success: false, error: "Gagal menghapus template" }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: { library: { template_slug: libraryId } },
+      message: `Template "${row.name || DEFAULT_LIBRARY_NAME}" dihapus dari library`,
+    });
+  } catch (error) {
+    console.error("Delete template error:", error);
     return NextResponse.json({ success: false, error: "Terjadi kesalahan server" }, { status: 500 });
   }
 }

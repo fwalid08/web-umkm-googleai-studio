@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Library, Loader2, LayoutTemplate } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Check, Library, Loader2, LayoutTemplate, Trash2 } from "lucide-react";
 import {
   applySavedTemplate,
+  deleteSavedTemplate,
   savedToCatalogEntry,
   type SavedTemplateEntry,
 } from "@/lib/builder/apply-template";
@@ -58,6 +59,23 @@ export function TemplatePicker({
   const [savedLoading, setSavedLoading] = useState(true);
   // Dialog konfirmasi sebelum template diterapkan.
   const [pending, setPending] = useState<CatalogEntry | null>(null);
+  // Id template library yang sedang dihapus (spinner hanya di kartu itu).
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Template library yang menunggu konfirmasi hapus.
+  const [pendingDelete, setPendingDelete] = useState<SavedTemplateEntry | null>(null);
+
+  /** Muat ulang daftar library — dipakai setelah hapus. */
+  const loadSavedTemplates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/templates?library=1");
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data?.saved)) {
+        setSavedTemplates(json.data.saved as SavedTemplateEntry[]);
+      }
+    } catch {
+      // Gagal memuat library tidak boleh memblokir pilihan katalog.
+    }
+  }, []);
 
   // Library design milik user (disimpan lewat "Simpan sebagai Template").
   useEffect(() => {
@@ -79,6 +97,32 @@ export function TemplatePicker({
       cancelled = true;
     };
   }, []);
+
+  /**
+   * Hapus salinan library. Template aktif website tidak tersentuh, jadi
+   * kartu "Aktif" di atas dan tampilan website tetap sama.
+   */
+  const confirmDeleteSaved = async () => {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (!target) return;
+    setDeletingId(target.id);
+    setError("");
+    setNotice("");
+    try {
+      const result = await deleteSavedTemplate({ libraryId: target.id });
+      if (result.ok) {
+        setNotice(`Template "${target.name}" dihapus dari library.`);
+      } else {
+        setError(result.error ?? "Gagal menghapus template");
+      }
+      // Muat ulang dari server: kalau hapus ternyata gagal, daftar tetap sama
+      // sehingga kartu tidak hilang palsu.
+      await loadSavedTemplates();
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   /** Entri library + template katalog dasarnya, untuk dirender kartu sama. */
   const savedEntries = useMemo(
@@ -220,28 +264,51 @@ export function TemplatePicker({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {savedEntries.map(({ saved, entry }) => (
-              <PickerCard
-                key={saved.id}
-                tpl={{ ...entry, id: saved.id, name: saved.name } as CatalogEntry}
-                isActive={false}
-                applying={busyId === saved.id}
-                isSaved
-                onSelect={() => {
-                  setError("");
-                  setNotice("");
-                  setBusyId(saved.id);
-                  void (async () => {
-                    const result = await applySavedTemplate({ websiteId, saved });
-                    if (result.ok) {
-                      setNotice(`Template "${saved.name}" sekarang dipakai website kamu.`);
-                      onTemplateApplied?.(saved.base_slug ?? saved.id);
-                    } else {
-                      setError(result.error ?? "Gagal memakai template");
-                    }
-                    setBusyId(null);
-                  })();
-                }}
-              />
+              <div key={saved.id} className="relative">
+                <PickerCard
+                  tpl={{ ...entry, id: saved.id, name: saved.name } as CatalogEntry}
+                  isActive={false}
+                  applying={busyId === saved.id}
+                  isSaved
+                  onSelect={() => {
+                    setError("");
+                    setNotice("");
+                    setBusyId(saved.id);
+                    void (async () => {
+                      const result = await applySavedTemplate({ websiteId, saved });
+                      if (result.ok) {
+                        setNotice(`Template "${saved.name}" sekarang dipakai website kamu.`);
+                        onTemplateApplied?.(saved.base_slug ?? saved.id);
+                      } else {
+                        setError(result.error ?? "Gagal memakai template");
+                      }
+                      setBusyId(null);
+                    })();
+                  }}
+                />
+                {/* Tombol hapus — action terpisah dari "klik kartu = terapkan"
+                    supaya desain tidak mungkin terhapus tidak sengaja. */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="absolute right-2 top-2 z-10 border-red-200 bg-white/90 text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900/90 dark:text-red-300 dark:hover:bg-red-950/40"
+                  disabled={deletingId === saved.id}
+                  title="Hapus template ini dari library"
+                  aria-label={`Hapus template ${saved.name}`}
+                  onClick={() => {
+                    setError("");
+                    setNotice("");
+                    setPendingDelete(saved);
+                  }}
+                >
+                  {deletingId === saved.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                </Button>
+              </div>
             ))}
           </div>
         )}
@@ -252,6 +319,46 @@ export function TemplatePicker({
           onClose={() => setPending(null)}
           onConfirm={(tpl) => void confirmApply(tpl)}
         />
+        {/* Dialog konfirmasi hapus template library. */}
+        <Dialog
+          open={!!pendingDelete}
+          onOpenChange={(open) => {
+            if (!open) setPendingDelete(null);
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-600" /> Hapus template tersimpan?
+              </DialogTitle>
+              <DialogDescription>
+                Template <strong>{pendingDelete?.name}</strong> akan dihapus permanen dari
+                library. Website yang sedang dipakai <strong>tidak</strong> ikut berubah — hanya
+                salinan desainnya yang hilang.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setPendingDelete(null)}>
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => void confirmDeleteSaved()}
+                disabled={deletingId !== null}
+              >
+                {deletingId !== null ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menghapus…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" /> Ya, Hapus
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

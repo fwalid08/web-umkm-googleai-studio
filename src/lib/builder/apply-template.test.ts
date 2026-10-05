@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   applyTemplateToWebsite,
   buildTemplateCustomConfig,
+  deleteSavedTemplate,
   isLibraryTemplate,
   resolveStoreTemplate,
   resolveTemplateId,
@@ -133,6 +134,130 @@ describe('apply-template: template library', () => {
     } finally {
       globalThis.fetch = origFetch;
     }
+  });
+});
+
+describe('deleteSavedTemplate: hapus template library', () => {
+  const LIB = 'saved-3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+
+  it('menolak slug katalog sebelum menyentuh jaringan', async () => {
+    // Slug katalog ('food') milik template AKTIF website. Kalau lolos ke
+    // server tanpa validasi, user bisa menghapus desain yang sedang dipakai.
+    const origFetch = globalThis.fetch;
+    let called = false;
+    globalThis.fetch = (async () => {
+      called = true;
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      for (const bad of ['food', '', 'builtin-food', 'system-food', 'savedx']) {
+        const res = await deleteSavedTemplate({ libraryId: bad });
+        expect(res.ok, `"${bad}" harus ditolak`).toBe(false);
+        expect(res.error).toBe('Template tidak valid');
+      }
+      expect(called, 'validasi harus terjadi sebelum fetch').toBe(false);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('mengirim DELETE ke /api/templates dengan libraryId ter-encode', async () => {
+    const seen: Array<{ url: string; method: string }> = [];
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      seen.push({ url: String(url), method: String(init?.method ?? 'GET') });
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      const res = await deleteSavedTemplate({ libraryId: LIB });
+      expect(res.ok).toBe(true);
+      expect(seen).toHaveLength(1);
+      expect(seen[0].method).toBe('DELETE');
+      expect(seen[0].url).toBe(`/api/templates?libraryId=${LIB}`);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('meneruskan pesan error server (mis. 404 "Template tidak ditemukan")', async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ success: false, error: 'Template tidak ditemukan' }), {
+        status: 404,
+      })) as typeof fetch;
+    try {
+      const res = await deleteSavedTemplate({ libraryId: LIB });
+      expect(res.ok).toBe(false);
+      expect(res.error).toBe('Template tidak ditemukan');
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('menangkap error jaringan alih-alih melempar ke UI', async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error('Network down');
+    }) as typeof fetch;
+    try {
+      const res = await deleteSavedTemplate({ libraryId: LIB });
+      expect(res.ok).toBe(false);
+      expect(res.error).toBe('Network down');
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+});
+
+describe('REGRESI: endpoint DELETE /api/templates wajib aman', () => {
+  /** RLS dimatikan di 026 — seluruh scoping hanya bisa rely pada filter query. */
+  const route = () => repoFile('app', 'api', 'templates', 'route.ts');
+
+  it('hanya boleh menghapus baris is_library milik user sendiri', () => {
+    const src = route();
+    expect(src).toContain('export async function DELETE');
+    // Prefix `saved-` = aset library; tanpa filter ini template aktif bisa
+    // ikut terhapus dan website kehilangan config-nya.
+    expect(src).toContain('isLibrarySlug(libraryId)');
+    expect(src).toContain('.eq("user_id", userId)');
+    expect(src).toContain('.eq("is_library", true)');
+  });
+
+  it('tidak memakai service-role untuk hapus (harus ikut sesi user)', () => {
+    const block = route().slice(route().indexOf('export async function DELETE'));
+    expect(block).not.toContain('createServiceSupabaseClient');
+    expect(block).toContain('createServerSupabaseClient');
+  });
+
+  it('kedua tempat menampilkan library punya aksi hapus', () => {
+    // Tanpa tombol di kedua tempat, user tidak bisa menghapus template yang
+    // baru saja ia simpan — persis keluhan yang dilaporkan.
+    //
+    // Bentuk implementasinya berbeda dan itu disengaja:
+    //   - builder-sidebar menyimpan logic (pakai deleteSavedTemplate),
+    //   - template-picker memanggil helper itu langsung (halaman /web-design
+    //     tidak lewat builder, jadi tidak ada sidebar di antaranya).
+    const sidebar = repoFile('src', 'components', 'builder', 'builder-sidebar.tsx');
+    expect(sidebar, 'sidebar harus memanggil deleteSavedTemplate').toContain('deleteSavedTemplate');
+    expect(sidebar).toContain('onDeleteSaved');
+
+    for (const parts of [
+      ['src', 'components', 'builder', 'template-gallery.tsx'],
+      ['src', 'components', 'customize', 'template-picker.tsx'],
+    ]) {
+      const src = repoFile(...parts);
+      expect(src, `${parts.join('/')} harus punya tombol hapus`).toContain('Trash2');
+      expect(src, `${parts.join('/')} harus konfirmasi sebelum hapus`).toContain('Hapus template tersimpan?');
+    }
+  });
+
+  it('template bawaan (katalog) tidak punya tombol hapus', () => {
+    // Tombol hanya dirender kalau `template.saved` ada; template katalog
+    // tidak pernah punya entri itu sehingga tidak bisa dihapus dari UI.
+    const gallery = repoFile('src', 'components', 'builder', 'template-gallery.tsx');
+    expect(gallery).toContain('template.saved &&');
+    // Server juga menolak: `isLibrarySlug('food')` = false.
+    expect(route()).toContain('isLibrarySlug(libraryId)');
   });
 });
 

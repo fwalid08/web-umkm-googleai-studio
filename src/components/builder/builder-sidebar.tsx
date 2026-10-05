@@ -56,6 +56,7 @@ import type { BusinessCategory } from '@/lib/builder/templates/catalog';
 import {
   applyTemplateToWebsite,
   applySavedTemplate,
+  deleteSavedTemplate,
   resolveStoreTemplate,
   type ApplyableTemplate,
 } from '@/lib/builder/apply-template';
@@ -581,6 +582,15 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
                 // Muat ulang builder supaya kanvas/header/footer mengikuti
                 // template yang baru dipakai.
                 window.location.reload();
+              }}
+              onDeleteSaved={async (saved) => {
+                setApplyError('');
+                // Hapus hanya salinan library. Template aktif website tidak
+                // tersentuh, jadi kanvas user tetap utuh — tidak perlu reload.
+                const result = await deleteSavedTemplate({ libraryId: saved.id });
+                if (!result.ok) {
+                  setApplyError(result.error ?? 'Gagal menghapus template');
+                }
               }}
               onPreview={(template: any) => {
                 if (!template?.id) return;
