@@ -1,10 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { renderNavItems, renderVariantHtml } from "@/lib/builder/behaviour-script";
+import {
+  renderNavItems,
+  renderVariantHtml,
+  resolveYearToken,
+} from "@/lib/builder/behaviour-script";
 
 const NAV = [
   { id: "n1", label: "Beranda", url: "#beranda", enabled: true },
   { id: "n2", label: "Harga", url: "#harga", enabled: true },
 ];
+
+describe("resolveYearToken", () => {
+  const year = String(new Date().getFullYear());
+
+  it("mengganti {year} dengan tahun berjalan", () => {
+    expect(resolveYearToken("© {year} Toko")).toBe(`© ${year} Toko`);
+  });
+
+  it("mengganti SEMUA kemunculan", () => {
+    expect(resolveYearToken("{year} a {year} b {year}")).toBe(`${year} a ${year} b ${year}`);
+  });
+
+  it("tidak menyentuh placeholder lain", () => {
+    expect(resolveYearToken("{{year}} {tahun}")).toBe("{{year}} {tahun}");
+  });
+
+  it("aman untuk string kosong/null-ish", () => {
+    expect(resolveYearToken("")).toBe("");
+  });
+
+  it("regresi: {year} di dalam NILAI config ikut diganti", () => {
+    // Ini kasus/user-facing yang sebenarnya: `{year}` berada di config.text,
+    // bukan di template HTML. Pipeline harus menggantinya setelah
+    // substitusi `{{key}}`, bukan sebelumnya.
+    const out = renderVariantHtml("<p>{{text}}</p>", { text: "© {year} Emerald Laundry" });
+    expect(out).toContain(year);
+    expect(out).not.toContain("{year}");
+  });
+});
 
 describe("renderNavItems", () => {
   it("me-render deretan link (bukan [object Object])", () => {

@@ -217,6 +217,25 @@ describe("kontrak template unik (§18)", () => {
     }
   });
 
+  it("setiap varian footer TIDAK menampilkan {year} mentah ke pengguna", () => {
+    // Regresi nyata: `{year}` hanya diganti di branch renderer GENERIK
+    // (`site-footer-shared.tsx`), sedangkan varian unik keluar lewat
+    // early-return `variant.html` — sehingga live site menampilkan
+    // "© {year} Emerald Laundry" apa adanya. Guard lama hanya mengecek
+    // seed `data.footer.text` berisi `{year}`, bukan hasil render-nya.
+    const year = String(new Date().getFullYear());
+    for (const t of uniqueTemplates) {
+      for (const f of t.footers) {
+        const out = renderVariantHtml(f.html as string, f.defaultConfig);
+        expect(out, `${t.id}/footer/${f.id}: {year} bocor ke tampilan`).not.toContain("{year}");
+        // Kalau variannya memang punya copyright, pastikan tahun terpakai.
+        if (typeof f.defaultConfig.text === "string" && String(f.defaultConfig.text).includes("{year}")) {
+          expect(out, `${t.id}/footer/${f.id}: tahun tidak ter-render`).toContain(year);
+        }
+      }
+    }
+  });
+
   it("file template tidak mengimpor sistem generik", () => {
     const here = dirname(fileURLToPath(import.meta.url));
     for (const t of uniqueTemplates) {

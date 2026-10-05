@@ -283,6 +283,28 @@ function expandLoops(
 }
 
 /**
+ * Ganti `{year}` dengan tahun berjalan.
+ *
+ * Dijalankan di akhir pipeline render, SETELAH substitusi `{{key}}` — karena
+ * `{year}` biasanya berada di dalam nilai config (`config.text`), bukan di
+ * template HTML itu sendiri, jadi belum muncul sebelum tahap itu.
+ *
+ * Kenapa perlu: `{year}` dulu hanya diganti di `site-footer-shared.tsx`, di
+ * branch renderer GENERIK. Varian dengan `html` kustom keluar lewat
+ * early-return sebelum baris itu, sehingga footer template unik menampilkan
+ * `{year}` apa adanya ke pengguna. Menaruhnya di sini menutup semua
+ * permukaan sekaligus — section, header, footer, kanvas, dan live site.
+ *
+ * Sengaja TIDAK `{{year}}`: tahun berjalan bukan konten yang boleh diubah
+ * merchant, jadi tidak perlu jadi field form. Lookaround di bawah juga
+ * menjaga agar `{{year}}` (yang sudah dimakan substitusi `{{key}}`) tidak
+ * ikut terganti bila urutan pipeline berubah.
+ */
+export function resolveYearToken(html: string): string {
+  return (html ?? '').replace(/(?<!\{)\{year\}(?!\})/g, String(new Date().getFullYear()));
+}
+
+/**
  * Render HTML kustom varian dengan nilai config (v3.0).
  *
  * - `{{key}}` diganti `config[key]` (di-escape).
@@ -294,6 +316,7 @@ function expandLoops(
  * - Blok loop `{{#items}}…{{/items}}` mengulang isi per elemen (kartu,
  *   artikel, statistik, langkah, galeri). Di dalam blok, `{{field}}`
  *   diambil dari item; `{{.}}` untuk elemen primitif.
+ * - `{year}` diganti tahun berjalan (lihat `resolveYearToken`).
  * - Hasil akhir disanitasi lewat `sanitizeTemplateHtml`.
  */
 export function renderVariantHtml(
@@ -313,7 +336,8 @@ export function renderVariantHtml(
   out = out.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, key: string) => {
     return resolvePlaceholder(key, config ?? {}, htmlFieldKeys, false);
   });
-  return sanitizeTemplateHtml(out);
+  // Setelah substitusi: nilai `config.text` baru memuat `{year}` di titik ini.
+  return sanitizeTemplateHtml(resolveYearToken(out));
 }
 
 /** Kumpulkan key field bertipe `html` (termasuk nested `itemFields`). */
