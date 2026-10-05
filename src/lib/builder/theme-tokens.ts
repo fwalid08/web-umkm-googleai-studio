@@ -4,6 +4,7 @@ import {
   resolveContrastTokens,
   type ContrastContract,
 } from './contrast-contract';
+import type { Template } from './template-types';
 import type { DesignStylePalette, DesignStyleTypography } from './types';
 
 /**
@@ -66,6 +67,30 @@ export function buildThemeTokens(
   Object.assign(tokens, resolveContrastTokens(palette, options.contrast).tokens);
 
   return tokens;
+}
+
+/**
+ * Bentuk template yang dipakai saat RENDER (live site & preview).
+ *
+ * WAJIB spread — jangan menyalin field satu per satu. Dulu `app/page.tsx`
+ * menulis `template: { id, name, description, category, theme, headers,
+ * footers, sections }`, sehingga setiap field baru yang ditambahkan ke
+ * `Template` diam-diam hilang di live site. `contrast` (§19) hilang begitu,
+ * token turunan kontras tak pernah dibuat, dan kanvas tampil benar padahal
+ * live site tidak. Gejalanya persis sama dengan `{year}` yang bocor hanya
+ * di satu permukaan — tapi akarnya bukan urutan cabang, melainkan daftar
+ * field yang tidak lengkap.
+ *
+ * `typography` opsional untuk theme yang bisa dioverrides user.
+ */
+export function buildRenderTemplate<T extends Template>(
+  catalog: T,
+  typography?: DesignStyleTypography,
+): T {
+  return {
+    ...catalog,
+    theme: typography ? { ...catalog.theme, typography } : catalog.theme,
+  };
 }
 
 /** Daftar semua `var(--x)` yang dipakai sebuah string HTML/CSS. */

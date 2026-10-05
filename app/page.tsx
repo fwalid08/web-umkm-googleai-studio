@@ -5,6 +5,7 @@ import { getTenantSite } from "@/lib/builder/public";
 import { PublicWebsite } from "@/components/website/renderer";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
+import { buildRenderTemplate } from "@/lib/builder/theme-tokens";
 import { getSectionVariant } from "@/lib/builder/sections/registry";
 import { adminUrl } from "@/lib/urls";
 
@@ -65,19 +66,18 @@ export default async function Home() {
         return (
           <PublicWebsiteV3
             site={{
-              template: {
-                id: catalogTemplate.id,
-                name: catalogTemplate.name,
-                description: catalogTemplate.description,
-                category: catalogTemplate.category,
-                theme: {
-                  ...catalogTemplate.theme,
-                  typography: site.v3Typography ?? catalogTemplate.theme.typography,
-                },
-                headers: catalogTemplate.headers,
-                footers: catalogTemplate.footers,
-                sections: catalogTemplate.sections,
-              },
+              // WAJIB lewat `buildRenderTemplate` (spread), BUKAN menyalin
+              // field satu per satu. Dulu hanya id/name/theme/headers/
+              // footers/sections yang disalin, sehingga `contrast` (§19)
+              // hilang di live site: token turunan kontras tak pernah dibuat,
+              // `var(--color-accent-on-primary)` jadi tak terdefinisi, teks
+              // jatuh ke warna warisan. Kanvas tetap benar karena memakai
+              // objek template utuh — persis kelas bug yang sama seperti
+              // `{year}`, hanya muncul di satu permukaan.
+              template: buildRenderTemplate(
+                catalogTemplate,
+                site.v3Typography ?? catalogTemplate.theme.typography,
+              ),
               headerVariantId,
               footerVariantId,
               sections: site.builderSections,

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { BUILT_IN_CATALOG, getCatalogTemplate } from "./catalog";
 import { FONT_CATEGORIES } from "../font-categories";
 import { renderVariantHtml, sanitizeTemplateCss } from "../behaviour-script";
-import { buildThemeTokens, extractUsedCssVars } from "../theme-tokens";
+import { buildRenderTemplate, buildThemeTokens, extractUsedCssVars } from "../theme-tokens";
 import type { ConfigField } from "../template-types";
 
 /**
@@ -218,6 +218,71 @@ describe("kontrak template unik (§18)", () => {
   });
 
   const allFooters = () => uniqueTemplates.flatMap((t) => t.footers.map((f) => ({ t, f })));
+
+  it("buildRenderTemplate(): live site & canvas WAJIB dapat field yang sama", () => {
+    // Regresi yang sangat membingungkan: kanvas tampil benar, live site
+    // tidak. Akarnya `app/page.tsx` menyalin field template satu per satu
+    // (`id, name, description, category, theme, headers, footers, sections`)
+    // sehingga `contrast` — dan semua field yang belum ada saat ditulis —
+    // hilang di live site saja. Token kontras tak pernah dibuat, teks jatuh
+    // ke warna warisan.
+    //
+    // Guard ini mengunci INVARIAN, bukan implementasi: field apa pun yang
+    // ada di template katalog wajib ikut ke template render.
+    for (const t of uniqueTemplates) {
+      const live = buildRenderTemplate(t);
+      const missing = Object.keys(t).filter((k) => !(k in live));
+      expect(missing, `${t.id}: field hilang di template render: ${missing.join(', ')}`).toEqual([]);
+      expect(live.contrast, `${t.id}: kontrak kontras hilang di template render`).toBeDefined();
+      // Dan yang menentukan: token hasil render harus identik.
+      const palette = t.theme.palette;
+      const canvasTokens = buildThemeTokens(palette, t.theme.typography, t.theme.components.borderRadius, {
+        contrast: t.contrast,
+      });
+      const liveTokens = buildThemeTokens(palette, live.theme.typography, live.theme.components.borderRadius, {
+        contrast: live.contrast,
+      });
+      expect(liveTokens, `${t.id}: token kanvas ≠ token live`).toEqual(canvasTokens);
+    }
+  });
+
+  it("buildRenderTemplate(): typography bisa dioverride tanpa kehilangan field", () => {
+    for (const t of uniqueTemplates) {
+      const typo = { ...t.theme.typography, headingFont: "Anton" };
+      const live = buildRenderTemplate(t, typo);
+      expect(live.theme.typography.headingFont).toBe("Anton");
+      expect(live.contrast, 'override typography boleh merusak field lain').toBeDefined();
+      expect(live.sections.length).toBe(t.sections.length);
+    }
+  });
+
+  it("live site wajib membangun template lewat SPREAD, bukan menyalin field", () => {
+    // Sumber bug "kanvas benar, live site salah": `app/page.tsx` dulu
+    // menulis `template: { id, name, description, category, theme, headers,
+    // footers, sections }`. Daftar seperti ini TIDAK PERNAH error ketika
+    // field baru ditambahkan ke `Template` — fieldnya cuma hilang diam-diam
+    // di live site. `contrast` (§19) hilang begitu, token `--color-*-on-*`
+    // tak pernah dibuat di live site, dan `var(--color-accent-on-primary)`
+    // jatuh ke warna warisan. Preview lolos karena ia memakai objek utuh.
+    const page = readFileSync(join(process.cwd(), "app", "page.tsx"), "utf8");
+    const src = page
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+
+    // `[^}]*` TIDAK bisa dipakai — `theme: {...}` bersarang memutus pencocokan
+    // sebelum sampai `headers`. Self-test-nya wajib memakai struktur bersarang
+    // yang meniru kode asli; contoh datar akan membuat guard vacuous.
+    const BANNED = /template:\s*\{[\s\S]{0,800}?\bheaders:\s*\w+\.headers\b/;
+    // Self-test: regex wajib match sumber sintetis bersarang, agar guard tak
+    // pernah berhijau padahal polanya sudah tak cocok apa pun.
+    expect(
+      BANNED.test("template: { id: x.id, theme: { ...t.theme }, headers: x.headers }"),
+    ).toBe(true);
+    expect(BANNED.test("template: buildRenderTemplate(cat)")).toBe(false);
+
+    expect(src, "app/page.tsx menyalin field template satu per satu").not.toMatch(BANNED);
+    expect(src, "app/page.tsx tidak memakai buildRenderTemplate").toContain("buildRenderTemplate(");
+  });
 
   it("tiap toggle footer benar-benar mengubah render (bukan field UI mati)", () => {
     // Regresi nyata: `FOOTER_BASE` mendeklarasikan `showNav`/`showSocial`
