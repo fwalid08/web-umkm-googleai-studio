@@ -138,8 +138,6 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
   const selectSection = useTemplateStore((s) => s.selectSection);
   const addSection = useTemplateStore((s) => s.addSection);
 
-  const designStyleId = useBuilderStore((s) => s.designStyleId);
-
   useEffect(() => {
     const open = () => {
       setLevel('sections');

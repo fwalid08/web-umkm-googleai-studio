@@ -96,8 +96,6 @@ export interface TemplateLibraryItem {
  * maupun hasil simpan galeri (snake_case dari DB).
  */
 export interface FullTemplateData {
-  designStyleId?: string;
-  design_style_id?: string;
   /** Override warna tema (kunci camelCase atau snake_case). */
   paletteOverride?: Partial<DesignStylePalette>;
   palette_override?: Partial<DesignStylePalette>;
@@ -302,7 +300,6 @@ export interface FooterConfig {
 }
 
 export interface BuilderConfigV2 {
-  designStyleId: string;
   sections: Section[];
   header: HeaderConfig;
   footer: FooterConfig;

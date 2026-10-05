@@ -23,7 +23,6 @@ import {
   CATEGORY_LABELS,
   type BusinessCategory,
 } from "@/lib/builder/templates/catalog";
-import { DESIGN_STYLES } from "@/lib/builder/design-styles";
 import {
   applyTemplateToWebsite,
   resolveTemplateId,
@@ -389,8 +388,9 @@ function GridSection({
 }
 
 function styleName(tpl: CatalogEntry): string {
-  const designStyleId = tpl.data?.designStyleId ?? tpl.data?.design_style_id;
-  return DESIGN_STYLES.find((s) => s.id === designStyleId)?.name ?? designStyleId ?? "—";
+  // Label kategori adalah penanda yang tersisa di galeri — konsep design
+  // style & design type sudah dihapus (migrasi 046).
+  return CATEGORY_LABELS[tpl.category as BusinessCategory] ?? tpl.category;
 }
 
 function PendingDialog({
@@ -494,9 +494,12 @@ function PickerCard({
   isSaved?: boolean;
   onSelect: () => void;
 }) {
-  const designStyleId = tpl.data?.designStyleId ?? tpl.data?.design_style_id;
-  const style = DESIGN_STYLES.find((s) => s.id === designStyleId) ?? null;
-  const styleColors = style?.palette ?? { primary: "#15803D", secondary: "#0d9488" };
+  // Warna kartu sekarang dari palet template itu sendiri — katalog
+  // DESIGN_STYLES yang sebelumnya supplying warna sudah dihapus (migrasi 046).
+  const styleColors = {
+    primary: tpl.theme?.palette?.primary ?? "#15803D",
+    secondary: tpl.theme?.palette?.secondary ?? "#0d9488",
+  };
   return (
     <button
       type="button"

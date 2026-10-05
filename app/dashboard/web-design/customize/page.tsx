@@ -109,7 +109,6 @@ export default function PageBuilderPage() {
         loadConfig({
           // Layout per-halaman; global (header/footer/style) dari website.
           core: config.core,
-          designStyleId: config.design_style_id,
           palette_override: config.palette_override,
           sections: pageSections as never,
           header: config.header,
@@ -250,7 +249,6 @@ export default function PageBuilderPage() {
       sections: liveSections as never,
       header: { ...chromeHeader.config, variant: chromeHeader.variantId },
       footer: { ...chromeFooter.config, variant: chromeFooter.variantId, style: chromeFooter.variantId },
-      designStyleId: s.designStyleId,
       paletteOverride: s.paletteOverride,
       typographyOverride: s.typographyOverride as Record<string, string>,
       animations: t.animations as unknown[],
@@ -266,17 +264,16 @@ export default function PageBuilderPage() {
     // t.template.id SELALU kosong (store template tak pernah diisi dari server
     // sejak katalog statis dikosongkan) → PUT 404 "Template tidak ditemukan".
         const libMeta = libMetaRef.current;
-    // Kirim status tayang EKSPLISIT. Versi lama memakai
-    // `globalRef.current?.is_published !== false`, yang bernilai true saat
-    // undefined — artinya "Simpan" diam-diam ikut menayangkan halaman, membuat
-    // tombol Simpan dan Tayangkan tidak berbeda hasilnya.
-    const publishState = isPublished === true;
+    // TIDAK mengirim `is_published` sama sekali. Builder tidak punya konsep
+    // draft: "Simpan" hanya menulis ke library, jadi live site tidak boleh
+    // tersentuh. Server mempertahankan status yang ada (lihat
+    // `resolveNextIsPublished`). Hanya tombol "Tayangkan" yang menayangkannya.
     const saveAsTemplate = opts?.saveAsTemplate === true;
     const globalRes = await fetch(`/api/websites/${websiteId}/website`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        custom_config: { ...customConfig, is_published: publishState },
+        custom_config: customConfig,
         ...(saveAsTemplate
           ? { save_as_template: true, library_name: opts?.libraryName ?? "" }
           : {}),
@@ -286,11 +283,13 @@ export default function PageBuilderPage() {
     });
     const globalJson = await globalRes.json();
     if (!globalJson.success) throw new Error(globalJson.error ?? "Gagal menyimpan");
-        // Respons "Simpan sebagai template" TIDAK memuat `custom_config` — hanya
-    // mengembalikan baris library yang baru dibuat. Template aktif website tidak
-    // tersentuh aksi itu, jadi jangan menimpa globalRef/status tayang; kalau
-    // tidak, `undefined?.is_published === true` mengembalikan halaman ke Draft
-    // padahal tidak ada yang berubah.
+    // Respons "Simpan sebagai template" hanya memuat baris library yang baru
+    // dibuat — TIDAK memuat `custom_config`. Template aktif tidak tersentuh,
+    // jadi `globalRef` maupun status tayang tidak boleh ditimpa di sini.
+    //
+    // Cabang di bawah tetap dijaga untuk panggilan tanpa flag: kalau ada
+    // payload yang benar-benar menimpa template aktif, `globalRef` harus ikut
+    // disegarkan agar publish berikutnya tidak memakai base basi.
     if (!saveAsTemplate) {
       globalRef.current = globalJson.data.custom_config;
       // Segarkan status tayang dari respons server. Tanpa ini badge di topbar
@@ -301,11 +300,13 @@ export default function PageBuilderPage() {
     // dengan konten live agar indikator sesudah-save konsisten.
     useBuilderStore.setState({ sections: liveSections as never, saved: true });
     useTemplateStore.setState({ saved: true });
-  }, [websiteId, isPublished]);
+  }, [websiteId]);
 
   const handlePublishPage = useCallback(async () => {
     if (!websiteId) throw new Error("Website belum siap");
-    await handleSavePage();
+    // Tidak memanggil handleSavePage() lagi: "Simpan" sekarang hanya menulis ke
+    // library, sehingga memanggilnya di sini tidak ada gunanya. Satu PUT ini
+    // menimpa template aktif sekaligus menayangkannya.
     const s = useBuilderStore.getState();
     const t = useTemplateStore.getState();
     const libMeta = libMetaRef.current;
@@ -320,7 +321,6 @@ export default function PageBuilderPage() {
         sections: liveSections as never,
         header: s.header as unknown as Record<string, unknown>,
         footer: s.footer as unknown as Record<string, unknown>,
-        designStyleId: s.designStyleId,
         paletteOverride: s.paletteOverride,
         typographyOverride: s.typographyOverride as Record<string, string>,
         animations: t.animations as unknown[],
@@ -346,7 +346,7 @@ export default function PageBuilderPage() {
     globalRef.current = json.data.custom_config;
     // Badge Tayang/Draft di topbar harus langsungsinkron setelah publish.
     setIsPublished(true);
-  }, [websiteId, handleSavePage]);
+  }, [websiteId]);
 
   if (loading) {
     return (

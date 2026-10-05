@@ -195,7 +195,6 @@ function createEmptyTemplate(): Template {
     name: '',
     description: '',
     category: 'services',
-    designType: 'editorial',
     theme: {
       palette: {
         primary: '#333333',

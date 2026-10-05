@@ -6,6 +6,15 @@ import { BuilderSidebar } from './builder-sidebar';
 import { BuilderCanvas } from './builder-canvas';
 import { BuilderBottomBar } from './builder-bottom-bar';
 import { SaveDialog } from './save-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useBuilderStore } from '@/lib/builder/store';
 import { useTemplateStore } from '@/lib/builder/template-store';
 import {
@@ -17,7 +26,7 @@ import {
   SIDEBAR_MAX_WIDTH,
 } from '@/lib/builder/builder-ui';
 import { toast } from 'sonner';
-import { X, Monitor, Tablet, Smartphone } from 'lucide-react';
+import { X, Monitor, Tablet, Smartphone, Loader2 } from 'lucide-react';
 
 export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onShowTemplates, onSaveOverride, onPublishOverride, isPublished }: { websiteId: string; pageTitle?: string; siteUrl?: string | null; onShowPages?: () => void; onShowTemplates?: () => void; onSaveOverride?: (opts?: { saveAsTemplate?: boolean; libraryName?: string }) => Promise<void>; onPublishOverride?: () => Promise<void>; isPublished?: boolean }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -26,9 +35,12 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
   // Lebar sidebar bisa di-drag (desktop) dan disimpan antar sesi. Di HP
   // lebarnya dikunci ke drawer — resizer hanya aktif di pointer halus.
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
-  // Tombol Simpan membuka dialog dua pilihan (Save As); Ctrl+S tetap
-  // "simpan saja" supaya shortcut tidak terhalang dialog.
+  // Tombol "Simpan" (dan Ctrl+S) membuka dialog "Simpan sebagai template".
+  // Tidak ada lagi aksi "simpan saja": config kanvas hanya bisa disimpan ke
+  // library, dan hanya tombol "Tampilkan" yang menyentuh website publik.
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  // Konfirmasi sebelum menimpa template aktif yang sedang tayang.
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const saved = useBuilderStore((s) => s.saved);
   const templateSaved = useTemplateStore((s) => s.saved);
   const isSaved = saved && templateSaved;
@@ -90,6 +102,11 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
    * Pesan toast-nya dibedakan supaya user tahu apa yang sebenarnya terjadi —
    * template aktif website tidak ikut berubah pada mode ini.
    */
+  /**
+   * Ctrl+S memakai nama default tanpa membuka dialog — shortcut tidak boleh
+   * terhalang modal. Hasilnya tetap "Simpan sebagai template", bukan lagi
+   * "simpan ke website" yang bisa mengubah status tayang.
+   */
   const handleSave = useCallback(
     async (opts?: { asTemplate?: boolean; libraryName?: string }) => {
       setIsSaving(true);
@@ -98,13 +115,13 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         // (Builder Global dipensiunkan, store.save() dihapus).
         if (!onSaveOverride) throw new Error('Simpan hanya tersedia di page-builder');
         await onSaveOverride({
-          saveAsTemplate: opts?.asTemplate === true,
+          saveAsTemplate: true,
           libraryName: opts?.libraryName,
         });
         toast.success(
-          opts?.asTemplate
-            ? `Template "${opts?.libraryName || 'Desain saya'}" tersimpan di library`
-            : 'Perubahan tersimpan',
+          opts?.libraryName
+            ? `Template "${opts.libraryName}" tersimpan di library`
+            : 'Tersimpan sebagai template di library',
         );
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Gagal menyimpan');
@@ -138,7 +155,8 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        void handleSave();
+        // Sama seperti tombol: "Simpan sebagai template" dengan nama default.
+        void handleSave({ asTemplate: true });
       } else if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
@@ -253,7 +271,12 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         onOpenSaveDialog={() => setSaveDialogOpen(true)}
         // Tanpa `onPublishOverride` builder ini tidak punya konsep publish
         // (publish = alias save) → tombol Publish tidak dirender sama sekali.
-        onPublish={onPublishOverride ? handlePublish : undefined}
+        onPublish={
+          onPublishOverride
+            ? // Buka konfirmasi dulu — menimpa template aktif bersifat destruktif.
+              () => setPublishConfirmOpen(true)
+            : undefined
+        }
         isPublished={isPublished}
         onShowPages={onShowPages}
         onShowTemplates={onShowTemplates}
@@ -334,13 +357,51 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         onOpenChange={setSaveDialogOpen}
         dirty={!isSaved}
         saving={isSaving}
-        onSave={(choice, libraryName) => {
-          void handleSave({
-            asTemplate: choice === 'library',
-            libraryName,
-          });
+        onSave={(libraryName) => {
+          void handleSave({ asTemplate: true, libraryName });
         }}
       />
+
+      {/*
+        Konfirmasi menimpa template aktif. Ini satu-satunya aksi yang menyentuh
+        website publik, jadi efeknya harus eksplisit — bukan hasil samping
+        dari "Simpan".
+      */}
+      <Dialog open={publishConfirmOpen} onOpenChange={setPublishConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tayangkan desain ini?</DialogTitle>
+            <DialogDescription>
+              Template yang sedang tayang akan <strong>ditimpa</strong> oleh desain di
+              editor ini. Pengunjung akan langsung melihat perubahannya.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            Kalau belum yakin, tekan <strong>Batal</strong> lalu simpan desainnya
+            sebagai template dulu lewat &quot;Simpan Template&quot;.
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPublishConfirmOpen(false)}
+              disabled={isSaving}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                setPublishConfirmOpen(false);
+                void handlePublish();
+              }}
+              disabled={isSaving}
+              className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 font-bold"
+            >
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Tayangkan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

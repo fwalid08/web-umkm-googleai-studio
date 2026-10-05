@@ -315,9 +315,7 @@ export async function GET(
       customConfig = buildActiveCustomConfig(storedConfig);
       isDefault = false;
     } else {
-      customConfig = buildDefaultCustomConfig(
-        (site as unknown as { design_style_id?: string }).design_style_id,
-      );
+      customConfig = buildDefaultCustomConfig();
       isDefault = true;
     }
 
@@ -367,7 +365,7 @@ export async function PUT(
     const saveAsTemplate = body?.save_as_template === true;
     const libraryName = typeof body?.library_name === "string" ? body.library_name : "";
 
-    const hasNewFormat = body?.custom_config?.design_style_id !== undefined || body?.custom_config?.sections !== undefined;
+    const hasNewFormat = body?.custom_config?.sections !== undefined;
 
     const nextAuthToken = await getNextAuthToken();
 

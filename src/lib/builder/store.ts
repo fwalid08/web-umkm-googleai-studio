@@ -14,7 +14,6 @@ interface Snapshot {
   sections: Section[];
   core: CoreConfig;
   seo: { title: string; description: string };
-  designStyleId: string;
   paletteOverride: PaletteOverride;
   typographyOverride: TypographyOverride;
   header: HeaderConfig;
@@ -24,7 +23,6 @@ interface Snapshot {
 export interface BuilderState {
   core: CoreConfig;
   seo: { title: string; description: string };
-  designStyleId: string;
   paletteOverride: PaletteOverride;
   typographyOverride: TypographyOverride;
   sections: Section[];
@@ -48,7 +46,6 @@ export interface BuilderState {
   selectWidget: (id: string | null) => void;
 
   setViewportWidth: (width: number) => void;
-  setDesignStyle: (styleId: string) => void;
   updatePaletteOverride: (patch: PaletteOverride) => void;
   resetPaletteOverride: () => void;
   updateTypographyOverride: (patch: TypographyOverride) => void;
@@ -63,7 +60,7 @@ export interface BuilderState {
   updateHeader: (updates: Partial<HeaderConfig>) => void;
   updateFooter: (updates: Partial<FooterConfig>) => void;
 
-  loadConfig: (config: { core?: Partial<CoreConfig> | Record<string, unknown>; designStyleId?: string; design_style_id?: string; paletteOverride?: PaletteOverride; palette_override?: PaletteOverride; sections?: Section[]; header?: Partial<HeaderConfig>; footer?: Partial<FooterConfig>; theme?: Record<string, unknown> }) => void;
+  loadConfig: (config: { core?: Partial<CoreConfig> | Record<string, unknown>; paletteOverride?: PaletteOverride; palette_override?: PaletteOverride; sections?: Section[]; header?: Partial<HeaderConfig>; footer?: Partial<FooterConfig>; theme?: Record<string, unknown> }) => void;
   // `save`/`publish` dihapus: Builder Global (/dashboard/builder) dipensiunkan.
   // Penyimpanan sekarang milik page-builder (lihat app/dashboard/websites/
   // page-builder/[pageId]/page.tsx) yang memakai builderConfigSchema langsung.
@@ -151,7 +148,6 @@ export const useBuilderStore = create<BuilderState>()(
   immer((set, get) => ({
     core: createDefaultCore(),
     seo: { title: "", description: "" },
-    designStyleId: 'minimalist',
     paletteOverride: {},
     typographyOverride: {},
     sections: [],
@@ -229,16 +225,6 @@ export const useBuilderStore = create<BuilderState>()(
     setViewportWidth: (width) =>
       set((state) => {
         state.viewportWidth = width;
-      }),
-
-    setDesignStyle: (styleId) =>
-      set((state) => {
-        state.designStyleId = styleId;
-        // Ganti tema = skema warna mulai dari bawaan tema baru.
-        // Override lama tidak dibawa (menjadi sumber "rusak": warna
-        // kustom tema lama bentrok dengan palet tema baru).
-        state.paletteOverride = {};
-        state.saved = false;
       }),
 
     updatePaletteOverride: (patch) =>
@@ -364,17 +350,10 @@ export const useBuilderStore = create<BuilderState>()(
         state.saved = false;
       }),
 
-    loadConfig: (config: { core?: Partial<CoreConfig> | Record<string, unknown>; designStyleId?: string; design_style_id?: string; paletteOverride?: PaletteOverride; palette_override?: PaletteOverride; sections?: Section[]; header?: Partial<HeaderConfig>; footer?: Partial<FooterConfig>; theme?: Record<string, unknown>; seo?: { title: string; description: string } }) =>
+    loadConfig: (config: { core?: Partial<CoreConfig> | Record<string, unknown>; paletteOverride?: PaletteOverride; palette_override?: PaletteOverride; sections?: Section[]; header?: Partial<HeaderConfig>; footer?: Partial<FooterConfig>; theme?: Record<string, unknown>; seo?: { title: string; description: string } }) =>
       set((state) => {
         if (config.core) {
           state.core = { ...createDefaultCore(), ...config.core };
-        }
-        // Handle both camelCase and snake_case from API
-        const designStyleId = config.designStyleId ?? config.design_style_id;
-        if (designStyleId) {
-          state.designStyleId = designStyleId;
-        } else {
-          state.designStyleId = 'minimalist';
         }
         const override = config.paletteOverride ?? config.palette_override;
         if (override) {
@@ -441,7 +420,7 @@ export const useBuilderStore = create<BuilderState>()(
 
     applyTemplate: (template) =>
       set((state) => {
-        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, designStyleId: state.designStyleId, paletteOverride: { ...state.paletteOverride }, typographyOverride: { ...state.typographyOverride }, header: { ...state.header }, footer: { ...state.footer } });
+        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, paletteOverride: { ...state.paletteOverride }, typographyOverride: { ...state.typographyOverride }, header: { ...state.header }, footer: { ...state.footer } });
         state.future = [];
         if (template.core) {
           state.core = { ...createDefaultCore(), ...template.core };
@@ -451,10 +430,8 @@ export const useBuilderStore = create<BuilderState>()(
 
     applyFullTemplate: (template) =>
       set((state) => {
-        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, designStyleId: state.designStyleId, paletteOverride: { ...state.paletteOverride }, typographyOverride: { ...state.typographyOverride }, header: { ...state.header }, footer: { ...state.footer } });
+        state.past.push({ sections: cloneSections(state.sections), core: { ...state.core }, seo: { ...state.seo }, paletteOverride: { ...state.paletteOverride }, typographyOverride: { ...state.typographyOverride }, header: { ...state.header }, footer: { ...state.footer } });
         state.future = [];
-        const styleId = template.designStyleId ?? template.design_style_id;
-        if (styleId) state.designStyleId = styleId;
         if (template.sections) {
           state.sections = template.sections.map((s) => {
             const variant = getSectionVariant(s.type, s.variant);
@@ -495,7 +472,6 @@ export const useBuilderStore = create<BuilderState>()(
           sections: cloneSections(state.sections),
           core: { ...state.core },
           seo: { ...state.seo },
-          designStyleId: state.designStyleId,
           paletteOverride: { ...state.paletteOverride },
           typographyOverride: { ...state.typographyOverride },
           header: { ...state.header },
@@ -506,7 +482,6 @@ export const useBuilderStore = create<BuilderState>()(
         state.sections = snapshot.sections;
         state.core = snapshot.core;
         state.seo = snapshot.seo;
-        state.designStyleId = snapshot.designStyleId;
         state.paletteOverride = snapshot.paletteOverride ?? {};
         state.typographyOverride = snapshot.typographyOverride ?? {};
         state.header = snapshot.header;
@@ -521,7 +496,6 @@ export const useBuilderStore = create<BuilderState>()(
           sections: cloneSections(state.sections),
           core: { ...state.core },
           seo: { ...state.seo },
-          designStyleId: state.designStyleId,
           paletteOverride: { ...state.paletteOverride },
           typographyOverride: { ...state.typographyOverride },
           header: { ...state.header },
@@ -532,7 +506,6 @@ export const useBuilderStore = create<BuilderState>()(
         state.sections = snapshot.sections;
         state.core = snapshot.core;
         state.seo = snapshot.seo;
-        state.designStyleId = snapshot.designStyleId;
         state.paletteOverride = snapshot.paletteOverride ?? {};
         state.typographyOverride = snapshot.typographyOverride ?? {};
         state.header = snapshot.header;

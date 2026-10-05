@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { getTenantSite } from "@/lib/builder/public";
 import { PublicWebsite } from "@/components/website/renderer";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
-import { getDesignStyle } from "@/lib/builder/design-styles";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { getSectionVariant } from "@/lib/builder/sections/registry";
 import { adminUrl } from "@/lib/urls";
@@ -71,7 +70,6 @@ export default async function Home() {
                 name: catalogTemplate.name,
                 description: catalogTemplate.description,
                 category: catalogTemplate.category,
-                designType: catalogTemplate.designType,
                 theme: {
                   ...catalogTemplate.theme,
                   typography: site.v3Typography ?? catalogTemplate.theme.typography,

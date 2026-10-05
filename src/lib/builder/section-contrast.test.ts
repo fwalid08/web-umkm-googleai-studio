@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DESIGN_STYLES, getContrastRatio } from './design-styles';
+import { getContrastRatio } from './design-styles';
+import { COLOR_SCHEMES } from './color-schemes';
 import { SECTION_REGISTRY } from './sections/registry';
 import {
   autoFixMutedColor,
@@ -14,6 +15,37 @@ import {
   validateSectionContrast,
 } from './section-contrast';
 import { BUILT_IN_CATALOG } from './templates/catalog';
+import type { DesignStylePalette } from './types';
+
+/**
+ * Korpus palet untuk uji kontras.
+ *
+ * Sebelumnya diambil dari `DESIGN_STYLES`; katalog itu dihapus di migrasi 046.
+ * Sekarang memakai palet yang benar-benar dijangkau user: 20 skema warna
+ * `COLOR_SCHEMES` (tab "Warna Tema" di StyleSelector) plus palet bawaan tiap
+ * template katalog. Plus palet netral sebagai kontrol.
+ */
+const NEUTRAL_PALETTE: DesignStylePalette = {
+  primary: '#333333',
+  secondary: '#666666',
+  accent: '#333333',
+  background: '#ffffff',
+  surface: '#f5f5f5',
+  text: '#333333',
+  textMuted: '#666666',
+  border: '#e5e5e5',
+};
+
+/** Skema warna tidak punya `secondary`; palet lengkap mewajibkannya. */
+function withSecondary(p: Record<string, string>): DesignStylePalette {
+  return { ...NEUTRAL_PALETTE, ...p, secondary: p.secondary ?? p.primary };
+}
+
+const PALETTES: Array<readonly [string, DesignStylePalette]> = [
+  ['neutral', NEUTRAL_PALETTE],
+  ...COLOR_SCHEMES.map((s) => [s.id, withSecondary(s.palette)] as const),
+  ...BUILT_IN_CATALOG.map((t) => [t.id, withSecondary({ ...t.theme.palette })] as const),
+];
 
 const SCENARIOS = [
   { name: 'transparent', style: { background: 'transparent' as const } },
@@ -31,7 +63,7 @@ const SCENARIOS = [
 
 describe('kontras per section & varian', () => {
   it('traverse parent: transparent mengikuti latar halaman', () => {
-    const palette = DESIGN_STYLES.find((s) => s.id === 'minimalist')!.palette;
+    const palette = NEUTRAL_PALETTE;
     const bg = getSectionEffectiveBackground(
       { background: 'transparent' },
       palette,
@@ -41,7 +73,7 @@ describe('kontras per section & varian', () => {
   });
 
   it('traverse parent: ancestor non-transparan pertama menang', () => {
-    const palette = DESIGN_STYLES.find((s) => s.id === 'minimalist')!.palette;
+    const palette = NEUTRAL_PALETTE;
     const bg = getSectionEffectiveBackground(
       { background: 'transparent' },
       palette,
@@ -52,7 +84,7 @@ describe('kontras per section & varian', () => {
   });
 
   it('background foto tanpa overlay dilaporkan agar overlay gelap dipaksa', () => {
-    const palette = DESIGN_STYLES.find((s) => s.id === 'minimalist')!.palette;
+    const palette = NEUTRAL_PALETTE;
     const bg = getSectionEffectiveBackground(
       { background: 'image', backgroundImage: 'https://x/y.jpg' },
       palette,
@@ -63,8 +95,8 @@ describe('kontras per section & varian', () => {
     expect(autoFixTextColor(palette.text, bg, true)).toBe('#ffffff');
   });
 
-  it.each(DESIGN_STYLES.map((s) => [s.id, s.palette] as const))(
-    'style %s: autofix heading (3:1) & body/muted (4.5) lolos di semua skenario latar',
+  it.each(PALETTES)(
+    'palet %s: autofix heading (3:1) & body/muted (4.5) lolos di semua skenario latar',
     (_id, palette) => {
       for (const sc of SCENARIOS) {
         const style = { ...sc.style } as Parameters<
@@ -118,7 +150,7 @@ describe('kontras per section & varian', () => {
 
   it('setiap varian registry: validate + fix tersedia untuk latar theme:primary', () => {
     const checked: string[] = [];
-    for (const palette of DESIGN_STYLES.map((s) => s.palette)) {
+    for (const [, palette] of PALETTES) {
       for (const def of Object.values(SECTION_REGISTRY)) {
         for (const v of def.variants) {
           const res = validateSectionContrast(

@@ -336,7 +336,12 @@ const navGroupSchema = z.object({
 });
 
 export const builderConfigSchema = z.object({
-  design_style_id: z.string().min(1, "Design style wajib diisi"),
+  // `design_style_id` dihapus (migrasi 046) dan tetap OPSIONAL di sini,
+  // bukan `z.never()`: config lama di DB masih membawa key itu, dan zod
+  // membuang key tak dikenal saat parse. Kalau dideklarasikan wajib,
+  // `store.ts` yang mengirim `validation.data` akan kehilangan config user
+  // setiap kali ia menyimpan ulang.
+  design_style_id: z.string().optional(),
   palette_override: z.record(z.string(), z.string()).optional(),
   theme: z.object({
     typography: z.record(z.string(), z.string()).optional(),

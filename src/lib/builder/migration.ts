@@ -301,7 +301,6 @@ export function buildWebsiteCustomConfig(input: {
   sections: TemplateSectionInstance[];
   header: Record<string, unknown>;
   footer: Record<string, unknown>;
-  designStyleId: string;
   paletteOverride: Record<string, string>;
   typographyOverride?: Record<string, string>;
   animations?: unknown[];
@@ -322,7 +321,6 @@ export function buildWebsiteCustomConfig(input: {
   return {
     ...(input.base ?? {}),
     ...(input.customCss !== undefined ? { customCss: input.customCss } : {}),
-    design_style_id: input.designStyleId,
     palette_override: { ...(input.paletteOverride ?? {}) },
     theme: {
       ...baseTheme,

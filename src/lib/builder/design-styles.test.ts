@@ -1,62 +1,86 @@
 import { describe, expect, it } from "vitest";
 import {
-  DESIGN_STYLES,
+  DEFAULT_COMPONENTS,
+  DEFAULT_TYPOGRAPHY,
   MIN_CONTRAST_NORMAL_TEXT,
-  COLOR_SCHEMES,
   blendOnTop,
   getContrastRatio,
   getOnColor,
   resolvePalette,
-  validateStyleContrast,
 } from "./design-styles";
+import { COLOR_SCHEMES, validateColorScheme } from "./color-schemes";
+import type { DesignStyle, DesignStylePalette } from "./types";
+
+const BASE_PALETTE: DesignStylePalette = {
+  primary: "#333333",
+  secondary: "#666666",
+  accent: "#333333",
+  background: "#ffffff",
+  surface: "#f5f5f5",
+  text: "#333333",
+  textMuted: "#666666",
+  border: "#e5e5e5",
+};
+
+/** Kerangka DesignStyle seadanya — utilitas warna hanya butuh paletnya. */
+const BASE_STYLE = { id: "base", name: "Base", palette: BASE_PALETTE } as DesignStyle;
+
+/** Skema warna tidak punya `secondary`; palet lengkap mewajibkannya. */
+function withSecondary(p: Record<string, string>): DesignStylePalette {
+  return { ...BASE_PALETTE, ...p, secondary: p.secondary ?? p.primary };
+}
 
 /**
- * Guard keterbacaan font: setiap design style bawaan WAJIB punya
- * kontras teks vs latar yang memenuhi WCAG AA (≥ 4.5:1) agar font
- * tidak "tenggelam" (kasus: retro muted 1.57:1, organic muted 2.35:1).
+ * Guard keterbacaan: setiap skema warna siap pakai WAJIB punya kontras teks
+ * vs latar memenuhi WCAG AA (≥ 4.5:1) agar font tidak "tenggelam".
+ *
+ * Katalog `DESIGN_STYLES` dihapus di migrasi 046; yang diuji sekarang adalah
+ * 20 skema yang benar-benar bisa dipilih user di StyleSelector.
  */
-describe("kontras design styles (WCAG AA)", () => {
-  it("semua style lolos validateStyleContrast", () => {
-    for (const style of DESIGN_STYLES) {
-      const v = validateStyleContrast(style);
+describe("kontras skema warna siap pakai (WCAG AA)", () => {
+  it("semua COLOR_SCHEMES lolos validateColorScheme", () => {
+    expect(COLOR_SCHEMES.length).toBeGreaterThan(0);
+    for (const scheme of COLOR_SCHEMES) {
+      const v = validateColorScheme({ ...scheme, palette: withSecondary(scheme.palette) });
       expect(
         v.issues,
-        `${style.id} bermasalah: ${v.issues.join("; ")}`,
+        `${scheme.id} bermasalah: ${v.issues.join("; ")}`,
       ).toEqual([]);
       expect(v.valid).toBe(true);
     }
   });
 
   it("warna tombol otomatis (getOnColor) selalu ≥ 4.5 di atas primary", () => {
-    for (const s of DESIGN_STYLES) {
-      const on = getOnColor(s.palette.primary);
-      const ratio = getContrastRatio(on, s.palette.primary);
+    for (const scheme of COLOR_SCHEMES) {
+      const on = getOnColor(scheme.palette.primary);
+      const ratio = getContrastRatio(on, scheme.palette.primary);
       expect(
         ratio,
-        `${s.id}: onPrimary ${on} vs ${s.palette.primary} = ${ratio.toFixed(2)}:1`,
+        `${scheme.id}: onPrimary ${on} vs ${scheme.palette.primary} = ${ratio.toFixed(2)}:1`,
       ).toBeGreaterThanOrEqual(MIN_CONTRAST_NORMAL_TEXT);
     }
   });
 
   it("subtitle CTA (onPrimary 85%) tetap terbaca di atas primary", () => {
-    for (const s of DESIGN_STYLES) {
-      const on = getOnColor(s.palette.primary);
+    for (const scheme of COLOR_SCHEMES) {
+      const on = getOnColor(scheme.palette.primary);
       const eff = blendOnTop(
         on === "#ffffff" ? "rgba(255,255,255,0.85)" : "rgba(17,17,17,0.85)",
-        s.palette.primary,
+        scheme.palette.primary,
       );
       expect(eff).not.toBeNull();
-      const ratio = getContrastRatio(eff!, s.palette.primary);
+      const ratio = getContrastRatio(eff!, scheme.palette.primary);
       // Subtitle CTA berukuran besar (text-lg/2xl) → ambang teks besar 3.0
       expect(
         ratio,
-        `${s.id}: subtitle vs primary = ${ratio.toFixed(2)}:1`,
+        `${scheme.id}: subtitle vs primary = ${ratio.toFixed(2)}:1`,
       ).toBeGreaterThanOrEqual(3.0);
     }
   });
 });
 
-describe("resolvePalette (override warna tema)", () => {  const base = DESIGN_STYLES.find((s) => s.id === "minimalist")!;
+describe("resolvePalette (override warna tema)", () => {
+  const base = BASE_STYLE;
 
   it("tanpa override mengembalikan palet bawaan", () => {
     expect(resolvePalette(base)).toEqual(base.palette);
@@ -82,22 +106,15 @@ describe("resolvePalette (override warna tema)", () => {  const base = DESIGN_ST
   });
 });
 
-describe("skema warna siap pakai (COLOR_SCHEMES)", () => {
-  it("semua preset lolos kontras di atas shell netral", () => {
-    const shell = DESIGN_STYLES.find((s) => s.id === "minimalist")!;
-    expect(COLOR_SCHEMES.length).toBeGreaterThan(0);
-    for (const scheme of COLOR_SCHEMES) {
-      const v = validateStyleContrast({ ...shell, palette: scheme.palette });
-      expect(v.valid, `skema ${scheme.id} bermasalah: ${v.issues.join("; ")}`).toBe(true);
-    }
+describe("default tipografi & komponen", () => {
+  it("memakai Inter — satu-satunya font yang di-bundle via next/font", () => {
+    expect(DEFAULT_TYPOGRAPHY.headingFont).toBe("Inter");
+    expect(DEFAULT_TYPOGRAPHY.bodyFont).toBe("Inter");
   });
 
-  it("preset berisi 8 kunci palet valid", () => {
-    const keys = ["primary", "secondary", "accent", "background", "surface", "text", "textMuted", "border"];
-    for (const scheme of COLOR_SCHEMES) {
-      for (const k of keys) {
-        expect(typeof (scheme.palette as unknown as Record<string, unknown>)[k], `${scheme.id}.${k}`).toBe("string");
-      }
-    }
+  it("bentuknya utuh supaya renderer tak pernah dapat undefined", () => {
+    expect(DEFAULT_TYPOGRAPHY.baseSize).toBeGreaterThan(0);
+    expect(DEFAULT_TYPOGRAPHY.scaleRatio).toBeGreaterThan(0);
+    expect(DEFAULT_COMPONENTS.borderRadius).toBeGreaterThanOrEqual(0);
   });
 });

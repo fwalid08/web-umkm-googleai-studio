@@ -186,8 +186,6 @@ export const FOOD_TEMPLATE: CatalogTemplate = {
   description:
     "Template kuliner untuk warung makan, cafe, catering, dan bakery — hero menggugah selera, papan menu, pemesanan meja, dan jam operasional.",
   category: "food",
-  designType: "organic",
-  designStyleId: "organic",
   theme: {
     palette: {
       primary: "#c2410c",
@@ -220,7 +218,6 @@ export const FOOD_TEMPLATE: CatalogTemplate = {
   footers: FOOTERS,
   sections: registrySections(),
   data: {
-    designStyleId: "organic",
     paletteOverride: {
       primary: "#c2410c",
       secondary: "#9a3412",

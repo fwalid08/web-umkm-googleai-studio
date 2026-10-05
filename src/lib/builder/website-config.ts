@@ -27,7 +27,6 @@ import { sanitizePaletteOverride } from './validation';
 
 /** Config website yang dikirim ke builder (dan jadi sumber live site). */
 export interface ActiveCustomConfig {
-  design_style_id: string;
   /**
    * Skema warna pilihan user (StyleSelector -> "Warna Tema").
    * WAJIB ada di respons: ini yang bikin template tersimpan tetap terlihat
@@ -73,16 +72,35 @@ function asMetaString(value: unknown): string | null {
 /**
  * Apakah ada config tersimpan yang bisa dipakai builder?
  *
- * Syaratnya sama dengan versi lama (`stored && storedConfig.design_style_id`)
+ * Syaratnya SAMA dengan versi lama (`stored && storedConfig.design_style_id`)
  * supaya baris tanpa config tidak dianggap "sudah customized".
+ *
+ * `design_style_id` tidak lagi jadi penanda tunggal: konsep design style
+ * dihapus (migrasi 046) dan key itu dihapus dari JSON pada baris yang punya
+ * `catalog_template_id`. Kalau key itu tetap jadi syarat WAJIB, semua baris
+ * tersebut akan terbaca "default" dan kanvas user ter-reset.
+ *
+ * Jadi sekarang dianggap tersimpan bila salah satu sinyal ini ada:
+ *   - `design_style_id` — baris legacy, key lama masih utuh (backward compat).
+ *   - `catalog_template_id` — penanda baru yang selalu ditulis server saat
+ *     menyimpan, mis. "food".
+ *   - `sections` non-kosong — config benar-benar berisi hasil editing.
+ *
+ * Sinyal `sections` sengaja paling akhir: baris template yang baru ter-apply
+ * pun punya sections, jadi ini-catching untuk config hasil "Simpan Template".
  */
 export function hasStoredCustomConfig(stored: unknown, storedConfig: unknown): boolean {
-  return (
-    Boolean(stored) &&
-    isRecord(storedConfig) &&
-    typeof storedConfig.design_style_id === 'string' &&
-    storedConfig.design_style_id.length > 0
-  );
+  if (!stored || !isRecord(storedConfig)) return false;
+  if (typeof storedConfig.design_style_id === 'string' && storedConfig.design_style_id.length > 0) {
+    return true;
+  }
+  if (
+    typeof storedConfig.catalog_template_id === 'string' &&
+    storedConfig.catalog_template_id.length > 0
+  ) {
+    return true;
+  }
+  return Array.isArray(storedConfig.sections) && storedConfig.sections.length > 0;
 }
 
 /**
@@ -92,16 +110,9 @@ export function hasStoredCustomConfig(stored: unknown, storedConfig: unknown): b
  * harus ikut dikembalikan, kalau tidak config yang disimpan tidak pernah
  * kembali ke builder dan hasilnya "template tidak berubah".
  */
-export function buildActiveCustomConfig(
-  storedConfig: unknown,
-  opts: { fallbackDesignStyleId?: string } = {},
-): ActiveCustomConfig {
+export function buildActiveCustomConfig(storedConfig: unknown): ActiveCustomConfig {
   const cfg = asRecord(storedConfig);
   return {
-    design_style_id:
-      typeof cfg.design_style_id === 'string' && cfg.design_style_id.length > 0
-        ? cfg.design_style_id
-        : (opts.fallbackDesignStyleId ?? 'minimalist'),
     palette_override: sanitizePaletteOverride(cfg.palette_override),
     sections: asArray(cfg.sections),
     header: asRecord(cfg.header),
@@ -130,9 +141,8 @@ export function buildActiveCustomConfig(
  * `is_published: true` sengaja: website baru harus tetap bisa dibuka publik
  * (lihat `buildSite`) walau builder belum pernah menyalin apa pun.
  */
-export function buildDefaultCustomConfig(fallbackDesignStyleId?: string): ActiveCustomConfig {
+export function buildDefaultCustomConfig(): ActiveCustomConfig {
   return {
-    design_style_id: fallbackDesignStyleId ?? 'minimalist',
     palette_override: {},
     sections: [],
     header: {},
@@ -170,10 +180,6 @@ export function buildStoredCustomConfig(
 ): Record<string, unknown> {
   const cfg = asRecord(customConfig);
   return {
-    design_style_id:
-      typeof cfg.design_style_id === 'string' && cfg.design_style_id.length > 0
-        ? cfg.design_style_id
-        : 'minimalist',
     // Jangan buang skema warna user: tanpanya live site selalu kembali ke
     // warna bawaan template walau kanvas sudah diganti.
     palette_override: sanitizePaletteOverride(cfg.palette_override),

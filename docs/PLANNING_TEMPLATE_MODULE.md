@@ -1,0 +1,418 @@
+# Planning Template & Module — Website Builder SaaS UMKM
+
+> **Status:** Planning (tanpa implementasi).
+> **Tanggal:** 2026-10-05.
+> **Ruang lingkup sesi:** online_shop dulu; blog/booking/sekolah ditunda; payment buyer manual dulu.
+> **Keputusan kunci:** template terikat `site_type`; fitur dijual sebagai **Feature Pack per tipe website + Add-on Website (ikut tier) + Modul Global (subscription mandiri)**; pricing table wajib pilih jenis website dulu.
+
+---
+
+## 1. Ringkasan Eksekutif
+
+1. Platform saat ini bias ke **online shop** (produk + order WA + checkout manual).
+2. Ke depan platform mendukung banyak jenis website, tetapi **fase ini hanya `online_shop`**. Fondasi harus sudah siap multi-type tanpa refactor besar.
+3. **Template tidak kompatibel lintas tipe website.** Maka 1 website = 1 `site_type` permanen; ganti tipe = buat website baru.
+4. **Tidak ada sistem modul berbayar di repo saat ini.** Yang ada hanya tier gating vertikal (`free/starter/growth/enterprise`). Dokumen ini merancang sistem barunya.
+5. Model billing final:
+   - Fitur = unit atom (gratis/berbayar).
+   - Pack = bundel fitur per `site_type`.
+   - Add-on Website (scope W) = fitur berbayar di luar pack, ditempel ke langganan tier website itu.
+   - Modul Global (scope G) = modul berbayar terpisah, subscription mandiri, non-disruptive.
+   - Harga = matriks `site_type × tier × cycle`.
+6. POC pertama: **`cek_ongkir`** (add-on website).
+
+---
+
+## 2. Kondisi Existing (Temuan Kode)
+
+### 2.1 Template & Builder
+
+| Aspek | Kondisi | Referensi |
+|---|---|---|
+| Kategori bisnis | `BusinessCategory = food \| fashion \| retail \| handicraft \| services` — ini **niche dalam online_shop, bukan tipe website** | `src/lib/builder/template-types.ts:6`, `src/lib/builder/templates/catalog.ts:6` |
+| Katalog built-in | `BUILT_IN_CATALOG = [FOOD_TEMPLATE]` — baru 1 template real | `src/lib/builder/templates/catalog.ts:21` |
+| Field template | `Template.category: BusinessCategory`, `tiers?: Tier[]`, `tier_requirement?`, `activeSections?`, `sections`, `headers`, `footers` | `src/lib/builder/template-types.ts:167-202` |
+| Section registry | 18 tipe: `hero, features, product_grid, testimonials, faq, cta, contact, about, gallery, video, team, pricing, newsletter, divider, marquee, menu_board, steps, location` | `src/lib/builder/sections/registry.ts`, `src/lib/builder/types.ts:186-204` |
+| Apply template | Satu implementasi: `applyTemplateToWebsite`, `resolveTemplateSections`, `buildTemplateCustomConfig`; validasi `template_id in BUILT_IN_CATALOG`; tier gate kumulatif | `src/lib/builder/apply-template.ts`, `src/lib/builder/templates/catalog.ts:43-61` |
+| Config website | `catalog_template_id` disimpan; `buildStoredCustomConfig` / `buildActiveCustomConfig` / `resolveNextIsPublished` | `src/lib/builder/website-config.ts:180-237` |
+| Onboarding | 3 langkah: nama toko → jenis bisnis → template → live; `PUT /websites/[id]/website {template_id, custom_config}` | `app/onboarding/page.tsx:15,133-163` |
+| Tier gate template | `TIER_RANK free(0)<starter(1)<growth(2)<enterprise(3)`; kosong = terbuka; tier asing = tolak | `src/lib/builder/templates/catalog.ts:30-68` |
+
+**Implikasi:** belum ada cek kompatibilitas tipe website. Config lama bisa bocor saat switch template lintas tipe. Ini yang harus dikunci.
+
+### 2.2 Billing & Limit Existing
+
+| Aspek | Kondisi | Referensi |
+|---|---|---|
+| Harga tier | `TIER_PRICE_FALLBACK`: free 0, starter 99k/79k, growth 249k/199k, enterprise 599k/479k; DB `plans` diutamakan | `src/lib/billing/pricing.ts:9-25`, `supabase/migrations/012_pricing_unify.sql` |
+| Limit tier | `TIER_LIMITS_DEFAULTS`: `maxWebsites, maxProducts, maxOrdersMonthly, allowCustomDomain, includedDomains, allowAnalyticsExport, allowCustomerList, allowStockTracking, maxPages` | `src/lib/billing/limits.ts:258-263` |
+| Limit produk | `PRODUCT_TIER_LIMITS`: free 5/3/0/2MB, starter 50/5/10/2MB, dst. | `src/types/products.ts:129-134` |
+| Tabel plans | `plans(slug, name, price_monthly, price_yearly_monthly, max_websites, max_products, max_images_per_product, ...)` | `006_multi_website.sql`, `012_pricing_unify.sql`, `013_product_limits.sql` |
+| Tabel tier_limits | `tier_limits(tier PK, max_*, allow_*, included_domains, max_pages)` + RLS read untuk authenticated | `015_remove_trial_system.sql:42-86` |
+| Checkout tier | `POST /api/billing/checkout {tier, billing_cycle, website_id?}` → `orderId umkm-...` → baris `subscriptions(incomplete)` → Midtrans Snap / mock | `app/api/billing/checkout/route.ts:63-248` |
+| Webhook | Verifikasi `sha512(order_id+status_code+gross_amount+SERVER_KEY)`; idempoten `active+paid_at`; `settlement/capture→active`, `deny→past_due`, `expire/cancel→canceled` | `app/api/billing/webhook/route.ts:12-108` |
+| Self-upgrade lock | Tier berbayar hanya via pembayaran resmi / admin; dev bypass `ALLOW_MANUAL_PLAN_UPGRADE=true`; demo bebas | `app/api/user/plan/route.ts:85-94` |
+| UI billing | `BillingPanel` dengan `PLANS` hardcoded 4 kartu + matriks perbandingan + modal upgrade + mock flow | `src/components/billing/billing-panel.tsx:43-309` |
+| Domain upsell | Kuota `includedDomains` habis → tetap boleh beli per-domain + pesan upsell (satu-satunya pola mirip add-on) | `src/lib/billing/limits.ts:308-343` |
+
+**Implikasi:** harga dan limit masih global per tier, belum per `site_type`. Kolom `allowX` adalah fitur yang dikode-keras — ke depan harus jadi baris katalog, bukan kolom baru.
+
+### 2.3 Data Operasional
+
+* `websites(id, user_id, name, business_type, subdomain, custom_domain, ..., current_template_id)` + RLS owner (`006_multi_website.sql:30-60`).
+* `orders` terisolasi `website_id`; `user_templates` unik `(website_id, template_id)` (`006_multi_website.sql:79-105`).
+* `subscriptions(id, user_id, tier, status, period_start/end, payment_gateway, payment_reference, snap_token, billing_cycle, paid_at)` (`001_initial_schema.sql:58-70`, `010_billing_gateway.sql`).
+* `bookings` pernah ada (`031_bookings.sql`) lalu **di-drop total** (`043_drop_bookings.sql`) — pelajaran: fitur menempel langsung ke core tanpa isolasi registry/gate akan mahal dicabut. Modul baru wajib terisolasi.
+
+---
+
+## 3. Keputusan Desain (Dikunci Sesi Ini)
+
+| # | Keputusan | Detail |
+|---|---|---|
+| D1 | Fokus `online_shop` dulu | 1 tipe aktif; tipe lain stub "segera hadir"; blog ditunda; payment manual dulu |
+| D2 | Template terikat `site_type` | 1 website = 1 `site_type` permanen; lintas tipe = buat website baru, bukan switch template |
+| D3 | Semua modul dasar = scope website | Default `scope='website'`, terikat `website_id` |
+| D4 | Modul global = berbayar terpisah | Terikat `user_id` (`website_id=NULL`); subscription mandiri; non-disruptive (ada/tidak ada proses inti tetap jalan) |
+| D5 | Add-on website ikut tier | 1 transaksi dengan tier; `disable` = scheduled untuk renewal berikutnya (`cancel_at_period_end`); `enable` mid-cycle = prorata |
+| D6 | Harga beda per `site_type` | Matriks `site_type × tier × cycle`; `plans` global jadi fallback online_shop |
+| D7 | POC pertama `cek_ongkir` | Add-on website; butuh `products+orders`; jadi contoh meteran (`module_usage`) |
+
+---
+
+## 4. Konsep Template Terikat Tipe Website
+
+### 4.1 `site_type` vs `business_category`
+
+```
+site_type (stabil, jarang berubah, menentukan pack + template yang boleh dipakai):
+  online_shop (aktif) | company | portfolio | blog | sekolah | booking | ... (stub)
+
+business_category / niche (varian DALAM satu site_type, menentukan tema/seed konten):
+  online_shop → food | fashion | retail | handicraft | services
+```
+
+`BusinessCategory` existing dipertahankan apa adanya untuk kompatibilitas; `site_type` adalah lapisan baru di atasnya.
+
+### 4.2 Aturan Kompatibilitas
+
+1. Setiap template deklarasi `site_types: string[]` (mis. `['online_shop']`). Kosong/undefined = dianggap `['online_shop']` (backward compat).
+2. Setiap website punya `site_type` (default `'online_shop'` via migrasi).
+3. `isTemplateCompatibleWithSite(template, site_type)` = `template.site_types` memuat `site_type`.
+4. Pelanggaran = `400 { error: 'Template tidak kompatibel untuk tipe website ini' }` di `PUT /api/websites/[id]/website`.
+5. Daftar template difilter server-side: `GET /api/templates?site_type=online_shop`.
+6. Switch template hanya boleh dalam 1 `site_type` (preservasi config seperti sekarang). Lintas tipe wajib buat website baru.
+
+### 4.3 Registry Tipe Website (Single Source of Truth, kode saja — Fase 0)
+
+```ts
+// src/lib/site-types/registry.ts (rencana, belum diimplementasi)
+SITE_TYPES = ['online_shop'] as const;
+SITE_TYPE_REGISTRY = {
+  online_shop: {
+    label: 'Online Shop',
+    niches: ['food','fashion','retail','handicraft','services'],
+    allowedSections: ['hero','features','product_grid','menu_board','pricing',
+      'testimonials','gallery','location','faq','contact','cta','steps',
+      'newsletter','video','about','team','divider','marquee'],
+    requiredSections: ['hero','contact'],           // product_grid|menu_board salah satu
+    requiresModules: ['products','orders-manual'],  // core operasional
+    futureModules: ['payments-online','blog-posts'],// stub, belum aktif
+  },
+};
+```
+
+### 4.4 Defisit Template Online Shop
+
+Baru `food.ts` yang real (hero menggugah selera, `menu_board`, catering pricing, location-hours). Empat niche lain wajib dibuat mengikuti pola yang sama (`registrySections()` + `activeSections` + seed `data.sections` + `NAV_ITEMS` + theme):
+
+| File rencana | `activeSections` usulan | Ciri niche |
+|---|---|---|
+| `fashion.ts` | hero, product_grid, gallery, testimonials, faq (panduan ukuran), contact | Lookbook masonry, varian, filter kategori |
+| `retail.ts` | hero, product_grid, pricing, location, newsletter, faq, contact | Kelontong/multi-kategori, jam toko |
+| `handicraft.ts` | hero, gallery-masonry, video, about-centered, testimonials, contact | Cerita pengrajin, proses buat, custom order |
+| `services.ts` | hero, features, menu_board (pricelist jasa), pricing, steps, contact-form-map | Booking survei (manual WA dulu), portofolio kerja |
+
+Tidak perlu section baru untuk online_shop pada fase ini.
+
+### 4.5 Payment Manual vs Online
+
+* Sekarang: pertahankan `payment_method: cash|cod|transfer` + WA checkout; status order `baru→konfirmasi→dikirim→selesai` tidak berubah.
+* Disiapkan (tanpa implementasi): interface `PaymentProvider` (`src/lib/payments/types.ts` existing untuk Midtrans/Xendit tetap dipakai nanti untuk buyer), kolom `orders.payment_provider DEFAULT 'manual'` + `payment_reference NULL` agar webhook buyer nanti non-breaking.
+* Modul `payment_online` dirancang sebagai add-on website (lihat §5), bukan bagian pack inti.
+
+---
+
+## 5. Konsep Feature / Pack / Add-on / Modul Global
+
+### 5.1 Definisi
+
+* **Feature (atom):** kapabilitas terkecil yang bisa di-gate. Punya `is_paid` (berbayar bila di luar pack), `scope` (`website|global`), `site_types` (NULL = semua), `requires[]`, `conflicts[]`.
+* **Feature Pack:** bundel fitur per `site_type` (mis. `online_shop_pack`). Isi pack per tier diatur di `pack_features.pack ... included_tiers`.
+* **Add-on Website (scope W):** fitur `is_paid=true, scope=website` yang TIDAK termasuk di tier user → bisa ditempel ke langganan tier website itu dengan biaya tambahan.
+* **Modul Global (scope G):** fitur `scope=global`, subscription mandiri, tidak mengganggu proses inti bila mati.
+* **Tier:** paket langganan pack (`free/starter/growth/enterprise`) per `site_type`. Fitur berbayar bisa di-include gratis ke tier atas (mis. `stock_tracking` gratis di Starter+).
+
+### 5.2 Kriteria W vs G
+
+* Menulis/membaca alur transaksi website itu (`orders/products/stock/ongkir/payment`) → **W**.
+* Agregat lintas website / pendukung operasional (`jurnal keuangan, gaji, blast WA, analitik`) → **G**.
+
+### 5.3 Katalog Awal (Seed Online Shop)
+
+**Core W gratis (semua tier):**
+`products_dasar, orders_wa, subdomain, template_dasar, dashboard_dasar`
+
+**Fitur berbayar yang di-include ke tier (bawaan pack):**
+
+| Feature | Starter | Growth | Enterprise |
+|---|---|---|---|
+| `stock_tracking` | ON | ON | ON |
+| `customer_list` | ON | ON | ON |
+| `custom_domain` | ON | ON | ON |
+| `template_premium` | ON | ON | ON |
+| `analytics_export` (G, dibonuskan) | — | ON | ON |
+
+**Add-on W tersedia (di luar pack, bisa ditempel):**
+
+| `feature_id` | Harga usulan | `requires` | Keterangan |
+|---|---|---|---|
+| `cek_ongkir` | 25k/bln + usage | `products, orders` | RajaOngkir/Ongkir API + cache tarif + `module_usage` per-hit (POC) |
+| `payment_online` | fee/transaksi | `orders, products` | Midtrans/Xendit buyer (nanti; manual tetap jalan) |
+| `pages_extra` | kuota add-on | `pages` | Melebihi `maxPages` tier |
+
+**Modul G mandiri:**
+
+| `feature_id` | Harga usulan | `requires` | Keterangan |
+|---|---|---|---|
+| `akunting_dasar` | 39k/bln | `orders` (soft) | Kas, jurnal otomatis dari order `selesai/paid` |
+| `akunting_lanjutan` | 49k/bln | `akunting_dasar` (hard) | Laba-rugi, neraca, pajak |
+| `hrm_core` | 29k/bln | — | Karyawan, absensi, shift |
+| `payroll` | 35k/bln | `hrm_core` (hard), `akunting_dasar` (soft) | Slip gaji, THR, PPh21 |
+| `wa_gateway` | 20k/bln / kuota | — | Fonnte + template approve |
+
+### 5.4 Dependensi (DAG)
+
+```ts
+CEK_ONGKIR        requires: ['products','orders']
+AKUNTING_LANJUTAN requires: ['akunting_dasar']            // hard, sesama G
+PAYROLL           requires: ['hrm_core']                   // hard
+                  recommends: ['akunting_dasar']           // soft
+AKUNTING_DASAR(G) requires: ['orders'(W)]                 // soft lintas scope: "any website punya orders"
+```
+
+Aturan:
+1. `resolveDependencies(requested[])` = closure transitif + topological sort (pure function).
+2. Circular = ditolak saat seed/CI, bukan saat runtime.
+3. Checkout W: belum memenuhi hard-dep → auto-include keduanya di keranjang (UX) + API tetap validasi strict.
+4. Disable diblokir bila masih ada dependen aktif (cth. tidak bisa matikan `hrm_core` selama `payroll` aktif).
+5. `conflicts[]` disediakan untuk eksklusivitas one-time di masa depan; untuk online_shop fase ini tidak ada konflik (COD + QRIS boleh jalan bareng).
+
+---
+
+## 6. Desain Data (Rencana Migrasi `047-049`)
+
+```sql
+-- 047_features: katalog atom
+CREATE TABLE features(
+  id TEXT PRIMARY KEY,                 -- 'cek_ongkir'
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,              -- 'logistik','keuangan','sdm','operasional',...
+  description TEXT DEFAULT '',
+  scope TEXT NOT NULL CHECK (scope IN ('website','global')),
+  is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+  site_types TEXT[] NULL,              -- NULL = semua site_type
+  requires TEXT[] NOT NULL DEFAULT '{}',
+  conflicts TEXT[] NOT NULL DEFAULT '{}',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- 048_packs: pack per site_type + harga matriks
+CREATE TABLE feature_packs(
+  id TEXT PRIMARY KEY,                 -- 'online_shop_pack'
+  site_type TEXT NOT NULL,             -- 'online_shop'
+  name TEXT NOT NULL
+);
+CREATE TABLE pack_features(
+  pack_id TEXT REFERENCES feature_packs(id) ON DELETE CASCADE,
+  feature_id TEXT REFERENCES features(id) ON DELETE CASCADE,
+  quota INT NULL,                      -- cth. products:5 ; NULL = boolean ON
+  included_tiers TEXT[] NOT NULL DEFAULT '{}', -- '{starter,growth,enterprise}'
+  PRIMARY KEY(pack_id, feature_id)
+);
+CREATE TABLE site_plan_prices(
+  site_type TEXT NOT NULL,
+  tier TEXT NOT NULL CHECK (tier IN ('free','starter','growth','enterprise')),
+  cycle TEXT NOT NULL CHECK (cycle IN ('monthly','yearly')),
+  price INT NOT NULL CHECK (price >= 0),
+  PRIMARY KEY(site_type, tier, cycle)
+);
+
+-- 049_subscriptions: perluasan + add-on W + modul G + usage
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS site_type TEXT DEFAULT 'online_shop';
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS pack_id TEXT NULL;
+
+CREATE TABLE subscription_addons(
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  subscription_id UUID NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+  website_id UUID NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+  feature_id TEXT NOT NULL REFERENCES features(id),
+  status TEXT NOT NULL DEFAULT 'incomplete'
+    CHECK (status IN ('active','past_due','canceled','incomplete','incomplete_expired')),
+  billing_cycle TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly','yearly','once')),
+  price_charged INT NOT NULL DEFAULT 0,
+  current_period_start TIMESTAMPTZ DEFAULT NOW(),
+  current_period_end TIMESTAMPTZ DEFAULT NOW(),
+  cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+  payment_reference TEXT UNIQUE,
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(subscription_id, website_id, feature_id)
+);
+CREATE INDEX idx_sub_addons_website ON subscription_addons(website_id);
+CREATE INDEX idx_sub_addons_sub ON subscription_addons(subscription_id);
+
+CREATE TABLE global_module_subscriptions(
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  feature_id TEXT NOT NULL REFERENCES features(id),
+  status TEXT NOT NULL DEFAULT 'incomplete'
+    CHECK (status IN ('active','past_due','canceled','incomplete','incomplete_expired')),
+  billing_cycle TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly','yearly','once')),
+  price_charged INT NOT NULL DEFAULT 0,
+  current_period_start TIMESTAMPTZ DEFAULT NOW(),
+  current_period_end TIMESTAMPTZ DEFAULT NOW(),
+  payment_reference TEXT UNIQUE,
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, feature_id)
+);
+
+CREATE TABLE module_usage(
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  website_id UUID REFERENCES websites(id) ON DELETE CASCADE,
+  feature_id TEXT NOT NULL REFERENCES features(id),
+  qty INT NOT NULL DEFAULT 1,
+  reference_id TEXT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_module_usage_lookup ON module_usage(user_id, website_id, feature_id, created_at);
+```
+
+Catatan kompatibilitas:
+* `plans` dan `tier_limits` lama **dipertahankan** sebagai fallback khusus `online_shop` selama migrasi.
+* `subscriptions.payment_reference UNIQUE` + `paid_at` tetap jadi kunci idempoten webhook.
+
+---
+
+## 7. Kontrak API (Rencana)
+
+```
+GET /api/plans?site_type=online_shop
+→ {
+    site_type, tiers: [{tier, monthly, yearly}],
+    pack_features: [{feature_id, quota, included_tiers}],
+    addons_w: [{feature_id, price_monthly, requires}],
+    modules_g: [{feature_id, price_monthly, requires}]
+  }
+
+POST /api/billing/checkout
+  body: { site_type, tier: starter|growth|enterprise, billing_cycle: monthly|yearly,
+          website_id?: uuid, addon_w_ids?: string[] }
+→ gross = site_plan_prices(site_type,tier,cycle) + Σ addon_w
+→ orderId 'umkm-...' → subscriptions(incomplete) + subscription_addons(incomplete)
+
+POST /api/modules/global/checkout
+  body: { feature_id, billing_cycle }
+→ gross = flat price → orderId 'modg-...' → global_module_subscriptions(incomplete)
+
+POST /api/subscription/addons/disable
+  body: { website_id, feature_id }
+→ set cancel_at_period_end=TRUE (tetap aktif sampai period end)
+
+Webhook (perluas webhook billing existing):
+→ tier paid ⇒ subscriptions.active + paid_at (+ update users.tier bila tier != free)
+→ addon_w paid ⇒ subscription_addons.active + paid_at
+→ modg paid ⇒ global_module_subscriptions.active + paid_at
+→ deny ⇒ past_due ; expire/cancel ⇒ canceled (per baris masing-masing)
+```
+
+Aturan keamanan mengikuti pola existing: self-upgrade/add-on berbayar hanya via pembayaran resmi; `POST /api/user/plan` tetap untuk downgrade ke free.
+
+---
+
+## 8. Alur Pricing UI (Wajib Pilih Jenis Website Dulu)
+
+```
+Step 1 — Pilih jenis website:
+  [Online Shop] (aktif) | [Company, Portfolio, ...] ("Segera hadir", non-klik di fase ini)
+
+Step 2 — Pilih tier KHUSUS site_type itu:
+  4 kartu (Free/Starter/Growth/Enterprise) dengan:
+  - harga dari site_plan_prices (bukan konstanta global)
+  - daftar fitur pack (centang dari pack_features) + label Termasuk
+  - add-on W tersedia + harga + tombol [+ Tambah]
+  - modul G terkait + harga + link checkout mandiri
+
+Step 3 — Ringkasan & checkout:
+  Pack (site_type × tier × cycle) + add-on W + total → POST /api/billing/checkout
+```
+
+`BillingPanel` (`PLANS` hardcoded) diubah menjadi fetch `GET /api/plans?site_type=` dengan fallback konstanta bila API gagal.
+
+---
+
+## 9. Enforcement Satu Pintu (Rencana)
+
+```ts
+// src/lib/modules/entitlements.ts (rencana)
+hasFeature(userId, websiteId, featureId): Promise<boolean>
+// website scope:
+//   packIncludes(site_type, tier, feature)
+//   OR addonWActive(subscription_id, websiteId, feature, now < period_end [termasuk cancel_at_period_end])
+// global scope:
+//   globalActive(userId, feature)
+//   OR packIncludes (bonus tier, cth. analytics_export di Growth+)
+// + cek requires rekursif + fail-closed bila DB error (pola checkProductLimit)
+// + legacy fallback: TIER_LIMITS_DEFAULTS.allowX / PRODUCT_TIER_LIMITS selama migrasi
+```
+
+Dipakai di: semua API fitur (`/api/ongkir/*`, `/api/akunting/*`, ...), builder (filter section per `site_type`), dashboard nav (sembunyikan menu + upsell `/dashboard/billing?site_type=X&addon=Y`).
+
+---
+
+## 10. Fase Eksekusi
+
+| Fase | Isi | Keluaran |
+|---|---|---|
+| Fase 0 | Registry kode saja: `site-types/registry.ts`, `modules/{features,packs,dependencies,entitlements}.ts` + test DAG (closure, topo-sort, circular-reject, auto-include, block-disable) | Tanpa migrasi; tanpa ubah billing |
+| Fase 1 | Migrasi `047-049` + seed **online_shop saja**; `plans/tier_limits` jadi fallback | Fondasi DB siap; existing tidak rusak |
+| Fase 2 | `GET /api/plans?site_type`, checkout W+addon, webhook perluasan, UI billing site_type-first, implementasi `cek_ongkir` end-to-end | POC billing + 1 add-on nyata |
+| Fase 3 | 4 template niche (`fashion, retail, handicraft, services`) + guard kompatibilitas template | Katalog online_shop lengkap |
+| Fase 4 | Modul G (`akunting_dasar → akunting_lanjutan`, `hrm_core → payroll`) + `module_usage` + enforcement penuh | Sistem modul lengkap |
+
+---
+
+## 11. Risiko & Mitigasi
+
+| Risiko | Mitigasi |
+|---|---|
+| Divergensi harga DB vs konstanta (pernah terjadi `012` vs `pricing.ts`) | `site_plan_prices` = kebenaran; konstanta hanya fallback display-safe + test matriks |
+| Config lintas tipe bocor saat switch template | Guard `site_types` di API + filter galeri + `catalog_template_id` sebagai audit |
+| Add-on yatim saat tier dicancel | Cancel tier ⇒ add-on W ikut `canceled` di akhir periode; G tidak terdampak |
+| Dependensi circular | Validasi seed/CI, bukan runtime |
+| Cross-scope requires ambigu (G butuh data W) | Soft-check "any website" + warning, bukan hard block |
+
+---
+
+## 12. Pertanyaan Terbuka (Untuk Sprint Berikutnya)
+
+1. Kunci klasifikasi final: `analytics_export` dan `wa_gateway` tetap di G (seperti usulan §5.3)?
+2. Prorata enable mid-cycle W add-on: harian penuh atau dibulatkan ke atas?
+3. Grace period bila tier expired tapi add-on W masih periode: read-only 7 hari atau blokir tulis langsung?
+4. Harga `site_plan_prices` awal untuk tipe selain online_shop: ikut online_shop atau ditetapkan saat tipe itu diaktifkan?
+
+---
+
+*Akhir dokumen planning. Belum ada implementasi kode; eksekusi mengikuti Fase 0 → Fase 4.*

@@ -16,7 +16,6 @@ function repoFile(...parts: string[]): string {
 /** Config yang tersimpan hasil "Simpan sebagai Template" + terapkan ulang. */
 function savedConfig() {
   return {
-    design_style_id: "editorial",
     palette_override: { primary: "#f97316", background: "#0b1220" },
     sections: [
       { id: "s1", type: "hero", variant: "hero-split", config: { headline: "Halo" } },
@@ -58,7 +57,6 @@ describe("buildStoredCustomConfig — whitelist simpan (PUT)", () => {
 
   it("default aman untuk config kosong", () => {
     const cfg = buildStoredCustomConfig(undefined, "food");
-    expect(cfg.design_style_id).toBe("minimalist");
     expect(cfg.palette_override).toEqual({});
     expect(cfg.sections).toEqual([]);
     expect(cfg.animations).toEqual([]);
@@ -102,7 +100,6 @@ describe("REGRESI: config tersimpan wajib kembali lewat GET", () => {
     expect(active.assets).toHaveLength(1);
     expect(active.catalog_template_id).toBe("food");
     // Sisanya tetap utuh.
-    expect(active.design_style_id).toBe("editorial");
     expect(active.sections).toHaveLength(1);
     expect(active.header).toEqual({ variant: "hdr-klasik", siteTitle: "Bengkel" });
     expect(active.seo.title).toBe("Bengkel");
@@ -125,7 +122,6 @@ describe("REGRESI: config tersimpan wajib kembali lewat GET", () => {
     expect(active.palette_override).toEqual(stored.palette_override);
     expect(active.customCss).toBe(stored.customCss);
     expect(active.sections).toEqual(stored.sections);
-    expect(active.design_style_id).toBe(stored.design_style_id);
     expect(active.catalog_template_id).toBe(stored.catalog_template_id);
   });
 
@@ -157,18 +153,42 @@ describe("buildDefaultCustomConfig — website tanpa config", () => {
     expect(buildDefaultCustomConfig().is_published).toBe(true);
   });
 
-  it("menghormati design_style_id bawaan dari websites", () => {
-    expect(buildDefaultCustomConfig("dark-mode").design_style_id).toBe("dark-mode");
-    expect(buildDefaultCustomConfig().design_style_id).toBe("minimalist");
+  it("config default tidak lagi membawa design style", () => {
+    // Migrasi 046: `design_style_id` dihapus, warna datang dari
+    // `palette_override` + `theme.palette` template.
+    expect(buildDefaultCustomConfig()).not.toHaveProperty("design_style_id");
+    expect(buildDefaultCustomConfig().palette_override).toEqual({});
   });
 });
 
 describe("hasStoredCustomConfig", () => {
-  it("benar hanya bila baris ada dan punya design_style_id", () => {
-    expect(hasStoredCustomConfig({ id: 1 }, { design_style_id: "minimalist" })).toBe(true);
+  it("false tanpa baris atau tanpa config", () => {
     expect(hasStoredCustomConfig(null, { design_style_id: "minimalist" })).toBe(false);
     expect(hasStoredCustomConfig({ id: 1 }, {})).toBe(false);
     expect(hasStoredCustomConfig({ id: 1 }, null)).toBe(false);
+  });
+
+  it("true untuk config legacy yang masih membawa design_style_id", () => {
+    expect(hasStoredCustomConfig({ id: 1 }, { design_style_id: "minimalist" })).toBe(true);
+  });
+
+  /**
+   * Regresi data-loss (migrasi 046): `design_style_id` dihapus dari JSON
+   * baris yang punya `catalog_template_id`. Kalau sentinel ini tidak
+   * lulus ke `catalog_template_id`, semua website yang sudah dikustomisasi
+   * akan terbaca "default" lalu kanvasnya ter-reset diam-diam.
+   */
+  it("true setelah design_style_id dihapus, selama catalog_template_id ada", () => {
+    expect(hasStoredCustomConfig({ id: 1 }, { catalog_template_id: "food" })).toBe(true);
+    expect(hasStoredCustomConfig({ id: 1 }, { catalog_template_id: "food", sections: [] })).toBe(true);
+  });
+
+  it("true untuk config hasil editing yang punya sections", () => {
+    expect(hasStoredCustomConfig({ id: 1 }, { sections: [{ id: "s1" }] })).toBe(true);
+  });
+
+  it("false untuk config benar-benar kosong (website baru)", () => {
+    expect(hasStoredCustomConfig({ id: 1 }, { catalog_template_id: null, sections: [] })).toBe(false);
   });
 });
 

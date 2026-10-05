@@ -44,7 +44,6 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
       sections: [instance("canvas-1"), instance("canvas-2", "about")],
       header: { variant: "header-klasik" },
       footer: { variant: "footer-sederhana" },
-      designStyleId: "minimalist",
       paletteOverride: { primary: "#EA580C" },
       seo: { title: "Toko A", description: "Deskripsi" },
       core: {},
@@ -64,7 +63,6 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
       sections: initialGlobal.map((s) => instance(s.id)),
       header: { variant: "header-klasik", navItems: [{ id: "n1", label: "Baru", url: "/p/baru" }] },
       footer: { variant: "footer-sederhana" },
-      designStyleId: "warm",
       paletteOverride: {},
       seo: { title: "", description: "" },
       core: {},
@@ -84,7 +82,6 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
       sections: live.map((s) => instance(s.id, s.type)),
       header: {},
       footer: {},
-      designStyleId: "minimalist",
       paletteOverride: {},
       seo: { title: "Home", description: "" },
       core: {},
@@ -94,7 +91,7 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
     expect(ids).toEqual(["home-hero", "home-promo"]);
   });
 
-  it("mempertahankan key base lain (design_style_id, theme, core) & menimpa dengan nilai baru", () => {
+  it("mempertahankan key base lain (theme, core) & menimpa dengan nilai baru", () => {
     const cfg = buildWebsiteCustomConfig({
       base: {
         catalog_template_id: "warung-makan",
@@ -104,7 +101,6 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
       sections: [],
       header: {},
       footer: {},
-      designStyleId: "warm",
       paletteOverride: { primary: "#111111" },
       typographyOverride: { headingFont: "Baru" },
       seo: { title: "T", description: "D" },
@@ -112,7 +108,6 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
     });
 
     expect(cfg.catalog_template_id).toBe("warung-makan");
-    expect(cfg.design_style_id).toBe("warm");
     expect((cfg.theme as { typography: Record<string, string> }).typography).toEqual({
       headingFont: "Baru",
       bodyFont: "Lama",
@@ -126,7 +121,6 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
       sections: [],
       header: {},
       footer: {},
-      designStyleId: "minimalist",
       paletteOverride: {},
       seo: { title: "", description: "" },
       core: {},
@@ -168,7 +162,6 @@ describe("submenu bertahan di jalur simpan header", () => {
       sections: [],
       header: { variant: "header-klasik", navItems },
       footer: {},
-      designStyleId: "minimalist",
       paletteOverride: {},
       seo: { title: "", description: "" },
       core: {},

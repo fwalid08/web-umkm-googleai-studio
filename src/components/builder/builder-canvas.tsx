@@ -9,7 +9,7 @@ import { SectionRenderer } from '@/components/builder/section-renderer';
 import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer';
 import { SiteHeader } from '@/components/builder/site-header-shared';
 import { SiteFooter } from '@/components/builder/site-footer-shared';
-import { getDesignStyle } from '@/lib/builder/design-styles';
+import { DEFAULT_COMPONENTS, DEFAULT_TYPOGRAPHY } from '@/lib/builder/design-styles';
 import { SectionPicker } from './section-picker';
 import { GoogleFonts } from './google-fonts';
 import { BehaviourRuntime } from './behaviour-runtime';
@@ -92,28 +92,28 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   // Sumber tunggal warna = tema bawaan template (+ override user).
   // Disamakan dengan renderer-v3 (live-site/preview) agar varian yang baru
   // ditambahkan ke kanvas langsung tampil dengan warna template tanpa edit
-  // manual. Fallback DESIGN_STYLES hanya untuk tipografi/komponen bila
-  // template tidak menyediakannya.
-  const designStyleId = useBuilderStore((s) => s.designStyleId);
+  // manual. Katalog DESIGN_STYLES sudah dihapus (migrasi 046); palet,
+  // tipografi, dan komponen semuanya berasal dari template, dengan
+  // DEFAULT_TYPOGRAPHY/DEFAULT_COMPONENTS sebagai jaring pengaman.
   const paletteOverride = useBuilderStore((s) => s.paletteOverride);
   const typographyOverride = useBuilderStore((s) => s.typographyOverride);
-  const baseDesignStyle = getDesignStyle(designStyleId) ?? getDesignStyle('minimalist')!;
   // Urutan merge: bawaan template → override user (dua store disinkronkan
   // di StyleSelector) → pastikan token theme:* selalu resolve ke warna aktif.
   const mergedPalette = { ...template.theme.palette, ...themeOverride, ...paletteOverride };
-  const baseTypography = template.theme.typography ?? baseDesignStyle.typography;
+  const baseTypography = template.theme.typography ?? DEFAULT_TYPOGRAPHY;
   const designStyle: DesignStyle = {
-    ...baseDesignStyle,
     id: template.id,
     name: template.name,
+    description: template.description,
     palette: mergedPalette,
     typography: {
       ...baseTypography,
       ...(typographyOverride.headingFont ? { headingFont: typographyOverride.headingFont } : {}),
       ...(typographyOverride.bodyFont ? { bodyFont: typographyOverride.bodyFont } : {}),
     },
-    components: template.theme.components ?? baseDesignStyle.components,
-    effects: template.theme.effects ?? baseDesignStyle.effects,
+    components: template.theme.components ?? DEFAULT_COMPONENTS,
+    effects: template.theme.effects ?? {},
+    thumbnailUrl: '',
   };
 
   const bleed = preview && fullBleed;

@@ -10,7 +10,6 @@ import { builderConfigSchema } from './index';
 describe('runtime schema footer', () => {
   it('navGroupSchema ter-resolve saat module evaluation', () => {
     const parsed = builderConfigSchema.parse({
-      design_style_id: 'minimalist',
       theme: { palette: {}, typography: {} },
       header: { navItems: [] },
       footer: {
@@ -24,7 +23,6 @@ describe('runtime schema footer', () => {
 
   it('footer tanpa navGroups tetap valid (backward compat)', () => {
     const parsed = builderConfigSchema.parse({
-      design_style_id: 'minimalist',
       theme: { palette: {}, typography: {} },
       header: { navItems: [] },
       footer: { style: 'simple', navItems: [] },
@@ -43,7 +41,6 @@ describe('runtime schema footer', () => {
 describe('schema menyimpan field section yang tidak terlihat', () => {
   it('anchorId section tidak dibuang', () => {
     const parsed = builderConfigSchema.parse({
-      design_style_id: 'minimalist',
       theme: { palette: {}, typography: {} },
       sections: [
         {
@@ -62,7 +59,6 @@ describe('schema menyimpan field section yang tidak terlihat', () => {
 
   it('field gaya latar (blur/overlay/size/opacity) tidak dibuang', () => {
     const parsed = builderConfigSchema.parse({
-      design_style_id: 'minimalist',
       theme: { palette: {}, typography: {} },
       sections: [
         {

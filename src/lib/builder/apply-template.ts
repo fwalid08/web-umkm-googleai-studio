@@ -21,7 +21,6 @@ import type { SectionType } from './types';
 
 /** Bentuk `data` yang dipakai apply — longgar agar cocok dengan hasil unwrap. */
 export interface TemplateDataLike {
-  designStyleId?: string;
   paletteOverride?: Record<string, string>;
   customCss?: string;
   animations?: unknown[];
@@ -284,7 +283,6 @@ export function buildTemplateCustomConfig(
   const theme = (raw.theme as Record<string, unknown> | undefined) ??
     (raw.data as Record<string, unknown> | undefined)?.theme;
   return {
-    design_style_id: data.designStyleId ?? 'minimalist',
     palette_override: data.paletteOverride ?? {},
     sections: resolveTemplateSections(data, template.category, maybeCatalog),
     header: data.header ?? {},

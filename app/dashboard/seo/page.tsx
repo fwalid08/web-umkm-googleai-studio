@@ -88,13 +88,14 @@ export default function SeoPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Hanya seo + status tayang yang dikirim. `buildWebsiteCustomConfig`
-          // di server menyalin `base` dari config tersimpan, jadi sections/
-          // header/footer tidak ikut tertimpa.
+          // Hanya seo yang dikirim. `buildWebsiteCustomConfig` di server menyalin
+          // `base` dari config tersimpan, jadi sections/header/footer tidak ikut
+          // tertimpa. `is_published` SENGAJA tidak dikirim: status tayang hanya
+          // berubah lewat tombol "Tayangkan" di builder, dan mengedit dari
+          // panel SEO tidak boleh ikut meng-unpublish website.
           custom_config: {
             ...base,
             seo,
-            is_published: base.is_published === true,
           },
         }),
       });

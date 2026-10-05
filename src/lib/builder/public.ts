@@ -55,8 +55,6 @@ export interface PublicSiteData {
   whatsapp: string;
   /** Template ID (slug katalog, mis. 'food') untuk V3 renderer. */
   templateId?: string;
-  /** Design style ID (mis. 'minimalist') untuk V3 renderer. */
-  designStyleId?: string;
   /** Builder format sections untuk V3 renderer (TemplateSectionInstance[]). */
   builderSections?: TemplateSectionInstance[];
   /** Header config untuk V3 renderer. */
@@ -226,8 +224,6 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     .maybeSingle();
 
   const stored = (row?.custom_config ?? null) as {
-    design_style_id?: string;
-    designStyleId?: string;
     sections?: Array<{
       id: string;
       type: string;
@@ -275,18 +271,21 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
 
   // Website sekarang SATU HALAMAN (lihat 044_single_page_user_templates.sql).
   // `user_templates.custom_config` adalah satu-satunya sumber isi halaman:
-  // sections, status tayang, dan meta. Tabel `store_pages` sudah dihapus,
-  // jadi tidak ada lagi baris "is_homepage" yang dicari terpisah.
-  const isPublished = stored?.is_published !== false;
+  // sections dan meta. Tabel `store_pages` sudah dihapus, jadi tidak ada lagi
+  // baris "is_homepage" yang dicari terpisah.
+  //
+  // `is_published` TIDAK lagi jadi gerbang render. Builder tidak punya konsep
+  // draft: satu-satunya aksi yang menyentuh website publik adalah tombol
+  // "Tampilkan". Sebelumnya ada `if (!isPublished) return null;` yang membuat
+  // live site 404 hanya karena satu klik "Simpan", dan statusnya nempel —
+  // harus klik "Tayangkan" lagi untuk memulihkannya. Status tayang kini
+  // hanya informatif di panel builder; baris yang tadinya `false` otomatis
+  // tampil lagi begitu gerbang ini dihapus.
   const pageMeta: { title?: string; description?: string; ogImageUrl?: string } = {
     title: stored?.meta_title ?? undefined,
     description: stored?.meta_description ?? undefined,
     ogImageUrl: stored?.og_image_url ?? undefined,
   };
-
-  // Publish = halaman bisa diakses: config yang belum dipublish tidak
-  // dirender (404), bukan fallback ke konten basi.
-  if (!isPublished) return null;
 
   const pageSections = Array.isArray(stored?.sections) && stored.sections.length > 0 ? stored.sections : null;
 
@@ -378,7 +377,6 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
 const name = user.name || "Toko Kami";
   // Use catalog template ID if available (for V3 renderer), otherwise determine from businessType
   const templateId = catalogTemplateId || template.id;
-  const designStyleId = (stored?.design_style_id as string) || (stored?.designStyleId as string) || 'minimalist';
   // Template katalog untuk mapping variant & anchor default.
 const catalogTemplateForSections = template;
 const variantSource: Array<{ type: string; variants?: Array<{ id: string }> }> =
@@ -485,7 +483,6 @@ const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePal
     },
     whatsapp: findWhatsapp(sections),
     templateId,
-    designStyleId,
     builderSections,
     header,
     footer,

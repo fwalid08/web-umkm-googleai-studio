@@ -201,23 +201,30 @@ export function BuilderTopbar({
 
           {/* Status tayang hanya relevan bila builder punya konsep publish
               (page-builder). Label "Tersimpan" di sebelahnya tidak menjawab
-              hal ini: ia soal perubahan tersimpan ke DB, bukan halaman tayang. */}
+              hal ini: ia soal perubahan tersimpan ke DB, bukan halaman tayang.
+              Tidak ada konsep "draft" — website publik tidak pernah 404 karena
+              status; label ini murni informasi apakah template aktif sudah
+              pernah ditayangkan. */}
           {typeof isPublished === 'boolean' && !isSaving && (
             <div
               className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border shrink-0 ${
                 isPublished
                   ? 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800'
-                  : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                  : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'
               }`}
               title={
                 isPublished
-                  ? 'Halaman ini sedang TAYANG di website publik — siapa pun bisa mengunjunginya.'
-                  : 'Halaman masih DRAFT — perubahan hanya tersimpan di editor, belum tampil untuk Pengunjung. Tekan "Tayangkan" saat sudah siap.'
+                  ? 'Desain ini sudah pernah ditayangkan ke website publik.'
+                  : 'Desain ini belum pernah ditayangkan. Tekan "Tayangkan" untuk memakai template ini di website publik.'
               }
             >
               {isPublished ? <Globe className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-              <span className="hidden lg:inline">{isPublished ? 'Tayang' : 'Draft'}</span>
-              <span className="sr-only">{isPublished ? 'Sudah tayang' : 'Masih draft'}</span>
+              <span className="hidden lg:inline">
+                {isPublished ? 'Tayang' : 'Belum ditayangkan'}
+              </span>
+              <span className="sr-only">
+                {isPublished ? 'Sudah pernah ditayangkan' : 'Belum pernah ditayangkan'}
+              </span>
             </div>
           )}
         </div>
@@ -287,14 +294,14 @@ export function BuilderTopbar({
                 ) : (
                   <Save className="w-4 h-4 sm:mr-2" />
                 )}
-                <span className="hidden sm:inline text-[12px]">Simpan</span>
+                <span className="hidden sm:inline text-[12px]">Simpan Template</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p className="font-medium">Simpan perubahan</p>
+              <p className="font-medium">Simpan sebagai template</p>
               <p className="text-xs opacity-70">
                 {onOpenSaveDialog
-                  ? 'Ctrl+S untuk simpan langsung tanpa pilih'
+                  ? 'Tersimpan ke library-mu — website yang tayang tidak berubah. Ctrl+S untuk langsung simpan dengan nama default.'
                   : 'Ctrl+S'}
               </p>
             </TooltipContent>
@@ -310,28 +317,21 @@ export function BuilderTopbar({
                   size="sm"
                   className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-500/25 border border-emerald-400/40"
                   onClick={onPublish}
-                  disabled={isSaving || isPublished === true}
+                  disabled={isSaving}
                 >
                   {isSaving ? (
                     <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-                  ) : isPublished === true ? (
-                    <Globe className="w-4 h-4 sm:mr-2" />
                   ) : (
                     <Rocket className="w-4 h-4 sm:mr-2" />
                   )}
-                  <span className="hidden sm:inline text-[12px]">
-                    {isPublished === true ? 'Sudah Tayang' : 'Tayangkan'}
-                  </span>
+                  <span className="hidden sm:inline text-[12px]">Tayangkan</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p className="font-medium">
-                  {isPublished === true ? 'Halaman sudah tayang' : 'Tayangkan halaman ke website publik'}
-                </p>
+                <p className="font-medium">Tayangkan desain ini</p>
                 <p className="text-xs opacity-70">
-                  {isPublished === true
-                    ? 'Simpan dulu bila kamu mengubah halaman — perubahan baru tampil setelah disimpan.'
-                    : 'Simpan perubahan, lalu tayangkan agar bisa diakses pengunjung.'}
+                  Template aktif akan ditimpa oleh desain di editor, lalu langsung
+                  tayang untuk pengunjung.
                 </p>
               </TooltipContent>
             </Tooltip>

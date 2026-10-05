@@ -48,7 +48,6 @@ function baseTemplate() {
     name: 'Tes Kustom',
     description: '…',
     category: 'food',
-    designType: 'organic',
     theme: {
       palette: {
         primary: '#111827', secondary: '#374151', accent: '#f59e0b',

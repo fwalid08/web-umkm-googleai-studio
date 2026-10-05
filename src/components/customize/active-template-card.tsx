@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CATEGORY_LABELS, BUILT_IN_CATALOG, type BusinessCategory } from "@/lib/builder/templates/catalog";
-import { DESIGN_STYLES } from "@/lib/builder/design-styles";
 import { resolveTemplateId } from "@/lib/builder/apply-template";
 
 interface ActiveTemplateCardProps {
@@ -16,13 +15,9 @@ interface ActiveTemplateCardProps {
   refreshKey?: number;
   /** template_id dari API (dipakai untuk match langsung ke katalog). */
   initialTemplateId?: string | null;
-  /** design_style_id dari custom_config (fallback bila template_id tak cocok). */
-  initialStyleId?: string | null;
   /** template_name dari API (category: 'services', 'food', dll) — untuk match langsung ke katalog. */
   initialTemplateCategory?: string | null;
 }
-
-type DesignStyle = (typeof DESIGN_STYLES)[number];
 
 interface SystemTemplate {
   id: string;
@@ -30,7 +25,6 @@ interface SystemTemplate {
   category: string;
   description: string;
   template_data: {
-    designStyleId?: string;
     sections?: any[];
     header?: any;
     footer?: any;
@@ -38,12 +32,15 @@ interface SystemTemplate {
   };
 }
 
+/**
+ * Katalog statis — tanpa fetch. Urutan: id slug → kategori → template
+ * pertama. Concept "design style" & "design type" sudah dihapus (migrasi
+ * 046), jadi warna sekarang diambil dari `theme.palette` template itu sendiri.
+ */
 function resolveTemplate(
   templateId: string | null | undefined,
-  styleId: string | null | undefined,
   templateCategory?: string | null,
-): { template: SystemTemplate | null; style: DesignStyle | null } {
-  // Katalog statis — tanpa fetch. Urutan: id slug → kategori → style.
+): SystemTemplate | null {
   const found =
     (templateId
       ? BUILT_IN_CATALOG.find((t) => t.id === resolveTemplateId(templateId))
@@ -51,37 +48,24 @@ function resolveTemplate(
     (templateCategory
       ? BUILT_IN_CATALOG.find((t) => t.category === templateCategory)
       : undefined) ??
-    (styleId
-      ? BUILT_IN_CATALOG.find(
-          (t) => (t.data.designStyleId ?? t.data.design_style_id) === styleId,
-        )
-      : undefined) ??
     BUILT_IN_CATALOG[0] ??
     null;
-  if (!found) return { template: null, style: null };
-  const style =
-    DESIGN_STYLES.find(
-      (s) => s.id === (found.data.designStyleId ?? found.data.design_style_id),
-    ) ?? null;
+  if (!found) return null;
   return {
-    template: {
-      id: found.id,
-      name: found.name,
-      category: found.category,
-      description: found.description,
-      template_data: {
-        designStyleId: found.data.designStyleId ?? found.data.design_style_id,
-        sections: found.data.sections,
-        header: found.data.header,
-        footer: found.data.footer,
-        theme: found.data.paletteOverride ?? found.data.palette_override,
-      },
+    id: found.id,
+    name: found.name,
+    category: found.category,
+    description: found.description,
+    template_data: {
+      sections: found.data.sections,
+      header: found.data.header,
+      footer: found.data.footer,
+      theme: found.theme.palette,
     },
-    style,
   };
 }
 
-export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKey = 0, initialTemplateId = null, initialStyleId = null, initialTemplateCategory = null }: ActiveTemplateCardProps) {
+export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKey = 0, initialTemplateId = null, initialTemplateCategory = null }: ActiveTemplateCardProps) {
   // Data awal dipasok parent (sudah fetch saat load halaman) → tidak ada flash
   // card kuning dan tidak ada double-fetch saat mount.
   //
@@ -93,11 +77,10 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
   // `resolveTemplate` murni (baca BUILT_IN_CATALOG, tanpa fetch) sehingga aman
   // dipanggil saat render dan gratis. Dipanggil SEKALI di sini lalu dipakai
   // untuk seed ketiga state di bawah.
-  const seeded = resolveTemplate(initialTemplateId, initialStyleId, initialTemplateCategory);
-  const [currentTemplate, setCurrentTemplate] = useState<SystemTemplate | null>(seeded.template);
-  const [currentStyle, setCurrentStyle] = useState<DesignStyle | null>(seeded.style);
+  const seeded = resolveTemplate(initialTemplateId, initialTemplateCategory);
+  const [currentTemplate, setCurrentTemplate] = useState<SystemTemplate | null>(seeded);
   // Skeleton hanya bila parent tidak punya data awal sama sekali.
-  const [loading, setLoading] = useState(!seeded.template);
+  const [loading, setLoading] = useState(!seeded);
 
   useEffect(() => {
     // Fetch ulang saat websiteId atau refreshKey berubah (template baru diterapkan).
@@ -108,13 +91,12 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
         const res = await fetch(`/api/websites/${websiteId}/website`);
         const json = await res.json();
         if (cancelled || !json?.success) return;
-        const resolved = resolveTemplate(
-          json.data?.template_id ?? null,
-          json.data?.custom_config?.design_style_id ?? null,
-          json.data?.template_name ?? null,
+        setCurrentTemplate(
+          resolveTemplate(
+            json.data?.template_id ?? null,
+            json.data?.template_name ?? null,
+          ),
         );
-        setCurrentTemplate(resolved.template);
-        setCurrentStyle(resolved.style);
       } catch {
         // biarkan state sebelumnya (jangan tampilkan empty-state palsu)
       } finally {
@@ -124,9 +106,9 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
     return () => {
       cancelled = true;
     };
-    // Sengaja TIDAK bergantung pada initialTemplateId/initialStyleId/
-    // initialTemplateCategory: nilai itu hanya untuk seed render pertama.
-    // Perubahan nyata datang lewat refreshKey (setelah template diterapkan).
+    // Sengaja TIDAK bergantung pada initialTemplateId/initialTemplateCategory:
+    // nilai itu hanya untuk seed render pertama. Perubahan nyata datang lewat
+    // refreshKey (setelah template diterapkan).
   }, [websiteId, refreshKey]);
 
   if (loading) {
@@ -188,8 +170,14 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
     );
   }
 
-  const styleColors = currentStyle?.palette ?? { primary: "#15803D", secondary: "#0d9488" };
   const tplData = currentTemplate?.template_data ?? {};
+  // Warna thumbnail sekarang dari palet template itu sendiri — katalog
+  // DESIGN_STYLES yang sebelumnya supplying warna sudah dihapus (migrasi 046).
+  const themeColors = (tplData.theme ?? {}) as Record<string, string>;
+  const styleColors = {
+    primary: themeColors.primary ?? "#15803D",
+    secondary: themeColors.secondary ?? "#0d9488",
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -227,7 +215,7 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
         <div className="flex-1 p-6 lg:p-8 flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-4">
             <Badge variant="secondary" className="text-sm">{CATEGORY_LABELS[currentTemplate.category as BusinessCategory]}</Badge>
-            <Badge variant="outline" className="text-sm">{currentStyle?.name ?? tplData.designStyleId}</Badge>
+            <Badge variant="outline" className="text-sm uppercase">{styleColors.primary}</Badge>
             <Badge variant="outline" className="text-sm">{tplData.sections?.length ?? 0} Section</Badge>
           </div>
           <h3 className="text-2xl font-bold mb-2">{currentTemplate.name}</h3>
@@ -235,8 +223,8 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
 
           <div className="grid sm:grid-cols-2 gap-3 mb-6">
             <div className="p-3 bg-muted/50 rounded-xl">
-              <p className="text-xs text-muted-foreground">Style</p>
-              <p className="font-medium">{currentStyle?.name ?? tplData.designStyleId}</p>
+              <p className="text-xs text-muted-foreground">Warna</p>
+              <p className="font-medium uppercase">{styleColors.primary}</p>
             </div>
             <div className="p-3 bg-muted/50 rounded-xl">
               <p className="text-xs text-muted-foreground">Section</p>

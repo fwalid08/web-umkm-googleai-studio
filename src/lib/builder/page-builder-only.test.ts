@@ -57,13 +57,24 @@ describe('isi halaman kini dari user_templates.custom_config', () => {
   it('public.ts membaca sections dari custom_config, bukan tabel terpisah', () => {
     const src = read('src', 'lib', 'builder', 'public.ts');
     expect(src).toContain('stored?.sections');
-    expect(src).toContain('stored?.is_published');
     expect(src).not.toContain('.eq("is_homepage", true)');
+    // `is_published` tak lagi dibaca di sini sama sekali — status tayang
+    // hanya informatif di panel builder (lihat test di bawah).
+    expect(src).not.toContain('stored?.is_published');
   });
 
-  it('publish=false menghasilkan 404 (bukan fallback konten basi)', () => {
-    const src = read('src', 'lib', 'builder', 'public.ts');
-    expect(src).toMatch(/if \(!isPublished\) return null;/);
+  it('live site tidak lagi menolak render karena status tayang', () => {
+    // Builder tidak punya konsep draft (lihat `save-dialog.tsx`): satu-satunya
+    // aksi yang menyentuh website publik adalah tombol "Tampilkan". Gerbang
+    // `is_published` sudah dihapus dari `buildSite` karena dulu membuat live
+    // site 404 hanya karena satu klik "Simpan", dan statusnya nempel — harus
+    // klik "Tayangkan" lagi untuk memulihkan.
+    //
+    // `stripComments` dipakai supaya kalimat ini sendiri tidak memenuhi
+    // assertion di bawah.
+    const src = stripComments(read('src', 'lib', 'builder', 'public.ts'));
+    expect(src).not.toMatch(/if \(!isPublished\) return null;/);
+    expect(src).not.toContain('is_published !== false');
   });
 
   it('API menyimpan is_published + meta ke custom_config', () => {
@@ -77,6 +88,52 @@ describe('isi halaman kini dari user_templates.custom_config', () => {
     expect(config).toContain('meta_title:');
     expect(config).toContain('meta_description:');
     expect(config).toContain('og_image_url:');
+  });
+});
+
+/**
+ * Guard regresi untuk bug "Simpan meng-unpublish website".
+ *
+ * Dulu jalur Simpan mengirim `is_published: <state React>` dan server
+ * menghormatinya, sehingga satu klik Simpan mengubah website tayang jadi
+ * draft → live site 404, dan statusnya nempel sampai diklik "Tayangan".
+ * Builder sekarang tidak punya konsep draft: Simpan hanya menulis ke library,
+ * jadi TIDAK BOLEH ada payload Simpan/SEO yang mengirim `is_published`.
+ * Satu-satunya pengirim yang sah adalah aksi "Tayangkan".
+ */
+describe('hanya tombol Tayangkan yang menyentuh status tayang', () => {
+  it('jalur Simpan di page-builder tidak mengirim is_published', () => {
+    const src = stripComments(read('app', 'dashboard', 'web-design', 'customize', 'page.tsx'));
+    // Object `custom_config` yang dikirim ke PUT tidak boleh memuat flag status.
+    // Blok publish memakai `is_published: true` di luar `custom_config`, jadi
+    // assertion ini tidak ikut menyentuhnya.
+    expect(src, 'payload custom_config tidak boleh mengirim is_published').not.toMatch(
+      /custom_config:\s*\{[^}]*is_published/,
+    );
+    // State React `publishState` sudah dihapus — itu biang bugnya.
+    expect(src).not.toContain('publishState');
+    // Aksi publish tetap satu-satunya yang menaikkan status.
+    expect(src).toContain('is_published: true');
+  });
+
+  it('panel SEO tidak mengirim is_published', () => {
+    const src = stripComments(read('app', 'dashboard', 'seo', 'page.tsx'));
+    expect(src, 'panel SEO tidak boleh mengubah status tayang').not.toContain('is_published:');
+  });
+
+  it('dialog Simpan tidak lagi menawarkan opsi "simpan ke website"', () => {
+    const src = stripComments(read('src', 'components', 'builder', 'save-dialog.tsx'));
+    expect(src).not.toContain("SaveChoice");
+    expect(src).not.toContain("'plain'");
+    // Tetap ada input nama — itu inti dari "Simpan sebagai Template".
+    expect(src).toContain('template-library-name');
+  });
+
+  it('tombol Tayangkan tetap aktif walau sudah pernah tayang', () => {
+    // Menonaktifkannya saat `isPublished === true` membuat user tidak bisa
+    // menimpa template aktif dari editor.
+    const src = stripComments(read('src', 'components', 'builder', 'builder-topbar.tsx'));
+    expect(src).not.toContain('isPublished === true');
   });
 });
 

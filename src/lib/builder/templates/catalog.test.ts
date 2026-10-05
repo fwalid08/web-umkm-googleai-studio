@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { DESIGN_STYLES, validateStyleContrast } from "../design-styles";
 import { builderSectionToInstance } from "../migration";
 import { ALL_TIERS, isCatalogTemplateAllowedForTier } from "./catalog";
 import { isKnownHeaderVariant, isKnownFooterVariant } from "../chrome";
 import { BUILT_IN_CATALOG } from "./catalog";
 import { resolvePalette } from "../design-styles";
-import { ALL_DESIGN_TYPES, type ConfigField } from "../template-types";
+import { validateColorScheme } from "../color-schemes";
+import { FONT_CATEGORIES } from "../font-categories";
+import { type ConfigField } from "../template-types";
 
 /**
  * TEMPLATE CONTRACT — model baru:
@@ -32,16 +33,19 @@ describe("template contract", () => {
     for (const t of BUILT_IN_CATALOG) {
       expect(t.id.length).toBeGreaterThan(0);
       expect(t.name.length).toBeGreaterThan(0);
-      expect(t.data.designStyleId ?? t.data.design_style_id).toBeTruthy();
+      // Palet + tipografi kini hidup di `theme` (design style dihapus di 046).
+      expect(t.theme.palette.primary).toBeTruthy();
+      expect(t.theme.typography.headingFont).toBeTruthy();
+      expect(t.theme.typography.bodyFont).toBeTruthy();
     }
   });
 
-  it("semua designStyleId terdaftar & lolos kontras", () => {
+  it("font template terdaftar di FONT_CATEGORIES yang dipakai StyleSelector", () => {
+    const known = new Set(FONT_CATEGORIES.flatMap((c) => c.fonts));
     for (const t of BUILT_IN_CATALOG) {
-      const styleId = t.data.designStyleId ?? t.data.design_style_id;
-      const style = DESIGN_STYLES.find((s) => s.id === styleId);
-      expect(style, `${t.id}: style ${styleId} tak terdaftar`).toBeDefined();
-      expect(validateStyleContrast(style!).valid, `${t.id}: kontras gagal`).toBe(true);
+      for (const font of [t.theme.typography.headingFont, t.theme.typography.bodyFont]) {
+        expect(known.has(font), `${t.id}: font "${font}" tak ada di FONT_CATEGORIES`).toBe(true);
+      }
     }
   });
 
@@ -156,13 +160,24 @@ describe("template contract", () => {
 
   it("skema warna template lolos kontras (ganti skema tidak merusak)", () => {
     for (const t of BUILT_IN_CATALOG) {
-      const styleId = t.data.designStyleId ?? t.data.design_style_id;
-      const style = DESIGN_STYLES.find((s) => s.id === styleId)!;
-      const effective = {
-        ...style,
-        palette: resolvePalette(style, (t.data.paletteOverride ?? t.data.palette_override ?? {}) as Record<string, string>),
-      };
-      const result = validateStyleContrast(effective);
+      // Palet efektif = palet bawaan template + override miliknya.
+      const effective = resolvePalette(
+        {
+          ...t.theme,
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          effects: t.theme.effects ?? {},
+          thumbnailUrl: '',
+        },
+        (t.data.paletteOverride ?? t.data.palette_override ?? {}) as Record<string, string>,
+      );
+      const result = validateColorScheme({
+        id: t.id,
+        name: t.name,
+        category: 'light',
+        palette: effective,
+      });
       expect(result.valid, `${t.id}: skema bermasalah — ${result.issues.join("; ")}`).toBe(true);
     }
   });
@@ -174,7 +189,7 @@ describe("template contract", () => {
  * Ini menangkap masalah nyata: dulu 5 dari 6 template cukup `...PANGKAS_RAPI`
  * lalu override palet, sehingga semua render dengan DOM identik dan cuma beda
  * warna. Test di bawah memaksa tiap template benar-benar punya:
- * variannya sendiri, config-nya sendiri, dan `designType`.
+ * variannya sendiri, config-nya sendiri, serta palet & tipografi lengkap.
  *
  * Syarat penuh hanya ditegakkan pada template yang sudah dimigrasi
  * (lihat `MIGRATED_TEMPLATES`) supaya suite hijau selama migrasi berjalan.
@@ -243,10 +258,15 @@ describe("kontrak karakter desain per template", () => {
     expect(migrated.length).toBe(0);
   });
 
-  it("setiap template punya designType yang valid", () => {
+  it("setiap template punya palet & tipografi lengkap", () => {
+    // `designType` dihapus (migrasi 046): pembeda "karakter desain" kini
+    // datang dari palet + tipografi + varian milik template itu sendiri.
     for (const t of BUILT_IN_CATALOG) {
-      expect(t.designType, `${t.id}: designType wajib diisi`).toBeTruthy();
-      expect(ALL_DESIGN_TYPES, `${t.id}: designType "${t.designType}" tak dikenal`).toContain(t.designType);
+      for (const k of ["primary", "secondary", "accent", "background", "surface", "text", "textMuted", "border"] as const) {
+        expect(t.theme.palette[k], `${t.id}: palet.${k} kosong`).toBeTruthy();
+      }
+      expect(t.theme.typography.headingFont, `${t.id}: headingFont kosong`).toBeTruthy();
+      expect(t.theme.typography.bodyFont, `${t.id}: bodyFont kosong`).toBeTruthy();
     }
   });
 

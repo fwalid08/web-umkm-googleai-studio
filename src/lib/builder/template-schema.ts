@@ -22,7 +22,6 @@
 import type {
   BusinessCategory,
   ConfigField,
-  DesignType,
   Template,
 } from './template-types';
 import type { SectionType } from './types';
@@ -71,14 +70,6 @@ export const VALID_CONFIG_FIELD_TYPES: ReadonlySet<string> = new Set([
   'switch',
   'html',
 ]);
-
-export const VALID_DESIGN_TYPES: readonly DesignType[] = [
-  'editorial',
-  'brutalist',
-  'organic',
-  'luxury',
-  'tech',
-];
 
 export const VALID_CATEGORIES: readonly BusinessCategory[] = [
   'food',
@@ -246,9 +237,6 @@ export function validateTemplateV3(data: unknown): ValidateTemplateResult {
   if (typeof t.name !== 'string' || !t.name.trim()) errors.push('name wajib diisi');
   if (t.category !== undefined && !VALID_CATEGORIES.includes(t.category as BusinessCategory)) {
     errors.push(`category "${String(t.category)}" tak dikenal`);
-  }
-  if (t.designType !== undefined && !VALID_DESIGN_TYPES.includes(t.designType as DesignType)) {
-    errors.push(`designType "${String(t.designType)}" tak dikenal`);
   }
 
   // --- theme ---

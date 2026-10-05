@@ -6,7 +6,6 @@ import { FOOD_TEMPLATE } from "./food";
 export type BusinessCategory = "food" | "fashion" | "retail" | "handicraft" | "services";
 
 export interface CatalogTemplate extends Template {
-  designStyleId?: string;
   data: FullTemplateData;
 }
 

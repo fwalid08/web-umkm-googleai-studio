@@ -37,7 +37,6 @@ function libraryTemplate(overrides: Partial<ApplyableTemplate['data']> = {}): Ap
     source: 'saved',
     category: 'services',
     data: {
-      designStyleId: 'dark-mode',
       paletteOverride: { primary: '#f97316', background: '#0b1220' },
       customCss: '[data-tpl-type="hero"] { clip-path: ellipse(78% 88% at 50% 0%); }',
       animations: [
@@ -65,7 +64,6 @@ function libraryTemplate(overrides: Partial<ApplyableTemplate['data']> = {}): Ap
 describe('apply-template: kontrak payload', () => {
   it('menghasilkan custom_config lengkap — creative layer ikut', () => {
     const cfg = buildTemplateCustomConfig(libraryTemplate());
-    expect(cfg.design_style_id).toBe('dark-mode');
     expect(cfg.palette_override).toEqual({ primary: '#f97316', background: '#0b1220' });
     // Tiga hal ini yang dulu hilang kalau call site apply tidak menambahkannya.
     expect(String(cfg.customCss)).toContain('clip-path');
@@ -84,7 +82,6 @@ describe('apply-template: kontrak payload', () => {
 
   it('template tanpa data sama sekali tidak melempar error', () => {
     const cfg = buildTemplateCustomConfig({ id: 'builtin-kosong', data: {} });
-    expect(cfg.design_style_id).toBe('minimalist');
     expect(cfg.sections).toEqual([]);
     expect(cfg.customCss).toBe('');
   });
@@ -315,7 +312,7 @@ describe('REGRESI: logika apply tidak boleh diduplikasi', () => {
       const src = repoFileCode(...parts);
       // Pola payload lama = tanda duplikasi yang harus hilang.
       expect(src, `${parts.join('/')} jangan lagi bikin custom_config manual`).not.toContain(
-        'design_style_id:',
+        'palette_override:',
       );
       expect(src, `${parts.join('/')} jangan lagi hitung sections manual`).not.toContain(
         'applySectionAssets(',
