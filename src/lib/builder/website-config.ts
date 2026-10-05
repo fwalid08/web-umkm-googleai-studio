@@ -235,3 +235,33 @@ export function resolveNextIsPublished(
   if (typeof incoming === 'boolean') return incoming;
   return asRecord(existingStoredConfig).is_published === true;
 }
+
+/**
+ * Paksa badge "Powered by" di footer untuk tier non-Enterprise.
+ *
+ * Badge hanya bisa dimatikan paket tertinggi (enterprise). Server yang
+ * memaksa — bukan client — supaya toggle sidebar tidak bisa menipu: walau
+ * client mengirim `showPowered: false`, tier < enterprise tetap dikembalikan
+ * `true` + URL dikunci ke domain SaaS (anti pengalihan badge ke URL lain).
+ *
+ * Dipakai di PUT `/api/websites/[id]/website` (termasuk jalur demo).
+ */
+export const POWERED_BY_URL = 'https://rabasha.web.id';
+
+export function enforcePoweredBy(
+  customConfig: Record<string, unknown>,
+  tier: string | null | undefined,
+): Record<string, unknown> {
+  const out = { ...customConfig };
+  const footer = asRecord(out.footer);
+  if (tier === 'enterprise') {
+    out.footer = footer;
+    return out;
+  }
+  out.footer = {
+    ...footer,
+    showPowered: true,
+    poweredUrl: POWERED_BY_URL,
+  };
+  return out;
+}

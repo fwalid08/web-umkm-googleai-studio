@@ -186,6 +186,35 @@ export function sanitizeTemplateHtml(html: string): string {
   return out;
 }
 
+/** True bila nilai dianggap "nyala" untuk `{{#if}}` (non-boolean ikut). */
+function isTruthyFlag(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string") return v.trim().length > 0 && v.trim() !== "false" && v.trim() !== "0";
+  if (Array.isArray(v)) return v.length > 0;
+  return !!v && typeof v === "object";
+}
+
+/**
+ * Ekspansi blok kondisional `{{#if key}}…{{/if}}`.
+ *
+ * Dipakai untuk bagian yang bisa dimatikan user (mis. bar "powered by" di
+ * footer). Hanya memutuskan tampil/tidak — isi dibiarkan mentah agar loop
+ * dan placeholder di dalamnya diproses fase berikutnya. Diekspansi SEBELUM
+ * loop `{{#items}}` agar tidak bentrok sintaks. `{{/if}}` adalah penutup
+ * reserved — jangan pakai sebagai key loop. Kondisional di DALAM loop
+ * memakai scope item tidak didukung (v1).
+ */
+function expandConditionals(
+  tpl: string,
+  config: Record<string, unknown>,
+): string {
+  return tpl.replace(
+    /\{\{#if\s+([\w.]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
+    (_m, key: string, inner: string) => (isTruthyFlag(config[key]) ? inner : ""),
+  );
+}
+
 /** True bila nilai adalah record polos (item kartu/list). */
 function isRecordItem(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
@@ -261,6 +290,7 @@ function expandLoops(
  *   (untuk field bertipe `html`).
  * - Array homogen item link `{label, url}` (mis. `navItems`) diekspan jadi
  *   deretan `<a>` — tanpa ini tertulis "[object Object],…".
+ * - Blok kondisional `{{#if key}}…{{/if}}` menampilkan isi bila truthy.
  * - Blok loop `{{#items}}…{{/items}}` mengulang isi per elemen (kartu,
  *   artikel, statistik, langkah, galeri). Di dalam blok, `{{field}}`
  *   diambil dari item; `{{.}}` untuk elemen primitif.
@@ -272,8 +302,10 @@ export function renderVariantHtml(
   htmlFieldKeys: Set<string> = new Set(),
 ): string {
   const raw = template ?? '';
-  // Loop dulu agar placeholder di dalamnya di-scope per item.
-  let out = expandLoops(raw, config ?? {}, htmlFieldKeys);
+  // Kondisional dulu agar tak tertelan parser loop.
+  let out = expandConditionals(raw, config ?? {});
+  // Loop agar placeholder di dalamnya di-scope per item.
+  out = expandLoops(out, config ?? {}, htmlFieldKeys);
   // Triple-brace dulu agar tidak tertelan replacer double-brace.
   out = out.replace(/\{\{\{\s*([\w.]+)\s*\}\}\}/g, (_m, key: string) => {
     return resolvePlaceholder(key, config ?? {}, htmlFieldKeys, true);

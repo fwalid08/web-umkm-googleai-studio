@@ -457,7 +457,10 @@ function GalleryField({ field, value, onChange }: { field: ConfigField; value: u
 function SwitchField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (v: unknown) => void }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
-      <Label className="text-[11px] font-bold">{field.label}</Label>
+      <div className="flex-1">
+        <Label className="text-[11px] font-bold">{field.label}</Label>
+        {field.hint && <p className="text-[10px] text-muted-foreground mt-0.5">{field.hint}</p>}
+      </div>
       <Switch
         checked={(value as boolean) || false}
         onCheckedChange={(v) => onChange(v)}

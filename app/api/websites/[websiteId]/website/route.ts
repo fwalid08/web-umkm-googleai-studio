@@ -33,6 +33,7 @@ import {
   buildActiveCustomConfig,
   buildDefaultCustomConfig,
   buildStoredCustomConfig,
+  enforcePoweredBy,
   hasStoredCustomConfig,
   resolveNextIsPublished,
   type ActiveCustomConfig,
@@ -376,7 +377,18 @@ export async function PUT(
 
     const supabase = await createServerSupabaseClient(nextAuthToken);
 
-    if (hasNewFormat) {
+  // Fetch user for tier enforcement
+  const { data: user } = await supabase
+    .from("users")
+    .select("tier")
+    .eq("id", sessionUser.id)
+    .maybeSingle();
+
+  if (!user) {
+    return NextResponse.json({ success: false, error: "User tidak ditemukan" }, { status: 404 });
+  }
+
+  if (hasNewFormat) {
       const { template_id: raw_template_id, custom_config } = body;
       // Normalisasi ID: prefix legacy system-/builtin- dibuang. Hasilnya
       // HARUS slug katalog statis (mis. 'food') — UUID library lama ditolak.
@@ -462,13 +474,15 @@ export async function PUT(
       // sama untuk branch format baru & legacy). Normalisasi identitas
       // sections, sanitasi palette, dan creative layer ditangani di sana.
       const storedBase = buildStoredCustomConfig(custom_config, slug);
+      // Paksa badge "Powered by" untuk tier non-Enterprise (server-side enforcement).
+      const enforcedBase = enforcePoweredBy(storedBase, user.tier);
       // Status tayang milik WEBSITE, bukan milik template. `applyTemplateToWebsite`
       // (katalog) dan `applySavedTemplate` (library) sengaja tidak mengirim
       // `is_published`; dengan aturan lama (`=== true`) payload tanpa field itu
       // menjadi Draft dan live site ikut 404. Payload yang memang mengirim
       // boolean (tombol Simpan/Tayangkan, panel SEO) tetap dihormati.
       const toStore = {
-        ...storedBase,
+        ...enforcedBase,
         is_published: resolveNextIsPublished(custom_config.is_published, existingActiveConfig),
       };
 
@@ -588,8 +602,10 @@ export async function PUT(
     // dipertahankan (lihat `resolveNextIsPublished`).
     const legacyExistingConfig =
       existingActiveConfig ?? (await readExistingActiveConfig(supabase, websiteId, [slug]));
+    const legacyBase = buildStoredCustomConfig(custom_config, slug);
+    const enforcedLegacy = enforcePoweredBy(legacyBase, user.tier);
     const toStore = {
-      ...buildStoredCustomConfig(custom_config, slug),
+      ...enforcedLegacy,
       is_published: resolveNextIsPublished(custom_config.is_published, legacyExistingConfig),
     };
 

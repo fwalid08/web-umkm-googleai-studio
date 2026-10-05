@@ -82,6 +82,24 @@ const LABELS: Record<string, string> = {
   button_link: "Link Tombol",
   rating_text: "Teks Rating",
   badge_text: "Teks Lencana Foto",
+  overlayTitle: "Judul Overlay",
+  readMore: "Teks Selengkapnya",
+  panelTitle: "Judul Panel",
+  highlights: "Daftar Sorotan",
+  highlight: "Sorotan",
+  kicker: "Kicker Promo",
+  menuTitle: "Judul Menu",
+  contactTitle: "Judul Kontak",
+  whatsappText: "Teks WhatsApp",
+  whatsappLink: "Link WhatsApp",
+  panelVisitTitle: "Judul Panel Kunjung",
+  panelContactTitle: "Judul Panel Kontak",
+  strapline: "Kalimat Pembuka",
+  newsletterButtonLink: "Link Tombol Newsletter",
+  poweredText: "Teks Powered",
+  poweredUrl: "URL Powered",
+  showPowered: "Tampilkan Powered",
+  showPoweredHint: "Hanya paket Enterprise yang dapat mematikan",
   newsletterTitle: "Judul Newsletter",
   newsletterText: "Teks Newsletter",
   newsletterButtonText: "Teks Tombol Newsletter",
@@ -97,6 +115,10 @@ function prettyLabel(key: string): string {
     .replace(/_/g, " ");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
+
+const HINTS: Record<string, string> = {
+  showPowered: "Hanya paket Enterprise yang dapat mematikan",
+};
 
 function fieldTypeFor(key: string, value: unknown): ConfigField["type"] {
   if (typeof value === "boolean") return "switch";
@@ -114,15 +136,18 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** Turunkan configFields dari defaultConfig — menjamin tiap key punya field. */
-function inferFields(config: Record<string, unknown>): ConfigField[] {
-  return Object.entries(config).map(([key, value]) => {
-    const field: ConfigField = { key, label: prettyLabel(key), type: fieldTypeFor(key, value) };
-    if (Array.isArray(value) && value.length > 0 && isRecord(value[0])) {
-      field.itemFields = inferFields(value[0] as Record<string, unknown>);
-    }
-    if (typeof value === "string" && value.length > 120) field.rows = 3;
-    return field;
-  });
+function inferFields(config: Record<string, unknown>, nested = false): ConfigField[] {
+  return Object.entries(config)
+    .filter(([key]) => !(nested && key === "id"))
+    .map(([key, value]) => {
+      const field: ConfigField = { key, label: prettyLabel(key), type: fieldTypeFor(key, value) };
+      if (HINTS[key]) field.hint = HINTS[key];
+      if (Array.isArray(value) && value.length > 0 && isRecord(value[0])) {
+        field.itemFields = inferFields(value[0] as Record<string, unknown>, true);
+      }
+      if (typeof value === "string" && value.length > 120) field.rows = 3;
+      return field;
+    });
 }
 
 /* ------------------------------------------------------------------ */
@@ -344,6 +369,53 @@ const FOOTER_BASE = {
   navItems: NAV_ITEMS.slice(0, 4),
   showNav: true,
   showSocial: true,
+  poweredText: "Powered by Rabasha",
+  poweredUrl: "https://rabasha.web.id",
+  showPowered: true,
+};
+const BODY = "font-family:var(--font-body),sans-serif;";
+const HEADING = "font-family:var(--font-heading),serif;";
+const SCRIPT = "font-family:var(--font-accent),cursive;";
+
+function poweredBar(color: string): string {
+  return `{{#if showPowered}}<div style="text-align:center;margin-top:16px;font-size:0.75rem;${BODY}"><a href="{{poweredUrl}}" style="color:${color};text-decoration:none;opacity:0.7;">{{poweredText}}</a></div>{{/if}}`;
+}
+
+const FTR_COLUMNS_CONFIG = {
+  ...FOOTER_BASE,
+  tagline: "Cuci bersih, wangi, siap pakai",
+  menuTitle: "Jelajahi",
+  contactTitle: "Hubungi Kami",
+  address: "Jl. Merdeka No. 45, Yogyakarta",
+  phone: "0812-3456-7890",
+  email: "halo@emeraldlaundry.id",
+  whatsappText: "Chat WhatsApp",
+  whatsappLink: "https://wa.me/6281234567890?text=Halo%20Emerald%20Laundry",
+};
+
+const FTR_CENTERED_CONFIG = {
+  ...FOOTER_BASE,
+  strapline: "Terima kasih telah mempercayakan cucian Anda",
+  socials: [{ label: "IG" }, { label: "FB" }, { label: "WA" }],
+};
+
+const FTR_NEWS_CONFIG = {
+  ...FOOTER_BASE,
+  kicker: "Penawaran spesial",
+  newsletterTitle: "Dapat kabar promo tiap pekan",
+  newsletterText: "Diskon cuci bedcover 20% untuk 50 pendaftar pertama bulan ini.",
+  newsletterButtonText: "Klaim via WhatsApp",
+  newsletterButtonLink: "https://wa.me/6281234567890?text=Halo%20Emerald%20Laundry",
+};
+
+const FTR_CONTACT_CONFIG = {
+  ...FOOTER_BASE,
+  panelVisitTitle: "Kunjungi Kami",
+  panelContactTitle: "Hubungi Kami",
+  address: "Jl. Merdeka No. 45, Yogyakarta",
+  phone: "0812-3456-7890",
+  email: "halo@emeraldlaundry.id",
+  hours: "Senin–Sabtu 08.00–20.00 · Minggu 09.00–14.00",
 };
 
 const FOOTERS: FooterVariant[] = [
@@ -352,38 +424,29 @@ const FOOTERS: FooterVariant[] = [
     name: "Kolom Emerald",
     description: "Band hijau tua 3 kolom + garis emas",
     layout: vid("ftr-columns"),
-    configFields: inferFields({
-      ...FOOTER_BASE,
-      address: "Jl. Merdeka No. 45, Yogyakarta",
-      phone: "0812-3456-7890",
-      email: "halo@emeraldlaundry.id",
-    }),
-    defaultConfig: {
-      ...FOOTER_BASE,
-      address: "Jl. Merdeka No. 45, Yogyakarta",
-      phone: "0812-3456-7890",
-      email: "halo@emeraldlaundry.id",
-    },
+    configFields: inferFields(FTR_COLUMNS_CONFIG),
+    defaultConfig: { ...FTR_COLUMNS_CONFIG },
     mockup: vid("ftr-columns"),
     html: `<footer style="background:var(--color-primary);color:var(--color-on-primary);padding:56px 24px 24px 24px;">
   <div style="max-width:1152px;margin:0 auto;">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:32px;">
       <div>
         <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.5rem;line-height:1.2;">{{siteTitle}}</div>
-        <div style="font-family:var(--font-accent),cursive;font-size:1.1rem;color:var(--color-accent);margin:4px 0 12px 0;">Cuci bersih, wangi, siap pakai</div>
+        <div style="font-family:var(--font-accent),cursive;font-size:1.1rem;color:var(--color-accent);margin:4px 0 12px 0;">{{tagline}}</div>
         <p style="font-size:0.875rem;line-height:1.6;opacity:0.85;font-family:var(--font-body),sans-serif;">{{address}}</p>
       </div>
       <div>
-        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:0.7;font-family:var(--font-body),sans-serif;">Jelajahi</div>
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:0.7;font-family:var(--font-body),sans-serif;">{{menuTitle}}</div>
         <nav style="display:flex;flex-direction:column;gap:8px;font-size:0.9rem;font-family:var(--font-body),sans-serif;color:var(--color-on-primary);">{{navItems}}</nav>
       </div>
       <div>
-        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:0.7;font-family:var(--font-body),sans-serif;">Hubungi Kami</div>
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:0.7;font-family:var(--font-body),sans-serif;">{{contactTitle}}</div>
         <p style="font-size:0.9rem;line-height:1.8;font-family:var(--font-body),sans-serif;">{{phone}}<br />{{email}}</p>
-        <a href="{{phone}}" style="display:inline-block;margin-top:12px;background:var(--color-accent);color:var(--color-primary);padding:10px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;">Chat WhatsApp</a>
+        <a href="{{whatsappLink}}" style="display:inline-block;margin-top:12px;background:var(--color-accent);color:var(--color-primary);padding:10px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;">{{whatsappText}}</a>
       </div>
     </div>
     <div style="border-top:1px solid var(--color-accent);margin-top:40px;padding-top:20px;text-align:center;font-size:0.8rem;opacity:0.75;font-family:var(--font-body),sans-serif;">{{text}}</div>
+    ${poweredBar("inherit")}
   </div>
 </footer>`,
   },
@@ -392,23 +455,22 @@ const FOOTERS: FooterVariant[] = [
     name: "Brand Tengah",
     description: "Nama besar tengah + menu simetris + sosmed",
     layout: vid("ftr-centered"),
-    configFields: inferFields(FOOTER_BASE),
-    defaultConfig: { ...FOOTER_BASE },
+    configFields: inferFields(FTR_CENTERED_CONFIG),
+    defaultConfig: { ...FTR_CENTERED_CONFIG },
     mockup: vid("ftr-centered"),
     html: `<footer style="background:var(--color-surface);border-top:3px double var(--color-accent);padding:48px 24px 24px 24px;text-align:center;">
   <div style="max-width:1152px;margin:0 auto;">
-    <div style="font-family:var(--font-accent),cursive;font-size:1.25rem;color:var(--color-accent);">Terima kasih telah mempercayakan cucian Anda</div>
+    <div style="font-family:var(--font-accent),cursive;font-size:1.25rem;color:var(--color-accent);">{{strapline}}</div>
     <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:2rem;color:var(--color-text);line-height:1.2;margin:4px 0 16px 0;">{{siteTitle}}</div>
     <nav style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 24px;font-size:0.9rem;color:var(--color-text);font-family:var(--font-body),sans-serif;">{{navItems}}</nav>
     <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px;">
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--color-border);color:var(--color-text);font-size:0.7rem;font-weight:700;font-family:var(--font-body),sans-serif;">IG</span>
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--color-border);color:var(--color-text);font-size:0.7rem;font-weight:700;font-family:var(--font-body),sans-serif;">FB</span>
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--color-border);color:var(--color-text);font-size:0.7rem;font-weight:700;font-family:var(--font-body),sans-serif;">WA</span>
+      {{#socials}}<span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--color-border);color:var(--color-text);font-size:0.7rem;font-weight:700;font-family:var(--font-body),sans-serif;">{{label}}</span>{{/socials}}
     </div>
     <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:20px;font-family:var(--font-body),sans-serif;">{{text}}</p>
+    ${poweredBar("var(--color-text-muted)")}
   </div>
 </footer>`,
-  },
+},
   {
     id: vid("ftr-mini"),
     name: "Mini",
@@ -422,6 +484,7 @@ const FOOTERS: FooterVariant[] = [
     <span style="font-family:var(--font-heading),serif;font-weight:700;color:var(--color-text);">✦ {{siteTitle}}</span>
     <span style="font-size:0.8rem;color:var(--color-text-muted);font-family:var(--font-body),sans-serif;">{{text}}</span>
   </div>
+  ${poweredBar("var(--color-text-muted)")}
 </footer>`,
   },
   {
@@ -429,33 +492,24 @@ const FOOTERS: FooterVariant[] = [
     name: "Pita Promo",
     description: "Kartu promo terang + baris copyright hijau tua",
     layout: vid("ftr-news"),
-    configFields: inferFields({
-      ...FOOTER_BASE,
-      newsletterTitle: "Dapat kabar promo tiap pekan",
-      newsletterText: "Diskon cuci bedcover 20% untuk 50 pendaftar pertama bulan ini.",
-      newsletterButtonText: "Klaim via WhatsApp",
-    }),
-    defaultConfig: {
-      ...FOOTER_BASE,
-      newsletterTitle: "Dapat kabar promo tiap pekan",
-      newsletterText: "Diskon cuci bedcover 20% untuk 50 pendaftar pertama bulan ini.",
-      newsletterButtonText: "Klaim via WhatsApp",
-    },
+    configFields: inferFields(FTR_NEWS_CONFIG),
+    defaultConfig: { ...FTR_NEWS_CONFIG },
     mockup: vid("ftr-news"),
     html: `<footer style="background:var(--color-primary);color:var(--color-on-primary);padding:40px 24px 24px 24px;">
   <div style="max-width:1152px;margin:0 auto;">
     <div style="background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:28px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px;">
       <div style="min-width:min(100%,280px);flex:1;">
-        <div style="font-family:var(--font-accent),cursive;font-size:1.15rem;color:var(--color-accent);">Penawaran spesial</div>
+        <div style="font-family:var(--font-accent),cursive;font-size:1.15rem;color:var(--color-accent);">{{kicker}}</div>
         <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.4rem;line-height:1.3;">{{newsletterTitle}}</div>
         <p style="font-size:0.9rem;color:var(--color-text-muted);margin-top:6px;font-family:var(--font-body),sans-serif;">{{newsletterText}}</p>
       </div>
-      <a href="#kontak" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:14px 30px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.95rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{newsletterButtonText}}</a>
+      <a href="{{newsletterButtonLink}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:14px 30px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.95rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{newsletterButtonText}}</a>
     </div>
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:24px;">
       <nav style="display:flex;flex-wrap:wrap;gap:8px 20px;font-size:0.875rem;font-family:var(--font-body),sans-serif;color:var(--color-on-primary);">{{navItems}}</nav>
       <span style="font-size:0.8rem;opacity:0.75;font-family:var(--font-body),sans-serif;">{{text}}</span>
     </div>
+    ${poweredBar("inherit")}
   </div>
 </footer>`,
   },
@@ -464,31 +518,19 @@ const FOOTERS: FooterVariant[] = [
     name: "Kontak Fokus",
     description: "Alamat + jam + kontak dalam panel terang di atas band gelap",
     layout: vid("ftr-contact"),
-    configFields: inferFields({
-      ...FOOTER_BASE,
-      address: "Jl. Merdeka No. 45, Yogyakarta",
-      phone: "0812-3456-7890",
-      email: "halo@emeraldlaundry.id",
-      hours: "Senin–Sabtu 08.00–20.00 · Minggu 09.00–14.00",
-    }),
-    defaultConfig: {
-      ...FOOTER_BASE,
-      address: "Jl. Merdeka No. 45, Yogyakarta",
-      phone: "0812-3456-7890",
-      email: "halo@emeraldlaundry.id",
-      hours: "Senin–Sabtu 08.00–20.00 · Minggu 09.00–14.00",
-    },
+    configFields: inferFields(FTR_CONTACT_CONFIG),
+    defaultConfig: { ...FTR_CONTACT_CONFIG },
     mockup: vid("ftr-contact"),
     html: `<footer style="background:var(--color-primary);color:var(--color-on-primary);padding:48px 24px 24px 24px;">
   <div style="max-width:1152px;margin:0 auto;">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:20px;">
       <div style="background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:24px;">
-        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-body),sans-serif;">Kunjungi Kami</div>
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-body),sans-serif;">{{panelVisitTitle}}</div>
         <p style="font-size:0.95rem;line-height:1.6;font-family:var(--font-body),sans-serif;">{{address}}</p>
         <p style="font-size:0.85rem;color:var(--color-text-muted);margin-top:8px;font-family:var(--font-body),sans-serif;">{{hours}}</p>
       </div>
       <div style="background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:24px;">
-        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-body),sans-serif;">Hubungi Kami</div>
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-body),sans-serif;">{{panelContactTitle}}</div>
         <p style="font-size:0.95rem;line-height:1.8;font-family:var(--font-body),sans-serif;">{{phone}}<br />{{email}}</p>
       </div>
     </div>
@@ -496,18 +538,11 @@ const FOOTERS: FooterVariant[] = [
       <span style="font-family:var(--font-heading),serif;font-weight:700;">{{siteTitle}}</span>
       <span style="font-size:0.8rem;opacity:0.75;font-family:var(--font-body),sans-serif;">{{text}}</span>
     </div>
+    ${poweredBar("inherit")}
   </div>
 </footer>`,
   },
 ];
-
-/* ------------------------------------------------------------------ */
-/* Sections — 12 tipe, semua varian html kustom bertoken                 */
-/* ------------------------------------------------------------------ */
-
-const BODY = "font-family:var(--font-body),sans-serif;";
-const HEADING = "font-family:var(--font-heading),serif;";
-const SCRIPT = "font-family:var(--font-accent),cursive;";
 
 function eyebrow(text = "{{eyebrow}}"): string {
   return `<div style="${SCRIPT}font-size:1.2rem;color:var(--color-accent);margin-bottom:8px;">${text}</div>`;
@@ -542,6 +577,7 @@ function toVariant(spec: VariantSpec) {
 
 const HERO_CONFIG = {
   badge: "Antar-Jemput Gratis se-Kota",
+  eyebrow: "Laundry premium kesayangan keluarga",
   headline: "Cuci Bersih, Wangi, Siap Pakai",
   subheadline:
     "Layanan laundry premium dengan deterjen berkualitas dan proses modern. Pesan dari rumah, kami jemput dan antar kembali — wangi seperti baru.",
@@ -560,7 +596,7 @@ const HERO_HTML = `<section style="background:var(--color-primary);color:var(--c
   <div style="max-width:1152px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:48px;align-items:center;position:relative;">
     <div>
       <div style="display:inline-block;border:1px solid var(--color-accent);color:var(--color-accent);padding:8px 18px;border-radius:999px;font-size:0.8rem;font-weight:600;letter-spacing:0.06em;margin-bottom:20px;${BODY}">✦ {{badge}}</div>
-      ${eyebrow("Laundry premium kesayangan keluarga")}
+      ${eyebrow()}
       <h1 style="${HEADING}font-size:clamp(2.2rem,5vw,3.4rem);font-weight:700;line-height:1.15;margin:0 0 16px 0;">{{headline}}</h1>
       <p style="font-size:1.05rem;line-height:1.7;opacity:0.9;margin:0 0 28px 0;${BODY}">{{subheadline}}</p>
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
@@ -647,12 +683,12 @@ const PRICING_CONFIG = {
   subtitle: "Harga transparan per kilo — tanpa biaya tersembunyi.",
   cta_link: "#kontak",
   items: [
-    { image: IMG.service1, name: "Cuci Kering", description: "Cuci + kering + lipat rapi, wangi premium.", price: "Rp 8.000/kg", cta_text: "Pesan" },
-    { image: IMG.service2, name: "Cuci Setrika", description: "Cuci + setrika uap, siap pakai langsung.", price: "Rp 10.000/kg", cta_text: "Pesan" },
-    { image: IMG.service3, name: "Setrika Saja", description: "Setrika halus untuk pakaian kesayangan.", price: "Rp 5.000/kg", cta_text: "Pesan" },
-    { image: IMG.service4, name: "Kiloan Harian", description: "Solusi cucian rutin keluarga, jemput berkala.", price: "Rp 7.000/kg", cta_text: "Pesan" },
-    { image: IMG.service5, name: "Express 3 Jam", description: "Darurat rapat atau acara? Selesai 3 jam.", price: "Rp 15.000/kg", cta_text: "Pesan" },
-    { image: IMG.service6, name: "Bedcover & Hotel", description: "Sprei, bedcover, handuk, dan gordyn besar.", price: "Rp 25.000/kg", cta_text: "Pesan" },
+    { label: "Premium", image: IMG.service1, name: "Cuci Kering", description: "Cuci + kering + lipat rapi, wangi premium.", price: "Rp 8.000/kg", cta_text: "Pesan" },
+    { label: "Premium", image: IMG.service2, name: "Cuci Setrika", description: "Cuci + setrika uap, siap pakai langsung.", price: "Rp 10.000/kg", cta_text: "Pesan" },
+    { label: "Premium", image: IMG.service3, name: "Setrika Saja", description: "Setrika halus untuk pakaian kesayangan.", price: "Rp 5.000/kg", cta_text: "Pesan" },
+    { label: "Premium", image: IMG.service4, name: "Kiloan Harian", description: "Solusi cucian rutin keluarga, jemput berkala.", price: "Rp 7.000/kg", cta_text: "Pesan" },
+    { label: "Premium", image: IMG.service5, name: "Express 3 Jam", description: "Darurat rapat atau acara? Selesai 3 jam.", price: "Rp 15.000/kg", cta_text: "Pesan" },
+    { label: "Premium", image: IMG.service6, name: "Bedcover & Hotel", description: "Sprei, bedcover, handuk, dan gordyn besar.", price: "Rp 25.000/kg", cta_text: "Pesan" },
   ],
 };
 
@@ -662,7 +698,7 @@ const PRICING_HTML = sectionShell(
     {{#items}}<div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);overflow:hidden;">
       <img src="{{image}}" alt="{{name}}" style="width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;display:block;" />
       <div style="padding:20px;">
-        <div style="${SCRIPT}font-size:1rem;color:var(--color-accent);">Premium</div>
+        <div style="${SCRIPT}font-size:1rem;color:var(--color-accent);">{{label}}</div>
         <div style="${HEADING}font-weight:700;font-size:1.15rem;color:var(--color-text);margin:2px 0 6px 0;">{{name}}</div>
         <p style="${BODY}font-size:0.875rem;color:var(--color-text-muted);line-height:1.6;margin:0 0 12px 0;">{{description}}</p>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
@@ -787,6 +823,7 @@ const FAQ_HTML = sectionShell(
 
 const TESTI_CONFIG = {
   eyebrow: "Kata mereka",
+  overlayTitle: "Testimoni",
   title: "Pengalaman Nyata Pelanggan Kami",
   bg_image: IMG.testiBg,
   items: [
@@ -800,7 +837,7 @@ const TESTI_HTML = `<section style="padding:0 0 72px 0;background:var(--color-ba
   <div style="position:relative;padding:88px 24px;overflow:hidden;background:var(--color-primary);">
     <img src="{{bg_image}}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.25;" />
     <div style="position:relative;text-align:center;">
-      <div style="${HEADING}font-size:clamp(2rem,5vw,3rem);font-weight:700;color:var(--color-on-primary);">Testimoni</div>
+      <div style="${HEADING}font-size:clamp(2rem,5vw,3rem);font-weight:700;color:var(--color-on-primary);">{{overlayTitle}}</div>
       <div style="${SCRIPT}font-size:1.3rem;color:var(--color-accent);">{{eyebrow}}</div>
     </div>
   </div>
@@ -808,7 +845,8 @@ const TESTI_HTML = `<section style="padding:0 0 72px 0;background:var(--color-ba
     <h2 style="${HEADING}font-size:clamp(1.5rem,3.5vw,2rem);font-weight:700;color:var(--color-text);margin:40px 0 24px 0;text-align:center;">{{title}}</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:20px;">
       {{#items}}<div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:24px;">
-        <div style="color:var(--color-accent);letter-spacing:0.15em;margin-bottom:12px;">{{stars}}</div>
+        <div style="color:var(--color-accent);letter-spacing:0.15em;margin-bottom:4px;" aria-hidden="true">{{stars}}</div>
+        <div style="${BODY}font-size:0.8rem;font-weight:700;color:var(--color-primary);margin-bottom:12px;">{{rating}} dari 5</div>
         <p style="${BODY}font-size:0.9rem;color:var(--color-text);line-height:1.7;margin:0 0 14px 0;">“{{text}}”</p>
         <div style="${BODY}font-weight:700;font-size:0.9rem;color:var(--color-text);">— {{name}}</div>
       </div>{{/items}}
@@ -849,13 +887,13 @@ const STEPS_HTML = `<section style="background:var(--color-background);padding:0
 const GALLERY_CONFIG = {
   eyebrow: "Galeri",
   title: "Hasil Kerja Kami",
-  images: [IMG.gal1, IMG.gal2, IMG.gal3, IMG.gal4],
+  images: [{ image: IMG.gal1 }, { image: IMG.gal2 }, { image: IMG.gal3 }, { image: IMG.gal4 }],
 };
 
 const GALLERY_HTML = sectionShell(
   `<div style="text-align:center;margin-bottom:32px;">${eyebrow()}<h2 style="${HEADING}font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;color:var(--color-text);margin:0;">{{title}}</h2></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px;">
-    {{#images}}<div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--color-border);"><img src="{{.}}" alt="Hasil laundry" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;display:block;" /></div>{{/images}}
+    {{#images}}<div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--color-border);"><img src="{{image}}" alt="Hasil laundry" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;display:block;" /></div>{{/images}}
   </div>`,
   "var(--color-background)",
 );
@@ -865,6 +903,7 @@ const GALLERY_HTML = sectionShell(
 const ARTICLES_CONFIG = {
   eyebrow: "Tips & trik",
   title: "Artikel Terbaru",
+  readMore: "Baca selengkapnya →",
   items: [
     { image: IMG.art1, title: "5 Tips Merawat Pakaian Putih", excerpt: "Pakaian putih menguning? Ini cara mencuci dan menjemur yang benar.", url: "#" },
     { image: IMG.art2, title: "Atasi Noda Membandel", excerpt: "Noda kopi, tinta, dan minyak — kenali penangan pertama yang tepat.", url: "#" },
@@ -881,7 +920,7 @@ const ARTICLES_HTML = sectionShell(
       <div style="padding:18px;">
         <div style="${HEADING}font-weight:700;font-size:1rem;color:var(--color-text);line-height:1.4;">{{title}}</div>
         <p style="${BODY}font-size:0.85rem;color:var(--color-text-muted);line-height:1.6;margin:8px 0 0 0;">{{excerpt}}</p>
-        <span style="${BODY}font-size:0.85rem;font-weight:700;color:var(--color-primary);">Baca selengkapnya →</span>
+        <span style="${BODY}font-size:0.85rem;font-weight:700;color:var(--color-primary);">{{readMore}}</span>
       </div>
     </a>{{/items}}
   </div>`,
@@ -898,6 +937,12 @@ const LOCATION_CONFIG = {
   note: "Parkir luas, drop-off kilat di depan outlet. Tersedia antar-jemput radius 8 km.",
   button_text: "Chat via WhatsApp",
   button_link: "https://wa.me/6281234567890",
+  panelTitle: "Kenapa mampir langsung?",
+  highlights: [
+    { highlight: "Timbang di depan Anda — transparan" },
+    { highlight: "Konsultasi noda gratis dengan tim" },
+    { highlight: "Ambil dalam 24 jam untuk reguler" },
+  ],
 };
 
 const LOCATION_HTML = sectionShell(
@@ -911,8 +956,8 @@ const LOCATION_HTML = sectionShell(
       <a href="{{button_link}}" style="display:inline-block;background:var(--color-accent);color:var(--color-primary);padding:13px 30px;border-radius:999px;font-weight:600;text-decoration:none;${BODY}">{{button_text}}</a>
     </div>
     <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:32px;display:flex;flex-direction:column;justify-content:center;gap:14px;">
-      <div style="${BODY}font-weight:700;color:var(--color-text);">Kenapa mampir langsung?</div>
-      <div style="${BODY}font-size:0.9rem;color:var(--color-text-muted);line-height:1.7;">✦ Timbang di depan Anda — transparan<br />✦ Konsultasi noda gratis dengan tim<br />✦ Ambil dalam 24 jam untuk reguler</div>
+      <div style="${BODY}font-weight:700;color:var(--color-text);">{{panelTitle}}</div>
+      {{#highlights}}<div style="${BODY}font-size:0.9rem;color:var(--color-text-muted);line-height:1.7;">✦ {{highlight}}</div>{{/highlights}}
     </div>
   </div>`,
   "var(--color-background)",

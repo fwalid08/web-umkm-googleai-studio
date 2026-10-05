@@ -42,6 +42,7 @@ export interface ConfigField {
   defaultValue?: unknown;
   maxItems?: number;
   rows?: number;
+  hint?: string;
 }
 
 export interface SectionVariant {

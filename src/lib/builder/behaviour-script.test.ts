@@ -71,6 +71,35 @@ describe("renderVariantHtml + navItems (kasus kilau laundry)", () => {
   });
 });
 
+describe("renderVariantHtml kondisional {{#if}}", () => {
+  it("tampil bila truthy, hilang bila falsy/missing", () => {
+    const html = 'A{{#if showPowered}}<a href="{{poweredUrl}}">{{poweredText}}</a>{{/if}}B';
+    expect(
+      renderVariantHtml(html, { showPowered: true, poweredUrl: "https://x.id", poweredText: "Powered" }),
+    ).toBe('A<a href="https://x.id">Powered</a>B');
+    expect(renderVariantHtml(html, { showPowered: false })).toBe("AB");
+    expect(renderVariantHtml(html, {})).toBe("AB");
+  });
+
+  it("mendukung angka/string/array + loop di dalamnya", () => {
+    expect(renderVariantHtml("{{#if n}}x{{/if}}", { n: 1 })).toBe("x");
+    expect(renderVariantHtml("{{#if n}}x{{/if}}", { n: 0 })).toBe("");
+    expect(renderVariantHtml("{{#if s}}x{{/if}}", { s: "ya" })).toBe("x");
+    expect(renderVariantHtml("{{#if s}}x{{/if}}", { s: "" })).toBe("");
+    const out = renderVariantHtml("{{#if show}}{{#items}}<b>{{name}}</b>{{/items}}{{/if}}", {
+      show: true,
+      items: [{ name: "A" }, { name: "B" }],
+    });
+    expect(out).toBe("<b>A</b><b>B</b>");
+    expect(
+      renderVariantHtml("{{#if show}}{{#items}}<b>{{name}}</b>{{/items}}{{/if}}", {
+        show: false,
+        items: [{ name: "A" }],
+      }),
+    ).toBe("");
+  });
+});
+
 describe("renderVariantHtml loop {{#items}}", () => {
   it("mengulang blok per item record", () => {
     const html = "{{#items}}<div><h3>{{name}}</h3><p>{{price}}</p></div>{{/items}}";
