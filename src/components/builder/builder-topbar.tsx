@@ -14,8 +14,6 @@ interface BuilderTopbarProps {
   websiteId: string;
   saved: boolean;
   isSaving: boolean;
-  pageTitle?: string;
-  sectionsCount?: number;
   onToggleSidebar: () => void;
   onPreview: () => void;
   onSave: () => void;
@@ -87,8 +85,6 @@ function BarButton({
 export function BuilderTopbar({
   saved,
   isSaving,
-  pageTitle,
-  sectionsCount = 0,
   onToggleSidebar,
   onPreview,
   onSave,
@@ -111,7 +107,7 @@ export function BuilderTopbar({
     <TooltipProvider delayDuration={300}>
       {/* `flex-nowrap` + grup yang boleh menyusut: sebelumnya `flex-wrap`
           membuat topbar jadi 2 baris di HP, sehingga separuh kanvas hilang
-          layar dan tombol publish terpotong. Konteks halaman kini truncate. */}
+          layar dan tombol publish terpotong. */}
       {/* Tanpa `sticky`: topbar ini anak dari kolom flex yang tidak pernah
             scroll (hanya kanvas yang scroll), jadi `sticky` hanya no-op
             yang menyesatkan — ia menyiratkan model scroll yang salah.
@@ -128,28 +124,6 @@ export function BuilderTopbar({
               dashboard, jadi navigasi keluar ditangani sidebar/header dashboard
               yang sudah ada. Menyisakan `handleExit` membuat `router`,
               `useConfirm`, dan `exitHref` ikut tak terpakai. */}
-
-          {/* Konteks halaman yang sedang diedit */}
-          <div className="flex items-center gap-2 min-w-0 rounded-xl border border-emerald-200/70 bg-white/80 dark:bg-slate-800/80 dark:border-slate-700 pl-1.5 pr-2.5 py-1 shadow-sm">
-            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-sm">
-              <FileText className="w-3.5 h-3.5 text-white" />
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                Page Builder
-              </span>
-              <span className="block text-[12px] font-bold truncate max-w-32 sm:max-w-48">
-                {pageTitle || 'Halaman toko'}
-              </span>
-            </span>
-            {sectionsCount > 0 && (
-              <span className="hidden sm:inline-flex items-center text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 px-2 py-0.5 rounded-full shrink-0">
-                {sectionsCount} blok
-              </span>
-            )}
-          </div>
-
-          <div className="w-px h-6 bg-emerald-200/60 dark:bg-slate-700 mx-0.5 shrink-0 hidden sm:block" />
 
           <BarButton title="Panel pengaturan" hint="Tampilkan / sembunyikan sidebar" onClick={onToggleSidebar}>
             <PanelLeft className="w-4 h-4" />

@@ -44,7 +44,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
   const saved = useBuilderStore((s) => s.saved);
   const templateSaved = useTemplateStore((s) => s.saved);
   const isSaved = saved && templateSaved;
-  const sectionsCount = useTemplateStore((s) => s.sections.length);
 
   // Status histori untuk mengaktifkan tombol Undo/Redo. `past`/`future` yang
   // diseleksi (bukan `canUndo()`) karena Zustand hanya memicu render ulang
@@ -263,8 +262,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         websiteId={websiteId}
         saved={isSaved}
         isSaving={isSaving}
-        pageTitle={pageTitle}
-        sectionsCount={sectionsCount}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onPreview={() => setIsPreview(true)}
         onSave={handleSave}
