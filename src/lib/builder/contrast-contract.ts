@@ -146,6 +146,54 @@ export function minRatioForPair(pair: ContrastPair): number {
     : (MIN_CONTRAST_BY_ROLE[pair.role] ?? MIN_CONTRAST_NORMAL_TEXT);
 }
 
+/**
+ * Bolehkah koreksi fg-only ditulis ke token GLOBAL `--color-<fg>`?
+ *
+ * Token fg-only (`text`, `textMuted`) muncul di banyak latar sekaligus, jadi
+ * satu nilai global hanya boleh ditimpa bila nilainya itu TETAP terbaca di
+ * dua permukaan kanonik (`background`, `surface`), dan tetap memuaskan semua
+ * pasangan kontrak yang memakai fg tersebut.
+ *
+ * Tanpa pemeriksaan ini, satu pasangan `text` di atas `primary` (gelap)
+ * menimpa `--color-text` dengan putih, lalu seluruh teks di atas latar terang
+ * jadi putih-di-putih. Keadaan itu terukur sebelum perbaikan: 28 pasangan
+ * jatuh dari 13–19:1 menjadi 1.00–1.29:1, pada 14 dari 18 skema warna —
+ * mengorbankan ~25 titik pemakaian yang tadinya benar demi 1 yang sudah
+ * ditangani token turunan.
+ *
+ * Kandidat yang ditolak TIDAK dibuang: `buildContrastMatrix` tetap membuat
+ * `--color-<fg>-on-<bg>` untuk pasangan itu, dan HTML yang memang menaruh fg
+ * di atas bg tertentu sudah menulis token turunan tersebut.
+ */
+export function globalFgCorrectionSafe(
+  fgKey: ContrastTokenKey,
+  candidate: string,
+  palette: DesignStylePalette,
+  contract?: ContrastContract | null,
+): boolean {
+  const before = palette[fgKey as ContrastPaletteKey];
+  for (const surfaceKey of ['background', 'surface'] as const) {
+    const surface = palette[surfaceKey];
+    if (!isHexLike(surface)) continue;
+    // Tak boleh lebih buruk dari palet asli, dan tetap ≥ 4.5:1 selama
+    // palet aslinya memang lolos. Palet yang sudah rusak tetap boleh
+    // dikoreksi — pemeriksaan ini menahan PERBAIKAN, bukan kerusakan.
+    const beforeRatio = isHexLike(before)
+      ? getContrastRatio(before, surface)
+      : MIN_CONTRAST_NORMAL_TEXT;
+    if (getContrastRatio(candidate, surface) < Math.min(beforeRatio, MIN_CONTRAST_NORMAL_TEXT)) {
+      return false;
+    }
+  }
+  for (const pair of contract?.pairs ?? []) {
+    if (pair.fg !== fgKey) continue;
+    const bgHex = resolveContrastToken(pair.bg, palette);
+    if (!bgHex) continue;
+    if (getContrastRatio(candidate, bgHex) < minRatioForPair(pair)) return false;
+  }
+  return true;
+}
+
 /** Nama token turunan default untuk sebuah pasangan. */
 export function contrastTokenName(pair: ContrastPair): string {
   return pair.token ?? `--color-${pair.fg}-on-${pair.bg}`;
@@ -350,8 +398,14 @@ export function resolveContrastTokens(
       note: pair.note,
     });
 
-    // Token fg-only tetap dikoreksi in-place (override token aslinya).
-    if (isInPlaceFixable(pair.fg)) tokens[`--color-${pair.fg}`] = color;
+    // Token fg-only boleh dikoreksi in-place (override token aslinya) HANYA
+    // bila satu nilai global itu masih aman di seluruh konteksnya — lihat
+    // `globalFgCorrectionSafe`. Kalau tidak, koreksinya disalurkan lewat token
+    // turunan yang sudah dibuat `buildContrastMatrix`, dan `--color-<fg>`
+    // tetap seperti palet supaya teks di latar lain tidak ikut tertimpa.
+    if (isInPlaceFixable(pair.fg) && globalFgCorrectionSafe(pair.fg, color, palette, contract)) {
+      tokens[`--color-${pair.fg}`] = color;
+    }
   }
 
   return { tokens, issues };
@@ -478,7 +532,9 @@ export function normalizePaletteForContract(
     // mengembalikan rasio SETELAH koreksi, jadi membandingkannya lagi
     // dengan ambang selalu benar dan koreksinya takkan pernah dipasang.
     const { color, neededFix } = ensureRatio(fgRaw, bgRaw, min, out);
-    if (neededFix) out[pair.fg as ContrastPaletteKey] = color;
+    if (neededFix && globalFgCorrectionSafe(pair.fg, color, out, contract)) {
+      out[pair.fg as ContrastPaletteKey] = color;
+    }
   }
   return out;
 }
