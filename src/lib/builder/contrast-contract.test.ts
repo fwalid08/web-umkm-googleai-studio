@@ -15,8 +15,10 @@ import {
   resolveContrastTokens,
   scanHtmlContrastPairs,
   validateContrastContract,
+  ROOT_RENDER_COLOR,
   type ContrastContract,
 } from './contrast-contract';
+import { renderVariantHtml } from './behaviour-script';
 import { getContrastRatio } from './design-styles';
 import { COLOR_SCHEMES, mergeSchemePalette } from './color-schemes';
 import { getCatalogTemplate } from './templates/catalog';
@@ -419,5 +421,144 @@ describe('kontras laundry-emerald di SEMUA skema warna', () => {
     ).toEqual([]);
   });
 });
+
+/**
+ * GUARD ICON — icon/glyph tidak boleh luput dari pengukuran kontras.
+ *
+ * Regresi yang nyata: icon sering TIDAK punya `color:` sendiri karena
+ * mewarisi dari induk, sedangkan latarnya datang dari elemen kakek. Scanner
+ * lama hanya membaca deklarasi `color:` pada tag (`if (!fgRaw) continue`)
+ * dan mem-pop latar di SEMUA `</tag>` tanpa memastikan tag itu pernah push —
+ * tumpukan terkuras, latar hilang, pasangan jadi `unresolved`.
+ *
+ * Akibatnya 9 dari 19 icon di laundry-emerald tidak pernah menghasilkan
+ * pasangan sama sekali, dan `findContrastViolations` tetap melaporkan "nol
+ * pelanggaran". Guard terlihat hijau tanpa pernah mengukur apa pun — bentuk
+ * kegagalan paling berbahaya yang bisa dimiliki sebuah penguji.
+ */
+describe('icon/glyph tetap terukur kontrasnya', () => {
+  const GLYPH = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}]/u;
+
+  const pick = (style: string | undefined, prop: string): string | undefined =>
+    style ? new RegExp(`(?:^|[;\\s])${prop}\\s*:\\s*([^;"]+)`).exec(style)?.[1]?.trim() : undefined;
+
+  /** `var(--color-a)` → a ; `var(--color-a-on-b)` → a (bg-nya b). */
+  const plainFg = (v: string): string => {
+    const m = /var\(--color-([\w-]+)\)/.exec(v);
+    if (!m) return v;
+    const s = /^([a-z]+)-on-([a-z]+)$/.exec(m[1]);
+    return s ? s[1] : m[1];
+  };
+  const tokenBg = (v: string): string | undefined => {
+    const m = /var\(--color-([\w-]+)\)/.exec(v);
+    if (!m) return undefined;
+    return /^([a-z]+)-on-([a-z]+)$/.exec(m[1])?.[2];
+  };
+  /** `var(--color-surface)` → `surface` (cara scanner menamai pasangan). */
+  const tokenKey = (v: string): string =>
+    v.replace(/^var\(--color-/, '').replace(/\)+$/, '');
+
+  /**
+   * Warna & latar efektif sebuah glyph, dihitung dari pejalan khas HTML:
+   * satu frame per elemen, `root.color` sebagai fallback warisan.
+   */
+  function effectiveOf(html: string, at: number): { fg: string; bg: string } {
+    const frames: Array<{ bg?: string; color?: string }> = [];
+    let glyphIdx = -1;
+    const re = /(<\/?[a-z][\w-]*(?:\s[^>]*)?>)|([^<]+)/gi;
+    let m: RegExpExecArray | null;
+    let found: { fg: string; bg: string } | null = null;
+    const near = (k: 'bg' | 'color'): string | undefined => {
+      for (let i = frames.length - 1; i >= 0; i--) if (frames[i][k]) return frames[i][k];
+      return k === 'color' ? ROOT_RENDER_COLOR : undefined;
+    };
+    while ((m = re.exec(html))) {
+      const raw = m[1] ?? m[2];
+      if (!raw) continue;
+      if (raw.startsWith('</')) { if (frames.length) frames.pop(); continue; }
+      if (raw.startsWith('<')) {
+        const st = /style="([^"]*)"/.exec(raw)?.[1];
+        frames.push({
+          bg: pick(st, 'background') ?? pick(st, 'background-color'),
+          color: pick(st, 'color'),
+        });
+        continue;
+      }
+      if (GLYPH.test(raw)) {
+        glyphIdx += 1;
+        if (glyphIdx === at) {
+          const color = near('color');
+          const bgRaw = near('bg');
+          if (!color) throw new Error('glyph tanpa warna efektif');
+          found = { fg: plainFg(color), bg: tokenBg(color) ?? (bgRaw ? tokenKey(bgRaw) : '') };
+          break;
+        }
+      }
+    }
+    if (!found) throw new Error(`glyph ke-${at} tidak ditemukan`);
+    return found;
+  }
+
+  function glyphsIn(html: string): number {
+    let n = 0;
+    const re = /([^<]+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html))) if (GLYPH.test(m[1])) n += 1;
+    return n;
+  }
+
+  it('regresi: icon yang mewarisi warna tetap menghasilkan pasangan terukur', () => {
+    // Struktur ini meniru bentuk nyata yang dulu membuat scanner gagal:
+    // (1) elemen penutup TANPA background menguras tumpukan latar, dan
+    // (2) icon-nya sendiri tidak punya deklarasi `color:`.
+    const html = `
+      <section style="background:var(--color-background);">
+        <div style="display:flex;gap:8px;">
+          <div style="border:1px solid var(--color-border);"><i></i></div>
+          <div style="border:1px solid var(--color-border);"><i></i></div>
+          <div style="background:var(--color-surface);">
+            <div style="font-size:1.4rem;">📍</div>
+          </div>
+        </div>
+      </section>`;
+
+    const pairs = scanHtmlContrastPairs(html, { color: ROOT_RENDER_COLOR });
+    const hit = pairs.find((p) => p.fg === 'text' && p.bg === 'surface');
+    expect(hit, `pasangan text|surface tidak ditemukan:\n${pairs.map((p) => `${p.fg}|${p.bg}`).join(', ')}`)
+      .toBeDefined();
+    expect(hit!.unresolved, `pasangan tidak terukur: ${hit!.note}`).toBe(false);
+  });
+
+  /**
+   * Keterukuran adalah fungsi STRUKTUR (nama token + latar), bukan nilai hex,
+   * jadi cukup diukur sekali — bukan diulang per skema.
+   */
+  it('SEMUA glyph di laundry-emerald punya pasangan terukur', () => {
+    const tpl = getCatalogTemplate('laundry-emerald')!;
+    const missing: string[] = [];
+
+    for (const s of tpl.sections) {
+      for (const v of s.variants) {
+        const raw = (v as { html?: string }).html ?? '';
+        const html = renderVariantHtml(raw, (v as { defaultConfig?: Record<string, unknown> }).defaultConfig ?? {});
+        const pairs = scanHtmlContrastPairs(html, { color: ROOT_RENDER_COLOR });
+        const measurable = new Set(pairs.filter((p) => p.bg && !p.unresolved).map((p) => `${p.fg}|${p.bg}`));
+        const total = glyphsIn(html);
+        for (let i = 0; i < total; i++) {
+          const { fg, bg } = effectiveOf(html, i);
+          if (!measurable.has(`${fg}|${bg}`)) {
+            missing.push(`${s.type}/${v.id} | glyph#${i} → ${fg}|${bg || '(tanpa bg)'}`);
+          }
+        }
+      }
+    }
+
+    expect(
+      [...new Set(missing)].join('\n'),
+      `glyph tanpa pasangan terukur:\n${[...new Set(missing)].join('\n')}`,
+    ).toBe('');
+  });
+});
+
 
 

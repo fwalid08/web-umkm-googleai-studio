@@ -426,7 +426,7 @@ export function findContrastViolations(
   };
 
   const violations: ContrastViolation[] = [];
-  for (const pair of scanHtmlContrastPairs(html)) {
+  for (const pair of scanHtmlContrastPairs(html, { color: ROOT_RENDER_COLOR })) {
     if (!pair.bg || pair.unresolved) continue;
     const fgHex = effective(pair.fg, pair.bg);
     const bgHex = effective(pair.bg);
@@ -520,48 +520,135 @@ function splitPairToken(key: string | undefined): { fg: string; bg?: string } | 
 }
 
 /**
+ * Warna yang disetel root render — `renderer-v3` memakai `color: palette.text`.
+ *
+ * Dipakai sebagai fallback WARISAN saja. Sengaja tidak ada pasangan
+ * `background` di sini: latar yang tak terdeteksi wajib tetap dilaporkan
+ * `unresolved`, bukan ditebak dari root.
+ */
+export const ROOT_RENDER_COLOR = 'text';
+
+/**
+ * Nama token CSS → kunci kontrak palet.
+ *
+ * Scanner membaca `var(--color-text-muted)` sehingga menghasilkan
+ * `text-muted`, sedangkan `contrast.pairs` ditulis dengan kunci palet
+ * camelCase (`textMuted`). Tanpa penerjemahan ini pasangan yang sama dianggap
+ * "belum dideklarasikan". Perbedaan itu dulu tak pernah ketahuan karena
+ * background-nya ikut kosong, jadi pasangan dilewati sebelum sampai ke
+ * pemeriksaan deklarasi — celah yang baru terbuka setelah `bgFrames` diperbaiki.
+ */
+function contractKey(token: string): string {
+  if (token.startsWith('on-')) return token;
+  return token.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase());
+}
+
+/**
  * Ambil pasangan `color: var(--color-X)` + background terdekat dari HTML varian.
  *
  * SANGAT sengaja sederhana, bukan parser sungguhan: alat audit, bukan sumber
  * kebenaran. Yang tak bisa dibaca (opacity, color-mix, warisan `inherit` dari
  * luar cuplikan) ditandai `unresolved` supaya author tahu di mana harus melihat
  * sendiri. Hasilnya tidak pernah menggagalkan build.
+ *
+ * `root.color` adalah warna yang disetel root render (lihat `renderer-v3`:
+ * `color: palette.text`). Tanpa ini, teks yang TIDAK punya `color:` sendiri —
+ * termasuk icon/glyph yang mewarisi dari induk — tidak pernah menghasilkan
+ * pasangan sama sekali, jadi kontrasnya tak pernah diukur di skema mana pun.
+ * `root` sengaja TIDAK membawa background: latar yang tak terdeteksi tetap
+ * harus dilaporkan sebagai `unresolved`, bukan ditebak.
  */
-export function scanHtmlContrastPairs(html: string): DerivedPair[] {
+export function scanHtmlContrastPairs(
+  html: string,
+  root?: { color?: string },
+): DerivedPair[] {
   if (typeof html !== 'string' || !html) return [];
   const out: DerivedPair[] = [];
   const seen = new Set<string>();
-  // Background yang berlaku saat ini. `</div>` menutup satu tingkat scope;
-  // ini cukup untuk pola `section > div > teks` yang dipakai template.
-  const bgStack: Array<string | undefined> = [];
 
-  for (const chunk of html.split(/(?=<)/)) {
-    if (!chunk.startsWith('<')) continue;
+  // SATU FRAME PER ELEMEN, bukan per latar. Versi lama mem-push HANYA bila ada
+  // `background:` tapi mem-pop di SEMUA `</tag>` — termasuk tag yang tak pernah
+  // push. Tumpukan lalu terkuras lebih cepat daripada terisi, latar leluhur
+  // hilang, pasangan jadi `unresolved`, dan `findContrastViolations`
+  // melewatinya diam-diam (`if (!pair.bg || pair.unresolved) continue`).
+  const bgFrames: Array<string | undefined> = [];
+  const colorFrames: Array<string | undefined> = [];
+  // Elemen void tak pernah ditutup → tak boleh mendorong frame, atau tumpukan
+  // akan melorot setelah tag lain ditutup.
+  const VOID_TAGS = new Set([
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr',
+  ]);
 
-    const style = (/style="([^"]*)"/.exec(chunk) ?? [])[1];
-    const bgVar = colorVarKey((/background(?:-color)?\s*:\s*([^;"]+)/.exec(style ?? '') ?? [])[1]);
-    if (bgVar) bgStack.push(bgVar);
-    else if (chunk.includes('</')) bgStack.pop();
+  const nearest = (stack: Array<string | undefined>): string | undefined => {
+    for (let i = stack.length - 1; i >= 0; i--) if (stack[i]) return stack[i];
+    return undefined;
+  };
 
-    const fgRaw = colorVarKey((/(?:^|[;"\s])color\s*:\s*([^;"]+)/.exec(style ?? '') ?? [])[1]);
-    if (!fgRaw) continue;
+  const emit = (fgRaw: string, bg: string | undefined, style?: string): void => {
     const parsed = splitPairToken(fgRaw);
-    if (!parsed) continue;
-
+    if (!parsed) return;
+    // Token turunan membawa background-nya sendiri dan itu yang BENAR — lebih
+    // kuat daripada latar leluhur yang mungkin tak terdeteksi.
+    const effBg = parsed.bg ?? bg;
     const notes: string[] = [];
-    // Token turunan membawa background-nya sendiri dan itu yang BENAR —
-    // lebih kuat daripada latar leluhur yang mungkin tak terdeteksi.
-    const inherited = bgStack.length ? bgStack[bgStack.length - 1] : undefined;
-    const bg = parsed.bg ?? inherited;
-    if (!bg) notes.push('background tidak terdeteksi (kemungkinan di luar cuplikan / diwarisi)');
+    if (!effBg) notes.push('background tidak terdeteksi (kemungkinan di luar cuplikan / diwarisi)');
     if (style && /opacity\s*:\s*0?\.\d+/.test(style)) notes.push('memakai opacity — rasio efektif berbeda');
     if (style && style.includes('color-mix(')) notes.push('memakai color-mix() — tidak bisa dihitung');
-
-    const key = `${parsed.fg}|${bg ?? '?'}`;
-    if (seen.has(key)) continue;
+    const key = `${parsed.fg}|${effBg ?? '?'}`;
+    if (seen.has(key)) return;
     seen.add(key);
+    out.push({ fg: parsed.fg, bg: effBg ?? '', unresolved: !effBg || notes.length > 0, note: notes.join('; ') });
+  };
 
-    out.push({ fg: parsed.fg, bg: bg ?? '', unresolved: !bg || notes.length > 0, note: notes.join('; ') });
+  /**
+   * Teks node: elemen pembungkus teks sering TIDAK menyetel `color:` karena
+   * mengandalkan warisan — inilah kasus icon yang selama ini luput diukur.
+   * `seen` menjaga output tetap sebesar jumlah kombinasi fg/bg unik.
+   */
+  const handleText = (text: string): void => {
+    if (!text.trim()) return;
+    const inherited = nearest(colorFrames) ?? root?.color;
+    if (inherited) emit(inherited, nearest(bgFrames));
+  };
+
+  for (const chunk of html.split(/(?=<)/)) {
+    if (!chunk.startsWith('<')) {
+      handleText(chunk);
+      continue;
+    }
+
+    // `split(/(?=<)/)` memotong SEBELUM `<`, jadi tag DAN teksnya selalu
+    // berada di chunk yang sama (`<div style="…">📍`). Teks karena itu diambil
+    // dari sisa chunk sesudah `>`, bukan mengharapkannya sebagai chunk
+    // terpisah — mengharapkan itu membuat cabang teks tak pernah terpanggil.
+    const gt = chunk.indexOf('>');
+    const tagHtml = gt >= 0 ? chunk.slice(0, gt + 1) : chunk;
+    const rest = gt >= 0 ? chunk.slice(gt + 1) : '';
+
+    if (tagHtml.startsWith('</')) {
+      bgFrames.pop();
+      colorFrames.pop();
+      // Sisa sesudah tag penutup milik induk — frame sudah di-pop lebih dulu.
+      handleText(rest);
+      continue;
+    }
+
+    const tag = /^<([a-z][\w-]*)/i.exec(tagHtml)?.[1]?.toLowerCase();
+    const style = (/style="([^"]*)"/.exec(tagHtml) ?? [])[1];
+    const bgVar = colorVarKey((/background(?:-color)?\s*:\s*([^;"]+)/.exec(style ?? '') ?? [])[1]);
+    const fgRaw = colorVarKey((/(?:^|[;"\s])color\s*:\s*([^;"]+)/.exec(style ?? '') ?? [])[1]);
+
+    if (!tag || VOID_TAGS.has(tag) || /\/>$/.test(tagHtml)) {
+      if (fgRaw) emit(fgRaw, bgVar ?? nearest(bgFrames), style);
+      handleText(rest);
+      continue;
+    }
+
+    bgFrames.push(bgVar);
+    colorFrames.push(fgRaw);
+    if (fgRaw) emit(fgRaw, nearest(bgFrames), style);
+    handleText(rest);
   }
 
   return out;
@@ -580,7 +667,7 @@ export function auditContrastCoverage(
 ): string[] {
   const warnings: string[] = [];
   const declared = new Set((contract?.pairs ?? []).map((p) => `${p.fg}|${p.bg}`));
-  const derived = scanHtmlContrastPairs(html);
+  const derived = scanHtmlContrastPairs(html, { color: ROOT_RENDER_COLOR });
 
   for (const d of derived) {
     if (!d.bg || d.unresolved) continue;
@@ -588,7 +675,7 @@ export function auditContrastCoverage(
     // menang selalu ≥ 4.5:1). Menuntut deklarasi untuknya hanya menambah
     // kebisingan tanpa menambah jaminan apa pun.
     if (d.fg.startsWith('on-')) continue;
-    if (!declared.has(`${d.fg}|${d.bg}`)) {
+    if (!declared.has(`${contractKey(d.fg)}|${contractKey(d.bg)}`)) {
       warnings.push(
         `pairs(${d.fg} di atas ${d.bg}) muncul di HTML tapi belum ada di contrast.pairs — kontrasnya tidak dijamin`,
       );
