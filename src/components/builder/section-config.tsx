@@ -518,7 +518,7 @@ export function SectionConfig({ section }: { section: TemplateSectionInstance })
           onClick={() =>
             requestConfirm({
               title: 'Hapus blok ini?',
-              description: 'Blok akan hilang dari halaman. Kalau salah, kamu bisa membatalkannya dengan Ctrl+Z.',
+              description: 'Blok akan hilang dari halaman. Tindakan ini tidak bisa dibatalkan.',
               confirmLabel: 'Hapus blok',
               tone: 'destructive',
               onConfirm: () => deleteSection(section.id),

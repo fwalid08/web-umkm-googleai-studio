@@ -245,8 +245,7 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
           app/dashboard/seo/page.tsx. Di dalam builder tidak ada lagi, karena
           pengaturan ini bukan bagian dari template. */}
 
-      {/* Pintasan keyboard — dulu teks `⌨️ Ctrl+S simpan • Ctrl+Z undo` hanya
-          nempel di bottom bar dan hilang di layar kecil. */}
+      {/* Pintasan keyboard — daftarnya diambil dari BUILDER_SHORTCUTS. */}
       <details className="group rounded-2xl border border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] overflow-hidden">
         <summary className="flex items-center gap-2 px-3.5 py-2.5 cursor-pointer select-none text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
           <Keyboard className="w-4 h-4" />

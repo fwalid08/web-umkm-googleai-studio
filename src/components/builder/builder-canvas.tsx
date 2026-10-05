@@ -407,7 +407,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                                    onClick={() =>
                                      requestConfirm({
                                        title: 'Hapus blok ini?',
-                                       description: `Blok "${variant?.name || section.type}" akan dihapus dari halaman. Kalau salah, kamu bisa membatalkannya dengan Ctrl+Z.`,
+                                       description: `Blok "${variant?.name || section.type}" akan dihapus dari halaman. Tindakan ini tidak bisa dibatalkan.`,
                                        confirmLabel: 'Hapus blok',
                                        tone: 'destructive',
                                        onConfirm: () => deleteSection(section.id),

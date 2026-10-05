@@ -85,7 +85,7 @@ export function BuilderBottomBar() {
 
         <span className="sr-only">
           Ukuran tampilan {activeViewport.label} {viewportWidth} piksel. Tekan Ctrl+S untuk
-          menyimpan, Ctrl+Z untuk membatalkan perubahan.
+          menyimpan.
         </span>
       </div>
     </footer>

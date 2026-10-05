@@ -171,7 +171,7 @@ export function SectionList({ onEditSection, search = '' }: SectionListProps) {
                 onClick={() =>
                   requestConfirm({
                     title: 'Hapus blok ini?',
-                    description: `Blok "${sectionType?.name || section.type}" akan dihapus dari halaman. Kalau salah, kamu bisa membatalkannya dengan Ctrl+Z.`,
+                    description: `Blok "${sectionType?.name || section.type}" akan dihapus dari halaman.`,
                     confirmLabel: 'Hapus blok',
                     tone: 'destructive',
                     onConfirm: () => deleteSection(section.id),

@@ -95,10 +95,9 @@ describe("MIN_SEO_TITLE", () => {
 });
 
 describe("BUILDER_SHORTCUTS", () => {
-  it("mencakup Ctrl+S dan Ctrl+Z yang promised di UI", () => {
+  it("mencakup Ctrl+S yang promised di UI", () => {
     const keys = BUILDER_SHORTCUTS.map((s) => s.keys);
     expect(keys).toContain("Ctrl+S");
-    expect(keys).toContain("Ctrl+Z");
   });
 
   it("setiap pintasan punya label", () => {

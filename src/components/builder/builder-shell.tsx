@@ -45,16 +45,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
   const templateSaved = useTemplateStore((s) => s.saved);
   const isSaved = saved && templateSaved;
 
-  // Status histori untuk mengaktifkan tombol Undo/Redo. `past`/`future` yang
-  // diseleksi (bukan `canUndo()`) karena Zustand hanya memicu render ulang
-  // bila nilai seleksinya berubah — method reference selalu sama.
-  const templatePast = useTemplateStore((s) => s.past.length);
-  const templateFuture = useTemplateStore((s) => s.future.length);
-  const builderPast = useBuilderStore((s) => s.past.length);
-  const builderFuture = useBuilderStore((s) => s.future.length);
-  const canUndo = templatePast > 0 || builderPast > 0;
-  const canRedo = templateFuture > 0 || builderFuture > 0;
-
   /**
    * Lebar sidebar disimpan di localStorage, jadi hanya bisa dibaca di browser.
    * Membacanya lewat `useState(() => loadSidebarWidth())` akan membuat HTML
@@ -63,36 +53,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
    */
   useEffect(() => {
     setSidebarWidth(loadSidebarWidth());
-  }, []);
-
-  /**
-   * Undo/redo hanya boleh menyentuh SATU store per invocation.
-   *
-   * Versi lama memanggil `templateStore.undo()` DAN `builderStore.undo()` setiap
-   * Ctrl+Z. Akibatnya satu tekan bisa membatalkan dua perubahan sekaligus —
-   * atau membatalkan sebuah perubahan dari store yang salah, karena urutan
-   * tekan tidak sinkron dengan histori kedua store. Di sini store yang punya
-   * histori diprioritaskan (kanvas selalu lebih sering berubah daripada state
-   * global), dan store lain tidak disentuh sama sekali.
-   */
-  const handleUndo = useCallback(() => {
-    const template = useTemplateStore.getState();
-    if (template.canUndo()) {
-      template.undo();
-      return;
-    }
-    const builder = useBuilderStore.getState();
-    if (builder.canUndo()) builder.undo();
-  }, []);
-
-  const handleRedo = useCallback(() => {
-    const template = useTemplateStore.getState();
-    if (template.canRedo()) {
-      template.redo();
-      return;
-    }
-    const builder = useBuilderStore.getState();
-    if (builder.canRedo()) builder.redo();
   }, []);
 
   /**
@@ -148,7 +108,7 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
     }
   }, [pageTitle, onPublishOverride]);
 
-  // Keyboard shortcuts: Ctrl+S simpan, Ctrl+Z / Ctrl+Shift+Z undo-redo, Esc keluar preview / deselect
+  // Keyboard shortcuts: Ctrl+S simpan, Esc keluar preview / deselect
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
@@ -156,12 +116,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         e.preventDefault();
         // Sama seperti tombol: "Simpan sebagai template" dengan nama default.
         void handleSave({ asTemplate: true });
-      } else if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-      } else if ((mod && e.key.toLowerCase() === 'y') || (mod && e.shiftKey && e.key.toLowerCase() === 'z')) {
-        e.preventDefault();
-        handleRedo();
       } else if (e.key === 'Escape') {
         if (isPreview) setIsPreview(false);
         else useTemplateStore.getState().selectSection(null);
@@ -169,7 +123,7 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleSave, handleUndo, handleRedo, isPreview]);
+  }, [handleSave, isPreview]);
 
   /**
    * Resize sidebar via drag pada handle di sisi kanvas.
@@ -278,10 +232,6 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         onShowPages={onShowPages}
         onShowTemplates={onShowTemplates}
         siteUrl={siteUrl}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        canUndo={canUndo}
-        canRedo={canRedo}
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0 relative">

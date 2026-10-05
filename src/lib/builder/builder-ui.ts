@@ -111,8 +111,6 @@ export interface Shortcut {
 /** Satu sumber kebenaran untuk shortcut + teks bantuan di bottom bar/sidebar. */
 export const BUILDER_SHORTCUTS: Shortcut[] = [
   { keys: 'Ctrl+S', label: 'Simpan' },
-  { keys: 'Ctrl+Z', label: 'Urungkan' },
-  { keys: 'Ctrl+Shift+Z', label: 'Ulangi' },
   { keys: 'Esc', label: 'Keluar preview / batal pilih' },
   { keys: 'Enter', label: 'Buka blok terpilih' },
 ];

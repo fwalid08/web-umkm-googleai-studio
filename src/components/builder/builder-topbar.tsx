@@ -1,6 +1,6 @@
 'use client';
 
-import { Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2, ExternalLink, Undo2, Redo2, Globe, Maximize2, Minimize2 } from 'lucide-react';
+import { Eye, Save, Rocket, PanelLeft, FileText, LayoutTemplate, Loader2, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -34,15 +34,6 @@ interface BuilderTopbarProps {
   onShowPages?: () => void;
   onShowTemplates?: () => void;
   siteUrl?: string | null;
-  /**
-   * Aksi undo/redo. Diturunkan oleh `BuilderShell` supaya logika "store mana
-   * yang punya histori" hanya ada di satu tempat (lihat catatan di shell).
-   */
-  onUndo?: () => void;
-  onRedo?: () => void;
-  /** Nonaktifkan tombol undo/redo saat tidak ada histori. */
-  canUndo?: boolean;
-  canRedo?: boolean;
 }
 
 function BarButton({
@@ -94,14 +85,23 @@ export function BuilderTopbar({
   onShowPages,
   onShowTemplates,
   siteUrl,
-  onUndo,
-  onRedo,
-  canUndo = false,
-  canRedo = false,
 }: BuilderTopbarProps) {
-  // Mode tampilan builder (sembunyikan/tampilkan chrome dashboard). Dipanggil
+// Mode tampilan builder (sembunyikan/tampilkan chrome dashboard). Dipanggil
   // langsung dari context supaya tidak perlu di-drill sebagai prop dari layout.
   const { fullPage, toggle: toggleFullPage, available: fullPageAvailable } = useBuilderFullPage();
+
+  // SATU badge status untuk template yang sedang diedit — tidak pernah tampil
+  // ganda. Prioritas: Menyimpan > Belum disimpan (editan kotor) > Belum
+  // ditayangkan (bersih tapi belum live) > Tayang (bersih + live).
+  // Edit kotor (!saved) otomatis berarti belum live, jadi badge Tayang
+  // disembunyikan sampai user menekan Simpan/Tayangkan.
+  const status = isSaving
+    ? { label: 'Menyimpan…', hint: 'Menyimpan desain…', dot: 'bg-sky-500 animate-pulse', ring: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200' }
+    : !saved
+      ? { label: 'Belum disimpan', hint: 'Desain di editor ada perubahan yang belum disimpan. Tekan "Simpan Template" untuk menyimpan, "Tayangkan" untuk live ke pengunjung.', dot: 'bg-amber-500', ring: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200' }
+      : isPublished === true
+        ? { label: 'Tayang', hint: 'Desain ini yang sedang live di website publik.', dot: 'bg-sky-500', ring: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200' }
+        : { label: 'Belum ditayangkan', hint: 'Desain ini tersimpan tapi belum live. Tekan "Tayangkan" untuk memakai template ini di website publik.', dot: 'bg-amber-500', ring: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200' };
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -141,105 +141,29 @@ export function BuilderTopbar({
             </BarButton>
           )}
 
-          {/* Status simpan: dulunya `hidden md:inline-flex` sehingga hilang total di HP —
-            user tidak punya cara tahu ada perubahan yang belum disimpan. Sekarang
-            badge-nya selalu tampil, hanya TEKS-nya yang disembunyikan di layar kecil. */}
+  {/* SATU badge status untuk template yang sedang diedit — tidak pernah tampil
+            ganda. Prioritas: Menyimpan > Belum disimpan (editan kotor) >
+            Belum ditayangkan (bersih tapi belum live) > Tayang (bersih + live).
+            Edit kotor (!saved) otomatis berarti belum live, jadi badge Tayang
+            disembunyikan sampai user menekan Simpan/Tayangkan. */}
           <div
-            className={`inline-flex items-center gap-1.5 ml-1 px-2 py-1 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold border shrink-0 transition-colors ${
-              isSaving
-                ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
-                : saved
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800'
-                  : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'
-            }`}
+            className={`inline-flex items-center gap-1.5 ml-1 px-2 py-1 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold border shrink-0 transition-colors ${status.ring}`}
+            title={status.hint}
+            role="status"
           >
             <span className="relative flex w-2 h-2">
-              <span
-                className={`absolute inline-flex w-full h-full rounded-full opacity-60 animate-ping ${
-                  isSaving ? 'bg-blue-400' : saved ? 'bg-emerald-400' : 'bg-amber-400'
-                }`}
-              />
-              <span
-                className={`relative inline-flex w-2 h-2 rounded-full ${
-                  isSaving ? 'bg-blue-500' : saved ? 'bg-emerald-500' : 'bg-amber-500'
-                }`}
-              />
+              <span className={`absolute inline-flex w-full h-full rounded-full opacity-60 animate-ping ${status.dot}`} />
+              <span className={`relative inline-flex w-2 h-2 rounded-full ${status.dot}`} />
             </span>
             {/* Label penuh disembunyikan di layar sempit, tapi TITIK statusnya
-                tetap tampil — sebelumnya badge "tersimpan" ini hilang total
-                di HP sehingga user tidak tahu ada perubahan yang belum disimpan. */}
+                tetap tampil. */}
             <span className="hidden sm:inline">
-              {isSaving ? 'Menyimpan…' : saved ? 'Tersimpan' : 'Belum disimpan'}
+              {status.label}
             </span>
           </div>
-
-          {/* Status tayang hanya relevan bila builder punya konsep publish
-              (page-builder). Label "Tersimpan" di sebelahnya tidak menjawab
-              hal ini: ia soal perubahan tersimpan ke DB, bukan halaman tayang.
-              Tidak ada konsep "draft" — website publik tidak pernah 404 karena
-              status; label ini murni informasi apakah template aktif sudah
-              pernah ditayangkan. */}
-          {typeof isPublished === 'boolean' && !isSaving && (
-            <div
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border shrink-0 ${
-                isPublished
-                  ? 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800'
-                  : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'
-              }`}
-              title={
-                isPublished
-                  ? 'Desain ini sudah pernah ditayangkan ke website publik.'
-                  : 'Desain ini belum pernah ditayangkan. Tekan "Tayangkan" untuk memakai template ini di website publik.'
-              }
-            >
-              {isPublished ? <Globe className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-              <span className="hidden lg:inline">
-                {isPublished ? 'Tayang' : 'Belum ditayangkan'}
-              </span>
-              <span className="sr-only">
-                {isPublished ? 'Sudah pernah ditayangkan' : 'Belum pernah ditayangkan'}
-              </span>
-            </div>
-          )}
-          {/* Perubahan kanvas (ganti skema, edit blok, ganti template) hanya
-              hidup di builder sampai "Tayangkan" ditekan — live site selalu
-              menampilkan status tayang terakhir. Badge ini mencegah kebingungan
-              "kok live tidak ikut berubah". */}
-          {isPublished && !saved && !isSaving && (
-            <div
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border shrink-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800"
-              title="Kanvas punya perubahan yang belum ditayangkan. Live site masih menampilkan versi tayang terakhir."
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              <span className="hidden lg:inline">Belum ditayangkan</span>
-              <span className="sr-only">Ada perubahan yang belum ditayangkan</span>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* Undo/Redo dulu ada: dulu tombolnya dihapus dan hanya menyisakan
-              shortcut keyboard (Ctrl+Z). Sekarang store sudah menyediakan
-              `past`/`future` sehingga status disable-nya bisa dihitung. */}
-          <BarButton
-            title="Urungkan perubahan terakhir"
-            hint="Ctrl+Z"
-            onClick={onUndo}
-            disabled={!canUndo || isSaving}
-            label="Urungkan"
-          >
-            <Undo2 className="w-4 h-4" />
-          </BarButton>
-          <BarButton
-            title="Ulangi perubahan yang dibatalkan"
-            hint="Ctrl+Shift+Z"
-            onClick={onRedo}
-            disabled={!canRedo || isSaving}
-            label="Ulangi"
-          >
-            <Redo2 className="w-4 h-4" />
-          </BarButton>
-
           <BarButton title="Preview website" hint="Lihat tampilan asli (Esc untuk keluar)" onClick={onPreview} label="Preview">
             <Eye className="w-4 h-4" />
           </BarButton>
