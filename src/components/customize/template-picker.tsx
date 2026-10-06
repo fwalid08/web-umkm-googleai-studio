@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Eye, Library, Loader2, LayoutTemplate, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, Eye, Library, Loader2, LayoutTemplate, Trash2 } from "lucide-react";
 import {
   applySavedTemplate,
   deleteSavedTemplate,
@@ -28,8 +28,7 @@ import {
   resolveTemplateId,
   type ApplyableTemplate,
 } from "@/lib/builder/apply-template";
-import { buildPreviewSiteData } from "@/lib/builder/preview-data";
-import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
+import { TemplatePreviewDialog } from "@/components/builder/template-preview-dialog";
 
 type CatalogEntry = (typeof BUILT_IN_CATALOG)[number];
 
@@ -317,31 +316,10 @@ export function TemplatePicker({
             ))}
           </div>
         )}
-        {/* Pratinjau template: render situs asli di dalam halaman ini
-            (bukan tab baru ke /preview — route itu tidak ada di build yang
-            belum di-deploy sehingga jatuh ke home). */}
-        <Dialog open={!!previewTpl} onOpenChange={(open) => { if (!open) setPreviewTpl(null); }}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-            <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between gap-2 px-4 py-3 border-b bg-background space-y-0">
-              <DialogTitle className="text-sm">Pratinjau: {previewTpl?.name}</DialogTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-2.5"
-                onClick={() => setPreviewTpl(null)}
-                aria-label="Tutup pratinjau"
-              >
-                <X className="w-3.5 h-3.5 mr-1" /> Tutup
-              </Button>
-            </DialogHeader>
-            {previewTpl && (
-              <div className="builder-cq">
-                <PublicWebsiteV3 site={buildPreviewSiteData(previewTpl)} />
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <TemplatePreviewDialog
+          template={previewTpl}
+          onClose={() => setPreviewTpl(null)}
+        />
         {/* Dialog konfirmasi sebelum apply */}
         <PendingDialog
           pending={pending}

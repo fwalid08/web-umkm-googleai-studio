@@ -38,6 +38,11 @@ export interface PublicSiteDataV3 {
   /** Animasi & behaviour template — dijalankan oleh `BehaviourRuntime`. */
   animations?: AnimationConfig[];
   behaviours?: BehaviourConfig[];
+  /**
+   * Batas overlay drawer (pratinjau mobile di modal). Diteruskan ke
+   * SiteHeaderLive → MobileDrawer (contained). Live site normal: kosong.
+   */
+  drawerContainer?: HTMLElement | null;
   /** CSS kustom template — bebaskan desain dari 47 layout bawaan. */
   customCss?: string;
   seo: {
@@ -47,7 +52,7 @@ export interface PublicSiteDataV3 {
 }
 
 export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
-  const { template, sections, seo, websiteId, themeOverride, typographyOverride, animations, behaviours, customCss, bottomBar } = site;
+  const { template, sections, seo, websiteId, themeOverride, typographyOverride, animations, behaviours, customCss, bottomBar, drawerContainer } = site;
   const palette = { ...template.theme.palette, ...themeOverride };
   const typography = {
     ...template.theme.typography,
@@ -116,6 +121,7 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
         headerVariantId={site.headerVariantId}
         headerConfig={site.headerConfig}
         themeOverride={themeOverride}
+        drawerContainer={drawerContainer}
       />
 
       <main>

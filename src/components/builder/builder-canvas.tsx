@@ -121,12 +121,14 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   };
 
   const bleed = preview && fullBleed;
-  // overflow-clip (bukan hidden): tetap memotong sudut rounded bingkai,
-  // tapi tidak membuat scroll-container sehingga header sticky di dalam
-  // kanvas tetap bisa menempel saat kanvas di-scroll.
+  // Frame = JENDELA scroll (virtual window ala emulator HP): konten
+  // (header sticky + sections + footer + bottom bar) menggulir DI DALAM
+  // bingkai, bukan di halaman utama. `overflow-x-clip` menjaga sudut
+  // rounded + mencegah scroll horizontal; header sticky top-0 dan bottom
+  // bar sticky bottom-0 tetap menempel karena induknya setinggi konten.
   const frameChrome = bleed
-    ? 'flex-1 overflow-clip builder-cq'
-    : `flex-1 overflow-clip builder-cq border-4 border-white dark:border-slate-800 ${
+    ? 'flex-1 min-h-0 overflow-y-auto overflow-x-clip builder-cq'
+    : `flex-1 min-h-0 overflow-y-auto overflow-x-clip builder-cq border-4 border-white dark:border-slate-800 ${
         isMobileFrame
           ? 'rounded-[2rem] border-slate-900 shadow-2xl shadow-emerald-900/20'
           : 'rounded-2xl sm:rounded-3xl shadow-xl shadow-emerald-900/10'
@@ -153,12 +155,11 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
 
   return (
     <main
-      className={`flex-1 overflow-auto min-h-0 transition-colors duration-300 ${
+      className={`flex-1 min-h-0 overflow-hidden flex flex-col transition-colors duration-300 ${
         preview
           ? 'bg-transparent p-0'
           : 'p-3 sm:p-6 bg-gradient-to-br from-slate-400 via-slate-300/60 to-emerald-200/45 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 bg-[radial-gradient(circle_at_1px_1px,rgba(6,95,70,0.30)_1px,transparent_0)] bg-[size:22px_22px]'
       }`}
-      onScroll={handleScroll}
       onClick={(e) => {
         if (!preview && e.target === e.currentTarget) selectSection(null);
       }}
@@ -183,7 +184,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
       <div
         id="tpl-canvas"
         ref={canvasRef}
-        className={`${bleed ? 'w-full' : 'mx-auto'} w-full flex flex-col transition-all duration-300`}
+        className={`${bleed ? 'w-full' : 'mx-auto'} w-full flex-1 min-h-0 flex flex-col transition-all duration-300`}
         style={{
           ...(bleed ? undefined : { maxWidth: `min(${viewportWidth}px, 100%)` }),
           transform: 'translateZ(0)',
@@ -195,6 +196,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
       >
         <div
           className={frameChrome}
+          onScroll={handleScroll}
           style={{
             // Token tema — SAMA seperti live site (theme-tokens.ts). Tanpa ini
             // seluruh `variant.html` bertoken tampil rusak di kanvas.
@@ -482,39 +484,42 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                 </button>
               </div>
             )}
-          </div>
+</div>
 
-          {/* Slot footer: sama seperti header — chrome tidak boleh ter-clip. */}
-          <div style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}>
-            <CanvasFooter variant={footerVariant} config={savedFooter as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
-          </div>
-          {/* Preview bottom bar mobile di kanvas (sama config dengan live site).
-              Mode statis (`floating={false}`) — `position:fixed` milik live
-              akan menempel ke viewport browser, bukan ke frame kanvas.
-              Hanya tampil saat frame < 1024px, cermin `lg:hidden` di live. */}
-          {viewportWidth < 1024 && (() => {
-            const bottomBar = (template as unknown as { data?: { bottomBar?: {
-              enabled?: boolean;
-              items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
-            } } }).data?.bottomBar;
-            if (!bottomBar?.enabled || !bottomBar.items || bottomBar.items.length === 0) return null;
-            return (
-              <div style={{ position: 'sticky', bottom: 0, zIndex: 30 }}>
-                <MobileBottomBar
-                  config={bottomBar}
-                  palette={{
-                    primary: mergedPalette.primary,
-                    surface: mergedPalette.surface,
-                    text: mergedPalette.text,
-                    textMuted: mergedPalette.textMuted,
-                    border: mergedPalette.border,
-                  }}
-                  floating={false}
-                />
-              </div>
-            );
-          })()}
+        {/* Slot footer: di DALAM frame (ikut menggulir seperti halaman
+            asli) — sama seperti header, chrome tidak boleh ter-clip. */}
+        <div style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}>
+          <CanvasFooter variant={footerVariant} config={savedFooter as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
         </div>
+        {/* Preview bottom bar mobile di kanvas (sama config dengan live site).
+            Mode statis (`floating={false}`) — `position:fixed` milik live
+            akan menempel ke viewport browser, bukan ke frame kanvas.
+            Hanya tampil saat frame < 1024px, cermin `lg:hidden` di live.
+            `sticky bottom-0` di dalam frame scroll = menempel di dasar
+            jendela virtual, seperti app native. */}
+        {viewportWidth < 1024 && (() => {
+          const bottomBar = (template as unknown as { data?: { bottomBar?: {
+            enabled?: boolean;
+            items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
+          } } }).data?.bottomBar;
+          if (!bottomBar?.enabled || !bottomBar.items || bottomBar.items.length === 0) return null;
+          return (
+            <div style={{ position: 'sticky', bottom: 0, zIndex: 30 }}>
+              <MobileBottomBar
+                config={bottomBar}
+                palette={{
+                  primary: mergedPalette.primary,
+                  surface: mergedPalette.surface,
+                  text: mergedPalette.text,
+                  textMuted: mergedPalette.textMuted,
+                  border: mergedPalette.border,
+                }}
+                floating={false}
+              />
+            </div>
+          );
+        })()}
+      </div>
         {!preview && (
           <p className="text-center text-[11px] font-medium text-muted-foreground mt-3 bg-white/70 dark:bg-slate-900/70 backdrop-blur inline-block mx-auto px-3 py-1 rounded-full border border-white dark:border-slate-800 shadow-sm">
             Klik blok untuk edit • {sections.length} blok • {viewportWidth}px

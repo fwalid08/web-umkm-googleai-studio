@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, Eye, Lock, Library, Trash2, X } from 'lucide-react';
+import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, Eye, Lock, Library, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,8 +17,7 @@ import type { Template } from '@/lib/builder/template-types';
 import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { isCatalogTemplateAllowedForTier } from '@/lib/builder/validation';
 import { savedToCatalogEntry, type SavedTemplateEntry } from '@/lib/builder/apply-template';
-import { buildPreviewSiteData } from '@/lib/builder/preview-data';
-import { PublicWebsiteV3 } from '@/components/website/renderer-v3';
+import { TemplatePreviewDialog } from '@/components/builder/template-preview-dialog';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -538,32 +537,10 @@ const colors = getStyleColors(template.data);
         </DialogContent>
       </Dialog>
 
-      {/* Pratinjau template: render situs asli di dalam modal (scroll
-          sendiri). Tidak buka tab baru — tidak bergantung route /preview
-          yang bisa belum ada di build ter-deploy. */}
-      <Dialog open={!!previewTemplate} onOpenChange={(open) => { if (!open) setPreviewTemplate(null); }}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-          <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between gap-2 px-4 py-3 border-b bg-background">
-            <DialogTitle className="text-sm">
-              Pratinjau: {previewTemplate?.name}
-            </DialogTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5"
-              onClick={() => setPreviewTemplate(null)}
-              aria-label="Tutup pratinjau"
-            >
-              <X className="w-3.5 h-3.5 mr-1" /> Tutup
-            </Button>
-          </DialogHeader>
-          {previewTemplate && (
-            <div className="builder-cq">
-              <PublicWebsiteV3 site={buildPreviewSiteData(previewTemplate.data)} />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <TemplatePreviewDialog
+        template={previewTemplate?.data ?? null}
+        onClose={() => setPreviewTemplate(null)}
+      />
 
       {/* Konfirmasi hapus library. Tone destructive + menyebut nama template
           supaya user tidak salah klik saat daftar sudah panjang. */}

@@ -27,11 +27,18 @@ export function SiteHeaderLive({
   headerVariantId,
   headerConfig,
   themeOverride,
+  drawerContainer,
 }: {
   template: Template;
   headerVariantId: string;
   headerConfig?: Record<string, unknown>;
   themeOverride?: Record<string, string>;
+  /**
+   * Batas overlay drawer (pratinjau mobile di modal). Bila diisi, drawer
+   * portal ke elemen ini + mode contained (terisolasi di bingkai HP).
+   * Live site normal: kosongkan (portal ke body, selayar viewport).
+   */
+  drawerContainer?: HTMLElement | null;
 }) {
   const headerVariant = template.headers.find((h) => h.id === headerVariantId) || template.headers[0];
   const config = { ...(headerVariant.defaultConfig ?? {}), ...(headerConfig ?? {}) };
@@ -59,6 +66,8 @@ export function SiteHeaderLive({
       primary={palette.primary}
       onPrimary={onPrimary}
       radius={template.theme.components.borderRadius}
+      container={drawerContainer}
+      contained={drawerContainer != null}
     />
   );
 

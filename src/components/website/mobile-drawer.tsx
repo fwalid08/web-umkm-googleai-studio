@@ -34,6 +34,16 @@ interface MobileDrawerProps {
    * ber-transform/contain (frame kanvas punya keduanya) — tepat yang kita mau.
    */
   container?: HTMLElement | null;
+  /**
+   * Isolasi overlay ke dalam container (bukan selayar viewport). Dipakai
+   * pratinjau mobile di dalam modal: overlay memakai `absolute inset-0`
+   * (relatif ke container yang `relative`) sehingga drawer tidak keluar
+   * dari bingkai HP virtual. Tanpa ini drawer portal ke body dan menutupi
+   * seluruh layar — pratinjau mobile jadi tidak mewakili HP sungguhan.
+   * Default false = perilaku lama (kanvas builder mengandalkan
+   * `fixed` + ancestor ber-transform).
+   */
+  contained?: boolean;
 }
 
 /**
@@ -54,6 +64,7 @@ export function MobileDrawer({
   onPrimary,
   radius,
   container,
+  contained = false,
 }: MobileDrawerProps) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -67,15 +78,16 @@ export function MobileDrawer({
     return () => window.removeEventListener('keydown', onKey);
   }, [open ]);
 
-  // Kunci scroll body selama drawer terbuka (overlay kini portal ke body).
+  // Kunci scroll body selama drawer terbuka (overlay portal ke body).
+  // Dilewati saat contained: scroll halaman induk sudah dikunci dialog.
   useEffect(() => {
-    if (!open) return;
+    if (!open || contained) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [open, contained]);
 
   const links = (items ?? []).filter((i) => i.enabled !== false);
 
@@ -162,10 +174,13 @@ export function MobileDrawer({
 
   // `open` hanya bisa true lewat klik di client, jadi guard `typeof document`
   // inline sudah cukup untuk SSR — tanpa state `mounted` tambahan.
+  // contained → absolute terhadap container (bingkai HP); selebihnya
+  // fixed selayar viewport seperti dulu.
+  const overlayPos = contained ? 'absolute inset-0 z-50' : 'fixed inset-0 z-50';
   const overlay =
     open && typeof document !== 'undefined' ? (
       style === 'drawer-top' ? (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu navigasi">
+        <div className={overlayPos} role="dialog" aria-modal="true" aria-label="Menu navigasi">
           <div className="absolute inset-0 bg-black/50 animate-drawer-fade" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             className="absolute top-0 left-0 right-0 shadow-xl animate-slide-down flex flex-col max-h-[80vh]"
@@ -186,7 +201,7 @@ export function MobileDrawer({
           </div>
         </div>
       ) : (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu navigasi">
+        <div className={overlayPos} role="dialog" aria-modal="true" aria-label="Menu navigasi">
           <div className="absolute inset-0 bg-black/50 animate-drawer-fade" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             className="absolute top-0 left-0 bottom-0 w-80 max-w-[85vw] shadow-xl animate-slide-in flex flex-col"
