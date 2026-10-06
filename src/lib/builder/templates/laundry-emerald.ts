@@ -5,6 +5,7 @@ import type {
   SectionTypeDefinition,
 } from "../template-types";
 import type { CatalogTemplate } from "./catalog";
+import type { ColorScheme } from "../color-schemes";
 
 /**
  * Emerald Laundry — template laundry unik bergaya luxury emerald.
@@ -1115,6 +1116,174 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
   headers: HEADERS,
   footers: FOOTERS,
   sections: SECTIONS,
+  colorSchemes: [
+    // Light schemes (10) — BRAND GOLD accent preserved (#C6A15B)
+    // Text-on-accent uses derived tokens (--color-accent-on-*) for readability
+    // Accent used as BACKGROUND (buttons, badges, bands); text on it uses --color-on-accent
+    {
+      id: 'emerald-luxury',
+      name: 'Emerald Luxury',
+      category: 'light',
+      palette: { background: '#f0fdf4', surface: '#ffffff', primary: '#064e3b', accent: '#c6a15b', text: '#064e3b', textMuted: '#4b5563', border: '#a7f3d0' },
+      headingFont: 'Playfair Display',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'teal-fresh',
+      name: 'Teal Fresh',
+      category: 'light',
+      palette: { background: '#f0fdfa', surface: '#ffffff', primary: '#0f766e', accent: '#c6a15b', text: '#134e4a', textMuted: '#4b5563', border: '#99f6e4' },
+      headingFont: 'Syne',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'sage-calm',
+      name: 'Sage Calm',
+      category: 'light',
+      palette: { background: '#f7fee7', surface: '#ffffff', primary: '#4d7c0f', accent: '#c6a15b', text: '#1a2e05', textMuted: '#4b5563', border: '#d9f99d' },
+      headingFont: 'Cormorant Garamond',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'mint-sterile',
+      name: 'Mint Sterile',
+      category: 'light',
+      palette: { background: '#ecfdf5', surface: '#ffffff', primary: '#059669', accent: '#c6a15b', text: '#064e3b', textMuted: '#4b5563', border: '#a7f3d0' },
+      headingFont: 'Montserrat',
+      bodyFont: 'Lato',
+    },
+    {
+      id: 'forest-premium',
+      name: 'Forest Premium',
+      category: 'light',
+      palette: { background: '#f0fdf4', surface: '#ecfdf5', primary: '#064e3b', accent: '#c6a15b', text: '#064e3b', textMuted: '#4b5563', border: '#a7f3d0' },
+      headingFont: 'DM Serif Display',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'jade-clean',
+      name: 'Jade Clean',
+      category: 'light',
+      palette: { background: '#f0fdfa', surface: '#ffffff', primary: '#0d9488', accent: '#c6a15b', text: '#134e4a', textMuted: '#4b5563', border: '#99f6e4' },
+      headingFont: 'Raleway',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'seafoam-pure',
+      name: 'Seafoam Pure',
+      category: 'light',
+      palette: { background: '#f0fdfa', surface: '#ffffff', primary: '#14b8a6', accent: '#c6a15b', text: '#134e4a', textMuted: '#4b5563', border: '#99f6e4' },
+      headingFont: 'Outfit',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'olive-organic',
+      name: 'Olive Organic',
+      category: 'light',
+      palette: { background: '#f7fee7', surface: '#ffffff', primary: '#65a30d', accent: '#c6a15b', text: '#1a2e05', textMuted: '#4b5563', border: '#d9f99d' },
+      headingFont: 'Plus Jakarta Sans',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'pine-fresh',
+      name: 'Pine Fresh',
+      category: 'light',
+      palette: { background: '#f1f5f2', surface: '#ffffff', primary: '#166534', accent: '#c6a15b', text: '#172a1f', textMuted: '#4b5563', border: '#bbf7d0' },
+      headingFont: 'Space Grotesk',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'eucalyptus-spa',
+      name: 'Eucalyptus Spa',
+      category: 'light',
+      palette: { background: '#f0fdf4', surface: '#ecfdf5', primary: '#15803d', accent: '#c6a15b', text: '#166534', textMuted: '#4b5563', border: '#a7f3d0' },
+      headingFont: 'Figtree',
+      bodyFont: 'Inter',
+    },
+    // Dark schemes (10) — BRIGHT GOLD accent for dark backgrounds
+    // Brand gold #c6a15b works on very dark; #fde047 (bright gold) for less dark
+    // Text on accent uses --color-on-accent (auto dark text)
+    {
+      id: 'midnight-emerald',
+      name: 'Midnight Emerald',
+      category: 'dark',
+      palette: { background: '#020617', surface: '#0f172a', primary: '#34d399', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#064e3b' },
+      headingFont: 'Playfair Display',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'deep-teal',
+      name: 'Deep Teal',
+      category: 'dark',
+      palette: { background: '#050e0c', surface: '#0f172a', primary: '#2dd4bf', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#0f766e' },
+      headingFont: 'Syne',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'shadow-sage',
+      name: 'Shadow Sage',
+      category: 'dark',
+      palette: { background: '#0c0a09', surface: '#1c1917', primary: '#84cc16', accent: '#fde047', text: '#f4f4f5', textMuted: '#a1a1aa', border: '#27272a' },
+      headingFont: 'Cormorant Garamond',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'noir-mint',
+      name: 'Noir Mint',
+      category: 'dark',
+      palette: { background: '#0a0f0a', surface: '#141210', primary: '#10b981', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#064e3b' },
+      headingFont: 'Montserrat',
+      bodyFont: 'Lato',
+    },
+    {
+      id: 'obsidian-forest',
+      name: 'Obsidian Forest',
+      category: 'dark',
+      palette: { background: '#040806', surface: '#0c0a09', primary: '#059669', accent: '#c6a15b', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#064e3b' },
+      headingFont: 'DM Serif Display',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'onyx-jade',
+      name: 'Onyx Jade',
+      category: 'dark',
+      palette: { background: '#060b0a', surface: '#0f172a', primary: '#14b8a6', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#0f766e' },
+      headingFont: 'Raleway',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'coal-seafoam',
+      name: 'Coal Seafoam',
+      category: 'dark',
+      palette: { background: '#050e0c', surface: '#0f172a', primary: '#2dd4bf', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#0f766e' },
+      headingFont: 'Outfit',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'graphite-olive',
+      name: 'Graphite Olive',
+      category: 'dark',
+      palette: { background: '#0c0a09', surface: '#1c1917', primary: '#65a30d', accent: '#fde047', text: '#f4f4f5', textMuted: '#a1a1aa', border: '#27272a' },
+      headingFont: 'Plus Jakarta Sans',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'raven-pine',
+      name: 'Raven Pine',
+      category: 'dark',
+      palette: { background: '#0a0f0a', surface: '#141210', primary: '#166534', accent: '#c6a15b', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#166534' },
+      headingFont: 'Space Grotesk',
+      bodyFont: 'Inter',
+    },
+    {
+      id: 'abyss-green',
+      name: 'Abyss Green',
+      category: 'dark',
+      palette: { background: '#030805', surface: '#0c0a09', primary: '#047857', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#064e3b' },
+      headingFont: 'Figtree',
+      bodyFont: 'Inter',
+    },
+  ],
   /**
    * Kontrak kontras template (§19).
    *

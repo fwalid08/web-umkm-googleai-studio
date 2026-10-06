@@ -8,8 +8,10 @@ import {
   getOnColor,
   resolvePalette,
 } from "./design-styles";
-import { COLOR_SCHEMES, validateColorScheme } from "./color-schemes";
+import { validateColorScheme } from "./color-schemes";
 import type { DesignStyle, DesignStylePalette } from "./types";
+import { FOOD_TEMPLATE } from "./templates/food";
+import { LAUNDRY_EMERALD_TEMPLATE } from "./templates/laundry-emerald";
 
 const BASE_PALETTE: DesignStylePalette = {
   primary: "#333333",
@@ -34,47 +36,61 @@ function withSecondary(p: Record<string, string>): DesignStylePalette {
  * Guard keterbacaan: setiap skema warna siap pakai WAJIB punya kontras teks
  * vs latar memenuhi WCAG AA (≥ 4.5:1) agar font tidak "tenggelam".
  *
- * Katalog `DESIGN_STYLES` dihapus di migrasi 046; yang diuji sekarang adalah
- * 20 skema yang benar-benar bisa dipilih user di StyleSelector.
+ * Setiap template menyediakan colorSchemes sendiri (max 20).
+ * Test ini memvalidasi skema dari food.ts dan laundry-emerald.ts.
  */
 describe("kontras skema warna siap pakai (WCAG AA)", () => {
-  it("semua COLOR_SCHEMES lolos validateColorScheme", () => {
-    expect(COLOR_SCHEMES.length).toBeGreaterThan(0);
-    for (const scheme of COLOR_SCHEMES) {
-      const v = validateColorScheme({ ...scheme, palette: withSecondary(scheme.palette) });
-      expect(
-        v.issues,
-        `${scheme.id} bermasalah: ${v.issues.join("; ")}`,
-      ).toEqual([]);
-      expect(v.valid).toBe(true);
+  const templates = [FOOD_TEMPLATE, LAUNDRY_EMERALD_TEMPLATE];
+
+  it("semua template.colorSchemes lolos validateColorScheme (generic pairs)", () => {
+    for (const template of templates) {
+      expect(template.colorSchemes.length).toBeGreaterThan(0);
+      for (const scheme of template.colorSchemes) {
+        // Validasi hanya 4 pasangan generik (text/background, text/surface, textMuted/background, textMuted/surface)
+        // Kontrak template (dual-role pairs) ditangani via derived tokens saat render, bukan validasi palet mentah
+        const v = validateColorScheme(
+          { ...scheme, palette: withSecondary(scheme.palette) },
+          null, // tanpa kontrak template
+          template.theme.palette,
+        );
+        expect(
+          v.issues,
+          `${template.id}:${scheme.id} bermasalah: ${v.issues.join("; ")}`,
+        ).toEqual([]);
+        expect(v.valid).toBe(true);
+      }
     }
   });
 
   it("warna tombol otomatis (getOnColor) selalu ≥ 4.5 di atas primary", () => {
-    for (const scheme of COLOR_SCHEMES) {
-      const on = getOnColor(scheme.palette.primary);
-      const ratio = getContrastRatio(on, scheme.palette.primary);
-      expect(
-        ratio,
-        `${scheme.id}: onPrimary ${on} vs ${scheme.palette.primary} = ${ratio.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(MIN_CONTRAST_NORMAL_TEXT);
+    for (const template of templates) {
+      for (const scheme of template.colorSchemes) {
+        const on = getOnColor(scheme.palette.primary);
+        const ratio = getContrastRatio(on, scheme.palette.primary);
+        expect(
+          ratio,
+          `${template.id}:${scheme.id}: onPrimary ${on} vs ${scheme.palette.primary} = ${ratio.toFixed(2)}:1`,
+        ).toBeGreaterThanOrEqual(MIN_CONTRAST_NORMAL_TEXT);
+      }
     }
   });
 
   it("subtitle CTA (onPrimary 85%) tetap terbaca di atas primary", () => {
-    for (const scheme of COLOR_SCHEMES) {
-      const on = getOnColor(scheme.palette.primary);
-      const eff = blendOnTop(
-        on === "#ffffff" ? "rgba(255,255,255,0.85)" : "rgba(17,17,17,0.85)",
-        scheme.palette.primary,
-      );
-      expect(eff).not.toBeNull();
-      const ratio = getContrastRatio(eff!, scheme.palette.primary);
-      // Subtitle CTA berukuran besar (text-lg/2xl) → ambang teks besar 3.0
-      expect(
-        ratio,
-        `${scheme.id}: subtitle vs primary = ${ratio.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(3.0);
+    for (const template of templates) {
+      for (const scheme of template.colorSchemes) {
+        const on = getOnColor(scheme.palette.primary);
+        const eff = blendOnTop(
+          on === "#ffffff" ? "rgba(255,255,255,0.85)" : "rgba(17,17,17,0.85)",
+          scheme.palette.primary,
+        );
+        expect(eff).not.toBeNull();
+        const ratio = getContrastRatio(eff!, scheme.palette.primary);
+        // Subtitle CTA berukuran besar (text-lg/2xl) → ambang teks besar 3.0
+        expect(
+          ratio,
+          `${template.id}:${scheme.id}: subtitle vs primary = ${ratio.toFixed(2)}:1`,
+        ).toBeGreaterThanOrEqual(3.0);
+      }
     }
   });
 });

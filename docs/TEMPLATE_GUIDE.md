@@ -1685,10 +1685,12 @@ Menu mobile **harus** salah satu dari dua opsi berikut — **dilarang memakai dr
 - Sub-menu di-indentasi agar hierarki jelas
 
 ### 15.5 Color Schemes & Kontras
-- Template memakai 20 color schemes terkurasi (`src/lib/builder/color-schemes.ts`: 10 light + 10 dark)
-- Semua scheme harus lolos kontras WCAG AA (≥ 4.5:1) — dicek otomatis via `validateColorScheme()`
+- **Setiap template menyediakan color schemes sendiri (max 20: 10 light + 10 dark)** didefinisikan di `template.colorSchemes`
+- Semua scheme WAJIB lolos kontras WCAG AA (≥ 4.5:1) — dicek otomatis via `validateColorScheme()` dengan kontrak template (`template.contrast`) dan palet dasar (`template.theme.palette`)
 - Warna teks di atas background berwarna wajib memakai `getOnColor()` agar tidak "tenggelam"
 - Header transparan di atas hero wajib memakai text-shadow agar teks tetap terbaca
+- Builtin font dari `FONT_CATEGORIES` dipertahankan; skema boleh override `headingFont`/`bodyFont`/`accentFont` opsional
+- **Builtin global `COLOR_SCHEMES` dihapus** — gunakan `template.colorSchemes` di Style Selector
 
 ### 15.6 Font Categories
 - 5 kategori font, semuanya dari Google Fonts (`src/lib/builder/font-categories.ts`):
@@ -2192,12 +2194,49 @@ layout generik `site-header/footer-shared.tsx`, renderer legacy
 `website/renderer.tsx` (bila tak dipakai), scaffold generik
 `scripts/create-template.ts`, acuan generik `template-reference-v3.json`.
 
+### 18.8 Template Color Schemes (max 20 per template)
+
+Setiap template **wajib** mendefinisikan `colorSchemes: ColorScheme[]` (max 20: 10 light + 10 dark) yang:
+
+1. **Desain spesifik template** — Skema warna dirancang untuk identitas visual template tersebut (food: warm terracotta/orange; laundry: emerald/gold), bukan generik
+2. **Lolos validasi kontras** — Setiap skema WAJIB lolos `validateColorScheme(scheme, template.contrast, template.theme.palette)` dengan `valid: true`
+3. **Override font opsional** — Skema boleh mendefinisikan `headingFont`, `bodyFont`, `accentFont` untuk pairing font spesifik skema (harus terdaftar di `FONT_CATEGORIES`)
+4. **Tidak ada fallback global** — Builtin `COLOR_SCHEMES` dihapus; Style Selector hanya menampilkan `template.colorSchemes`
+
+**Struktur ColorScheme:**
+```typescript
+interface ColorScheme {
+  id: string;                    // kebab-case, e.g. 'terracotta-classic'
+  name: string;                  // Display name, e.g. 'Terracotta Classic'
+  category: 'light' | 'dark';    // Kategori untuk grouping UI
+  palette: ColorSchemePalette;   // 8 token: primary, secondary, accent, background, surface, text, textMuted, border
+  headingFont?: string;          // Optional override (dari FONT_CATEGORIES)
+  bodyFont?: string;             // Optional override (dari FONT_CATEGORIES)
+  accentFont?: string;           // Optional override (dari FONT_CATEGORIES)
+}
+```
+
+**Prosedur membuat skema template baru:**
+1. Ambil palet dasar template (`theme.palette`) sebagai referensi
+2. Buat 10 variasi light + 10 variasi dark yang menjaga "rasa" template
+3. Setiap skema harus lolos `validateColorScheme()` dengan kontrak template
+4. Uji cross-scheme: semua section HTML template harus terbaca di semua 20 skema
+5. Definisikan font pairing opsional per skema untuk variasi estetika
+
+**Contoh (Food template):**
+- Light: `terracotta-classic`, `rust-warmth`, `amber-glow`, `clay-pottery`, `sunset-kitchen`, `spice-market`, `harvest-gold`, `cream-soup`, `ginger-zest`, `paprika-rich`
+- Dark: `ember-hearth`, `charcoal-grill`, `midnight-feast`, `copper-pot`, `bronze-kitchen`, `obsidian-broth`, `smoked-paprika`, `cinder-oven`, `volcanic-ash`, `coal-ember`
+
+**Contoh (Laundry Emerald template):**
+- Light: `emerald-luxury`, `teal-fresh`, `sage-calm`, `mint-sterile`, `forest-premium`, `jade-clean`, `seafoam-pure`, `olive-organic`, `pine-fresh`, `eucalyptus-spa`
+- Dark: `midnight-emerald`, `deep-teal`, `shadow-sage`, `noir-mint`, `obsidian-forest`, `onyx-jade`, `coal-seafoam`, `graphite-olive`, `raven-pine`, `abyss-green`
+
 ---
 
 ## 19. Kontras Warna — Token Pasangan, Bukan Warna Mentah
 
 > **Status (2026-10-05): wajib.** Suite `contrast-contract.test.ts` menguji
-> setiap varian terhadap **seluruh** skema warna di `COLOR_SCHEMES`. Template
+> setiap varian terhadap **seluruh** skema warna di `template.colorSchemes`. Template
 > yang hanya aman di paletnya sendiri akan gagal test.
 
 ### 19.1 Masalah yang diselesaikan

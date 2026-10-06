@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTemplateStore } from '@/lib/builder/template-store';
 import { useBuilderStore } from '@/lib/builder/store';
 import { PALETTE_FIELDS } from '@/lib/builder/design-styles';
-import { COLOR_SCHEMES, normalizeColorScheme, type ColorScheme } from '@/lib/builder/color-schemes';
+import { normalizeColorScheme, type ColorScheme } from '@/lib/builder/color-schemes';
 import { FONT_CATEGORIES } from '@/lib/builder/font-categories';
 import { Check, RotateCcw, Type, Palette, SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -142,7 +142,7 @@ export function StyleSelector() {
           <TabsContent value="preset" className="space-y-2">
             <p className="text-xs font-bold">Skema siap pakai (aman, lolos kontras)</p>
             <div className="space-y-1.5">
-              {COLOR_SCHEMES.map((scheme) => {
+              {(template.colorSchemes ?? []).map((scheme) => {
                 const active = (Object.keys(scheme.palette) as string[]).every(
                   (k) => effective[k] === scheme.palette[k as keyof typeof scheme.palette],
                 );

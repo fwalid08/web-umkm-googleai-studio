@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { getContrastRatio } from './design-styles';
-import { COLOR_SCHEMES } from './color-schemes';
 import { SECTION_REGISTRY } from './sections/registry';
 import {
   autoFixMutedColor,
@@ -43,8 +42,10 @@ function withSecondary(p: Record<string, string>): DesignStylePalette {
 
 const PALETTES: Array<readonly [string, DesignStylePalette]> = [
   ['neutral', NEUTRAL_PALETTE],
-  ...COLOR_SCHEMES.map((s) => [s.id, withSecondary(s.palette)] as const),
-  ...BUILT_IN_CATALOG.map((t) => [t.id, withSecondary({ ...t.theme.palette })] as const),
+  ...BUILT_IN_CATALOG.flatMap((t) => [
+    ...(t.colorSchemes ?? []).map((s) => [s.id, withSecondary(s.palette)] as const),
+    [t.id, withSecondary({ ...t.theme.palette })] as const,
+  ]),
 ];
 
 const SCENARIOS = [

@@ -30,6 +30,9 @@ export interface ColorScheme {
   name: string;
   category: 'light' | 'dark';
   palette: ColorSchemePalette;
+  headingFont?: string;
+  bodyFont?: string;
+  accentFont?: string;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -105,158 +108,6 @@ function fixPrimaryForContrast(bg: string, preferred: string): string {
   }
   return bestRatio >= MIN_CONTRAST_NORMAL_TEXT ? best : preferred;
 }
-
-/**
- * Preset warna dalam bentuk ASLI (apa yang ditulis author).
- *
- * Dipisah dari `COLOR_SCHEMES` supaya autofix tidak pernah memutasikan data
- * yang diimpor — sebelumnya `forEach` di top-level mengubah `scheme.palette`
- * saat modul di-load, yang membuat modul ini punya efek samping dan
- * menulis ke console di setiap server render.
- */
-const AUTHORED_COLOR_SCHEMES: ColorScheme[] = [
-  {
-    id: 'ocean-blue',
-    name: 'Ocean Blue',
-    category: 'light',
-    palette: { background: '#F0F9FF', surface: '#FFFFFF', primary: '#0284C7', accent: '#06B6D4', text: '#0F172A', textMuted: '#475569', border: '#BAE6FD' },
-  },
-  {
-    id: 'emerald-fresh',
-    name: 'Emerald Fresh',
-    category: 'light',
-    palette: { background: '#F0FDF4', surface: '#FFFFFF', primary: '#10B981', accent: '#34D399', text: '#064E3B', textMuted: '#4B5563', border: '#A7F3D0' },
-  },
-  {
-    id: 'forest-green',
-    name: 'Forest Green',
-    category: 'light',
-    palette: { background: '#F1F5F2', surface: '#FFFFFF', primary: '#166534', accent: '#22C55E', text: '#172A1F', textMuted: '#4B5563', border: '#BBF7D0' },
-  },
-  {
-    id: 'sage-minimal',
-    name: 'Sage Minimal',
-    category: 'light',
-    palette: { background: '#F6F7F2', surface: '#FFFFFF', primary: '#6B7D6A', accent: '#A3B18A', text: '#263328', textMuted: '#66745F', border: '#D1D5DB' },
-  },
-  {
-    id: 'lime-modern',
-    name: 'Lime Modern',
-    category: 'light',
-    palette: { background: '#F7FEE7', surface: '#FFFFFF', primary: '#65A30D', accent: '#A3E635', text: '#1A2E05', textMuted: '#4B5563', border: '#D9F99D' },
-  },
-  {
-    id: 'royal-purple',
-    name: 'Royal Purple',
-    category: 'light',
-    palette: { background: '#FAF5FF', surface: '#FFFFFF', primary: '#7C3AED', accent: '#A855F7', text: '#2E1065', textMuted: '#6B7280', border: '#DDD6FE' },
-  },
-  {
-    id: 'warm-orange',
-    name: 'Warm Orange',
-    category: 'light',
-    palette: { background: '#FFF7ED', surface: '#FFFFFF', primary: '#EA580C', accent: '#FB923C', text: '#431407', textMuted: '#78716C', border: '#FED7AA' },
-  },
-  {
-    id: 'coral-modern',
-    name: 'Coral Modern',
-    category: 'light',
-    palette: { background: '#FFF5F3', surface: '#FFFFFF', primary: '#F43F5E', accent: '#FB7185', text: '#3F0A15', textMuted: '#78716C', border: '#FECDD3' },
-  },
-  {
-    id: 'coffee-mocha',
-    name: 'Coffee Mocha',
-    category: 'light',
-    palette: { background: '#FAF7F2', surface: '#FFFFFF', primary: '#795548', accent: '#A1887F', text: '#29211D', textMuted: '#78716C', border: '#D7CCC8' },
-  },
-  {
-    id: 'sky-white',
-    name: 'Sky & White',
-    category: 'light',
-    palette: { background: '#F0F9FF', surface: '#FFFFFF', primary: '#0EA5E9', accent: '#7DD3FC', text: '#0C4A6E', textMuted: '#475569', border: '#BAE6FD' },
-  },
-  {
-    id: 'midnight-blue',
-    name: 'Midnight Blue',
-    category: 'dark',
-    palette: { background: '#0F172A', surface: '#1E293B', primary: '#3B82F6', accent: '#38BDF8', text: '#F8FAFC', textMuted: '#94A3B8', border: '#334155' },
-  },
-  {
-    id: 'violet-neon',
-    name: 'Violet Neon',
-    category: 'dark',
-    palette: { background: '#0F0A1F', surface: '#1E1633', primary: '#8B5CF6', accent: '#D946EF', text: '#FAF5FF', textMuted: '#A78BFA', border: '#3B0764' },
-  },
-  {
-    id: 'cyber-blue',
-    name: 'Cyber Blue',
-    category: 'dark',
-    palette: { background: '#050B14', surface: '#0F172A', primary: '#00A3FF', accent: '#00E5FF', text: '#E0F2FE', textMuted: '#7DD3FC', border: '#1E293B' },
-  },
-  {
-    id: 'cyber-green',
-    name: 'Cyber Green',
-    category: 'dark',
-    palette: { background: '#07110D', surface: '#0D1F17', primary: '#00C853', accent: '#00FF88', text: '#ECFDF5', textMuted: '#6EE7B7', border: '#1E293B' },
-  },
-  {
-    id: 'black-gold',
-    name: 'Black & Gold',
-    category: 'dark',
-    palette: { background: '#0A0A0A', surface: '#171717', primary: '#D4AF37', accent: '#F5D76E', text: '#FAFAFA', textMuted: '#A3A3A3', border: '#262626' },
-  },
-  {
-    id: 'charcoal-orange',
-    name: 'Charcoal Orange',
-    category: 'dark',
-    palette: { background: '#18181B', surface: '#27272A', primary: '#F97316', accent: '#FB923C', text: '#FAFAFA', textMuted: '#A1A1AA', border: '#3F3F46' },
-  },
-  {
-    id: 'black-lime',
-    name: 'Black & Lime',
-    category: 'dark',
-    palette: { background: '#09090B', surface: '#18181B', primary: '#84CC16', accent: '#BEF264', text: '#F4F4F5', textMuted: '#A1A1AA', border: '#27272A' },
-  },
-  {
-    id: 'black-cyan',
-    name: 'Black & Cyan',
-    category: 'dark',
-    palette: { background: '#09090B', surface: '#18181B', primary: '#06B6D4', accent: '#67E8F9', text: '#F4F4F5', textMuted: '#A1A1AA', border: '#27272A' },
-  },
-  {
-    id: 'black-purple',
-    name: 'Black & Purple',
-    category: 'dark',
-    palette: { background: '#09090B', surface: '#18181B', primary: '#8B5CF6', accent: '#C084FC', text: '#FAFAFA', textMuted: '#A1A1AA', border: '#27272A' },
-  },
-  {
-    id: 'dark-monochrome',
-    name: 'Dark Monochrome',
-    category: 'dark',
-    palette: { background: '#09090B', surface: '#18181B', primary: '#E4E4E7', accent: '#A1A1AA', text: '#FAFAFA', textMuted: '#A1A1AA', border: '#27272A' },
-  },
-];
-
-/**
- * Preset siap pakai yang SUDAH dinormalisasi.
- *
- * Perbaikan rasio dilakukan sekali lewat fungsi murni (data aslinya tidak
- * disentuh) alih-alih `forEach` yang memutasikan data saat import.
- * Konsekuensinya: `console.warn` yang dulu muncul di setiap server render
- * hilang, tapi nilai palet yang dipakai UI tetap sama seperti sebelumnya —
- * penting karena `style-selector` menandai skema aktif dengan membandingkan
- * nilai ini dengan override user.
- */
-export const COLOR_SCHEMES: ColorScheme[] = AUTHORED_COLOR_SCHEMES.map((scheme) => {
-  const p = mergeSchemePalette(scheme, null);
-  const fixed: DesignStylePalette = {
-    ...p,
-    text: fixTextColor(p.surface, fixTextColor(p.background, p.text)),
-    textMuted: fixTextColor(p.surface, fixTextColor(p.background, p.textMuted)),
-    primary: fixPrimaryForContrast(p.surface, p.primary),
-  };
-  return { ...scheme, palette: { ...fixed } };
-});
 
 /**
  * Gabungkan palet skema dengan palet template sebagai dasar.

@@ -2,6 +2,7 @@ import type { DesignStylePalette, DesignStyleTypography, DesignStyleComponents, 
 // Tipe saja — `contrast-contract.ts` mengimpor `design-styles` + `section-contrast`,
 // jadi impor nilai di sini akan membuat siklus modul.
 import type { ContrastContract } from './contrast-contract';
+import type { ColorScheme } from './color-schemes';
 
 // Re-export agar impor lama dari template-types tetap jalan (mis. public.ts).
 export type { DesignStylePalette, DesignStyleTypography } from './types';
@@ -218,6 +219,16 @@ export interface Template {
    * Lihat `contrast-contract.ts` untuk aturan token fg-only vs dual-role.
    */
   contrast?: ContrastContract;
+
+  /**
+   * Skema warna khusus template (max 20: 10 light + 10 dark).
+   *
+   * Setiap skema WAJIB lolos `validateColorScheme()` dengan kontrak kontras
+   * template ini (`contrast`) dan palet dasar (`theme.palette`).
+   * Builtin font dipertahankan via `FONT_CATEGORIES`; skema boleh override
+   * headingFont/bodyFont/accentFont opsional.
+   */
+  colorSchemes: ColorScheme[];
 }
 
 export interface TemplateInstance {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BUILT_IN_CATALOG } from './templates/catalog';
-import { COLOR_SCHEMES, mergeSchemePalette } from './color-schemes';
+import { mergeSchemePalette } from './color-schemes';
 import { buildThemeTokens } from './theme-tokens';
 import { getContrastRatio } from './design-styles';
 import {
@@ -40,7 +40,8 @@ describe('guard render: tidak ada teks di bawah 4.5:1 pada skema APAPUN', () => 
   let textPairs = 0;
 
   for (const tpl of BUILT_IN_CATALOG) {
-    for (const scheme of COLOR_SCHEMES) {
+    const schemes = tpl.colorSchemes ?? [];
+    for (const scheme of schemes) {
       const palette = mergeSchemePalette(scheme, tpl.theme.palette);
       const rendered = buildThemeTokens(
         palette, tpl.theme.typography, tpl.theme.components.borderRadius, { contrast: tpl.contrast },
@@ -134,7 +135,8 @@ describe('guard token: --color-text tetap terbaca di background & surface', () =
   const bad: string[] = [];
 
   for (const tpl of BUILT_IN_CATALOG) {
-    for (const scheme of COLOR_SCHEMES) {
+    const schemes = tpl.colorSchemes ?? [];
+    for (const scheme of schemes) {
       const palette = mergeSchemePalette(scheme, tpl.theme.palette);
       const tokens = buildThemeTokens(
         palette, tpl.theme.typography, tpl.theme.components.borderRadius, { contrast: tpl.contrast },

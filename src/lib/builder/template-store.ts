@@ -226,6 +226,7 @@ function createEmptyTemplate(): Template {
     headers: [],
     footers: [],
     sections: [],
+    colorSchemes: [],
   };
 }
 
