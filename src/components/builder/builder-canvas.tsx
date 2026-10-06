@@ -158,7 +158,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
       className={`flex-1 min-h-0 overflow-hidden flex flex-col transition-colors duration-300 ${
         preview
           ? 'bg-transparent p-0'
-          : 'p-3 sm:p-6 bg-gradient-to-br from-slate-400 via-slate-300/60 to-emerald-200/45 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 bg-[radial-gradient(circle_at_1px_1px,rgba(6,95,70,0.30)_1px,transparent_0)] bg-[size:22px_22px]'
+          : 'py-2 px-1 sm:py-4 sm:px-2 bg-gradient-to-br from-slate-400 via-slate-300/60 to-emerald-200/45 dark:from-slate-950 dark:via-[#0d1a14] dark:to-slate-950 bg-[radial-gradient(circle_at_1px_1px,rgba(6,95,70,0.30)_1px,transparent_0)] bg-[size:22px_22px]'
       }`}
       onClick={(e) => {
         if (!preview && e.target === e.currentTarget) selectSection(null);
@@ -520,11 +520,6 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
           );
         })()}
       </div>
-        {!preview && (
-          <p className="text-center text-[11px] font-medium text-muted-foreground mt-3 bg-white/70 dark:bg-slate-900/70 backdrop-blur inline-block mx-auto px-3 py-1 rounded-full border border-white dark:border-slate-800 shadow-sm">
-            Klik blok untuk edit • {sections.length} blok • {viewportWidth}px
-          </p>
-        )}
       </div>
 
       {showInsertPicker && !preview && (

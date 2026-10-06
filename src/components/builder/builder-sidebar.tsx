@@ -272,7 +272,7 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
       <div className="rounded-2xl border border-slate-200/50 bg-white p-3 flex items-center justify-between gap-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:bg-white/[0.03] dark:border-white/[0.06]">
         <div>
           <h3 className="text-sm font-extrabold">{sections.length} blok halaman</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Klik blok untuk edit • seret untuk susun</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Seret untuk susun</p>
         </div>
         <Button size="sm" className="h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 font-bold shadow-sm shrink-0" onClick={() => setShowSectionPicker(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" />
