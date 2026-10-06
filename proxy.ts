@@ -56,7 +56,7 @@ const PROTECTED_PATHS = ["/dashboard", "/admin"];
 const ADMIN_PATHS = ["/admin"];
 
 const DASHBOARD_PATHS = [
-  "/dashboard", "/settings", "/billing", "/products", "/orders",
+  "/dashboard", "/settings", "/billing", "/products", "/orders", "/reports",
   "/customers", "/analytics", "/websites", "/domain", "/themes", "/announcement",
   // Halaman Desain Website (/dashboard/web-design → kanonik /web-design di
   // admin host; editor single-page ada di /web-design/customize).

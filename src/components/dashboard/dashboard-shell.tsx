@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard,
+  FileText,
   Store,
     ShoppingBag,
   BarChart3,
@@ -32,7 +33,7 @@ import {
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { useLang, type Lang } from "@/lib/i18n";
-import { adminUrl, tenantDisplay, tenantUrl } from "@/lib/urls";
+import { adminUrl } from "@/lib/urls";
 import { dashboardNavHref, isBuilderPath } from "@/lib/nav";
 import { hasUnsavedBuilderChanges } from "@/lib/builder/builder-ui";
 import { useBuilderStore } from "@/lib/builder/store";
@@ -324,8 +325,6 @@ export function DashboardShell({
   const tier = (user as any)?.tier || "free";
   const isFree = tier === "free";
   const tierLabel = tierName(tier, lang);
-  const subdomain = (user as any)?.subdomain;
-  const websiteUrl = tenantUrl(subdomain);
 
   // Close sidebar on route change
   useEffect(() => {
@@ -337,13 +336,19 @@ export function DashboardShell({
   // grup Toko, Website (billing/settings lewat dropdown user & settings hub).
   const menuGroups: MenuGroup[] = [
     {
-      header: t("nav.groupStore"),
+      header: t("nav.groupDashboard"),
       items: [
         { name: t("nav.dashboard"), href: dashboardNavHref("/", isAdminHost), fullHref: "/dashboard", icon: LayoutDashboard, exact: true },
+        { name: t("nav.reports"), href: dashboardNavHref("/reports", isAdminHost), fullHref: "/dashboard/reports", icon: FileText, exact: true },
+        ...(!isFree ? [{ name: t("nav.analytics"), href: dashboardNavHref("/analytics", isAdminHost), fullHref: "/dashboard/analytics", icon: BarChart3 }] : []),
+      ],
+    },
+    {
+      header: t("nav.groupStore"),
+      items: [
         { name: t("nav.products"), href: dashboardNavHref("/products", isAdminHost), fullHref: "/dashboard/products", icon: Store },
         { name: t("nav.orders"), href: dashboardNavHref("/orders", isAdminHost), fullHref: "/dashboard/orders", icon: ShoppingBag },
         { name: t("nav.customers"), href: dashboardNavHref("/customers", isAdminHost), fullHref: "/dashboard/customers", icon: Users },
-        ...(isFree ? [] : [{ name: t("nav.analytics"), href: dashboardNavHref("/analytics", isAdminHost), fullHref: "/dashboard/analytics", icon: BarChart3 }]),
       ],
     },
     {
@@ -497,31 +502,6 @@ export function DashboardShell({
               <X className="h-5 w-5" />
             </Button>
           </div>
-
-          {/* Active Store Fast-Access Card */}
-          {websiteUrl && !sidebarCollapsed && (
-            <div className="p-3.5 mx-4 mt-3 bg-gradient-to-br from-emerald-50/80 via-teal-50/40 to-white border border-emerald-200/80 rounded-2xl space-y-2.5 shadow-2xs dark:from-emerald-900/20 dark:via-teal-900/10 dark:to-slate-900 dark:border-emerald-800/30">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-emerald-950 flex items-center gap-1.5 dark:text-emerald-100">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Toko Online Aktif</span>
-                </span>
-                <Link
-                  href="/dashboard/websites"
-                  onNavigate={(event) => guardBuilderLinkNavigation(event, "/dashboard/websites")}
-                  className="text-xs text-emerald-700 hover:text-emerald-900 font-bold hover:underline dark:text-emerald-400"
-                >
-                  Kelola Toko
-                </Link>
-              </div>
-
-              <div className="bg-white px-2.5 py-1.5 rounded-xl border border-emerald-100 shadow-2xs dark:bg-slate-800 dark:border-emerald-900/30">
-                <p className="text-xs text-gray-700 font-mono font-medium truncate dark:text-slate-300">
-                  {tenantDisplay(subdomain)}
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Grouped Navigation Links with Section Headers */}
           <nav className="flex-1 px-3 py-3.5 space-y-4 overflow-y-auto" aria-label="Navigasi dashboard">

@@ -64,6 +64,10 @@ describe("admin host routing", () => {
     const settings = await runProxy(new NextRequest("http://admin.localhost:3000/settings"));
     expect(new URL(settings.headers.get("x-middleware-rewrite")!).pathname).toBe("/dashboard/settings");
 
+    getTokenMock.mockResolvedValueOnce({ email: "merchant@example.com" });
+    const reports = await runProxy(new NextRequest("http://admin.localhost:3000/reports"));
+    expect(new URL(reports.headers.get("x-middleware-rewrite")!).pathname).toBe("/dashboard/reports");
+
     getTokenMock.mockResolvedValueOnce(null);
     const protectedSettings = await runProxy(new NextRequest("http://admin.localhost:3000/settings"));
     const signin = new URL(protectedSettings.headers.get("location")!);

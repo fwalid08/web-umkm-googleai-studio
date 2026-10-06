@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Store } from "lucide-react";
+import { Loader2, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActiveTemplateCard } from "@/components/customize/active-template-card";
@@ -106,12 +106,6 @@ function CustomizeInner() {
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
-            <Link href="/dashboard/websites">
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Websites
-            </Link>
-          </Button>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Desain Website</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Toko: <span className="font-semibold text-foreground">{site.name}</span> {"\u2014"} pilih
