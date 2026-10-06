@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILDER_SHORTCUTS,
+  hasUnsavedBuilderChanges,
   MIN_SEO_TITLE,
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
@@ -102,5 +103,16 @@ describe("BUILDER_SHORTCUTS", () => {
 
   it("setiap pintasan punya label", () => {
     expect(BUILDER_SHORTCUTS.every((s) => s.label.trim().length > 0)).toBe(true);
+  });
+});
+
+describe("hasUnsavedBuilderChanges", () => {
+  it("menandai dirty saat salah satu store belum tersimpan", () => {
+    expect(hasUnsavedBuilderChanges(false, true)).toBe(true);
+    expect(hasUnsavedBuilderChanges(true, false)).toBe(true);
+  });
+
+  it("bersih hanya setelah kedua store tersimpan", () => {
+    expect(hasUnsavedBuilderChanges(true, true)).toBe(false);
   });
 });

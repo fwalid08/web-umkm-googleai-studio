@@ -137,6 +137,37 @@ describe('hanya tombol Tayangkan yang menyentuh status tayang', () => {
   });
 });
 
+describe('peringatan perubahan canvas saat meninggalkan builder', () => {
+  it('shell dashboard mencegat navigasi internal dan history saat canvas dirty', () => {
+    const shell = read('src', 'components', 'dashboard', 'dashboard-shell.tsx');
+    expect(shell).toContain('onNavigate={(event) => guardBuilderLinkNavigation');
+    expect(shell).toContain('navigationApi.addEventListener("navigate"');
+    expect(shell).toContain('window.addEventListener("popstate"');
+    expect(shell).toContain('Perubahan canvas belum disimpan');
+  });
+
+  it('publish sukses membersihkan status tersimpan di kedua store', () => {
+    const src = read('app', 'dashboard', 'web-design', 'customize', 'page.tsx');
+    const publish = src.slice(src.indexOf('const handlePublishPage'), src.indexOf('\n  if (loading)'));
+    const successGuard = publish.indexOf('if (!json.success) throw');
+    expect(successGuard).toBeGreaterThanOrEqual(0);
+    expect(publish.indexOf('useBuilderStore.setState({ saved: true });')).toBeGreaterThan(successGuard);
+    expect(publish.indexOf('useTemplateStore.setState({ saved: true });')).toBeGreaterThan(successGuard);
+  });
+
+  it('switch website hanya melewati unload setelah aktivasi sukses', () => {
+    const shell = read('src', 'components', 'dashboard', 'dashboard-shell.tsx');
+    const activation = shell.slice(
+      shell.indexOf('async function activateWebsite'),
+      shell.indexOf('\n  function switchWebsite'),
+    );
+    expect(activation.indexOf('if (json.success)')).toBeGreaterThanOrEqual(0);
+    expect(activation.indexOf('if (confirmedBuilderExit)')).toBeGreaterThan(
+      activation.indexOf('if (json.success)'),
+    );
+  });
+});
+
 describe('builder memakai satu endpoint (tanpa pageId)', () => {
   it('route lama page-builder dihapus', () => {
     expect(() => readFileSync(join(process.cwd(), 'app/dashboard/websites/page-builder/page.tsx'))).toThrow();

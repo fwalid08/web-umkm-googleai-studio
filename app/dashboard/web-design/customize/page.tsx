@@ -428,6 +428,8 @@ export default function PageBuilderPage() {
     if (typeof syncedSlug === "string" && syncedSlug.length > 0) {
       activeLibraryRef.current = syncedSlug;
     }
+    useBuilderStore.setState({ saved: true });
+    useTemplateStore.setState({ saved: true });
     // Badge Tayang/Draft di topbar harus langsungsinkron setelah publish.
     setIsPublished(true);
   }, [websiteId]);

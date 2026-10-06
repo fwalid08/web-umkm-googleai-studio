@@ -18,6 +18,11 @@ export type SidebarLevel =
   | 'style'
   | 'template-info';
 
+/** Perubahan belum aman ditinggalkan jika salah satu store masih dirty. */
+export function hasUnsavedBuilderChanges(builderSaved: boolean, templateSaved: boolean): boolean {
+  return !builderSaved || !templateSaved;
+}
+
 /** Judul panel sidebar — semua Bahasa Indonesia. */
 export const SIDEBAR_TITLES: Record<SidebarLevel, string> = {
   main: 'Editor Website',

@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard,
@@ -34,6 +34,9 @@ import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { useLang, type Lang } from "@/lib/i18n";
 import { adminUrl, tenantDisplay, tenantUrl } from "@/lib/urls";
 import { dashboardNavHref, isBuilderPath } from "@/lib/nav";
+import { hasUnsavedBuilderChanges } from "@/lib/builder/builder-ui";
+import { useBuilderStore } from "@/lib/builder/store";
+import { useTemplateStore } from "@/lib/builder/template-store";
 import { BuilderFullPageContext } from "@/components/builder/builder-fullpage";
 import {
   Select,
@@ -45,6 +48,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -101,6 +112,13 @@ function tierName(tier: string | undefined, lang: Lang): string {
   return tier.charAt(0).toUpperCase() + tier.slice(1);
 }
 
+function builderHasUnsavedChanges(): boolean {
+  return hasUnsavedBuilderChanges(
+    useBuilderStore.getState().saved,
+    useTemplateStore.getState().saved,
+  );
+}
+
 /**
  * Shell dashboard (Client Component).
  *
@@ -122,6 +140,7 @@ export function DashboardShell({
   const { data: session } = useSession();
   const { t, lang } = useLang();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -133,6 +152,73 @@ export function DashboardShell({
   // dan mode full-page (seluruh chrome dashboard disembunyikan).
   const onBuilder = isBuilderPath(pathname ?? "");
   const [builderFullPage, setBuilderFullPage] = useState(false);
+  const [pendingBuilderExit, setPendingBuilderExit] = useState<
+    { type: "route"; href: string } | { type: "website"; id: string } | null
+  >(null);
+
+  function guardBuilderLinkNavigation(
+    event: { preventDefault: () => void },
+    href: string,
+  ) {
+    if (!onBuilder || !builderHasUnsavedChanges()) return;
+    if (new URL(href, window.location.href).pathname === window.location.pathname) return;
+    event.preventDefault();
+    setPendingBuilderExit({ type: "route", href });
+  }
+
+  const confirmBuilderExit = () => {
+    const pending = pendingBuilderExit;
+    setPendingBuilderExit(null);
+    if (!pending) return;
+    if (pending.type === "route") {
+      window.dispatchEvent(new Event("builder-leave-confirmed"));
+      router.push(pending.href);
+    } else {
+      void activateWebsite(pending.id, true);
+    }
+  };
+
+  useEffect(() => {
+    if (!onBuilder) return;
+
+    const message = "Perubahan canvas belum disimpan sebagai template atau ditayangkan. Tinggalkan editor?";
+    const onNavigation = (event: Event) => {
+      const navigationEvent = event as Event & {
+        navigationType?: string;
+        canIntercept?: boolean;
+        destination?: { url?: string };
+      };
+      if (navigationEvent.navigationType !== "traverse" || !navigationEvent.canIntercept) return;
+      const destination = navigationEvent.destination?.url;
+      if (destination && isBuilderPath(new URL(destination).pathname)) return;
+      if (!builderHasUnsavedChanges()) return;
+      if (!window.confirm(message)) {
+        navigationEvent.preventDefault();
+        return;
+      }
+      window.dispatchEvent(new Event("builder-leave-confirmed"));
+    };
+
+    const navigationApi = (window as Window & { navigation?: EventTarget }).navigation;
+    if (navigationApi) {
+      navigationApi.addEventListener("navigate", onNavigation);
+      return () => navigationApi.removeEventListener("navigate", onNavigation);
+    }
+
+    const builderUrl = window.location.href;
+    const builderHistoryState = window.history.state;
+    const onPopState = () => {
+      if (isBuilderPath(window.location.pathname) || !builderHasUnsavedChanges()) return;
+      if (!window.confirm(message)) {
+        // popstate fires after either direction has moved; restore the editor entry.
+        window.history.pushState(builderHistoryState, "", builderUrl);
+        return;
+      }
+      window.dispatchEvent(new Event("builder-leave-confirmed"));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [onBuilder]);
 
   // Mode full-page disimpan per-tab (sessionStorage) supaya bertahan saat
   // refresh/reload tapi TIDAK ikut ke tab lain atau ke pengguna lain.
@@ -202,18 +288,30 @@ export function DashboardShell({
     }
   };
 
-  async function switchWebsite(id: string) {
+  async function activateWebsite(id: string, confirmedBuilderExit = false) {
     if (!id || id === activeSiteId) return;
     try {
       const res = await fetch(`/api/websites/${id}/activate`, { method: "POST" });
       const json = await res.json();
       if (json.success) {
         setActiveSiteId(id);
+        if (confirmedBuilderExit) {
+          window.dispatchEvent(new Event("builder-leave-confirmed"));
+        }
         window.location.reload();
       }
     } catch {
       // ignore
     }
+  }
+
+  function switchWebsite(id: string) {
+    if (!id || id === activeSiteId) return;
+    if (onBuilder && builderHasUnsavedChanges()) {
+      setPendingBuilderExit({ type: "website", id });
+      return;
+    }
+    void activateWebsite(id);
   }
 
   function navigateToBuilder() {
@@ -374,7 +472,7 @@ export function DashboardShell({
         <div className="flex flex-col h-full">
           {/* Logo / Header */}
           <div className="flex items-center justify-between h-16 sm:h-20 px-5 border-b border-gray-100 dark:border-slate-800">
-            <Link href="/dashboard" className="flex items-center gap-3">
+            <Link href="/dashboard" onNavigate={(event) => guardBuilderLinkNavigation(event, "/dashboard")} className="flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-md shadow-emerald-600/20">
                 <Store className="w-5 h-5 text-white" />
               </div>
@@ -410,6 +508,7 @@ export function DashboardShell({
                 </span>
                 <Link
                   href="/dashboard/websites"
+                  onNavigate={(event) => guardBuilderLinkNavigation(event, "/dashboard/websites")}
                   className="text-xs text-emerald-700 hover:text-emerald-900 font-bold hover:underline dark:text-emerald-400"
                 >
                   Kelola Toko
@@ -450,6 +549,7 @@ export function DashboardShell({
                       <Link
                         key={item.name}
                         href={item.href}
+                        onNavigate={(event) => guardBuilderLinkNavigation(event, item.href)}
                         aria-current={isActive ? "page" : undefined}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                           isActive
@@ -495,6 +595,7 @@ export function DashboardShell({
             <div className="pt-3.5 border-t border-gray-100 dark:border-slate-800">
               <Link
                 href="/dashboard/settings"
+                onNavigate={(event) => guardBuilderLinkNavigation(event, "/dashboard/settings")}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                   pathname === "/dashboard/settings" || pathname.startsWith("/dashboard/settings/")
                     ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20"
@@ -569,6 +670,7 @@ export function DashboardShell({
                   <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/websites"
+                      onNavigate={(event) => guardBuilderLinkNavigation(event, "/dashboard/websites")}
                       className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       <Layers className="h-4 w-4 text-gray-500" />
@@ -578,6 +680,7 @@ export function DashboardShell({
                   <DropdownMenuItem asChild>
                     <Link
                       href="/dashboard/billing"
+                      onNavigate={(event) => guardBuilderLinkNavigation(event, "/dashboard/billing")}
                       className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       <CreditCard className="h-4 w-4 text-gray-500" />
@@ -665,6 +768,7 @@ export function DashboardShell({
               {/* Tier pill — di samping select website */}
               <Link
                 href="/dashboard/billing"
+                onNavigate={(event) => guardBuilderLinkNavigation(event, "/dashboard/billing")}
                 className={`hidden sm:inline-flex shrink-0 items-center px-3 py-1.5 text-xs rounded-xl border transition-all shadow-2xs ${tierBadgeStyle(
                   tier
                 )}`}
@@ -796,6 +900,29 @@ export function DashboardShell({
           juga tidak diperlukan di rute ini. */}
       {!onBuilder && <MobileBottomNav isAdminHost={isAdminHost} />}
     </div>
+    <Dialog
+      open={pendingBuilderExit !== null}
+      onOpenChange={(open) => {
+        if (!open) setPendingBuilderExit(null);
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Perubahan canvas belum disimpan</DialogTitle>
+          <DialogDescription>
+            Perubahan terakhir belum disimpan sebagai template atau ditayangkan. Jika keluar sekarang, perubahan itu akan hilang.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setPendingBuilderExit(null)}>
+            Tetap di editor
+          </Button>
+          <Button variant="destructive" onClick={confirmBuilderExit}>
+            Tinggalkan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </BuilderFullPageContext.Provider>
   );
 }

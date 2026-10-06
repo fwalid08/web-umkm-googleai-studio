@@ -19,6 +19,7 @@ import { useBuilderStore } from '@/lib/builder/store';
 import { useTemplateStore } from '@/lib/builder/template-store';
 import {
   clampSidebarWidth,
+  hasUnsavedBuilderChanges,
   loadSidebarWidth,
   persistSidebarWidth,
   SIDEBAR_DEFAULT_WIDTH,
@@ -168,13 +169,24 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
 
   // Peringatan saat keluar dengan perubahan belum disimpan
   useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!useBuilderStore.getState().saved || !useTemplateStore.getState().saved) {
-        e.preventDefault();
-      }
+    let leaveConfirmed = false;
+    const onLeaveConfirmed = () => {
+      leaveConfirmed = true;
     };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (leaveConfirmed || !hasUnsavedBuilderChanges(
+        useBuilderStore.getState().saved,
+        useTemplateStore.getState().saved,
+      )) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener('builder-leave-confirmed', onLeaveConfirmed);
     window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('builder-leave-confirmed', onLeaveConfirmed);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
   }, []);
 
   // Kanvas men-dispatch event ini saat tombol Edit diklik; pastikan sidebar
