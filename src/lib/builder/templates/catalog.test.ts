@@ -485,10 +485,18 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
     for (const t of BUILT_IN_CATALOG) {
       for (const s of t.sections) {
         for (const v of s.variants) {
-          expect(
-            RENDERED_VARIANTS.has(v.id),
-            `${t.id}/${s.type}: id varian "${v.id}" tidak ada di section-renderer.tsx → diam-diam jatuh ke branch default (semua varian jadi sama)`,
-          ).toBe(true);
+          const hasCustomHtml = typeof v.html === "string" && v.html.trim().length > 0;
+          if (hasCustomHtml) {
+            expect(
+              v.id.startsWith(`${t.id}:`),
+              `${t.id}/${s.type}: varian HTML kustom "${v.id}" harus memakai namespace template`,
+            ).toBe(true);
+          } else {
+            expect(
+              RENDERED_VARIANTS.has(v.id),
+              `${t.id}/${s.type}: id varian "${v.id}" tidak ada di section-renderer.tsx → diam-diam jatuh ke branch default (semua varian jadi sama)`,
+            ).toBe(true);
+          }
         }
       }
     }

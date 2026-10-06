@@ -15,7 +15,7 @@ import type { ConfigField } from "../template-types";
  * bukan registry). `food` dikecualikan sampai dibangun ulang (§18.7) —
  * lihat UNIQUE_TEMPLATES di bawah.
  */
-const UNIQUE_TEMPLATES = new Set(["laundry-emerald", "marketplace-hybrid"]);
+const UNIQUE_TEMPLATES = new Set(["laundry-emerald", "marketplace-hybrid", "retail-marketplace"]);
 
 const uniqueTemplates = BUILT_IN_CATALOG.filter((t) => UNIQUE_TEMPLATES.has(t.id));
 
