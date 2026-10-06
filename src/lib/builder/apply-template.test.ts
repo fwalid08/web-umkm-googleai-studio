@@ -259,22 +259,22 @@ describe('REGRESI: endpoint DELETE /api/templates wajib aman', () => {
 });
 
 describe('apply-template: resolve template statis', () => {
-  it('id katalog food resolve ke template penuh dari kode', () => {
+  it('id katalog laundry-emerald resolve ke template penuh dari kode', () => {
     const tpl = resolveStoreTemplate({
-      id: 'food',
-      name: 'Warung Makan',
+      id: 'laundry-emerald',
+      name: 'Emerald Laundry',
       source: 'builtin',
-      category: 'food',
+      category: 'services',
       data: {},
     });
-    expect(tpl?.id).toBe('food');
+    expect(tpl?.id).toBe('laundry-emerald');
     expect(tpl!.sections.length).toBeGreaterThan(0);
     expect(tpl!.headers.length).toBeGreaterThan(0);
     expect(tpl!.footers.length).toBeGreaterThan(0);
   });
 
   it('prefix legacy builtin- dinormalisasi', () => {
-    expect(resolveStoreTemplate({ id: 'builtin-food', data: {} })?.id).toBe('food');
+    expect(resolveStoreTemplate({ id: 'builtin-laundry-emerald', data: {} })?.id).toBe('laundry-emerald');
   });
 
   it('id tak dikenal → undefined (bukan throw)', () => {
@@ -364,14 +364,14 @@ describe('REGRESI: logika apply tidak boleh diduplikasi', () => {
 });
 
 describe('resolveStoreTemplate: lookup katalog statis', () => {
-  it('id katalog + prefix legacy system- → template food', () => {
+  it('id katalog + prefix legacy system- → template laundry-emerald', () => {
     const tpl = resolveStoreTemplate({
       ...libraryTemplate(),
-      id: 'system-food',
+      id: 'system-laundry-emerald',
       source: 'builtin',
     });
     expect(tpl).toBeDefined();
-    expect(tpl!.id).toBe('food');
+    expect(tpl!.id).toBe('laundry-emerald');
   });
 
   it('tanpa data + id tak dikenal → undefined (error UX lama preserved)', () => {
@@ -383,10 +383,10 @@ describe('resolveStoreTemplate: lookup katalog statis', () => {
   it('prefix legacy builtin- juga ter-strip', () => {
     const tpl = resolveStoreTemplate({
       ...libraryTemplate(),
-      id: 'builtin-food',
+      id: 'builtin-laundry-emerald',
       source: 'builtin',
     });
-    expect(tpl?.id).toBe('food');
+    expect(tpl?.id).toBe('laundry-emerald');
   });
 });
 

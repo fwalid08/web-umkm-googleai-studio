@@ -10,8 +10,8 @@ import {
 } from "./design-styles";
 import { validateColorScheme } from "./color-schemes";
 import type { DesignStyle, DesignStylePalette } from "./types";
-import { FOOD_TEMPLATE } from "./templates/food";
 import { LAUNDRY_EMERALD_TEMPLATE } from "./templates/laundry-emerald";
+import { MARKETPLACE_HYBRID_TEMPLATE } from "./templates/marketplace-hybrid";
 
 const BASE_PALETTE: DesignStylePalette = {
   primary: "#333333",
@@ -40,7 +40,7 @@ function withSecondary(p: Record<string, string>): DesignStylePalette {
  * Test ini memvalidasi skema dari food.ts dan laundry-emerald.ts.
  */
 describe("kontras skema warna siap pakai (WCAG AA)", () => {
-  const templates = [FOOD_TEMPLATE, LAUNDRY_EMERALD_TEMPLATE];
+  const templates = [LAUNDRY_EMERALD_TEMPLATE, MARKETPLACE_HYBRID_TEMPLATE];
 
   it("semua template.colorSchemes lolos validateColorScheme (generic pairs)", () => {
     for (const template of templates) {

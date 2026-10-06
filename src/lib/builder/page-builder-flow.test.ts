@@ -28,7 +28,7 @@ function instance(id: string, type = "hero"): TemplateSectionInstance {
   };
 }
 
-const template = getTemplate("food")!;
+const template = getTemplate("laundry-emerald")!;
 
 /**
  * Skenario inti page-builder (guard anti-kebocoran lintas halaman):
@@ -94,7 +94,7 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
   it("mempertahankan key base lain (theme, core) & menimpa dengan nilai baru", () => {
     const cfg = buildWebsiteCustomConfig({
       base: {
-        catalog_template_id: "warung-makan",
+        catalog_template_id: "laundry-emerald",
         theme: { typography: { headingFont: "Lama", bodyFont: "Lama" } },
         core: { itemsPerRow: 2 },
       },
@@ -107,7 +107,7 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
       core: { itemsPerRow: 3 },
     });
 
-    expect(cfg.catalog_template_id).toBe("warung-makan");
+    expect(cfg.catalog_template_id).toBe("laundry-emerald");
     expect((cfg.theme as { typography: Record<string, string> }).typography).toEqual({
       headingFont: "Baru",
       bodyFont: "Lama",
@@ -129,7 +129,7 @@ describe("buildWebsiteCustomConfig — kontrak page-builder", () => {
   });
 
   it("template store tersedia untuk id katalog (sanity)", () => {
-    expect(template.id).toBe("food");
+    expect(template.id).toBe("laundry-emerald");
     expect(template.sections.length).toBeGreaterThan(0);
   });
 });
@@ -174,11 +174,11 @@ describe("submenu bertahan di jalur simpan header", () => {
   });
 
   it("resolveChromeConfig tidak membuang children saat varian ganti", () => {
-    const tpl = getTemplate("food")!;
+    const tpl = getTemplate("laundry-emerald")!;
     const resolved = resolveChromeConfig(
       tpl,
       {
-        variant: "hdr-melayang",
+        variant: "laundry-emerald:hdr-floating",
         navItems: [
           {
             id: "n2",
@@ -196,8 +196,8 @@ describe("submenu bertahan di jalur simpan header", () => {
   });
 
   it("navItems tanpa children tetap aman (backward compat data lama)", () => {
-    const tpl = getTemplate("food")!;
-    const resolved = resolveChromeConfig(tpl, { variant: "hdr-klasik" }, "header");
+    const tpl = getTemplate("laundry-emerald")!;
+    const resolved = resolveChromeConfig(tpl, { variant: "laundry-emerald:hdr-arch" }, "header");
     expect(Array.isArray(resolved.config.navItems)).toBe(true);
   });
 });

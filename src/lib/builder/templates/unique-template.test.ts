@@ -12,8 +12,7 @@ import type { ConfigField } from "../template-types";
  * Guard kontrak template unik (§18, UNIQUE_TEMPLATE_SPEC.md).
  *
  * Diterapkan pada template yang sudah dibangun ulang unik (milik sendiri,
- * bukan registry). `food` dikecualikan sampai dibangun ulang (§18.7) —
- * lihat UNIQUE_TEMPLATES di bawah.
+ * bukan registry).
  */
 const UNIQUE_TEMPLATES = new Set(["laundry-emerald", "marketplace-hybrid", "retail-marketplace"]);
 

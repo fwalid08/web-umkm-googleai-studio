@@ -201,8 +201,9 @@ describe("template contract", () => {
  */
 /**
  * Template yang sudah diotomi (varian milik sendiri, bukan registry).
- * Fase-1: kosong — `food` berbagi katalog registry. Tambahkan id ke sini
- * setiap kali satu template selesai diotomi; guard di bawah otomatis menjaganya.
+ * Fase-1: kosong — semua template built-in sekarang varian milik sendiri.
+ * Tambahkan id ke sini setiap kali satu template selesai diotomi;
+ * guard di bawah otomatis menjaganya.
  */
 const MIGRATED_TEMPLATES = new Set<string>([]);
 
