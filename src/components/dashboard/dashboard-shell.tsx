@@ -292,7 +292,7 @@ export function DashboardShell({
   const sidebarWidth = sidebarCollapsed ? "w-20" : "w-72";
   const mainMargin = sidebarCollapsed ? "lg:pl-20" : "lg:pl-72";
 
-  /*
+  /**
    * Builder punya dua mode tampilan:
    *
    *  - **Menempel** (default): chrome dashboard tetap tampil, tapi `<main>`
@@ -301,28 +301,21 @@ export function DashboardShell({
    *  - **Full page**: seluruh chrome dashboard disembunyikan, builder memakai
    *    satu viewport penuh (seperti Canva/Webflow).
    *
+   * KEDUA mode memakai SATU return tree yang sama — hanya visibilitas chrome
+   * (aside/header/overlay) dan className yang berubah. Dulu tiap mode punya
+   * return tree berbeda kedalaman pohonnya, sehingga toggle Perluas/Kecilkan
+   * me-unmount `children` (halaman /web-design/customize): effect mount jalan
+   * ulang, store di-reseed dari server, dan perubahan kanvas yang belum
+   * disimpan HILANG. `<main>`+`{children}` kini selalu di posisi yang sama
+   * di pohon tree → tidak pernah remount.
+   *
    * `isBuilderPath` (bukan `startsWith("/dashboard/...")`) WAJIB dipakai di
    * sini: di admin host `proxy.ts` me-redirect `/dashboard/*` ke alias root,
    * jadi `pathname` berisi `/web-design/customize`. Versi lama hanya
    * mencocokkan bentuk `/dashboard/...`, sehingga tidak pernah aktif di admin
    * host dan builder diam-diam tampil dengan padding yang tidak diinginkan.
    */
-  if (onBuilder && builderFullPage) {
-    return (
-      <BuilderFullPageContext.Provider
-        value={{
-          fullPage: true,
-          setFullPage: setBuilderFullPage,
-          toggle: toggleBuilderFullPage,
-          available: true,
-        }}
-      >
-        <div className="h-dvh w-full bg-slate-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden">
-          {children}
-        </div>
-      </BuilderFullPageContext.Provider>
-    );
-  }
+  const fullPageActive = onBuilder && builderFullPage;
 
   /*
    * `<main>` untuk builder TIDAK boleh memakai padding/centering yang sama
@@ -342,29 +335,37 @@ export function DashboardShell({
   // Kolom konten dibatasi `h-dvh` (bukan `min-h-screen`) saat di builder supaya
   // tinggi builder = viewport - tinggi header dashboard. Dengan begitu hanya
   // kanvas yang perlu scroll; topbar & bottom bar builder tetap terlihat.
-  const contentColumnClass = `${mainMargin} flex flex-col transition-all duration-200 ${
+  // Saat full-page: tanpa `mainMargin` (sidebar disembunyikan, builder lebar penuh).
+  const contentColumnClass = `${fullPageActive ? "" : mainMargin} flex flex-col transition-all duration-200 ${
     onBuilder ? "h-dvh overflow-hidden" : "min-h-screen"
   }`;
 
   return (
     <BuilderFullPageContext.Provider
       value={{
-        fullPage: false,
+        fullPage: fullPageActive,
         setFullPage: setBuilderFullPage,
         toggle: toggleBuilderFullPage,
         available: onBuilder,
       }}
     >
-    <div className="min-h-screen bg-slate-50 text-gray-900 selection:bg-slate-200 selection:text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div
+      className={
+        fullPageActive
+          ? "h-dvh w-full bg-slate-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden"
+          : "min-h-screen bg-slate-50 text-gray-900 selection:bg-slate-200 selection:text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+      }
+    >
       {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
+      {!fullPageActive && sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — disembunyikan di full-page (bukan diganti tree lain). */}
+      {!fullPageActive && (
       <aside
         className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 shadow-sm lg:shadow-none transform transition-all duration-200 ease-in-out lg:translate-x-0 dark:bg-slate-900 dark:border-slate-800 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -609,10 +610,12 @@ export function DashboardShell({
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main Content Viewport */}
       <div className={contentColumnClass}>
-        {/* Top bar */}
+        {/* Top bar — disembunyikan di full-page. */}
+        {!fullPageActive && (
         <header className="sticky top-0 z-30 bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800">
           <div className="flex items-center justify-between h-16 sm:h-20 px-4 sm:px-6 lg:px-8 gap-4">
             {/* Left: Sidebar toggle (desktop) + Mobile Menu toggle + Website Selector */}
@@ -780,6 +783,7 @@ export function DashboardShell({
             </div>
           </div>
         </header>
+        )}
 
         {/* Page Content */}
         <main className={mainClassName}>
