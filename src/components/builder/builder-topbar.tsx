@@ -217,7 +217,7 @@ export function BuilderTopbar({
               <p className="font-medium">Simpan sebagai template</p>
               <p className="text-xs opacity-70">
                 {onOpenSaveDialog
-                  ? 'Tersimpan ke library-mu — website yang tayang tidak berubah. Ctrl+S untuk langsung simpan dengan nama default.'
+                  ? 'Tersimpan ke Template Saya — website yang tayang tidak berubah. Ctrl+S untuk langsung simpan dengan nama default.'
                   : 'Ctrl+S'}
               </p>
             </TooltipContent>

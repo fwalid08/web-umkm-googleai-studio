@@ -146,6 +146,28 @@ describe("admin host routing", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
   });
+
+  it.each(["/thumbnails/food.jpg", "/thumbnails/laundry-emerald.jpg"])(
+    "lets public asset %s through on the admin host (no signin redirect)",
+    async (pathname) => {
+      // Regresi: matcher + early-return harus meloloskan aset `public/`
+      // (thumbnail kartu /web-design + modal galeri). Sebelumnya request ini
+      // jatuh ke branch "unknown path → /signin" sehingga <img> menerima
+      // HTML 307 dan kartu hanya menampilkan gradien.
+      // NOTE: getTokenMock dibersihkan dulu — mock ini kumulatif antar-test
+      // (vi.fn global), jadi `toHaveBeenCalled` tanpa clear akan bocor dari
+      // test sebelumnya. Yang penting: request aset lolos TANPA redirect
+      // signin dan tanpa memicu pemanggilan getToken BARU di test ini.
+      getTokenMock.mockClear();
+      getTokenMock.mockResolvedValueOnce(null);
+
+      const response = await runProxy(new NextRequest(`http://admin.localhost:3000${pathname}`));
+
+      expect(getTokenMock).not.toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+    },
+  );
 });
 
 describe("tenant host routing", () => {

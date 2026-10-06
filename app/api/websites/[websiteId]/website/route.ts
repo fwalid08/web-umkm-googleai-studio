@@ -50,6 +50,10 @@ import {
  *
  * Template aktif website TIDAK tersentuh: branch upsert normal dilewati
  * sepenuhnya saat helper ini mengembalikan response.
+ *
+ * Mengembalikan `NextResponse` gagal ATAU info baris baru — bukan selalu
+ * respons jadi, karena operasi "sinkron + lanjut upsert aktif" (aturan Tayang
+ * & Terapkan) butuh slug-nya lalu melanjutkan alur normal.
  */
 async function saveAsLibraryTemplate(args: {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
@@ -59,7 +63,10 @@ async function saveAsLibraryTemplate(args: {
   baseSlug: string;
   name: string;
   toStore: Record<string, unknown>;
-}): Promise<NextResponse> {
+}): Promise<
+  | { ok: true; library: { template_slug: string; base_slug: string; name: string } }
+  | { ok: false; response: NextResponse }
+> {
   const { supabase, userId, websiteId, baseSlug, toStore } = args;
   const name = normalizeLibraryName(args.name);
   // Slug sintetis `saved-<uuid>`: kalau slug katalog dipakai, constraint
@@ -83,16 +90,80 @@ async function saveAsLibraryTemplate(args: {
   });
   if (error) {
     console.error("Insert template library error:", error);
-    return NextResponse.json(
-      { success: false, error: "Gagal menyimpan template" },
-      { status: 500 },
-    );
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { success: false, error: "Gagal menyimpan template" },
+        { status: 500 },
+      ),
+    };
   }
-  return NextResponse.json({
-    success: true,
-    data: { library: { template_slug: templateSlug, base_slug: baseSlug, name } },
-    message: `Template "${name}" tersimpan di library`,
-  });
+  return {
+    ok: true,
+    library: { template_slug: templateSlug, base_slug: baseSlug, name },
+  };
+}
+
+/**
+ * Tulis ulang config kanvas ke baris library yang sedang dibuka di kanvas
+ * ("Tayangkan" mengupdate library itu — bukan membuat baris baru).
+ *
+ * Scoping rangkap (user_id + website_id + template_slug + is_library) supaya
+ * satu user tidak bisa menimpa library website lain dengan menebak slug.
+ * Baris yang tidak ketemu = 404 eksplisit (bukan sukses diam-diam) supaya UI
+ * bisa fallback membuat salinan baru.
+ */
+async function updateLibraryTemplate(args: {
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  userId: string;
+  websiteId: string;
+  /** Slug `saved-<uuid>` yang sedang dibuka di kanvas. */
+  librarySlug: string;
+  toStore: Record<string, unknown>;
+}): Promise<
+  | { ok: true }
+  | { ok: false; response: NextResponse }
+> {
+  const { supabase, userId, websiteId, librarySlug, toStore } = args;
+  if (!isLibrarySlug(librarySlug)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { success: false, error: "Template library tidak valid" },
+        { status: 400 },
+      ),
+    };
+  }
+  const { error, count } = await supabase
+    .from("user_templates")
+    .update({
+      custom_config: { ...toStore, is_published: false },
+      updated_at: new Date().toISOString(),
+    }, { count: "exact" })
+    .eq("user_id", userId)
+    .eq("website_id", websiteId)
+    .eq("template_slug", librarySlug)
+    .eq("is_library", true);
+  if (error) {
+    console.error("Update template library error:", error);
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { success: false, error: "Gagal menyimpan template" },
+        { status: 500 },
+      ),
+    };
+  }
+  if (!count) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { success: false, error: "Template tidak ditemukan" },
+        { status: 404 },
+      ),
+    };
+  }
+  return { ok: true };
 }
 
 /**
@@ -365,6 +436,19 @@ export async function PUT(
     // supaya kedua jalur PUT memakainya.
     const saveAsTemplate = body?.save_as_template === true;
     const libraryName = typeof body?.library_name === "string" ? body.library_name : "";
+    // Aturan library kanvas (server-side):
+    // - `sync_library: "create"` → "pertama kali terapkan": INSERT salinan
+    //   library baru dari config ini, lalu lanjut upsert template aktif.
+    //   Respons menyertakan slug barunya agar kanvas menunjuk ke sana.
+    // - `sync_library: "update"` + `library_slug: "saved-<uuid>"` →
+    //   "Tayangkan": tulis ulang config ke baris library yang sedang dibuka
+    //   (TIDAK membuat baris baru), lalu lanjut upsert template aktif.
+    // - `save_as_template` (lama) → "Simpan sebagai Template": INSERT baris
+    //   baru TANPA menyentuh template aktif, lalu KEMBALI.
+    const syncLibrary = body?.sync_library === "create" || body?.sync_library === "update"
+      ? (body.sync_library as "create" | "update")
+      : null;
+    const syncLibrarySlug = typeof body?.library_slug === "string" ? body.library_slug : "";
 
     const hasNewFormat = body?.custom_config?.sections !== undefined;
 
@@ -487,9 +571,10 @@ export async function PUT(
       };
 
       // "Simpan sebagai Template" — salin ke library lalu KEMBALI. Upsert
-      // template aktif di bawah sengaja dilewati.
+      // template aktif di bawah sengaja dilewati. Respons menyertakan slug
+      // baru supaya kanvas bisa pindah menunjuk ke sana.
       if (saveAsTemplate) {
-        return saveAsLibraryTemplate({
+        const saved = await saveAsLibraryTemplate({
           supabase,
           userId: sessionUser.id,
           websiteId,
@@ -497,6 +582,72 @@ export async function PUT(
           name: libraryName,
           toStore: toStore as Record<string, unknown>,
         });
+        if (!saved.ok) return saved.response;
+        return NextResponse.json({
+          success: true,
+          data: { library: saved.library },
+          message: `Template "${saved.library.name}" tersimpan di Template Saya`,
+        });
+      }
+
+      // Sinkron library SEBELUM upsert aktif (aturan Terapkan & Tayangkan).
+      // - create: INSERT baris baru dari config ini (pertama kali terapkan).
+      // - update: tulis ulang baris yang sedang dibuka (Tayangkan berikutnya).
+      // Keduanya LANJUT ke upsert aktif di bawah (tidak kembali seperti
+      // save_as_template), dan slug library disertakan di respons.
+      let syncedLibrary: { template_slug: string; base_slug: string; name: string } | null = null;
+      if (syncLibrary === "create") {
+        // Nama default menandai asal: "<Nama katalog> — <tanggal>".
+        const autoName = normalizeLibraryName(
+          libraryName || `${catalogTemplate.name} — ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`,
+        );
+        const saved = await saveAsLibraryTemplate({
+          supabase,
+          userId: sessionUser.id,
+          websiteId,
+          baseSlug: slug,
+          name: autoName,
+          toStore: toStore as Record<string, unknown>,
+        });
+        if (!saved.ok) return saved.response;
+        syncedLibrary = saved.library;
+      } else if (syncLibrary === "update") {
+        if (!isLibrarySlug(syncLibrarySlug)) {
+          return NextResponse.json(
+            { success: false, error: "Template library tidak valid" },
+            { status: 400 },
+          );
+        }
+        const updated = await updateLibraryTemplate({
+          supabase,
+          userId: sessionUser.id,
+          websiteId,
+          librarySlug: syncLibrarySlug,
+          toStore: toStore as Record<string, unknown>,
+        });
+        // Baris hilang → lewati sinkron; TIDAK membuat baru. Aktif tetap upsert.
+        if (!updated.ok) {
+          const status = (updated.response as unknown as { status?: number })?.status;
+          if (status === 404) {
+            syncedLibrary = null;
+          } else {
+            return updated.response;
+          }
+        } else {
+          const { data: row } = await supabase
+            .from("user_templates")
+            .select("template_slug, base_slug, name")
+            .eq("user_id", sessionUser.id)
+            .eq("website_id", websiteId)
+            .eq("template_slug", syncLibrarySlug)
+            .eq("is_library", true)
+            .maybeSingle();
+          syncedLibrary = {
+            template_slug: syncLibrarySlug,
+            base_slug: (row?.base_slug as string | null) ?? slug,
+            name: (row?.name as string | null) ?? catalogTemplate.name,
+          };
+        }
       }
 
       const { error: upsertError } = await supabase.from("user_templates").upsert(
@@ -528,7 +679,15 @@ export async function PUT(
 
       return NextResponse.json({
         success: true,
-        data: { website_id: websiteId, template_id: slug, template_name: catalogTemplate.category, custom_config: toStore },
+        data: {
+          website_id: websiteId,
+          template_id: slug,
+          template_name: catalogTemplate.category,
+          custom_config: toStore,
+          // Slug library yang disinkron (aturan Terapkan/Tayangkan) agar
+          // kanvas bisa menunjuk ke baris library yang benar tanpa fetch lagi.
+          ...(syncedLibrary ? { library: syncedLibrary } : {}),
+        },
         message: "Website berhasil disimpan",
       });
     }
@@ -610,8 +769,9 @@ export async function PUT(
     };
 
     // Jalur legacy (payload client lama) — hormati flag library yang sama.
+    // `save_as_template`: INSERT baru lalu kembali (template aktif utuh).
     if (saveAsTemplate) {
-      return saveAsLibraryTemplate({
+      const saved = await saveAsLibraryTemplate({
         supabase,
         userId: sessionUser.id,
         websiteId,
@@ -619,6 +779,68 @@ export async function PUT(
         name: libraryName,
         toStore: toStore as Record<string, unknown>,
       });
+      if (!saved.ok) return saved.response;
+      return NextResponse.json({
+        success: true,
+        data: { library: saved.library },
+        message: `Template "${saved.library.name}" tersimpan di Template Saya`,
+      });
+    }
+
+    // Sinkron library (aturan Terapkan/Tayangkan) — logika sama dengan branch
+    // format baru. `update` yang barisnya hilang → fallback buat baru.
+    let legacySyncedLibrary: { template_slug: string; base_slug: string; name: string } | null = null;
+    if (syncLibrary === "create") {
+      const autoName = normalizeLibraryName(
+        libraryName || `${catalogTemplate.name} — ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`,
+      );
+      const saved = await saveAsLibraryTemplate({
+        supabase,
+        userId: sessionUser.id,
+        websiteId,
+        baseSlug: slug,
+        name: autoName,
+        toStore: toStore as Record<string, unknown>,
+      });
+      if (!saved.ok) return saved.response;
+      legacySyncedLibrary = saved.library;
+    } else if (syncLibrary === "update") {
+      if (!isLibrarySlug(syncLibrarySlug)) {
+        return NextResponse.json(
+          { success: false, error: "Template library tidak valid" },
+          { status: 400 },
+        );
+      }
+      const updated = await updateLibraryTemplate({
+        supabase,
+        userId: sessionUser.id,
+        websiteId,
+        librarySlug: syncLibrarySlug,
+        toStore: toStore as Record<string, unknown>,
+      });
+      if (!updated.ok) {
+        const status = (updated.response as unknown as { status?: number })?.status;
+        if (status === 404) {
+          // Baris hilang → lewati sinkron; TIDAK membuat baru. Aktif tetap upsert.
+          legacySyncedLibrary = null;
+        } else {
+          return updated.response;
+        }
+      } else {
+        const { data: row } = await supabase
+          .from("user_templates")
+          .select("template_slug, base_slug, name")
+          .eq("user_id", sessionUser.id)
+          .eq("website_id", websiteId)
+          .eq("template_slug", syncLibrarySlug)
+          .eq("is_library", true)
+          .maybeSingle();
+        legacySyncedLibrary = {
+          template_slug: syncLibrarySlug,
+          base_slug: (row?.base_slug as string | null) ?? slug,
+          name: (row?.name as string | null) ?? catalogTemplate.name,
+        };
+      }
     }
 
     const { error: upsertError } = await supabase.from("user_templates").upsert(
@@ -644,7 +866,13 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: { website_id: websiteId, template_id: slug, template_name: catalogTemplate.category, custom_config: toStore },
+      data: {
+        website_id: websiteId,
+        template_id: slug,
+        template_name: catalogTemplate.category,
+        custom_config: toStore,
+        ...(legacySyncedLibrary ? { library: legacySyncedLibrary } : {}),
+      },
       message: "Website berhasil disimpan",
     });
   } catch (error) {

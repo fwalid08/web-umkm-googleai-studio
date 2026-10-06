@@ -371,3 +371,66 @@ describe('resolveStoreTemplate: lookup katalog statis', () => {
   });
 });
 
+describe('aturan library kanvas: terapkan → tayangkan → simpan-baru', () => {
+  /**
+   * Kontrak tiga aturan (server-side, PUT /api/websites/[id]/website):
+   *  1. pertama kali terapkan → `sync_library: "create"` → INSERT baris baru
+   *     + upsert aktif, respons menyertakan `data.library.template_slug`;
+   *  2. Tayangkan → `sync_library: "update"` + `library_slug` → tulis ulang
+   *     baris yang dibuka (TIDAK membuat baru) + upsert aktif + tayang;
+   *  3. Simpan-sebagai-template → `save_as_template` → INSERT baru TANPA
+   *     menyentuh aktif, kanvas pindah ke slug baru dari respons.
+   *
+   * Guard statis (repo ini memakai pola ini untuk kontrak antar-file):
+   * flag dikirim di tempat yang benar & respons dibaca di tempat yang benar.
+   */
+  const websiteRoute = () =>
+    repoFile('app', 'api', 'websites', '[websiteId]', 'website', 'route.ts');
+
+  it('server: helper sinkron library ada & tersegregasi dari upsert aktif', () => {
+    const src = websiteRoute();
+    // INSERT baris baru (dipakai aturan 1 & 3) …
+    expect(src).toContain('async function saveAsLibraryTemplate');
+    // … dan UPDATE baris yang dibuka (dipakai aturan 2 Tayangkan) …
+    expect(src).toContain('async function updateLibraryTemplate');
+    // … keduanya scoping ke baris library, tidak pernah menyentuh aktif.
+    expect(src).toContain('.eq("is_library", true)');
+    // Aturan 2 yang barisnya hilang → fallback buat baru (bukan gagal total).
+    expect(src).toContain("status === 404");
+  });
+
+  it('server: respons apply/publish menyertakan slug library untuk kanvas', () => {
+    const src = websiteRoute();
+    expect(src).toContain('sync_library');
+    expect(src).toContain('library_slug');
+    // Slug hasil sinkron diteruskan ke client tanpa fetch tambahan.
+    expect(src).toContain('...(syncedLibrary ? { library: syncedLibrary } : {})');
+    expect(src).toContain('...(legacySyncedLibrary ? { library: legacySyncedLibrary } : {})');
+  });
+
+  it('client apply: menerapkan template TIDAK membuat baris library baru', () => {
+    const helper = repoFile('src', 'lib', 'builder', 'apply-template.ts');
+    // Invariant: baris library baru HANYA lewat "Simpan sebagai Template".
+    expect(helper).not.toContain("sync_library: 'create'");
+    expect(helper).toContain('readLibrarySync');
+  });
+
+  it('kanvas: Tayangkan mengupdate baris yang dibuka, Simpan pindah ke baru', () => {
+    const page = repoFile(
+      'app', 'dashboard', 'web-design', 'customize', 'page.tsx',
+    );
+    // Penunjuk baris yang dibuka — satu-satunya sumber slug untuk Tayangkan.
+    expect(page).toContain('activeLibraryRef');
+    // Tayangkan = update baris itu; tanpa baris → TIDAK create (kosong).
+    expect(page).not.toContain("sync_library: 'create'");
+    expect(page).toContain("sync_library: 'update'");
+    expect(page).toContain('library_slug: activeLibraryRef.current');
+    // Simpan-sebagai-template = pindah ke slug baru dari respons.
+    expect(page).toContain('activeLibraryRef.current = newSlug');
+    // Galeri builder memberi tahu kanvas setelah pertama-kali-terapkan.
+    expect(page).toContain('active-library-changed');
+    const sidebar = repoFile('src', 'components', 'builder', 'builder-sidebar.tsx');
+    expect(sidebar).toContain('active-library-changed');
+  });
+});
+

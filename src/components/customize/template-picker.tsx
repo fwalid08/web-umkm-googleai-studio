@@ -159,6 +159,9 @@ export function TemplatePicker({
       // Satu-satunya jalur apply — `lib/builder/apply-template`.
       // Jangan diduplikasi: dua call site pernah punya versi berbeda
       // dan satu di antaranya tertinggal (bug template library).
+      // Aturan library: pertama kali terapkan → server INSERT salinan baru
+      // (sync_library: "create" di dalam helper) sekaligus mengupsert aktif.
+      // Daftar library dimuat ulang agar kartu baru langsung tampil.
       const result = await applyTemplateToWebsite({
         websiteId,
         template: {
@@ -176,8 +179,11 @@ export function TemplatePicker({
       }
       setPending(null);
       setNotice(
-        `Template "${tpl.name}" aktif. Warna, font, navigasi, footer, & layout homepage ikut diganti.`,
+        result.library
+          ? `Template "${tpl.name}" aktif & tersimpan sebagai "${result.library.name}" di Template Saya.`
+          : `Template "${tpl.name}" aktif. Warna, font, navigasi, footer, & layout homepage ikut diganti.`,
       );
+      await loadSavedTemplates();
       onTemplateApplied?.(result.templateId);
     } finally {
       setBusyId(null);
@@ -233,7 +239,7 @@ export function TemplatePicker({
                 </>
               ) : (
                 <>
-                  <Library className="w-3.5 h-3.5" /> Library
+                  <Library className="w-3.5 h-3.5" /> Template Saya
                   {savedTemplates.length > 0 && (
                     <span className="text-[10px] font-bold bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200 px-1.5 rounded-full tabular-nums">
                       {savedTemplates.length}
@@ -259,7 +265,7 @@ export function TemplatePicker({
         ) : savedEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Library className="w-14 h-14 text-muted-foreground/30 mb-3" />
-            <p className="font-semibold">Library kamu masih kosong</p>
+            <p className="font-semibold">Template Saya masih kosong</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
               Tekan &quot;Simpan&quot; di dalam editor lalu pilih &quot;Simpan sebagai
               template&quot; supaya desainmu muncul di sini.
@@ -268,20 +274,32 @@ export function TemplatePicker({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {savedEntries.map(({ saved, entry }) => (
-              <div key={saved.id} className="relative">
                 <PickerCard
+                  key={saved.id}
                   tpl={{ ...entry, id: saved.id, name: saved.name } as CatalogEntry}
                   isActive={false}
                   applying={busyId === saved.id}
                   isSaved
+                  onDelete={() => {
+                    setError("");
+                    setNotice("");
+                    setPendingDelete(saved);
+                  }}
+                  deleting={deletingId === saved.id}
                   onSelect={() => {
                     setError("");
                     setNotice("");
                     setBusyId(saved.id);
                     void (async () => {
+                      // Aturan library: menerapkan library LAIN pertama kali →
+                      // server INSERT salinan baru sekaligus mengupsert aktif.
+                      // Daftar dimuat ulang agar kartu baru langsung tampil.
                       const result = await applySavedTemplate({ websiteId, saved });
                       if (result.ok) {
-                        setNotice(`Template "${saved.name}" sekarang dipakai website kamu.`);
+                        setNotice(result.library
+                          ? `Template "${saved.name}" dipakai & tersimpan sebagai "${result.library.name}" di Template Saya.`
+                          : `Template "${saved.name}" sekarang dipakai website kamu.`);
+                        await loadSavedTemplates();
                         onTemplateApplied?.(saved.base_slug ?? saved.id);
                       } else {
                         setError(result.error ?? "Gagal memakai template");
@@ -290,29 +308,6 @@ export function TemplatePicker({
                     })();
                   }}
                 />
-                {/* Tombol hapus — action terpisah dari "klik kartu = terapkan"
-                    supaya desain tidak mungkin terhapus tidak sengaja. */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="absolute right-2 top-2 z-10 border-red-200 bg-white/90 text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900/90 dark:text-red-300 dark:hover:bg-red-950/40"
-                  disabled={deletingId === saved.id}
-                  title="Hapus template ini dari library"
-                  aria-label={`Hapus template ${saved.name}`}
-                  onClick={() => {
-                    setError("");
-                    setNotice("");
-                    setPendingDelete(saved);
-                  }}
-                >
-                  {deletingId === saved.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5" />
-                  )}
-                </Button>
-              </div>
             ))}
           </div>
         )}
@@ -341,7 +336,7 @@ export function TemplatePicker({
               </DialogTitle>
               <DialogDescription>
                 Template <strong>{pendingDelete?.name}</strong> akan dihapus permanen dari
-                library. Website yang sedang dipakai <strong>tidak</strong> ikut berubah — hanya
+                Template Saya. Website yang sedang dipakai <strong>tidak</strong> ikut berubah — hanya
                 salinan desainnya yang hilang.
               </DialogDescription>
             </DialogHeader>
@@ -501,6 +496,8 @@ function PickerCard({
   onSelect,
   onPreview,
   thumbnailSrc,
+  onDelete,
+  deleting = false,
 }: {
   tpl: CatalogEntry;
   isActive: boolean;
@@ -512,6 +509,10 @@ function PickerCard({
   onPreview?: () => void;
   /** Screenshot template (`/thumbnails/<id>.jpg`); kosong = gradien. */
   thumbnailSrc?: string | null;
+  /** Aksi hapus (khusus Template Saya) — tombol ikon di baris judul kartu. */
+  onDelete?: () => void;
+  /** True saat baris ini sedang dihapus (spinner di tombol ikon). */
+  deleting?: boolean;
 }) {
   // Warna kartu sekarang dari palet template itu sendiri — katalog
   // DESIGN_STYLES yang sebelumnya supplying warna sudah dihapus (migrasi 046).
@@ -519,6 +520,11 @@ function PickerCard({
     primary: tpl.theme?.palette?.primary ?? "#15803D",
     secondary: tpl.theme?.palette?.secondary ?? "#0d9488",
   };
+  // Huruf inisial hanya fallback: disembunyikan sejak awal bila ada
+  // thumbnailSrc, dimunculkan lagi bila gambar gagal dimuat. Jadi saat
+  // thumbnail tampil, tidak ada huruf yang menutupinya.
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const showInitial = !thumbnailSrc || thumbFailed;
   const activate = () => {
     if (!isActive && !applying) onSelect();
   };
@@ -551,12 +557,14 @@ function PickerCard({
             alt={`Pratinjau ${tpl.name}`}
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover object-top"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; setThumbFailed(true); }}
           />
         )}
-        <span className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-2xl border border-white/30">
-          {tpl.name.charAt(0)}
-        </span>
+        {showInitial && (
+          <span className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-2xl border border-white/30">
+            {tpl.name.charAt(0)}
+          </span>
+        )}
         {isActive && (
           <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 text-white text-[11px] font-semibold px-2.5 py-1">
             <Check className="w-3 h-3" /> Aktif
@@ -574,7 +582,30 @@ function PickerCard({
         )}
       </div>
       <div className="p-4 space-y-1.5 bg-card">
-        <p className="font-semibold leading-tight">{tpl.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-semibold leading-tight flex-1 min-w-0 truncate">{tpl.name}</p>
+          {onDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+              disabled={deleting}
+              title="Hapus template ini dari Template Saya"
+              aria-label={`Hapus template ${tpl.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              {deleting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           {CATEGORY_LABELS[tpl.category as BusinessCategory]} · {styleName(tpl)} ·{" "}
           {(tpl.data?.sections ?? []).length} section

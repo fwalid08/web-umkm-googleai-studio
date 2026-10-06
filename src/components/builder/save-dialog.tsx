@@ -62,8 +62,8 @@ export function SaveDialog({
           </DialogTitle>
           <DialogDescription>
             {dirty
-              ? 'Desain di editor disimpan ke library-mu. Website yang sedang tayang tidak berubah.'
-              : 'Simpan desain ini ke library-mu agar bisa dipakai lagi nanti.'}
+              ? 'Desain di editor disimpan ke Template Saya. Website yang sedang tayang tidak berubah.'
+              : 'Simpan desain ini ke Template Saya agar bisa dipakai lagi nanti.'}
           </DialogDescription>
         </DialogHeader>
 

@@ -51,6 +51,28 @@ export default function PageBuilderPage() {
   // Template library aktif website (sumber ID + template_source saat save).
   // Tanpa ini save mengirim t.template.id yang kosong → PUT 404.
   const libMetaRef = useRef<{ id: string; source: 'saved' | 'builtin' } | null>(null);
+  // Slug `saved-<uuid>` yang SEDANG dibuka di kanvas (aturan library):
+  // - diisi saat load dari baris library terbaru (GET tidak mengembalikannya,
+  //   jadi diambil dari ?library=1 — lihat effect di bawah),
+  // - Tayangkan mengupdate baris ini (sync_library: "update"),
+  // - Simpan-sebagai-template / Terapkan-pertama-kali memindahkannya ke slug
+  //   baru dari respons server.
+  // Ref (bukan state): hanya dibaca di dalam handler PUT, tidak merender.
+  const activeLibraryRef = useRef<string | null>(null);
+
+  // Galeri builder (builder-sidebar) memberi tahu kanvas pindah ke baris
+  // library baru setelah "pertama kali terapkan" — tanpa ini Tayangkan
+  // berikutnya fallback "create" dan membuat duplikat.
+  useEffect(() => {
+    const onLibraryChanged = (e: Event) => {
+      const slug = (e as CustomEvent<{ template_slug?: unknown }>).detail?.template_slug;
+      if (typeof slug === "string" && slug.length > 0) {
+        activeLibraryRef.current = slug;
+      }
+    };
+    window.addEventListener('active-library-changed', onLibraryChanged);
+    return () => window.removeEventListener('active-library-changed', onLibraryChanged);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +91,24 @@ export default function PageBuilderPage() {
         const id = sitesJson.data.active_website_id as string;
         if (cancelled) return;
         setWebsiteId(id);
+
+        // Baris library terbaru milik website ini = "yang sedang dibuka" bila
+        // kanvas berasal dari library. GET website tidak mengembalikan slug
+        // library, jadi diambil dari daftar library (sudah ada endpoint-nya).
+        // Gagal fetch di sini tidak fatal: Tayangkan fallback "create".
+        try {
+          const libRes = await fetch("/api/templates?library=1");
+          const libJson = await libRes.json();
+          const first = Array.isArray(libJson?.data?.saved)
+            ? (libJson.data.saved as Array<{ template_slug?: unknown }>)[0]
+            : undefined;
+          if (!cancelled && first && typeof first.template_slug === "string") {
+            activeLibraryRef.current = first.template_slug;
+          }
+        } catch {
+          // Abaikan — kanvas tetap bisa dibuka, Tayangkan fallback create.
+        }
+        if (cancelled) return;
 
         const cfgRes = await fetch(`/api/websites/${id}/website`);
         if (!cfgRes.ok) throw new Error("Gagal memuat data halaman");
@@ -289,14 +329,21 @@ export default function PageBuilderPage() {
     });
     const globalJson = await globalRes.json();
     if (!globalJson.success) throw new Error(globalJson.error ?? "Gagal menyimpan");
-    // Respons "Simpan sebagai template" hanya memuat baris library yang baru
-    // dibuat — TIDAK memuat `custom_config`. Template aktif tidak tersentuh,
-    // jadi `globalRef` maupun status tayang tidak boleh ditimpa di sini.
+    // "Simpan sebagai template" SEKARANG memindahkan kanvas ke baris baru:
+    // slug dari respons disimpan agar Tayangkan berikutnya mengupdate baris
+    // ini (bukan membuat lagi). Template aktif tetap tidak tersentuh, jadi
+    // `globalRef`/status tayang tetap tidak boleh ditimpa di sini.
     //
     // Cabang di bawah tetap dijaga untuk panggilan tanpa flag: kalau ada
     // payload yang benar-benar menimpa template aktif, `globalRef` harus ikut
     // disegarkan agar publish berikutnya tidak memakai base basi.
-    if (!saveAsTemplate) {
+    if (saveAsTemplate) {
+      const newSlug = (globalJson.data as { library?: { template_slug?: unknown } })
+        ?.library?.template_slug;
+      if (typeof newSlug === "string" && newSlug.length > 0) {
+        activeLibraryRef.current = newSlug;
+      }
+    } else {
       globalRef.current = globalJson.data.custom_config;
       // Segarkan status tayang dari respons server. Tanpa ini badge di topbar
       // menampilkan nilai basi setelah Simpan/Tayangkan.
@@ -364,11 +411,23 @@ export default function PageBuilderPage() {
         custom_config: customConfig,
         template_id: activeTemplateId,
         ...(libMeta ? { template_source: libMeta.source } : {}),
+        // Aturan: Tayangkan TIDAK PERNAH membuat baris library baru.
+        // Tanpa baris aktif → cukup upsert template aktif.
+        ...(activeLibraryRef.current
+          ? { sync_library: 'update', library_slug: activeLibraryRef.current }
+          : {}),
       }),
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error ?? "Gagal publish halaman");
     globalRef.current = json.data.custom_config;
+    // Server bisa fallback membuat baris baru (baris lama terhapus) — kanvas
+    // pindah mengikuti slug di respons.
+    const syncedSlug = (json.data as { library?: { template_slug?: unknown } })
+      ?.library?.template_slug;
+    if (typeof syncedSlug === "string" && syncedSlug.length > 0) {
+      activeLibraryRef.current = syncedSlug;
+    }
     // Badge Tayang/Draft di topbar harus langsungsinkron setelah publish.
     setIsPublished(true);
   }, [websiteId]);

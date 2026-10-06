@@ -172,42 +172,65 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
 
   const tplData = currentTemplate?.template_data ?? {};
   // Warna thumbnail sekarang dari palet template itu sendiri — katalog
-  // DESIGN_STYLES yang sebelumnya supplying warna sudah dihapus (migrasi 046).
-  const themeColors = (tplData.theme ?? {}) as Record<string, string>;
-  const styleColors = {
-    primary: themeColors.primary ?? "#15803D",
-    secondary: themeColors.secondary ?? "#0d9488",
-  };
+  // Palet warna template (primary, secondary, accent, background, surface,
+  // text, textMuted, border) — ditampilkan sebagai swatch di field "Palet".
+  // Hanya entri string hex valid yang dipakai; sisanya disaring agar tidak
+  // ada swatch rusak bila data theme tidak lengkap.
+  const themePalette = (tplData.theme ?? {}) as Record<string, unknown>;
+  // Fallback gradien kartu bila theme tidak lengkap (data fetch gagal).
+  const fallbackPrimary = typeof themePalette.primary === "string" ? themePalette.primary : "#15803D";
+  const fallbackSecondary = typeof themePalette.secondary === "string" ? themePalette.secondary : "#0d9488";
+  const paletteEntries: Array<readonly [string, unknown]> = [
+    ["Primer", themePalette.primary],
+    ["Sekunder", themePalette.secondary],
+    ["Aksen", themePalette.accent],
+    ["Latar", themePalette.background],
+    ["Permukaan", themePalette.surface],
+    ["Teks", themePalette.text],
+  ];
+  const paletteSwatches: Array<{ label: string; hex: string }> = [];
+  for (const [label, value] of paletteEntries) {
+    if (typeof value === "string" && /^#[0-9a-fA-F]{3,8}$/.test(value)) {
+      paletteSwatches.push({ label, hex: value });
+    }
+  }
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-col lg:flex-row">
-        {/* Thumbnail / Visual Card */}
-        <div className="relative lg:w-72 flex-shrink-0 overflow-hidden">
-          <div className="absolute inset-0" style={{
-            background: `linear-gradient(135deg, ${styleColors.primary}, ${styleColors.secondary})`
-          }} />
-          <div className="relative p-6 h-full flex flex-col items-center justify-center">
-            <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-3xl border border-white/30">
-              {currentTemplate.name.charAt(0)}
-            </div>
-            <div className="mt-4 text-center text-white">
-              <p className="font-semibold text-lg">{currentTemplate.name}</p>
-              <p className="text-sm text-white/80 mt-1">{CATEGORY_LABELS[currentTemplate.category as BusinessCategory]}</p>
-              <Badge className="mt-3 bg-emerald-500 text-white gap-1" variant="default">
-                <Check className="w-3 h-3" /> Aktif
-              </Badge>
-            </div>
-            <div className="mt-auto flex flex-col gap-2 w-full">
-              <Button
-                variant="default"
-                className="bg-white text-slate-900 hover:bg-white/90"
-                onClick={() => window.dispatchEvent(new CustomEvent('open-page-builder'))}
-              >
-                <Home className="w-4 h-4 mr-2" />
-                Customize
-              </Button>
-            </div>
+      <div className="flex flex-col lg:flex-row lg:items-stretch">
+        {/* Kolom kiri: tingginya mengikuti konten kolom kanan (stretch).
+            Thumbnail flex-1 mengisi sisa ruang di atas baris nama+tombol. */}
+        <div className="lg:w-80 flex-shrink-0 flex flex-col overflow-hidden border-b lg:border-b-0 lg:border-r border-border lg:self-stretch">
+          {/* Row atas: thumbnail — min-h hanya untuk susunan vertikal (mobile);
+              di lg min-h-0 agar tinggi murni mengikuti konten kanan. */}
+          <div className="relative flex-1 min-h-64 sm:min-h-80 lg:min-h-0 overflow-hidden">
+            <div className="absolute inset-0" style={{
+              background: `linear-gradient(135deg, ${fallbackPrimary}, ${fallbackSecondary})`
+            }} />
+            {currentTemplate && (
+              <img
+                src={`/thumbnails/${currentTemplate.id}.jpg`}
+                alt={`Pratinjau ${currentTemplate.name}`}
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover object-top"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            <Badge className="absolute top-2 right-2 bg-emerald-500 text-white gap-1" variant="default">
+              <Check className="w-3 h-3" /> Aktif
+            </Badge>
+          </div>
+          {/* Row bawah: nama + tombol rata bawah & tengah */}
+          <div className="p-4 bg-card text-center flex flex-col items-center shrink-0">
+            <p className="font-semibold text-base leading-tight">{currentTemplate.name}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{CATEGORY_LABELS[currentTemplate.category as BusinessCategory]}</p>
+            <Button
+              className="mt-3 w-full"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-page-builder'))}
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Customize
+            </Button>
           </div>
         </div>
 
@@ -215,7 +238,7 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
         <div className="flex-1 p-6 lg:p-8 flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-4">
             <Badge variant="secondary" className="text-sm">{CATEGORY_LABELS[currentTemplate.category as BusinessCategory]}</Badge>
-            <Badge variant="outline" className="text-sm uppercase">{styleColors.primary}</Badge>
+            <Badge variant="outline" className="text-sm uppercase">{fallbackPrimary}</Badge>
             <Badge variant="outline" className="text-sm">{tplData.sections?.length ?? 0} Section</Badge>
           </div>
           <h3 className="text-2xl font-bold mb-2">{currentTemplate.name}</h3>
@@ -223,8 +246,22 @@ export function ActiveTemplateCard({ websiteId, onOpenTemplateGallery, refreshKe
 
           <div className="grid sm:grid-cols-2 gap-3 mb-6">
             <div className="p-3 bg-muted/50 rounded-xl">
-              <p className="text-xs text-muted-foreground">Warna</p>
-              <p className="font-medium uppercase">{styleColors.primary}</p>
+              <p className="text-xs text-muted-foreground mb-2">Skema warna</p>
+              {paletteSwatches.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {paletteSwatches.map(({ label, hex }) => (
+                    <span
+                      key={label}
+                      title={`${label}: ${hex}`}
+                      aria-label={`${label}: ${hex}`}
+                      className="w-7 h-7 rounded-full border border-black/10 shadow-sm"
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Palet tidak tersedia</p>
+              )}
             </div>
             <div className="p-3 bg-muted/50 rounded-xl">
               <p className="text-xs text-muted-foreground">Section</p>

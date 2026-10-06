@@ -552,12 +552,23 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
                   return;
                 }
 
+                // Aturan library: pertama kali terapkan → server INSERT salinan
+                // library baru (sync_library: "create" di dalam helper).
                 const result = await applyTemplateToWebsite({ websiteId, template: applyable });
                 if (!result.ok) {
                   setApplyError(result.error ?? 'Gagal menerapkan template');
                   return;
                 }
 
+                // Kanvas pindah menunjuk ke baris library baru supaya Tayangkan
+                // berikutnya mengupdate baris itu (bukan membuat lagi).
+                if (result.library?.template_slug) {
+                  window.dispatchEvent(
+                    new CustomEvent('active-library-changed', {
+                      detail: { template_slug: result.library.template_slug },
+                    }),
+                  );
+                }
                 useTemplateStore.getState().applyTemplate(result.templateId, storeTemplate);
                 useBuilderStore.getState().resetPaletteOverride();
                 setShowTemplateGallery(false);
@@ -569,6 +580,9 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
                 // supaya isi store = isi DB (apply lewat katalog cukup dengan
                 // `applyTemplate`, tapi apply ini menulis config dari DB
                 // sehingga store lokal jadi basi).
+                // Aturan library: menerapkan library LAIN pertama kali → INSERT
+                // salinan baru (slug baru, kanvas pindah ke sana). Reload
+                // mengambil slug baru dari daftar library terbaru.
                 const result = await applySavedTemplate({ websiteId, saved });
                 if (!result.ok) {
                   setApplyError(result.error ?? 'Gagal memakai template');

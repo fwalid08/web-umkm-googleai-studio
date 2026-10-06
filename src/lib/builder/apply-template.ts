@@ -108,11 +108,15 @@ export function savedToCatalogEntry<T extends { id: string; theme: { palette: ob
  *
  * `template_id` wajib diisi slug katalog (`base_slug`) karena endpoint PUT
  * menolaknya dengan 404 kalau slug tidak ada di BUILT_IN_CATALOG.
+ *
+ * Aturan library: menerapkan template TIDAK PERNAH membuat baris baru —
+ * hanya mengupsert template AKTIF. Baris library baru HANYA dari
+ * "Simpan sebagai Template" (`save_as_template: true`).
  */
 export async function applySavedTemplate(opts: {
   websiteId: string;
   saved: SavedTemplateEntry;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; library?: LibrarySyncInfo }> {
   const { websiteId, saved } = opts;
   // Slug katalog asal. Fallback ke template pertama agar tidak gagal total
   // bila base_slug null (baris lama sebelum migrasi 045).
@@ -128,7 +132,10 @@ export async function applySavedTemplate(opts: {
     const res = await fetch(`/api/websites/${websiteId}/website`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ template_id: templateId, custom_config: config }),
+      body: JSON.stringify({
+        template_id: templateId,
+        custom_config: config,
+      }),
     });
     const json = (await res.json().catch(() => null)) as
       | { success?: boolean; error?: string }
@@ -136,7 +143,7 @@ export async function applySavedTemplate(opts: {
     if (!res.ok || !json?.success) {
       return { ok: false, error: json?.error ?? `Gagal memakai template (HTTP ${res.status})` };
     }
-    return { ok: true };
+    return { ok: true, library: readLibrarySync(json) };
   } catch (err) {
     return {
       ok: false,
@@ -297,10 +304,31 @@ export function buildTemplateCustomConfig(
   };
 }
 
+export interface LibrarySyncInfo {
+  template_slug: string;
+  base_slug: string;
+  name: string;
+}
+
 export interface ApplyTemplateResult {
   ok: boolean;
   error?: string;
   templateId: string;
+  /** Baris library hasil sinkron server (aturan Terapkan/Tayangkan). */
+  library?: LibrarySyncInfo;
+}
+
+/** Bentuk `data.library` pada respons PUT website. */
+function readLibrarySync(json: unknown): LibrarySyncInfo | undefined {
+  const lib = (json as { data?: { library?: unknown } } | null)?.data?.library as
+    | Record<string, unknown>
+    | undefined;
+  if (!lib || typeof lib.template_slug !== "string") return undefined;
+  return {
+    template_slug: lib.template_slug,
+    base_slug: typeof lib.base_slug === "string" ? lib.base_slug : "",
+    name: typeof lib.name === "string" ? lib.name : "",
+  };
 }
 
 /**
@@ -309,6 +337,11 @@ export interface ApplyTemplateResult {
  * `template_id` adalah slug katalog statis (mis. 'food'). `template_source`
  * masih dikirim untuk kompatibilitas client lama, tetapi server
  * mengabaikannya (validasi hanya ke `BUILT_IN_CATALOG`).
+ *
+ * Aturan library: menerapkan template TIDAK PERNAH membuat baris library —
+ * hanya mengupsert template AKTIF website (`is_library = false`). Baris
+ * library baru HANYA dibuat lewat "Simpan sebagai Template"
+ * (`save_as_template: true`).
  */
 export async function applyTemplateToWebsite(opts: {
   websiteId: string;
@@ -338,7 +371,7 @@ export async function applyTemplateToWebsite(opts: {
         error: json?.error ?? `Gagal menerapkan template (HTTP ${res.status})`,
       };
     }
-    return { ok: true, templateId };
+    return { ok: true, templateId, library: readLibrarySync(json) };
   } catch (err) {
     return {
       ok: false,

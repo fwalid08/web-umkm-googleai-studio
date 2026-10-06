@@ -287,6 +287,12 @@ const colors = getStyleColors(template.data);
 
   const isDeleting = deletingId === template.id;
 
+  // Ikon placeholder hanya fallback: disembunyikan sejak awal untuk template
+  // bawaan (ada file thumbnail), dimunculkan lagi bila gambar gagal dimuat.
+  // Template library (`saved`) tidak punya file thumbnail → ikon tetap tampil.
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const showPlaceholder = template.source !== 'builtin' || thumbFailed;
+
     return (
       <div
         key={template.id}
@@ -304,13 +310,15 @@ const colors = getStyleColors(template.data);
               alt={`Pratinjau ${template.name}`}
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover object-top"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; setThumbFailed(true); }}
             />
           )}
           <div className="absolute inset-0 bg-black/10" />
-          <div className="absolute inset-0 flex items-center justify-center text-white/20">
-            <Layout className="w-10 h-10" />
-          </div>
+          {showPlaceholder && (
+            <div className="absolute inset-0 flex items-center justify-center text-white/20">
+              <Layout className="w-10 h-10" />
+            </div>
+          )}
           <div className="absolute bottom-3 left-3 right-3 flex gap-2">
             <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[template.category]}</Badge>
           </div>
@@ -358,20 +366,21 @@ const colors = getStyleColors(template.data);
             {template.saved && (
               // `e.stopPropagation()` wajib: kartu punya role="button" dan
               // `handleApply`, jadi tanpa itu klik Hapus ikut membuka dialog
-              // "Terapkan".
+              // "Terapkan". Ikon saja (tanpa teks) supaya tidak menumpuk
+              // dengan tombol Terapkan/Pratinjau di grid sempit.
               <Button
                 variant="outline"
-                size="sm"
-                className="h-8 px-2.5 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
+                size="icon"
+                className="h-8 w-8 shrink-0 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
                 disabled={isDeleting}
-                title="Hapus template ini dari library"
+                title="Hapus template ini dari Template Saya"
                 aria-label={`Hapus template ${template.name}`}
                 onClick={(e) => { e.stopPropagation(); handleDelete(); }}
               >
                 {isDeleting ? (
-                  <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menghapus</>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <><Trash2 className="w-3.5 h-3.5 mr-1" /> Hapus</>
+                  <Trash2 className="w-3.5 h-3.5" />
                 )}
               </Button>
             )}
@@ -416,7 +425,7 @@ const colors = getStyleColors(template.data);
             {key === 'catalog' ? (
               <><Layout className="w-3.5 h-3.5" /> Katalog</>
             ) : (
-              <><Library className="w-3.5 h-3.5" /> Library
+              <><Library className="w-3.5 h-3.5" /> Template Saya
                 {savedTemplates.length > 0 && (
                   <span className="text-[10px] font-bold bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200 px-1.5 rounded-full tabular-nums">
                     {savedTemplates.length}
@@ -483,7 +492,7 @@ const colors = getStyleColors(template.data);
         ) : savedUnified.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
             <Library className="w-16 h-16 text-muted-foreground/30 mb-4" />
-            <h4 className="font-semibold">Library kamu masih kosong</h4>
+            <h4 className="font-semibold">Template Saya masih kosong</h4>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
               Tekan &quot;Simpan&quot; di editor lalu pilih &quot;Simpan sebagai template&quot; supaya desain ini muncul di sini.
             </p>
@@ -556,7 +565,7 @@ const colors = getStyleColors(template.data);
           </DialogHeader>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Template <strong>{showDeleteDialog.saved?.name}</strong> akan dihapus permanen dari
-            library. Website yang sedang dipakai <strong>tidak</strong> ikut berubah — hanya
+            Template Saya. Website yang sedang dipakai <strong>tidak</strong> ikut berubah — hanya
             salinan desainnya yang hilang.
           </p>
           <DialogFooter className="flex gap-2">

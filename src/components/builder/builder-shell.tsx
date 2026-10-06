@@ -79,8 +79,8 @@ export function BuilderShell({ websiteId, pageTitle, siteUrl, onShowPages, onSho
         });
         toast.success(
           opts?.libraryName
-            ? `Template "${opts.libraryName}" tersimpan di library`
-            : 'Tersimpan sebagai template di library',
+            ? `Template "${opts.libraryName}" tersimpan di Template Saya`
+            : 'Tersimpan sebagai template di Template Saya',
         );
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Gagal menyimpan');

@@ -69,6 +69,31 @@ const AUTH_PATHS = ["/signin", "/signup", "/forgot", "/reset-password"];
 const AUTH_ONLY_PATHS = ["/signin", "/signup"];
 const ADMIN_PUBLIC_PATHS = [...AUTH_PATHS, "/privacy", "/terms"];
 
+/**
+ * Aset publik dari `public/` (mis. `/thumbnails/<id>.jpg` untuk kartu
+ * template di /web-design + modal galeri builder). Tanpa bypass ini,
+ * request gambar di admin host jatuh ke branch "unknown path → redirect
+ * /signin", sehingga `<img>` menerima HTML 307 bukan JPEG → `onError`
+ * menyembunyikan gambar dan kartu hanya menampilkan gradien.
+ * Daftar prefix eksplisit (bukan cek `.`) supaya route valid bertitik
+ * tetap lewat proxy.
+ */
+const PUBLIC_ASSET_PREFIXES = [
+  "/thumbnails",
+  "/icons",
+  "/images",
+  "/assets",
+  "/fonts",
+  "/logos",
+  "/media",
+];
+
+function isPublicAsset(pathname: string): boolean {
+  return PUBLIC_ASSET_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
 async function validateSession(
   request: NextRequest,
   options: { forceProtected?: boolean; callbackPath?: string } = {}
@@ -110,12 +135,14 @@ export default async function proxy(request: NextRequest) {
   const { hostname, pathname } = request.nextUrl;
 
   // Static/API dilewati (matcher sudah kecualikan); JANGAN pakai includes(".")
-  // karena route valid bisa mengandung titik.
+  // karena route valid bisa mengandung titik. `isPublicAsset` memakai daftar
+  // prefix eksplisit supaya aman dari masalah itu.
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_static") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    isPublicAsset(pathname)
   ) {
     return NextResponse.next();
   }
@@ -246,5 +273,8 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // Aset publik tidak perlu lewat middleware (hemat 1x getToken per gambar
+  // + anti-redirect /signin untuk <img> di admin host). `isPublicAsset` di
+  // atas tetap jadi jaring pengaman bila matcher berubah.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|thumbnails|icons|images|assets|fonts|logos|media).*)"],
 };
