@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import z from "zod";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { checkRateLimit } from "@/lib/rate/limit";
 

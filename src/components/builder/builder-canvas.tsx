@@ -175,7 +175,10 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
         animations={preview ? templateAnimations : []}
         behaviours={preview ? templateBehaviours : []}
         customCss={templateCustomCss}
-        root={canvasRef.current}
+        // JANGAN canvasRef.current di sini: baca ref saat render dilarang
+        // (react-compiler) dan nilainya selalu null di render pertama.
+        // `canvasEl` diisi setelah mount sehingga scope menyempit ke kanvas.
+        root={canvasEl}
       />
       <div
         id="tpl-canvas"

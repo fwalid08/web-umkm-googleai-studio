@@ -225,7 +225,7 @@ export interface DailyTrend {
 }
 
 // Form Validation Schemas (using Zod)
-import { z } from "zod";
+import z from "zod";
 
 export const signUpSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter"),

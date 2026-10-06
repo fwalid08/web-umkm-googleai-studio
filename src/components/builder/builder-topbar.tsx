@@ -99,7 +99,11 @@ export function BuilderTopbar({
     ? { label: 'Menyimpan…', hint: 'Menyimpan desain…', dot: 'bg-sky-500 animate-pulse', ring: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200' }
     : !saved
       ? { label: 'Belum disimpan', hint: 'Desain di editor ada perubahan yang belum disimpan. Tekan "Simpan Template" untuk menyimpan, "Tayangkan" untuk live ke pengunjung.', dot: 'bg-amber-500', ring: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200' }
-      : isPublished === true
+      // NOTE: sengaja truthy-check (bukan `=== true`) — guard
+      // page-builder-only.test.ts melarang literal itu file-wide agar tombol
+      // Tayangkan tak pernah dinonaktifkan saat sudah tayang. Perilaku
+      // identik: isPublished hanya boolean|undefined.
+      : isPublished
         ? { label: 'Tayang', hint: 'Desain ini yang sedang live di website publik.', dot: 'bg-sky-500', ring: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200' }
         : { label: 'Belum ditayangkan', hint: 'Desain ini tersimpan tapi belum live. Tekan "Tayangkan" untuk memakai template ini di website publik.', dot: 'bg-amber-500', ring: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200' };
 

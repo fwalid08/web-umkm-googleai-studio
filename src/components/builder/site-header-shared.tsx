@@ -73,14 +73,18 @@ export function SiteHeader({
   navSolid = false,
   drawer,
 }: SiteHeaderProps) {
+  // Hooks WAJIB di atas sebelum return bersyarat (rules-of-hooks).
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // v3.0: varian dengan `html` kustom dirender langsung dari HTML template.
   // clip={false}: header adalah chrome overlay — root varian boleh
   // `position:absolute` (pembungkus tinggi nol); dengan clip aktif ia
   // terpotong habis dan header "tidak muncul" tanpa error.
   //
   // Mobile: CSS `.tpl-header-html` (globals.css) menyembunyikan <nav> teks
-  // di container <640px dan menaruh tombol hamburger (drawer) absolut di
-  // kanan bar — jadi tidak ada nav wrap berjejal + duplikasi menu.
+  // di container <640px; tombol hamburger in-flow di baris brand
+  // (`[data-hdr-burger]`) — jadi tidak ada nav wrap berjejal + duplikasi
+  // menu, dan hamburger selalu sejajar logo.
   if (typeof variant.html === 'string' && variant.html.trim().length > 0) {
     // "Header menempel" diterapkan di div `.tpl-header-html` ini — induknya
     // di live site adalah root halaman (tinggi penuh) sehingga sticky punya
@@ -106,7 +110,6 @@ export function SiteHeader({
     );
   }
   const onPrimary = getOnColor(palette.primary);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as HeaderLink[];
   // Data lama tidak selalu punya flag `enabled` — anggap aktif kecuali

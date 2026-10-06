@@ -3,7 +3,7 @@
  * Provider-agnostic: dipakai untuk Porkbun, DomainNameAPI, maupun mock.
  * Harga dalam IDR utuh (bukan sen) — konsisten dengan docs/STOCK.md (F2-3).
  */
-import { z } from "zod";
+import z from "zod";
 
 /** Status lifecycle domain_orders (gabungan legacy 008 + baru Sprint 2). */
 export const domainStatusSchema = z.enum([

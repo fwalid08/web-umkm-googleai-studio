@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, Users, CreditCard, BarChart3, Settings, TrendingUp, DollarSign, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,22 +83,22 @@ export default function AdminDashboardPage() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <a href="/admin/users" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+            <Link href="/admin/users" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
               <Users className="h-5 w-5 text-emerald-600" />
               <span className="font-medium text-gray-900 dark:text-white">Manage Users</span>
-            </a>
-            <a href="/admin/billing" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+            </Link>
+            <Link href="/admin/billing" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
               <CreditCard className="h-5 w-5 text-blue-600" />
               <span className="font-medium text-gray-900 dark:text-white">Billing Overview</span>
-            </a>
-            <a href="/admin/analytics" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+            </Link>
+            <Link href="/admin/analytics" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
               <BarChart3 className="h-5 w-5 text-purple-600" />
               <span className="font-medium text-gray-900 dark:text-white">Platform Analytics</span>
-            </a>
-            <a href="/admin/settings" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+            </Link>
+            <Link href="/admin/settings" className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
               <Settings className="h-5 w-5 text-gray-600" />
               <span className="font-medium text-gray-900 dark:text-white">Platform Settings</span>
-            </a>
+            </Link>
           </CardContent>
         </Card>
       </div>

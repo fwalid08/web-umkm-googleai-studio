@@ -134,7 +134,7 @@ export const PRODUCT_TIER_LIMITS: Record<string, ProductTierLimits> = {
 };
 
 // Zod Schemas
-import { z } from "zod";
+import z from "zod";
 
 export const productCreateSchema = z.object({
   name: z.string().min(1, "Nama produk wajib diisi").max(200, "Nama maksimal 200 karakter"),

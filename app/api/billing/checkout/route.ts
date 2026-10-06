@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import z from "zod";
 import { auth } from "@/lib/auth/auth";
 import { getSessionUserId } from "@/lib/auth/utils";
 import { isDemoUserId, setDemoUserTier } from "@/lib/mock/store";
