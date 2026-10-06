@@ -164,6 +164,13 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
     else setLevel('main');
   };
 
+  const openChromeConfig = (chrome: 'header' | 'footer') => {
+    setLevel(chrome);
+    window.dispatchEvent(
+      new CustomEvent('open-builder-chrome-config', { detail: { chrome } }),
+    );
+  };
+
   const selectedSection = selectedSectionId
     ? sections.find((s) => s.id === selectedSectionId)
     : null;
@@ -216,7 +223,7 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
         Konfigurasi Template
       </p>
       <MenuCard
-        onClick={() => setLevel('header')}
+        onClick={() => openChromeConfig('header')}
         icon={<Layout className="w-5 h-5 text-white" />}
         gradient="from-sky-500 to-blue-600"
         hover="hover:border-sky-300 hover:shadow-sky-100"
@@ -234,7 +241,7 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
         badgeClass="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
       />
       <MenuCard
-        onClick={() => setLevel('footer')}
+        onClick={() => openChromeConfig('footer')}
         icon={<PanelBottom className="w-5 h-5 text-white" />}
         gradient="from-violet-500 to-purple-600"
         hover="hover:border-violet-300 hover:shadow-violet-100"

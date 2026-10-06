@@ -3,6 +3,7 @@ import type { Tier } from "@/types";
 import type { Template } from "../template-types";
 import { FOOD_TEMPLATE } from "./food";
 import { LAUNDRY_EMERALD_TEMPLATE } from "./laundry-emerald";
+import { MARKETPLACE_HYBRID_TEMPLATE } from "./marketplace-hybrid";
 
 export type BusinessCategory = "food" | "fashion" | "retail" | "handicraft" | "services";
 
@@ -19,7 +20,7 @@ export const CATEGORY_LABELS: Record<BusinessCategory | "all", string> = {
   services: "Jasa & Servis",
 };
 
-export const BUILT_IN_CATALOG: CatalogTemplate[] = [FOOD_TEMPLATE, LAUNDRY_EMERALD_TEMPLATE];
+export const BUILT_IN_CATALOG: CatalogTemplate[] = [FOOD_TEMPLATE, LAUNDRY_EMERALD_TEMPLATE, MARKETPLACE_HYBRID_TEMPLATE];
 
 export const ALL_TIERS = ["free", "starter", "growth", "enterprise"] as const;
 

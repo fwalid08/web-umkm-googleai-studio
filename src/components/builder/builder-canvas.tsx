@@ -75,6 +75,34 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [selectedSectionId, preview]);
+
+  useEffect(() => {
+    if (preview) return;
+    const scrollToChrome = (event: Event) => {
+      const chrome = (event as CustomEvent<{ chrome?: 'header' | 'footer' }>).detail?.chrome;
+      const frame = frameRef.current;
+      if (!frame || (chrome !== 'header' && chrome !== 'footer')) return;
+
+      if (chrome === 'header') {
+        frame.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      const target = frame.querySelector<HTMLElement>('[data-builder-chrome="footer"]');
+      if (!target) return;
+      const frameRect = frame.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const maxScrollTop = frame.scrollHeight - frame.clientHeight;
+      const targetScrollTop = frame.scrollTop + targetRect.bottom - frameRect.bottom;
+      frame.scrollTo({
+        top: Math.min(maxScrollTop, Math.max(0, targetScrollTop)),
+        behavior: 'smooth',
+      });
+    };
+
+    window.addEventListener('open-builder-chrome-config', scrollToChrome);
+    return () => window.removeEventListener('open-builder-chrome-config', scrollToChrome);
+  }, [preview]);
   // Minta sidebar membuka form config untuk section ini. Sidebar (dan shell,
   // agar sidebar yang tertutup ikut terbuka) mendengarkan event yang sama.
   const openSectionConfig = (sectionId: string) => {
@@ -144,6 +172,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   };
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   // Elemen frame untuk portal overlay drawer: dibaca setelah mount agar
   // `MobileDrawer` bisa menempelkan overlay di dalam frame kanvas
   // (bukan selayar browser). State (bukan ref langsung) supaya re-render
@@ -195,6 +224,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
         }}
       >
         <div
+          ref={frameRef}
           className={frameChrome}
           onScroll={handleScroll}
           style={{
@@ -225,6 +255,7 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
               renderer terjebak kotak setinggi header dan tidak pernah
               menempel. */}
           <div
+            data-builder-chrome="header"
             style={{
               contain: 'layout style',
               isolation: 'isolate',
@@ -504,7 +535,10 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
 
         {/* Slot footer: di DALAM frame (ikut menggulir seperti halaman
             asli) — sama seperti header, chrome tidak boleh ter-clip. */}
-        <div style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}>
+        <div
+          data-builder-chrome="footer"
+          style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}
+        >
           <CanvasFooter variant={footerVariant} config={savedFooter as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
         </div>
         {/* Preview bottom bar mobile di kanvas (sama config dengan live site).
