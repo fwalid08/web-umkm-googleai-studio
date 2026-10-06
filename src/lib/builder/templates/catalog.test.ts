@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { builderSectionToInstance } from "../migration";
 import { ALL_TIERS, isCatalogTemplateAllowedForTier } from "./catalog";
 import { isKnownHeaderVariant, isKnownFooterVariant } from "../chrome";
@@ -478,6 +481,17 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
           ).toBe(true);
         }
       }
+    }
+  });
+
+  it("setiap template katalog punya file thumbnail untuk kartu galeri", () => {
+    // Kartu galeri (builder + /web-design) menampilkan
+    // `/thumbnails/<id>.jpg` — tanpa file-nya kartu jatuh ke gradien.
+    // Regenerasi: `bun /tmp/opencode/shot2.mjs` (butuh dev server :3000).
+    const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+    for (const t of BUILT_IN_CATALOG) {
+      const thumb = join(root, "public", "thumbnails", `${t.id}.jpg`);
+      expect(existsSync(thumb), `${t.id}: public/thumbnails/${t.id}.jpg tidak ada`).toBe(true);
     }
   });
 

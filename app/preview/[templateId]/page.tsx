@@ -6,69 +6,13 @@ import { Button } from "@/components/ui/button";
 import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
 import { getTemplate } from "@/lib/builder/template-store";
 import { resolveTemplateId } from "@/lib/builder/apply-template";
-import { applySectionAssets } from "@/lib/builder/template-assets";
-import type {
-  Template,
-  TemplateSectionInstance,
-  AnimationConfig,
-  BehaviourConfig,
-} from "@/lib/builder/template-types";
-
-function generateId(): string {
-  return crypto.randomUUID();
-}
-
-function toSection(s: any, template: Template): TemplateSectionInstance {
-  const variant = template.sections.find((st) => st.type === s.type)?.variants.find((v) => v.id === s.variant)
-    ?? template.sections.find((st) => st.type === s.type)?.variants[0];
-  return {
-    id: generateId(),
-    type: s.type,
-    variantId: variant?.id ?? 'default',
-    // Fill foto per-niche SAMA seperti kanvas (template-store applyTemplate)
-    // supaya preview = hasil apply. Setelah gating anti-berantakan, fill ini
-    // hanya mengisi key gambar yang memang ada di config.
-    config: applySectionAssets(
-      { ...(variant?.defaultConfig ?? {}), ...(s.config ?? {}) },
-      template.category,
-    ),
-    style: {
-      padding: { top: 64, right: 24, bottom: 64, left: 24, ...(variant?.defaultStyle?.padding ?? {}) },
-      background: variant?.defaultStyle?.background ?? ('transparent' as const),
-      ...(variant?.defaultStyle?.backgroundColor ? { backgroundColor: variant.defaultStyle.backgroundColor } : {}),
-      ...(variant?.defaultStyle?.backgroundImage ? { backgroundImage: variant.defaultStyle.backgroundImage } : {}),
-      ...(variant?.defaultStyle?.backgroundGradient ? { backgroundGradient: variant.defaultStyle.backgroundGradient } : {}),
-      ...(typeof variant?.defaultStyle?.backgroundBlur === 'number' ? { backgroundBlur: variant.defaultStyle.backgroundBlur } : {}),
-      ...(variant?.defaultStyle?.backgroundSize ? { backgroundSize: variant.defaultStyle.backgroundSize } : {}),
-      ...(variant?.defaultStyle?.backgroundOverlay ? { backgroundOverlay: variant.defaultStyle.backgroundOverlay } : {}),
-      ...(typeof variant?.defaultStyle?.backgroundOverlayOpacity === 'number'
-        ? { backgroundOverlayOpacity: variant.defaultStyle.backgroundOverlayOpacity }
-        : {}),
-    },
-    responsive: {},
-  };
-}
+import { buildPreviewSiteData } from "@/lib/builder/preview-data";
+import type { PublicSiteDataV3 } from "@/components/website/renderer-v3";
 
 export default function PreviewPage({ params }: { params: Promise<{ templateId: string }> }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [siteData, setSiteData] = useState<{
-    template: Template;
-    headerVariantId: string;
-    footerVariantId: string;
-    sections: TemplateSectionInstance[];
-    seo: { title: string; description: string };
-    themeOverride?: Record<string, string>;
-    headerConfig?: Record<string, unknown>;
-    footerConfig?: Record<string, unknown>;
-    animations?: AnimationConfig[];
-    behaviours?: BehaviourConfig[];
-    customCss?: string;
-    bottomBar?: {
-      enabled?: boolean;
-      items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
-    };
-  } | null>(null);
+  const [siteData, setSiteData] = useState<PublicSiteDataV3 | null>(null);
 
   useEffect(() => {
     const loadTemplate = async () => {
@@ -85,24 +29,7 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
           return;
         }
 
-        setSiteData({
-          template,
-          headerVariantId: template.headers[0].id,
-          footerVariantId: template.footers[0].id,
-          sections: (template.sections.flatMap((st) => st.variants.slice(0, 1).map((v) => ({
-            type: st.type,
-            variant: v.id,
-            config: v.defaultConfig,
-          })))).map((s) => toSection(s, template)),
-          seo: {
-            title: template.name,
-            description: template.description,
-          },
-          bottomBar: (template as unknown as { data?: { bottomBar?: {
-            enabled?: boolean;
-            items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
-          } } }).data?.bottomBar,
-        });
+        setSiteData(buildPreviewSiteData(template));
       } catch (err) {
         setError("Gagal memuat template");
       } finally {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Library, Loader2, LayoutTemplate, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Eye, Library, Loader2, LayoutTemplate, Trash2, X } from "lucide-react";
 import {
   applySavedTemplate,
   deleteSavedTemplate,
@@ -28,6 +28,8 @@ import {
   resolveTemplateId,
   type ApplyableTemplate,
 } from "@/lib/builder/apply-template";
+import { buildPreviewSiteData } from "@/lib/builder/preview-data";
+import { PublicWebsiteV3 } from "@/components/website/renderer-v3";
 
 type CatalogEntry = (typeof BUILT_IN_CATALOG)[number];
 
@@ -62,6 +64,9 @@ export function TemplatePicker({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   // Template library yang menunggu konfirmasi hapus.
   const [pendingDelete, setPendingDelete] = useState<SavedTemplateEntry | null>(null);
+  // Pratinjau in-modal: render situs asli (bukan tab baru ke /preview —
+  // route itu tidak ada di build yang belum di-deploy sehingga jatuh ke home).
+  const [previewTpl, setPreviewTpl] = useState<CatalogEntry | null>(null);
 
   /** Muat ulang daftar library — dipakai setelah hapus. */
   const loadSavedTemplates = useCallback(async () => {
@@ -246,6 +251,7 @@ export function TemplatePicker({
             normalizedActiveId={normalizedActiveId}
             busyId={busyId}
             onSelect={(tpl) => setPending(tpl)}
+            onPreview={(tpl) => setPreviewTpl(tpl)}
           />
         ) : savedLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -311,6 +317,31 @@ export function TemplatePicker({
             ))}
           </div>
         )}
+        {/* Pratinjau template: render situs asli di dalam halaman ini
+            (bukan tab baru ke /preview — route itu tidak ada di build yang
+            belum di-deploy sehingga jatuh ke home). */}
+        <Dialog open={!!previewTpl} onOpenChange={(open) => { if (!open) setPreviewTpl(null); }}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+            <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between gap-2 px-4 py-3 border-b bg-background space-y-0">
+              <DialogTitle className="text-sm">Pratinjau: {previewTpl?.name}</DialogTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2.5"
+                onClick={() => setPreviewTpl(null)}
+                aria-label="Tutup pratinjau"
+              >
+                <X className="w-3.5 h-3.5 mr-1" /> Tutup
+              </Button>
+            </DialogHeader>
+            {previewTpl && (
+              <div className="builder-cq">
+                <PublicWebsiteV3 site={buildPreviewSiteData(previewTpl)} />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
         {/* Dialog konfirmasi sebelum apply */}
         <PendingDialog
           pending={pending}
@@ -367,10 +398,12 @@ function GridSection({
   normalizedActiveId,
   busyId,
   onSelect,
+  onPreview,
 }: {
   normalizedActiveId: string | null;
   busyId: string | null;
   onSelect: (tpl: CatalogEntry) => void;
+  onPreview: (tpl: CatalogEntry) => void;
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -381,6 +414,8 @@ function GridSection({
           isActive={normalizedActiveId === tpl.id}
           applying={busyId === tpl.id}
           onSelect={() => onSelect(tpl)}
+          onPreview={() => onPreview(tpl)}
+          thumbnailSrc={`/thumbnails/${tpl.id}.jpg`}
         />
       ))}
     </div>
@@ -486,6 +521,8 @@ function PickerCard({
   applying,
   isSaved = false,
   onSelect,
+  onPreview,
+  thumbnailSrc,
 }: {
   tpl: CatalogEntry;
   isActive: boolean;
@@ -493,6 +530,10 @@ function PickerCard({
   /** Item library user — badge & indikator menyesuaikan. */
   isSaved?: boolean;
   onSelect: () => void;
+  /** Pratinjau in-modal (khusus katalog) — tombol di footer kartu. */
+  onPreview?: () => void;
+  /** Screenshot template (`/thumbnails/<id>.jpg`); kosong = gradien. */
+  thumbnailSrc?: string | null;
 }) {
   // Warna kartu sekarang dari palet template itu sendiri — katalog
   // DESIGN_STYLES yang sebelumnya supplying warna sudah dihapus (migrasi 046).
@@ -500,23 +541,41 @@ function PickerCard({
     primary: tpl.theme?.palette?.primary ?? "#15803D",
     secondary: tpl.theme?.palette?.secondary ?? "#0d9488",
   };
+  const activate = () => {
+    if (!isActive && !applying) onSelect();
+  };
   return (
-    <button
-      type="button"
-      onClick={() => {
-        if (!isActive && !applying) onSelect();
+    <div
+      role="button"
+      tabIndex={applying ? -1 : 0}
+      onClick={activate}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !applying) {
+          e.preventDefault();
+          activate();
+        }
       }}
-      disabled={applying}
+      aria-disabled={applying}
       className="group text-left rounded-2xl border-2 overflow-hidden transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-border hover:border-primary/50 hover:shadow-md data-[active=true]:border-primary data-[active=true]:shadow-md data-[busy=true]:opacity-70 data-[busy=true]:pointer-events-none"
       data-active={isActive}
       data-busy={applying}
     >
       <div
-        className="aspect-video relative flex items-center justify-center"
+        className="aspect-video relative flex items-center justify-center overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${styleColors.primary}, ${styleColors.secondary})`,
         }}
       >
+        {thumbnailSrc && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnailSrc}
+            alt={`Pratinjau ${tpl.name}`}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover object-top"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        )}
         <span className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-2xl border border-white/30">
           {tpl.name.charAt(0)}
         </span>
@@ -546,7 +605,23 @@ function PickerCard({
         <p className="text-xs font-semibold text-primary pt-1">
           {isActive ? "Template yang sedang dipakai" : "Klik untuk menerapkan"}
         </p>
+        {onPreview && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={applying}
+            className="h-8 w-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview();
+            }}
+            aria-label={`Pratinjau ${tpl.name}`}
+          >
+            <Eye className="w-3.5 h-3.5 mr-1" /> Pratinjau
+          </Button>
+        )}
       </div>
-    </button>
+    </div>
   );
 }

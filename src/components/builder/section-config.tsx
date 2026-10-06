@@ -34,7 +34,6 @@ function toHexInput(value: string, fallback: string): string {
 }
 
 export function SectionConfig({ section }: { section: TemplateSectionInstance }) {
-  const [copied, setCopied] = useState(false);
   const [anchorCopied, setAnchorCopied] = useState(false);
   const { requestConfirm, confirmDialog } = useConfirm();
   const template = useTemplateStore((s) => s.template);
@@ -144,45 +143,6 @@ export function SectionConfig({ section }: { section: TemplateSectionInstance })
               Nilai inilah yang dipakai di URL menu, misal{' '}
               <span className="font-mono">#{section.anchorId || 'tarif'}</span>. Kosongkan bila
               section ini tidak perlu dipakai sebagai tujuan link.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold">Section ID (internal)</Label>
-            <div className="flex items-center gap-1.5">
-              <div
-                className="flex-1 h-8 flex items-center px-2.5 rounded-lg bg-white/80 dark:bg-slate-900 text-[11px] font-mono text-muted-foreground truncate"
-                title={section.id}
-              >
-                {section.id}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 rounded-lg shrink-0"
-                title={copied ? 'ID tersalin!' : 'Salin Section ID'}
-                onClick={() => {
-                  try {
-                    const done = navigator.clipboard?.writeText(section.id);
-                    if (done) {
-                      void done
-                        .then(() => {
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 1200);
-                        })
-                        .catch(() => undefined);
-                    }
-                  } catch {
-                    // Clipboard tak tersedia — abaikan.
-                  }
-                }}
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Dipakai sistem (React key, undo/redo). <strong>Bukan</strong> untuk link menu —
-              pakai Anchor di atas.
             </p>
           </div>
 

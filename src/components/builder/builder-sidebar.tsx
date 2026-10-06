@@ -26,7 +26,6 @@ import {
   Home,
   Search as SearchIcon,
   Settings,
-  ExternalLink,
   ChevronRight,
   Keyboard,
   X,
@@ -588,10 +587,6 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
                 if (!result.ok) {
                   setApplyError(result.error ?? 'Gagal menghapus template');
                 }
-              }}
-              onPreview={(template: any) => {
-                if (!template?.id) return;
-                window.open(`/preview/${template.id}`, '_blank');
               }}
             />
           </DialogContent>

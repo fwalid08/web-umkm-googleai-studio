@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, ExternalLink, Lock, Library, Trash2 } from 'lucide-react';
+import { Check, Search, Filter, ChevronLeft, ChevronRight, Sparkles, Palette, Layout, Loader2, Eye, Lock, Library, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,13 +17,14 @@ import type { Template } from '@/lib/builder/template-types';
 import { BUILT_IN_CATALOG, CATEGORY_LABELS, type BusinessCategory } from '@/lib/builder/templates/catalog';
 import { isCatalogTemplateAllowedForTier } from '@/lib/builder/validation';
 import { savedToCatalogEntry, type SavedTemplateEntry } from '@/lib/builder/apply-template';
+import { buildPreviewSiteData } from '@/lib/builder/preview-data';
+import { PublicWebsiteV3 } from '@/components/website/renderer-v3';
 
 const ITEMS_PER_PAGE = 9;
 
 interface TemplateGalleryProps {
   websiteId: string;
   onApply: (template: UnifiedTemplate) => void;
-  onPreview?: (template: UnifiedTemplate) => void;
   /**
    * Terapkan template library user (ganti template aktif). Terpisah dari
    * `onApply` karena bentuk datanya berbeda: item library menyimpan config
@@ -54,7 +55,7 @@ interface UnifiedTemplate {
   saved?: SavedTemplateEntry;
 }
 
-export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, onDeleteSaved, onClose, userTier }: TemplateGalleryProps) {
+export function TemplateGallery({ websiteId, onApply, onApplySaved, onDeleteSaved, onClose, userTier }: TemplateGalleryProps) {
   void websiteId;
   void onClose;
   const [loading] = useState(false);
@@ -124,6 +125,9 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, o
     template: null,
     open: false,
   });
+  // Pratinjau in-modal: render template ASLI (bukan tab baru ke /preview —
+  // route itu tidak ada di build yang belum di-deploy sehingga jatuh ke home).
+  const [previewTemplate, setPreviewTemplate] = useState<UnifiedTemplate | null>(null);
   const [resolvedTier, setResolvedTier] = useState<string | null>(null);
 
   // Katalog statis dari kode — tanpa fetch (templates_library dihapus).
@@ -261,10 +265,8 @@ export function TemplateGallery({ websiteId, onApply, onPreview, onApplySaved, o
 
   function TemplateCard({
     template,
-    onPreview,
   }: {
     template: UnifiedTemplate;
-    onPreview?: (template: UnifiedTemplate) => void;
   }) {
 const colors = getStyleColors(template.data);
   const locked =
@@ -296,6 +298,16 @@ const colors = getStyleColors(template.data);
         <div className="aspect-video rounded-xl overflow-hidden relative bg-gradient-to-br" style={{
           background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
         }}>
+          {template.source === 'builtin' && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/thumbnails/${template.id}.jpg`}
+              alt={`Pratinjau ${template.name}`}
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover object-top"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          )}
           <div className="absolute inset-0 bg-black/10" />
           <div className="absolute inset-0 flex items-center justify-center text-white/20">
             <Layout className="w-10 h-10" />
@@ -341,11 +353,9 @@ const colors = getStyleColors(template.data);
             <Button variant="default" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); handleApply(); }}>
               <Check className="w-3.5 h-3.5 mr-1" /> Terapkan
             </Button>
-            {onPreview && (
-              <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); onPreview(template); }}>
-                <ExternalLink className="w-3.5 h-3.5 mr-1" /> Pratinjau
-              </Button>
-            )}
+            <Button variant="outline" size="sm" className="h-8 px-2.5 flex-1" onClick={(e) => { e.stopPropagation(); setPreviewTemplate(template); }}>
+              <Eye className="w-3.5 h-3.5 mr-1" /> Pratinjau
+            </Button>
             {template.saved && (
               // `e.stopPropagation()` wajib: kartu punya role="button" dan
               // `handleApply`, jadi tanpa itu klik Hapus ikut membuka dialog
@@ -464,7 +474,7 @@ const colors = getStyleColors(template.data);
             </div>
           ) : (
             paginatedTemplates.map((template) => (
-              <TemplateCard key={template.id} template={template} onPreview={onPreview as ((template: UnifiedTemplate) => void) | undefined} />
+              <TemplateCard key={template.id} template={template} />
             ))
           )
         ) : savedLoading ? (
@@ -525,6 +535,33 @@ const colors = getStyleColors(template.data);
               {applyingTemplateId === showApplyDialog.template?.id ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan...</>) : (<><Check className="w-3.5 h-3.5 mr-1" /> Ya, Terapkan</>)}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pratinjau template: render situs asli di dalam modal (scroll
+          sendiri). Tidak buka tab baru — tidak bergantung route /preview
+          yang bisa belum ada di build ter-deploy. */}
+      <Dialog open={!!previewTemplate} onOpenChange={(open) => { if (!open) setPreviewTemplate(null); }}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between gap-2 px-4 py-3 border-b bg-background">
+            <DialogTitle className="text-sm">
+              Pratinjau: {previewTemplate?.name}
+            </DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5"
+              onClick={() => setPreviewTemplate(null)}
+              aria-label="Tutup pratinjau"
+            >
+              <X className="w-3.5 h-3.5 mr-1" /> Tutup
+            </Button>
+          </DialogHeader>
+          {previewTemplate && (
+            <div className="builder-cq">
+              <PublicWebsiteV3 site={buildPreviewSiteData(previewTemplate.data)} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
