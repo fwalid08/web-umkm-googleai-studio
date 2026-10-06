@@ -1,11 +1,10 @@
 import type { Template, TemplateSectionInstance, AnimationConfig, BehaviourConfig } from '@/lib/builder/template-types';
-import { getOnColor } from '@/lib/builder/design-styles';
 import { buildThemeTokens } from '@/lib/builder/theme-tokens';
 import { getGoogleFontsUrl } from '@/lib/builder/font-categories';
-import { MobileDrawer } from './mobile-drawer';
+import { MobileBottomBar } from './mobile-bottom-bar';
+import { SiteHeaderLive } from './site-header-live';
 import { SectionRenderer } from '@/components/builder/section-renderer';
 import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer';
-import { SiteHeader } from '@/components/builder/site-header-shared';
 import { BehaviourRuntime } from '@/components/builder/behaviour-runtime';
 import { SiteFooter } from '@/components/builder/site-footer-shared';
 import { getSectionVariant } from '@/lib/builder/template-store';
@@ -23,6 +22,19 @@ export interface PublicSiteDataV3 {
   /** Config header/footer efektif (default varian + simpanan user). */
   headerConfig?: Record<string, unknown>;
   footerConfig?: Record<string, unknown>;
+  /** Bottom bar config untuk mobile (app-like). */
+  bottomBar?: {
+    enabled?: boolean;
+    items?: Array<{
+      id: string;
+      label: string;
+      icon: string;
+      url: string;
+      isExternal?: boolean;
+      enabled?: boolean;
+      badge?: string;
+    }>;
+  };
   /** Animasi & behaviour template — dijalankan oleh `BehaviourRuntime`. */
   animations?: AnimationConfig[];
   behaviours?: BehaviourConfig[];
@@ -34,16 +46,8 @@ export interface PublicSiteDataV3 {
   };
 }
 
-interface ChromeNavItem {
-  id: string;
-  label: string;
-  url: string;
-  enabled: boolean;
-  children?: ChromeNavItem[];
-}
-
 export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
-  const { template, sections, seo, websiteId, themeOverride, typographyOverride, animations, behaviours, customCss } = site;
+  const { template, sections, seo, websiteId, themeOverride, typographyOverride, animations, behaviours, customCss, bottomBar } = site;
   const palette = { ...template.theme.palette, ...themeOverride };
   const typography = {
     ...template.theme.typography,
@@ -107,7 +111,12 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <SiteHeaderV3 site={site} />
+      <SiteHeaderLive
+        template={template}
+        headerVariantId={site.headerVariantId}
+        headerConfig={site.headerConfig}
+        themeOverride={themeOverride}
+      />
 
       <main>
         {sections.map((section) => {
@@ -162,48 +171,24 @@ export function PublicWebsiteV3({ site }: { site: PublicSiteDataV3 }) {
         })}
       </main>
 
-      <SiteFooterV3 site={site} />
-    </div>
-  );
-}
-
-function SiteHeaderV3({ site }: { site: PublicSiteDataV3 }) {
-  const { template, headerVariantId } = site;
-  const headerVariant = template.headers.find((h) => h.id === headerVariantId) || template.headers[0];
-  // Config efektif: default varian + simpanan user, agar live = kanvas.
-  const config = { ...(headerVariant.defaultConfig ?? {}), ...(site.headerConfig ?? {}) };
-  // Palet efektif: skema pilihan user ikut berlaku di chrome.
-  const palette = { ...template.theme.palette, ...(site.themeOverride ?? {}) };
-  const onPrimary = getOnColor(palette.primary);
-  const navItems = (Array.isArray(config.navItems) ? config.navItems : []) as ChromeNavItem[];
-  // Sama seperti kanvas: data lama tanpa flag `enabled` dianggap aktif.
-  const links = navItems.filter((item) => item.enabled !== false);
-  const drawerStyle = headerVariant.mobileMenu?.style === 'drawer-top' ? 'drawer-top' : 'drawer-sidebar';
-  const showCta = Boolean(config.showCta);
-  const drawer = (
-    <MobileDrawer
-      items={links}
-      style={drawerStyle}
-      showCta={showCta}
-      ctaText={(config.ctaText as string) || 'Hubungi Kami'}
-      ctaLink={(config.ctaLink as string) || '#'}
-      text={palette.text}
-      surface={palette.surface}
-      border={palette.border}
-      primary={palette.primary}
-      onPrimary={onPrimary}
-      radius={template.theme.components.borderRadius}
-    />
-  );
-
-  return (
-    <SiteHeader
-      variant={headerVariant}
-      config={config}
-      palette={palette}
-      radius={template.theme.components.borderRadius}
-      drawer={drawer}
-    />
+<SiteFooterV3 site={site} />
+      {bottomBar?.enabled === true && bottomBar.items && bottomBar.items.length > 0 && (
+        <>
+          {/* Spacer agar konten/footer tidak tertutup bottom bar fixed. */}
+          <div className="lg:hidden" style={{ height: 76 }} aria-hidden="true" />
+          <MobileBottomBar
+            config={bottomBar}
+            palette={{
+              primary: palette.primary,
+              surface: palette.surface,
+              text: palette.text,
+              textMuted: palette.textMuted,
+              border: palette.border,
+            }}
+          />
+        </>
+      )}
+      </div>
   );
 }
 

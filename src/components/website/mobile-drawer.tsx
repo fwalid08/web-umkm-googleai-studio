@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronDown, Menu, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, X } from 'lucide-react';
 
 export interface MobileDrawerItem {
   id: string;
@@ -24,6 +25,15 @@ interface MobileDrawerProps {
   primary: string;
   onPrimary: string;
   radius: number;
+  /**
+   * Batas overlay untuk preview kanvas builder. Di live site overlay portal
+   * ke `document.body` (selayar viewport). Di kanvas, portal ke body akan
+   * selayar browser — bukan selebar frame HP — jadi teruskan ref frame
+   * kanvas sebagai `container` agar overlay menempel di frame tersebut.
+   * Di dalam container, `fixed inset-0` dihitung relatif terhadap ancestor
+   * ber-transform/contain (frame kanvas punya keduanya) — tepat yang kita mau.
+   */
+  container?: HTMLElement | null;
 }
 
 /**
@@ -43,6 +53,7 @@ export function MobileDrawer({
   primary,
   onPrimary,
   radius,
+  container,
 }: MobileDrawerProps) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -56,8 +67,17 @@ export function MobileDrawer({
     return () => window.removeEventListener('keydown', onKey);
   }, [open ]);
 
+  // Kunci scroll body selama drawer terbuka (overlay kini portal ke body).
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   const links = (items ?? []).filter((i) => i.enabled !== false);
-  if (links.length === 0) return null;
 
   const go = (e: React.MouseEvent, url: string) => {
     setOpen(false);
@@ -77,8 +97,9 @@ export function MobileDrawer({
         {links.map((item, i) => {
           const kids = (item.children ?? []).filter((c) => c.enabled !== false);
           const isOpen = expanded === item.id;
+          const itemKey = `${item.id ?? `nav-${i}`}`;
           return (
-            <li key={`${typeof item.id === 'string' && item.id ? item.id : 'nav'}-${i}`}>
+            <li key={itemKey}>
               <div className="flex items-center gap-1">
                 <a
                   href={item.url || '#'}
@@ -102,18 +123,21 @@ export function MobileDrawer({
               </div>
               {isOpen && kids.length > 0 && (
                 <ul className="ml-3 pl-2 border-l space-y-0.5 mt-0.5" style={{ borderColor: border }}>
-                  {kids.map((kid, ki) => (
-                    <li key={`${typeof kid.id === 'string' && kid.id ? kid.id : 'nav'}-${ki}`}>
-                      <a
-                        href={kid.url || '#'}
-                        onClick={(e) => go(e, kid.url || '#')}
-                        className="block px-3 py-2 text-sm rounded-lg hover:opacity-80"
-                        style={{ color: text }}
-                      >
-                        {kid.label || 'Link'}
-                      </a>
-                    </li>
-                  ))}
+                  {kids.map((kid, ki) => {
+                    const kidKey = `${kid.id ?? `nav-${i}-${ki}`}`;
+                    return (
+                      <li key={kidKey}>
+                        <a
+                          href={kid.url || '#'}
+                          onClick={(e) => go(e, kid.url || '#')}
+                          className="block px-3 py-2 text-sm rounded-lg hover:opacity-80"
+                          style={{ color: text }}
+                        >
+                          {kid.label || 'Link'}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </li>
@@ -136,19 +160,11 @@ export function MobileDrawer({
     </div>
   );
 
-  return (
-    <div className="md:hidden shrink-0">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
-        aria-expanded={open}
-        className="p-2 -mr-1 rounded-lg"
-        style={{ color: text }}
-      >
-        {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
-
-      {open && style === 'drawer-top' && (
+  // `open` hanya bisa true lewat klik di client, jadi guard `typeof document`
+  // inline sudah cukup untuk SSR — tanpa state `mounted` tambahan.
+  const overlay =
+    open && typeof document !== 'undefined' ? (
+      style === 'drawer-top' ? (
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu navigasi">
           <div className="absolute inset-0 bg-black/50 animate-drawer-fade" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
@@ -169,9 +185,7 @@ export function MobileDrawer({
             {cta}
           </div>
         </div>
-      )}
-
-      {open && style !== 'drawer-top' && (
+      ) : (
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu navigasi">
           <div className="absolute inset-0 bg-black/50 animate-drawer-fade" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
@@ -193,7 +207,32 @@ export function MobileDrawer({
             {cta}
           </div>
         </div>
-      )}
-    </div>
-  );
+      )
+    ) : null;
+
+  // Tombol hamburger kini IN-FLOW di HTML varian (`[data-hdr-burger]`,
+  // selalu sejajar brand) — drawer ini tidak me-render trigger sendiri.
+  // Klik didelegasikan: satu listener membuka drawer dari placeholder
+  // mana pun. Tanpa nav, placeholder disembunyikan (dulu trigger me-return
+  // null — perilaku yang sama dipertahankan).
+  useEffect(() => {
+    const placeholders = Array.from(document.querySelectorAll('[data-hdr-burger]'));
+    if (links.length === 0) {
+      placeholders.forEach((el) =>
+        (el as HTMLElement).style.setProperty('display', 'none', 'important'),
+      );
+      return;
+    }
+    placeholders.forEach((el) => (el as HTMLElement).style.removeProperty('display'));
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.('[data-hdr-burger]')) setOpen(true);
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, [links.length]);
+
+  // Setelah semua hooks — aman dari rules-of-hooks.
+  if (links.length === 0) return null;
+
+  return overlay ? createPortal(overlay, container ?? document.body) : null;
 }

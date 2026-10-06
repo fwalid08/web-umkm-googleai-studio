@@ -196,22 +196,27 @@ function isTruthyFlag(v: unknown): boolean {
 }
 
 /**
- * Ekspansi blok kondisional `{{#if key}}…{{/if}}`.
+ * Ekspansi blok kondisional `{{#if key}}…{{/if}}` (+ negasi `{{#if !key}}`).
  *
  * Dipakai untuk bagian yang bisa dimatikan user (mis. bar "powered by" di
- * footer). Hanya memutuskan tampil/tidak — isi dibiarkan mentah agar loop
- * dan placeholder di dalamnya diproses fase berikutnya. Diekspansi SEBELUM
- * loop `{{#items}}` agar tidak bentrok sintaks. `{{/if}}` adalah penutup
- * reserved — jangan pakai sebagai key loop. Kondisional di DALAM loop
- * memakai scope item tidak didukung (v1).
+ * footer, tombol CTA / logo di header). Hanya memutuskan tampil/tidak —
+ * isi dibiarkan mentah agar loop dan placeholder di dalamnya diproses fase
+ * berikutnya. Diekspansi SEBELUM loop `{{#items}}` agar tidak bentrok
+ * sintaks. `{{/if}}` adalah penutup reserved — jangan pakai sebagai key
+ * loop. Kondisional di DALAM loop memakai scope item tidak didukung (v1).
  */
 function expandConditionals(
   tpl: string,
   config: Record<string, unknown>,
 ): string {
   return tpl.replace(
-    /\{\{#if\s+([\w.]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
-    (_m, key: string, inner: string) => (isTruthyFlag(config[key]) ? inner : ""),
+    /\{\{#if\s+(!?[\w.]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
+    (_m, rawKey: string, inner: string) => {
+      const negated = rawKey.startsWith('!');
+      const key = negated ? rawKey.slice(1) : rawKey;
+      const truthy = isTruthyFlag(config[key]);
+      return (negated ? !truthy : truthy) ? inner : "";
+    },
   );
 }
 

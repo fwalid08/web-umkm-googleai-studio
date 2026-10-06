@@ -127,6 +127,23 @@ export interface FullTemplateData {
    * dan `data-tpl-variant` — jangan class Tailwind.
    */
   customCss?: string;
+  /**
+   * Bottom bar navigasi mobile (app-like) — kontrak §17.3.
+   * Maks 5 item, tiap item wajib icon + label, CTA di tengah via item khusus.
+   * Renderer: hidden di ≥ 1024px, safe-area bottom padding.
+   */
+  bottomBar?: {
+    enabled?: boolean;
+    items?: Array<{
+      id: string;
+      label: string;
+      icon: string;
+      url: string;
+      isExternal?: boolean;
+      enabled?: boolean;
+      badge?: string;
+    }>;
+  };
 }
 
 /** Definisi template bawaan siap terap (lihat templates/catalog.ts). */

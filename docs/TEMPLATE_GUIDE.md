@@ -1220,12 +1220,15 @@ async function exportTemplate(templateId: string) {
   wadahnya sendiri; verifikasi tepi rata di 1440px
 - [ ] Grid 1 kolom default → multi-kolom via `@md:`; tanpa width fixed > 480px
 - [ ] Gambar `max-width:100%;height:auto`; target sentuh ≥ 44px; body ≥ 14px
+- [ ] **Header mobileMenu**: setiap `HeaderVariant` punya `mobileMenu` dengan
+  `style: 'drawer-sidebar'` (atau `drawer-top`), `showCta`, `ctaText`,
+  `ctaLink`
 - [ ] Nav jadi hamburger + drawer (`drawer-top`/`drawer-sidebar`) di HP;
   form 1 kolom full-width di HP
 - [ ] Flag `responsive` (bila dipakai) hanya menyembunyikan hiasan/varian
   pengganti — bukan konten inti
-- [ ] Bottom bar: config `data.bottomBar` terisi (maks 5 item, semua berikon),
-  mati di ≥ 1024px (kontrak §17.3)
+- [ ] **Bottom bar**: config `data.bottomBar` terisi (maks 5 item, semua berikon,
+  CTA di tengah via item khusus), mati di ≥ 1024px (kontrak §17.3)
 - [ ] Native-like: `100dvh`, safe-area bottom/top, tap-highlight transparan,
   input ≥ 16px, tanpa interaksi hover-only (§17.4)
 - [ ] Varian `hero-carousel` tersedia dengan config slides + autoplay (§17.5)
@@ -1924,16 +1927,21 @@ Test yang memverifikasi creative layer lewat kode nyata (bukan klaim):
 ### 17.2 Hamburger + Sidebar Slide di Mobile ✅
 
 - Di layar sempit (< 640px) navigasi header **wajib** menciut menjadi tombol
-  **hamburger** (ikon `Menu` ↔ `X`, target sentuh ≥ 44px, `aria-label` jelas,
-  `aria-expanded` mengikuti status buka/tutup).
+  **hamburger** (`[data-hdr-burger]` di `variant.html`, target sentuh 44px,
+  `aria-label` jelas). Tombol **wajib in-flow di baris brand** (item flex
+  terakhir) agar selalu sejajar logo — **dilarang** absolute `top:50%`
+  terhadap blok header (meleset di varian multi-baris & saat konten wrap,
+  bahkan menimpa CTA). Klik didelegasikan ke drawer (`mobile-drawer.tsx`).
+- CTA bar disembunyikan di HP (`[data-hdr-cta]`, kecuali varian brand
+  tengah) — duplikat CTA drawer — agar baris brand selalu muat satu baris.
 - Menu mobile **wajib** salah satu dari dua drawer (`mobileMenu.style`,
-  dirender `mobile-menu.tsx`) — **dilarang dropdown**: `drawer-top`
+  dirender `mobile-drawer.tsx`) — **dilarang dropdown**: `drawer-top`
   (meluncur dari atas) atau `drawer-sidebar` (meluncur dari sisi + overlay
   gelap). Pilihan drawer ditentukan template via `mobileMenu.style`.
 - Sub-menu 1 tingkat memakai pola expand/collapse (accordion) dengan ikon
   indikator; menu tertutup otomatis setelah item diklik lalu scroll ke section
   (`scrollIntoView({ behavior: 'smooth' })`).
-- Status: ✅ jalan (`site-header-shared.tsx` + `mobile-menu.tsx`).
+- Status: ✅ jalan (`site-header-shared.tsx` + `mobile-drawer.tsx`).
 
 ### 17.3 Bottom Bar di Mobile 🔜
 

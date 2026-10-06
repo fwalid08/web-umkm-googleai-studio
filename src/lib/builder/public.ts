@@ -88,6 +88,19 @@ export interface PublicSiteData {
   metaDescription?: string;
   /** OG image URL halaman. */
   ogImageUrl?: string;
+  /** Bottom bar config untuk mobile (app-like). */
+  bottomBar?: {
+    enabled?: boolean;
+    items?: Array<{
+      id: string;
+      label: string;
+      icon: string;
+      url: string;
+      isExternal?: boolean;
+      enabled?: boolean;
+      badge?: string;
+    }>;
+  };
 }
 
 const TEMPLATE_FIELDS =
@@ -464,10 +477,28 @@ const variantSource: Array<{ type: string; variants?: Array<{ id: string; defaul
   const templateBehaviours =
     nonEmptyArray<BehaviourConfig>(stored?.behaviours) ??
     nonEmptyArray<BehaviourConfig>(libData.behaviours);
-  const templateCustomCss =
+const templateCustomCss =
     nonEmptyString(stored?.customCss) ?? nonEmptyString(libData.customCss);
 
-// Use catalog template's theme/typography for V3 renderer if available.
+  // Bottom bar config untuk mobile (dari template catalog data)
+  const catalogTemplateData = catalogTemplateForSections.data as {
+    bottomBar?: {
+      enabled?: boolean;
+      items?: Array<{
+        id: string;
+        label: string;
+        icon: string;
+        url: string;
+        isExternal?: boolean;
+        enabled?: boolean;
+        badge?: string;
+      }>;
+    };
+  } | undefined;
+
+  const bottomBar = catalogTemplateData?.bottomBar;
+
+  // Use catalog template's theme/typography for V3 renderer if available.
 const catalogTemplate = catalogTemplateForSections;
 const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePalette;
   const storedTypography = ((stored?.theme as Record<string, unknown> | undefined)?.typography ?? {}) as Record<string, string>;
@@ -514,6 +545,7 @@ const v3Palette = (catalogTemplate?.theme?.palette ?? palette) as DesignStylePal
     metaTitle: pageMeta.title,
     metaDescription: pageMeta.description,
     ogImageUrl: pageMeta.ogImageUrl,
+    bottomBar,
   };
 }
 

@@ -260,10 +260,16 @@ export default function PageBuilderPage() {
       seo: s.seo,
       core: (s.core ?? {}) as unknown as Record<string, unknown>,
     });
-    // ID template yang dikirim = template library aktif (disimpan saat load).
-    // t.template.id SELALU kosong (store template tak pernah diisi dari server
-    // sejak katalog statis dikosongkan) → PUT 404 "Template tidak ditemukan".
-        const libMeta = libMetaRef.current;
+    // ID template yang dikirim = template AKTIF SAAT INI dari template-store.
+    // `libMetaRef` hanya diisi saat load sehingga BASI setelah user ganti
+    // template via galeri — inilah yang membuat Tayangkan mengembalikan
+    // live ke template lama (kasus nyata: food kembali jadi emerald).
+    // Fallback ke libMeta untuk data lama yang store-nya masih kosong.
+    const libMeta = libMetaRef.current;
+    const activeTemplateId =
+      resolveTemplateId(typeof t.template?.id === "string" ? t.template.id : "") ||
+      libMeta?.id ||
+      "";
     // TIDAK mengirim `is_published` sama sekali. Builder tidak punya konsep
     // draft: "Simpan" hanya menulis ke library, jadi live site tidak boleh
     // tersentuh. Server mempertahankan status yang ada (lihat
@@ -277,7 +283,7 @@ export default function PageBuilderPage() {
         ...(saveAsTemplate
           ? { save_as_template: true, library_name: opts?.libraryName ?? "" }
           : {}),
-        template_id: libMeta?.id ?? t.template.id,
+        template_id: activeTemplateId,
         ...(libMeta ? { template_source: libMeta.source } : {}),
       }),
     });
@@ -310,6 +316,12 @@ export default function PageBuilderPage() {
     const s = useBuilderStore.getState();
     const t = useTemplateStore.getState();
     const libMeta = libMetaRef.current;
+    // Sama seperti jalur Simpan: ID dari template-store aktif, bukan
+    // snapshot load (lihat komentar di handleSavePage).
+    const activeTemplateId =
+      resolveTemplateId(typeof t.template?.id === "string" ? t.template.id : "") ||
+      libMeta?.id ||
+      "";
     const global = globalRef.current ?? {};
     const liveSections = t.sections.map((sec) => instanceToBuilderSection(sec));
     // Chrome WAJIB dari template-store (sumber kanvas) — bukan builder-store
@@ -350,7 +362,7 @@ export default function PageBuilderPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         custom_config: customConfig,
-        template_id: libMeta?.id ?? t.template.id,
+        template_id: activeTemplateId,
         ...(libMeta ? { template_source: libMeta.source } : {}),
       }),
     });

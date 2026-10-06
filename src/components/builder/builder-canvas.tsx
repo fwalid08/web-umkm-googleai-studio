@@ -9,6 +9,7 @@ import { SectionRenderer } from '@/components/builder/section-renderer';
 import { VariantHtmlRenderer } from '@/components/builder/variant-html-renderer';
 import { SiteHeader } from '@/components/builder/site-header-shared';
 import { SiteFooter } from '@/components/builder/site-footer-shared';
+import { MobileBottomBar } from '@/components/website/mobile-bottom-bar';
 import { DEFAULT_COMPONENTS, DEFAULT_TYPOGRAPHY } from '@/lib/builder/design-styles';
 import { buildThemeTokens } from '@/lib/builder/theme-tokens';
 import { SectionPicker } from './section-picker';
@@ -141,6 +142,14 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   };
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  // Elemen frame untuk portal overlay drawer: dibaca setelah mount agar
+  // `MobileDrawer` bisa menempelkan overlay di dalam frame kanvas
+  // (bukan selayar browser). State (bukan ref langsung) supaya re-render
+  // terjadi setelah ref terisi.
+  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    setCanvasEl(canvasRef.current);
+  }, []);
 
   return (
     <main
@@ -205,9 +214,21 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
           {/* Slot header: chrome overlay (mis. position:absolute) harus boleh
               terlukis di luar kotak slot yang tingginya nol — JANGAN beri
               overflow clip / paint containment di sini (pernah membuat header
-              "tidak muncul" tanpa error). */}
-          <div style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}>
-            <CanvasHeader variant={headerVariant} config={savedHeader as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} navSolid={navSolid} />
+              "tidak muncul" tanpa error).
+              "Header menempel" dipasang DI SINI (induk = #tpl-canvas yang
+              tinggi penuh): sticky di dalam HTML varian / pembungkus
+              renderer terjebak kotak setinggi header dan tidak pernah
+              menempel. */}
+          <div
+            style={{
+              contain: 'layout style',
+              isolation: 'isolate',
+              ...((savedHeader as Record<string, unknown> | null | undefined)?.sticky !== false
+                ? { position: 'sticky', top: 0, zIndex: 50 }
+                : { position: 'relative' }),
+            }}
+          >
+            <CanvasHeader variant={headerVariant} config={savedHeader as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} navSolid={navSolid} container={canvasEl} />
           </div>
 
           <div className="relative min-h-[320px]">
@@ -464,6 +485,32 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
           <div style={{ contain: 'layout style', isolation: 'isolate', position: 'relative' }}>
             <CanvasFooter variant={footerVariant} config={savedFooter as Record<string, unknown>} template={{ ...template, theme: effectiveTheme }} compact={viewportWidth < 640} />
           </div>
+          {/* Preview bottom bar mobile di kanvas (sama config dengan live site).
+              Mode statis (`floating={false}`) — `position:fixed` milik live
+              akan menempel ke viewport browser, bukan ke frame kanvas.
+              Hanya tampil saat frame < 1024px, cermin `lg:hidden` di live. */}
+          {viewportWidth < 1024 && (() => {
+            const bottomBar = (template as unknown as { data?: { bottomBar?: {
+              enabled?: boolean;
+              items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
+            } } }).data?.bottomBar;
+            if (!bottomBar?.enabled || !bottomBar.items || bottomBar.items.length === 0) return null;
+            return (
+              <div style={{ position: 'sticky', bottom: 0, zIndex: 30 }}>
+                <MobileBottomBar
+                  config={bottomBar}
+                  palette={{
+                    primary: mergedPalette.primary,
+                    surface: mergedPalette.surface,
+                    text: mergedPalette.text,
+                    textMuted: mergedPalette.textMuted,
+                    border: mergedPalette.border,
+                  }}
+                  floating={false}
+                />
+              </div>
+            );
+          })()}
         </div>
         {!preview && (
           <p className="text-center text-[11px] font-medium text-muted-foreground mt-3 bg-white/70 dark:bg-slate-900/70 backdrop-blur inline-block mx-auto px-3 py-1 rounded-full border border-white dark:border-slate-800 shadow-sm">
@@ -488,21 +535,57 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
   );
 }
 
-function CanvasHeader({ variant, config, template, compact = false, navSolid = false }: {
-  variant: { id: string; name: string; layout: string };
+import { MobileDrawer } from '@/components/website/mobile-drawer';
+import { getOnColor } from '@/lib/builder/design-styles';
+
+function CanvasHeader({ variant, config, template, compact = false, navSolid = false, container = null }: {
+  variant: { id: string; name: string; layout: string; html?: string; mobileMenu?: { style?: 'drawer-top' | 'drawer-sidebar'; showCta?: boolean; ctaText?: string; ctaLink?: string } };
   config: Record<string, unknown>;
   template: { theme: { palette: { primary: string; secondary: string; accent: string; background: string; surface: string; text: string; textMuted: string; border: string }; typography: { headingFont: string }; components: { borderRadius: number } } };
   compact?: boolean;
   navSolid?: boolean;
+  container?: HTMLElement | null;
 }) {
+  // Build drawer from template's mobileMenu config (same as live site)
+  const palette = template.theme.palette;
+  const onPrimary = getOnColor(palette.primary);
+  const mobileMenuConfig = variant.mobileMenu ?? {
+    style: 'drawer-sidebar',
+    showCta: true,
+    ctaText: config.ctaText as string || 'Hubungi Kami',
+    ctaLink: config.ctaLink as string || '#',
+  };
+  const drawerStyle = mobileMenuConfig.style === 'drawer-top' ? 'drawer-top' : 'drawer-sidebar';
+  const showCta = mobileMenuConfig.showCta ?? Boolean(config.showCta);
+  const ctaText = mobileMenuConfig.ctaText ?? ((config.ctaText as string) || 'Hubungi Kami');
+  const ctaLink = mobileMenuConfig.ctaLink ?? ((config.ctaLink as string) || '#');
+
+  const drawer = (
+    <MobileDrawer
+      items={(Array.isArray(config.navItems) ? config.navItems : []) as Array<{id:string;label:string;url:string;enabled?:boolean;children?:Array<{id:string;label:string;url:string;enabled?:boolean}>}>}
+      style={drawerStyle}
+      showCta={showCta}
+      ctaText={ctaText}
+      ctaLink={ctaLink}
+      text={palette.text}
+      surface={palette.surface}
+      border={palette.border}
+      primary={palette.primary}
+      onPrimary={onPrimary}
+      radius={template.theme.components.borderRadius}
+      container={container}
+    />
+  );
+
   return (
     <SiteHeader
       variant={variant}
       config={config}
-      palette={template.theme.palette}
+      palette={palette}
       radius={template.theme.components.borderRadius}
       compact={compact}
       navSolid={navSolid}
+      drawer={drawer}
     />
   );
 }

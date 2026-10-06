@@ -64,6 +64,10 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
     animations?: AnimationConfig[];
     behaviours?: BehaviourConfig[];
     customCss?: string;
+    bottomBar?: {
+      enabled?: boolean;
+      items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
+    };
   } | null>(null);
 
   useEffect(() => {
@@ -94,6 +98,10 @@ export default function PreviewPage({ params }: { params: Promise<{ templateId: 
             title: template.name,
             description: template.description,
           },
+          bottomBar: (template as unknown as { data?: { bottomBar?: {
+            enabled?: boolean;
+            items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
+          } } }).data?.bottomBar,
         });
       } catch (err) {
         setError("Gagal memuat template");

@@ -99,7 +99,19 @@ export function SiteFooter({ variant, config, palette, radius, compact = false }
   const phone = str(config.phone);
   const email = str(config.email);
   const hasContact = Boolean(address || phone || email);
-  const socials = ['IG', 'FB', 'TW', 'WA'];
+  // Sosmed dari config (bukan hardcoded) — merchant bisa ubah via sidebar.
+  // Fallback ke 3 default agar data lama tanpa key ini tetap tampil.
+  const socials = (
+    Array.isArray(config.socials) && (config.socials as unknown[]).length > 0
+      ? (config.socials as Array<{ label?: unknown }>)
+      : [{ label: 'IG' }, { label: 'FB' }, { label: 'WA' }]
+  )
+    .map((s) => (typeof s?.label === 'string' ? s.label.trim() : ''))
+    .filter((s) => s.length > 0)
+    .slice(0, 6);
+  const showPowered = config.showPowered !== false;
+  const poweredText = str(config.poweredText, 'Powered by Rabasha');
+  const poweredUrl = str(config.poweredUrl, 'https://rabasha.web.id');
 
   /** Blok brand — inti footer, selalu tampil. */
   const brand = (
@@ -207,7 +219,16 @@ export function SiteFooter({ variant, config, palette, radius, compact = false }
       className="border-t px-4 sm:px-6 py-6"
       style={{ background: palette.surface, borderColor: palette.border }}
     >
-      <div className="max-w-6xl mx-auto space-y-5">{children}</div>
+      <div className="max-w-6xl mx-auto space-y-5">
+        {children}
+        {showPowered && (
+          <p className="text-center text-[11px]" style={{ color: palette.textMuted }}>
+            <a href={poweredUrl} className="hover:opacity-80 transition-opacity" style={{ opacity: 0.7 }}>
+              {poweredText}
+            </a>
+          </p>
+        )}
+      </div>
     </footer>
   );
 

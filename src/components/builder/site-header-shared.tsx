@@ -77,16 +77,32 @@ export function SiteHeader({
   // clip={false}: header adalah chrome overlay — root varian boleh
   // `position:absolute` (pembungkus tinggi nol); dengan clip aktif ia
   // terpotong habis dan header "tidak muncul" tanpa error.
+  //
+  // Mobile: CSS `.tpl-header-html` (globals.css) menyembunyikan <nav> teks
+  // di container <640px dan menaruh tombol hamburger (drawer) absolut di
+  // kanan bar — jadi tidak ada nav wrap berjejal + duplikasi menu.
   if (typeof variant.html === 'string' && variant.html.trim().length > 0) {
+    // "Header menempel" diterapkan di div `.tpl-header-html` ini — induknya
+    // di live site adalah root halaman (tinggi penuh) sehingga sticky punya
+    // ruang untuk menempel. `position:sticky` JANGAN di dalam HTML varian
+    // maupun di pembungkus renderer (keduanya berinduk setinggi header).
+    // Di kanvas, slot header builder-canvas yang menempel (induk #tpl-canvas).
+    const sticky = config.sticky !== false;
     return (
-      <VariantHtmlRenderer
-        type="header"
-        variantId={variant.id}
-        html={variant.html}
-        config={config}
-        configFields={variant.configFields ?? []}
-        clip={false}
-      />
+      <div
+        className="tpl-header-html"
+        style={sticky ? { position: 'sticky', top: 0, zIndex: 50 } : undefined}
+      >
+        <VariantHtmlRenderer
+          type="header"
+          variantId={variant.id}
+          html={variant.html}
+          config={config}
+          configFields={variant.configFields ?? []}
+          clip={false}
+        />
+        {drawer}
+      </div>
     );
   }
   const onPrimary = getOnColor(palette.primary);

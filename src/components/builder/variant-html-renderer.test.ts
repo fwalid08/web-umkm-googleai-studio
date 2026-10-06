@@ -21,4 +21,15 @@ describe("chromeRendererStyle (anti-regresi header overlay hilang)", () => {
     expect(s.position).toBe("relative");
     expect(s.isolation).toBe("isolate");
   });
+
+  it("tidak ada mode sticky di sini: sticky wajib di pembungkus berinduk tinggi", () => {
+    // Regresi ganda: `position:sticky` baik di dalam HTML varian maupun di
+    // pembungkus renderer ini SAMA-SAMA terjebak (induk setinggi header).
+    // Sticky dipasang di `.tpl-header-html` (live, induk = root halaman)
+    // dan slot header kanvas (induk = #tpl-canvas). Fungsi ini tidak boleh
+    // punya parameter sticky agar pola salah tidak terulang.
+    expect(chromeRendererStyle.length).toBe(1);
+    expect(chromeRendererStyle(true).position).toBe("relative");
+    expect(chromeRendererStyle(false).position).toBe("relative");
+  });
 });

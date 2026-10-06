@@ -45,6 +45,12 @@ interface VariantHtmlRendererProps {
 /**
  * Style pembungkus renderer. Diekstrak agar bisa di-unit-test:
  * regresi clip pada chrome overlay tidak boleh terulang diam-diam.
+ *
+ * NOTE: JANGAN menaruh `position:sticky` di sini untuk header — elemen
+ * ini tingginya persis setinggi header sehingga sticky tidak punya ruang
+ * untuk menempel (toggle "Header menempel" jadi terlihat mati). Sticky
+ * dipasang di pembungkus yang induknya tinggi: `.tpl-header-html`
+ * (live site) dan slot header kanvas (builder-canvas).
  */
 export function chromeRendererStyle(clip: boolean): CSSProperties {
   return clip

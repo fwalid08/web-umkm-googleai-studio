@@ -450,6 +450,37 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
    * pasti diblokir saat import/render (script/style/iframe/form/on*),
    * karena hasilnya akan tampil sebagai `<!-- BLOCKED` di halaman.
    */
+  it("setiap varian header punya tombol hamburger in-flow sejajar brand", () => {
+    // Regresi: hamburger absolute `top:50%` terhadap blok header meleset
+    // di varian multi-baris & saat konten wrap (bahkan menimpa CTA).
+    // Setiap header WAJIB memuat placeholder `[data-hdr-burger]` in-flow
+    // di baris brand — kliknya didelegasikan ke MobileDrawer. Brand
+    // (mark + judul + tagline) WAJIB bermarker agar mengecil di HP dan
+    // hamburger tidak terdorong ke bawah.
+    for (const t of BUILT_IN_CATALOG) {
+      for (const h of t.headers) {
+        const html = (h as { html?: unknown }).html;
+        if (typeof html !== 'string' || !html) continue;
+        expect(
+          html.includes('data-hdr-burger'),
+          `${t.id}/${h.id}: header tanpa [data-hdr-burger] — hamburger tidak sejajar brand di HP`,
+        ).toBe(true);
+        expect(
+          html.includes('data-hdr-title'),
+          `${t.id}/${h.id}: judul brand tanpa [data-hdr-title] — tidak mengecil di HP`,
+        ).toBe(true);
+        // Mark hanya wajib bila varian me-render logo (brandBlock) —
+        // mis. brand-tengah hanya teks sehingga tidak punya mark.
+        if (html.includes('siteTitleInitial') || html.includes('logoUrl')) {
+          expect(
+            html.includes('data-hdr-mark'),
+            `${t.id}/${h.id}: logo brand tanpa [data-hdr-mark] — tidak mengecil di HP`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
   it("html kustom bebas pola terblokir", () => {
     const BLOCKED = [/<\s*script[\s>]/i, /<\s*\/\s*script/i, /<\s*iframe[\s>]/i, /<\s*form[\s>]/i, /\bon\w+\s*=/i];
     for (const t of BUILT_IN_CATALOG) {

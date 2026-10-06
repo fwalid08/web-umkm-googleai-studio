@@ -16,7 +16,6 @@ interface MobileMenuProps {
   showCta: boolean;
   ctaText?: string;
   ctaLink?: string;
-  subMenuSupport: boolean;
   onClose: () => void;
 }
 
@@ -26,7 +25,6 @@ export function MobileMenu({
   showCta,
   ctaText,
   ctaLink,
-  subMenuSupport,
   onClose,
 }: MobileMenuProps) {
   if (style === 'drawer-top') {
@@ -36,7 +34,6 @@ export function MobileMenu({
         showCta={showCta}
         ctaText={ctaText}
         ctaLink={ctaLink}
-        subMenuSupport={subMenuSupport}
         onClose={onClose}
       />
     );
@@ -48,7 +45,6 @@ export function MobileMenu({
       showCta={showCta}
       ctaText={ctaText}
       ctaLink={ctaLink}
-      subMenuSupport={subMenuSupport}
       onClose={onClose}
     />
   );
@@ -59,7 +55,6 @@ function DrawerTop({
   showCta,
   ctaText,
   ctaLink,
-  subMenuSupport,
   onClose,
 }: Omit<MobileMenuProps, 'style'>) {
   return (
@@ -77,7 +72,7 @@ function DrawerTop({
           </button>
         </div>
         <nav className="max-h-[70vh] overflow-y-auto">
-          <MobileMenuItems items={items} depth={0} subMenuSupport={subMenuSupport} onClose={onClose} />
+          <MobileMenuItems items={items} depth={0} onClose={onClose} />
         </nav>
         {showCta && ctaText && ctaLink && (
           <div className="p-4 border-t border-slate-200 dark:border-slate-700">
@@ -99,7 +94,6 @@ function DrawerSidebar({
   showCta,
   ctaText,
   ctaLink,
-  subMenuSupport,
   onClose,
 }: Omit<MobileMenuProps, 'style'>) {
   return (
@@ -117,7 +111,7 @@ function DrawerSidebar({
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto">
-          <MobileMenuItems items={items} depth={0} subMenuSupport={subMenuSupport} onClose={onClose} />
+          <MobileMenuItems items={items} depth={0} onClose={onClose} />
         </nav>
         {showCta && ctaText && ctaLink && (
           <div className="p-4 border-t border-slate-200 dark:border-slate-700">
@@ -137,12 +131,10 @@ function DrawerSidebar({
 function MobileMenuItems({
   items,
   depth,
-  subMenuSupport,
   onClose,
 }: {
   items: MobileMenuItem[];
   depth: number;
-  subMenuSupport: boolean;
   onClose: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -184,7 +176,7 @@ function MobileMenuItems({
               style={{ paddingLeft: `${12 + depth * 16}px` }}
             >
               <span>{item.label}</span>
-              {item.children && subMenuSupport && (
+              {item.children && (
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -202,8 +194,8 @@ function MobileMenuItems({
               )}
             </a>
           </div>
-          {item.children && subMenuSupport && expanded.has(item.id) && (
-            <MobileMenuItems items={item.children} depth={depth + 1} subMenuSupport={subMenuSupport} onClose={onClose} />
+          {item.children && expanded.has(item.id) && (
+            <MobileMenuItems items={item.children} depth={depth + 1} onClose={onClose} />
           )}
         </li>
       ))}

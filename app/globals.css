@@ -166,9 +166,49 @@ body {
 @media(prefers-reduced-motion:reduce){.bk-marquee-track{animation:none!important}}
 
 /* ============ Mobile-friendliness: builder output ============ */
+/* Konteks container-query untuk kanvas builder + live site.
+   Tanpa `container-type`, semua `@[640px]:` / `@md:` di header/section
+   tidak pernah cocok sehingga nav desktop & hamburger hilang bersamaan. */
+.builder-cq {
+  container-type: inline-size;
+}
 /* Grid produk generik: maks 2 kolom di HP agar tidak terjepit */
 @container (max-width:640px){
   .pg-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+/* ============ Header HTML kustom di mobile (<640px container) ============
+   Varian header katalog dirender dari `variant.html` yang memuat <nav>
+   teks penuh. Di layar sempit nav itu disembunyikan agar tidak wrap
+   berjejal — navigasi diambil alih tombol hamburger (`[data-hdr-burger]`)
+   yang IN-FLOW di baris brand sehingga selalu sejajar logo. Absolute
+   `top:50%` terhadap blok header DILARANG: meleset di varian multi-baris
+   (brand tengah, topbar), meleset saat konten wrap, bahkan menimpa CTA.
+   CTA bar disembunyikan di HP (duplikat CTA drawer) agar baris brand
+   selalu muat satu baris. Di ≥640px nav tampil normal dan hamburger
+   disembunyikan. */
+.tpl-header-html {
+  position: relative;
+}
+.tpl-header-html [data-hdr-burger]{display:none!important}
+/* Posisi menu header (config "Posisi Menu", tengah = bawaan space-between):
+   margin auto menyerap ruang kosong baris — terasa saat sisi kanan header
+   kosong (tanpa tombol CTA). */
+.tpl-header-html [data-hdr-navpos="left"]{margin-right:auto}
+.tpl-header-html [data-hdr-navpos="right"]{margin-left:auto}
+@container (max-width:639px){
+  .tpl-header-html > [data-tpl-type="header"] nav{display:none!important}
+  .tpl-header-html [data-hdr-burger]{display:inline-flex!important}
+  .tpl-header-html [data-hdr-cta]{display:none!important}
+  /* Brand mengecil di HP agar baris brand (logo + judul + hamburger)
+     selalu muat satu baris — hamburger tidak terdorong ke bawah.
+     Judul/tagline yang panjang terpotong ellipsis, bukan wrap. */
+  .tpl-header-html [data-hdr-mark]{width:32px!important;height:32px!important;font-size:14px!important;}
+  .tpl-header-html [data-hdr-title]{font-size:1.05rem!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+  .tpl-header-html [data-hdr-tag]{font-size:0.8rem!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+}
+@container (min-width:640px){
+  .tpl-header-html [data-hdr-burger]{display:none!important}
 }
 
 /* Navigasi anchor situs live: smooth seperti referensi + offset header sticky */

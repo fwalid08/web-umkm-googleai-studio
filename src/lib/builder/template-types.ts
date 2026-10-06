@@ -87,7 +87,8 @@ export interface MobileMenuConfig {
   showCta: boolean;
   ctaText?: string;
   ctaLink?: string;
-  subMenuSupport: boolean;
+  // NOTE: opsi `subMenuSupport` dihapus — sub-menu 1 level selalu didukung
+  // (drawer live + kanvas me-render children bila ada, tanpa toggle).
 }
 
 export interface SectionTypeDefinition {

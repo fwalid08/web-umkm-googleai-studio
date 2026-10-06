@@ -53,6 +53,7 @@ const LABELS: Record<string, string> = {
   cta2_link: "Link Tombol Kedua",
   showCta: "Tampilkan Tombol",
   sticky: "Header menempel",
+  menuPosition: "Posisi Menu",
   contentWidth: "Lebar Konten",
   topbarText: "Teks Topbar",
   topbarPhone: "Telepon Topbar",
@@ -206,7 +207,10 @@ const HEADER_DEFAULT = {
   ctaLink: "https://wa.me/6281234567890",
   showCta: true,
   sticky: true,
+  menuPosition: "center",
   contentWidth: "6xl",
+  mobileMenuCtaText: "Pesan Sekarang",
+  mobileMenuCtaLink: "https://wa.me/6281234567890",
 };
 
 const NAV_STYLE =
@@ -225,16 +229,127 @@ const NAV_STYLE =
  */
 function brandMark(bg: string, fg: string, size: number): string {
   return (
-    `<span style="display:inline-flex;align-items:center;justify-content:center;` +
+    `<span data-hdr-mark style="display:inline-flex;align-items:center;justify-content:center;` +
     `width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${fg};` +
     `font-family:var(--font-heading),serif;font-weight:700;font-size:${Math.round(size * 0.42)}px;flex:none;">{{siteTitleInitial}}</span>`
   );
 }
 
+/**
+ * Header HTML yang responsif mobile: desktop nav only.
+ * Hamburger button & drawer ditangani oleh React MobileDrawer component (live site & canvas).
+ * Menggunakan variabel CSS dari template (var(--color-*), var(--font-*)).
+ *
+ * @param inner - HTML konten header (brand, nav, CTA) — harus sudah punya desktop nav
+ * @param opts - Opsi tambahan
+ */
+function headerShellMobile(inner: string, opts: {
+  headerBg?: string;
+  headerBorder?: string;
+  headerPadding?: string;
+  headerSticky?: boolean;
+  respectStickyConfig?: boolean;
+} = {}): string {
+  const bg = opts.headerBg ?? 'var(--color-surface)';
+  const border = opts.headerBorder ?? 'var(--color-border)';
+  const padding = opts.headerPadding ?? '12px 24px';
+
+  // `sticky` TIDAK dirender di sini: `position:sticky` di dalam HTML
+  // varian terjebak pembungkus renderer yang tingginya persis setinggi
+  // header sehingga tidak pernah menempel. Toggle "Header menempel"
+  // diterapkan oleh `VariantHtmlRenderer` (prop `sticky`) di pembungkusnya.
+  if (opts.respectStickyConfig) {
+    return `
+<header style="background:${bg};border-bottom:1px solid ${border};padding:${padding};">
+  <div style="max-width:1152px;margin:0 auto;">
+    ${inner}
+  </div>
+</header>`;
+  }
+
+  const sticky = opts.headerSticky ?? true;
+  const stickyStyle = sticky ? 'position:sticky;top:0;z-index:50;' : '';
+
+  return `
+<header style="background:${bg};${stickyStyle}border-bottom:1px solid ${border};padding:${padding};">
+  <div style="max-width:1152px;margin:0 auto;">
+    ${inner}
+  </div>
+</header>`;
+}
+
+/**
+ * Blok brand header: logo <img> bila `logoUrl` diisi, fallback lencana
+ * inisial `{{siteTitleInitial}}` bila kosong. Tanpa ini field "Logo URL"
+ * di sidebar tidak berpengaruh apa pun.
+ */
+function brandBlock(bg: string, fg: string, size: number): string {
+  return (
+    `{{#if logoUrl}}<img data-hdr-mark src="{{logoUrl}}" alt="{{siteTitle}}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex:none;" />{{/if}}` +
+    `{{#if !logoUrl}}` + brandMark(bg, fg, size) + `{{/if}}`
+  );
+}
+
+/** Tombol CTA header — hanya render bila `showCta` true. */
+function ctaBlock(padding = '12px 28px', hideOnMobile = true): string {
+  return `{{#if showCta}}<a href="{{ctaLink}}"${hideOnMobile ? ' data-hdr-cta' : ''} style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:${padding};border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{ctaText}}</a>{{/if}}`;
+}
+
+/**
+ * Tombol hamburger mobile — IN-FLOW di baris brand (bukan absolute
+ * terhadap blok header). Absolute `top:50%` terbukti meleset: di varian
+ * multi-baris (brand tengah, topbar) ia jatuh di tengah blok, saat konten
+ * wrap ia bahkan menimpa CTA. In-flow = selalu sejajar logo secara
+ * konstruksi, selebar apa pun layar/konten.
+ *
+ * Tampil hanya <640px (globals.css `[data-hdr-burger]`); klik
+ * didelegasikan ke MobileDrawer. `extra` untuk kasus khusus (brand
+ * tengah: absolute di dalam blok brand yang relative).
+ */
+function burgerBtn(extra = ""): string {
+  return `<button type="button" data-hdr-burger aria-label="Buka menu navigasi" style="display:none;align-items:center;justify-content:center;width:44px;height:44px;flex:none;border-radius:10px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);cursor:pointer;${extra}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>`;
+}
+
+/** Tagline header — hilang bila dikosongkan di sidebar. */
+function taglineBlock(style: string): string {
+  return `{{#if tagline}}<div data-hdr-tag style="${style}">{{tagline}}</div>{{/if}}`;
+}
+
+const MOBILE_MENU_CONFIG = {
+  style: "drawer-sidebar" as const,
+  showCta: true,
+  ctaText: "Pesan Sekarang",
+  ctaLink: "https://wa.me/6281234567890",
+};
+
 const HEADER_BASE_CONFIG = {
   ...HEADER_DEFAULT,
   siteTitleInitial: "E",
 };
+
+/**
+ * Field sidebar header. `menuPosition` dipaksa select (bukan text) agar
+ * merchant memilih Kiri/Tengah/Kanan — nilainya CSS-ready via
+ * `data-hdr-navpos` + globals.css. Varian topbar menimpa daftar ini
+ * sendiri (butuh field topbar tambahan).
+ */
+function headerFields(extra: Record<string, unknown> = {}): ConfigField[] {
+  return inferFields({ ...HEADER_BASE_CONFIG, ...extra }).map((f) =>
+    f.key === "menuPosition"
+      ? {
+          key: "menuPosition",
+          label: "Posisi Menu",
+          type: "select" as ConfigField["type"],
+          options: [
+            { label: "Tengah", value: "center" },
+            { label: "Kiri", value: "left" },
+            { label: "Kanan", value: "right" },
+          ],
+          hint: "Posisi menu saat sisi kanan header kosong (tanpa tombol)",
+        }
+      : f,
+  );
+}
 
 const HEADERS: HeaderVariant[] = [
   {
@@ -242,51 +357,56 @@ const HEADERS: HeaderVariant[] = [
     name: "Emerald Arch",
     description: "Bar terang + garis emas ganda, brand serif + CTA pill",
     layout: vid("hdr-arch"),
-    configFields: inferFields(HEADER_BASE_CONFIG),
+    configFields: headerFields(),
     defaultConfig: { ...HEADER_BASE_CONFIG },
     mockup: vid("hdr-arch"),
     maxNavDepth: 1,
-    html: `<header style="background:var(--color-surface);border-bottom:3px double var(--color-accent);padding:12px 24px;">
-  <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;">
+    mobileMenu: MOBILE_MENU_CONFIG,
+    html: headerShellMobile(`
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;">
     <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-      ${brandMark("var(--color-primary)", "var(--color-on-primary)", 44)}
+      ${brandBlock("var(--color-primary)", "var(--color-on-primary)", 44)}
       <div style="min-width:0;">
-        <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.25rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
-        <div style="font-family:var(--font-accent),cursive;font-size:1rem;color:var(--color-accent-on-surface);line-height:1.2;">{{tagline}}</div>
+        <div data-hdr-title style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.25rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
+        ${taglineBlock("font-family:var(--font-accent),cursive;font-size:1rem;color:var(--color-accent-on-surface);line-height:1.2;")}
       </div>
     </div>
-    <nav style="${NAV_STYLE}">{{navItems}}</nav>
-    <a href="{{ctaLink}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:12px 28px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{ctaText}}</a>
+    <nav style="${NAV_STYLE}" data-hdr-navpos="{{menuPosition}}">{{navItems}}</nav>
+    ${ctaBlock()}
+    ${burgerBtn()}
   </div>
-</header>`,
+`, { respectStickyConfig: true, headerBg: 'var(--color-surface)', headerBorder: '3px double var(--color-accent)', headerPadding: '12px 24px' }),
   },
   {
     id: vid("hdr-floating"),
     name: "Pill Melayang",
     description: "Bar pil mengambang dengan bayangan lembut",
     layout: vid("hdr-floating"),
-    configFields: inferFields(HEADER_BASE_CONFIG),
+    configFields: headerFields(),
     defaultConfig: { ...HEADER_BASE_CONFIG },
     mockup: vid("hdr-floating"),
     maxNavDepth: 1,
-    html: `<div style="padding:12px 16px 0 16px;background:transparent;">
-  <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:999px;padding:10px 12px 10px 12px;box-shadow:0 12px 32px color-mix(in srgb, var(--color-text) 18%, transparent);">
-    <div style="display:flex;align-items:center;gap:10px;min-width:0;padding-left:8px;">
-      ${brandMark("var(--color-accent)", "var(--color-on-accent)", 36)}
-      <span style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.1rem;color:var(--color-text);white-space:nowrap;">{{siteTitle}}</span>
+    mobileMenu: MOBILE_MENU_CONFIG,
+    html: headerShellMobile(`
+  <div style="padding:0 8px;background:transparent;">
+    <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:999px;padding:10px 12px 10px 12px;box-shadow:0 12px 32px color-mix(in srgb, var(--color-text) 18%, transparent);">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;padding-left:8px;">
+        ${brandBlock("var(--color-accent)", "var(--color-on-accent)", 36)}
+        <span data-hdr-title style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.1rem;color:var(--color-text);white-space:nowrap;">{{siteTitle}}</span>
+      </div>
+      <nav style="${NAV_STYLE}" data-hdr-navpos="{{menuPosition}}">{{navItems}}</nav>
+      ${ctaBlock('10px 24px')}
+      ${burgerBtn()}
     </div>
-    <nav style="${NAV_STYLE}">{{navItems}}</nav>
-    <a href="{{ctaLink}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:10px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{ctaText}}</a>
   </div>
-</div>`,
+`, { respectStickyConfig: true, headerBg: 'var(--color-primary)', headerBorder: 'transparent', headerPadding: '14px 16px 18px 16px', headerSticky: false }),
   },
   {
     id: vid("hdr-topbar"),
     name: "Topbar Promo",
     description: "Pita promo hijau tua + bar utama terang",
     layout: vid("hdr-topbar"),
-    configFields: inferFields({
-      ...HEADER_BASE_CONFIG,
+    configFields: headerFields({
       topbarText: "Promo: Antar-Jemput GRATIS se-Kota minggu ini",
       topbarPhone: "0812-3456-7890",
       topbarEmail: "halo@emeraldlaundry.id",
@@ -299,72 +419,82 @@ const HEADERS: HeaderVariant[] = [
     },
     mockup: vid("hdr-topbar"),
     maxNavDepth: 1,
-    html: `<header>
-  <div style="background:var(--color-primary);color:var(--color-on-primary);padding:8px 24px;font-family:var(--font-body),sans-serif;font-size:0.75rem;">
-    <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;">
-      <span style="font-weight:600;letter-spacing:0.04em;">✦ {{topbarText}}</span>
-      <span style="opacity:0.9;">{{topbarPhone}} · {{topbarEmail}}</span>
-    </div>
-  </div>
-  <div style="background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:12px 24px;">
-    <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        ${brandMark("var(--color-primary)", "var(--color-on-primary)", 40)}
-        <div style="min-width:0;">
-          <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.15rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
-          <div style="font-size:0.75rem;color:var(--color-text-muted);font-family:var(--font-body),sans-serif;">{{tagline}}</div>
-        </div>
+    mobileMenu: MOBILE_MENU_CONFIG,
+    html: headerShellMobile(`
+  <header>
+    <div style="background:var(--color-primary);color:var(--color-on-primary);padding:8px 24px;font-family:var(--font-body),sans-serif;font-size:0.75rem;">
+      <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;">
+        <span style="font-weight:600;letter-spacing:0.04em;">✦ {{topbarText}}</span>
+        <span style="opacity:0.9;">{{topbarPhone}} · {{topbarEmail}}</span>
       </div>
-      <nav style="${NAV_STYLE}">{{navItems}}</nav>
-      <a href="{{ctaLink}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:12px 28px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{ctaText}}</a>
     </div>
-  </div>
-</header>`,
+    <div style="background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:12px 24px;">
+      <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+          ${brandBlock("var(--color-primary)", "var(--color-on-primary)", 40)}
+          <div style="min-width:0;">
+            <div data-hdr-title style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.15rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
+            ${taglineBlock("font-size:0.75rem;color:var(--color-text-muted);font-family:var(--font-body),sans-serif;")}
+          </div>
+        </div>
+        <nav style="${NAV_STYLE}" data-hdr-navpos="{{menuPosition}}">{{navItems}}</nav>
+        ${ctaBlock()}
+        ${burgerBtn()}
+      </div>
+    </div>
+  </header>
+`, { respectStickyConfig: true, headerBg: 'var(--color-surface)', headerBorder: 'none', headerPadding: '0' }),
   },
-  {
+{
     id: vid("hdr-split"),
     name: "Blok Brand",
     description: "Blok brand besar kiri dengan bingkai emas, menu kanan",
     layout: vid("hdr-split"),
-    configFields: inferFields(HEADER_BASE_CONFIG),
+    configFields: headerFields(),
     defaultConfig: { ...HEADER_BASE_CONFIG },
     mockup: vid("hdr-split"),
     maxNavDepth: 1,
-    html: `<header style="background:var(--color-surface);padding:16px 24px;border-bottom:1px solid var(--color-border);">
+    mobileMenu: MOBILE_MENU_CONFIG,
+    html: headerShellMobile(`
   <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px;">
     <div style="display:flex;align-items:center;gap:14px;border:1px solid var(--color-accent);border-radius:var(--radius);padding:10px 18px 10px 10px;min-width:0;">
-      ${brandMark("var(--color-primary)", "var(--color-on-primary)", 52)}
+      ${brandBlock("var(--color-primary)", "var(--color-on-primary)", 52)}
       <div style="min-width:0;">
-        <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.4rem;color:var(--color-text);line-height:1.15;">{{siteTitle}}</div>
-        <div style="font-family:var(--font-accent),cursive;font-size:1.05rem;color:var(--color-secondary-on-surface);line-height:1.2;">{{tagline}}</div>
+        <div data-hdr-title style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.4rem;color:var(--color-text);line-height:1.15;">{{siteTitle}}</div>
+        ${taglineBlock("font-family:var(--font-accent),cursive;font-size:1.05rem;color:var(--color-secondary-on-surface);line-height:1.2;")}
       </div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 28px;">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 28px;" data-hdr-navpos="{{menuPosition}}">
       <nav style="${NAV_STYLE}">{{navItems}}</nav>
-      <a href="{{ctaLink}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:12px 28px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{ctaText}}</a>
+      ${ctaBlock()}
+      ${burgerBtn()}
     </div>
   </div>
-</header>`,
+`, { respectStickyConfig: true, headerBg: 'var(--color-surface)', headerBorder: '1px solid var(--color-border)', headerPadding: '16px 24px' }),
   },
-  {
+{
     id: vid("hdr-centered"),
     name: "Brand Tengah",
     description: "Brand serif tengah + baris menu simetris di bawah",
     layout: vid("hdr-centered"),
-    configFields: inferFields(HEADER_BASE_CONFIG),
+    configFields: headerFields(),
     defaultConfig: { ...HEADER_BASE_CONFIG },
     mockup: vid("hdr-centered"),
     maxNavDepth: 1,
-    html: `<header style="background:var(--color-surface);border-bottom:3px double var(--color-accent);padding:16px 24px 12px 24px;text-align:center;">
-  <div style="max-width:1152px;margin:0 auto;">
-    <div style="font-family:var(--font-accent),cursive;font-size:1.2rem;color:var(--color-secondary-on-surface);">{{tagline}}</div>
-    <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.75rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
+    mobileMenu: MOBILE_MENU_CONFIG,
+    html: headerShellMobile(`
+  <div style="max-width:1152px;margin:0 auto;text-align:center;">
+    <div style="position:relative;">
+      ${burgerBtn("position:absolute;right:0;top:50%;transform:translateY(-50%);")}
+      ${taglineBlock("font-family:var(--font-accent),cursive;font-size:1.2rem;color:var(--color-secondary-on-surface);")}
+      <div data-hdr-title style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.75rem;color:var(--color-text);line-height:1.2;">{{siteTitle}}</div>
+    </div>
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 16px;margin-top:12px;">
       <nav style="${NAV_STYLE}">{{navItems}}</nav>
-      <a href="{{ctaLink}}" style="display:inline-block;background:var(--color-primary);color:var(--color-on-primary);padding:10px 26px;border-radius:999px;font-weight:600;text-decoration:none;font-size:0.875rem;font-family:var(--font-body),sans-serif;white-space:nowrap;">{{ctaText}}</a>
+      ${ctaBlock('10px 26px', false)}
     </div>
   </div>
-</header>`,
+`, { respectStickyConfig: true, headerBg: 'var(--color-surface)', headerBorder: '3px double var(--color-accent)', headerPadding: '16px 24px 12px 24px' }),
   },
 ];
 
@@ -480,7 +610,7 @@ const FOOTERS: FooterVariant[] = [
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:32px;">
       <div>
         <div style="font-family:var(--font-heading),serif;font-weight:700;font-size:1.5rem;line-height:1.2;">{{siteTitle}}</div>
-        <div style="font-family:var(--font-accent),cursive;font-size:1.1rem;color:var(--color-accent-on-primary);margin:4px 0 12px 0;">{{tagline}}</div>
+        ${taglineBlock("font-family:var(--font-accent),cursive;font-size:1.1rem;color:var(--color-accent-on-primary);margin:4px 0 12px 0;")}
         <p style="font-size:0.875rem;line-height:1.6;opacity:0.85;font-family:var(--font-body),sans-serif;">{{address}}</p>
       </div>
       <div>
@@ -1118,7 +1248,9 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
   sections: SECTIONS,
   colorSchemes: [
     // Light schemes (10) — BRAND GOLD accent preserved (#C6A15B)
-    // Text-on-accent uses derived tokens (--color-accent-on-*) for readability
+    // Varian hue: hijau (emerald/teal/mint/forest/olive/pine) + biru (sapphire)
+    // + ungu (violet) + pink (rose) + coral (sunset). Teks di atas primary
+    // memakai token turunan (--color-accent-on-primary) agar terbaca.
     // Accent used as BACKGROUND (buttons, badges, bands); text on it uses --color-on-accent
     {
       id: 'emerald-luxury',
@@ -1137,10 +1269,10 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       bodyFont: 'Inter',
     },
     {
-      id: 'sage-calm',
-      name: 'Sage Calm',
+      id: 'sapphire-royal',
+      name: 'Sapphire Royal',
       category: 'light',
-      palette: { background: '#f7fee7', surface: '#ffffff', primary: '#4d7c0f', accent: '#c6a15b', text: '#1a2e05', textMuted: '#4b5563', border: '#d9f99d' },
+      palette: { background: '#eff6ff', surface: '#ffffff', primary: '#1e3a8a', accent: '#c6a15b', text: '#172554', textMuted: '#475569', border: '#bfdbfe' },
       headingFont: 'Cormorant Garamond',
       bodyFont: 'Inter',
     },
@@ -1161,18 +1293,18 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       bodyFont: 'Inter',
     },
     {
-      id: 'jade-clean',
-      name: 'Jade Clean',
+      id: 'violet-luxe',
+      name: 'Violet Luxe',
       category: 'light',
-      palette: { background: '#f0fdfa', surface: '#ffffff', primary: '#0d9488', accent: '#c6a15b', text: '#134e4a', textMuted: '#4b5563', border: '#99f6e4' },
+      palette: { background: '#faf5ff', surface: '#ffffff', primary: '#581c87', accent: '#c6a15b', text: '#3b0764', textMuted: '#52525b', border: '#ddd6fe' },
       headingFont: 'Raleway',
       bodyFont: 'Inter',
     },
     {
-      id: 'seafoam-pure',
-      name: 'Seafoam Pure',
+      id: 'rose-bloom',
+      name: 'Rose Bloom',
       category: 'light',
-      palette: { background: '#f0fdfa', surface: '#ffffff', primary: '#14b8a6', accent: '#c6a15b', text: '#134e4a', textMuted: '#4b5563', border: '#99f6e4' },
+      palette: { background: '#fdf2f8', surface: '#ffffff', primary: '#831843', accent: '#c6a15b', text: '#500f28', textMuted: '#57534e', border: '#fbcfe8' },
       headingFont: 'Outfit',
       bodyFont: 'Inter',
     },
@@ -1193,14 +1325,16 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       bodyFont: 'Inter',
     },
     {
-      id: 'eucalyptus-spa',
-      name: 'Eucalyptus Spa',
+      id: 'sunset-coral',
+      name: 'Sunset Coral',
       category: 'light',
-      palette: { background: '#f0fdf4', surface: '#ecfdf5', primary: '#15803d', accent: '#c6a15b', text: '#166534', textMuted: '#4b5563', border: '#a7f3d0' },
+      palette: { background: '#fff7ed', surface: '#ffffff', primary: '#9a3412', accent: '#c6a15b', text: '#431407', textMuted: '#57534e', border: '#fed7aa' },
       headingFont: 'Figtree',
       bodyFont: 'Inter',
     },
     // Dark schemes (10) — BRIGHT GOLD accent for dark backgrounds
+    // Varian hue: hijau (midnight/noir/obsidian/graphite/raven/abyss)
+    // + biru (sapphire) + ungu (violet) + pink (rose) + sky (ocean).
     // Brand gold #c6a15b works on very dark; #fde047 (bright gold) for less dark
     // Text on accent uses --color-on-accent (auto dark text)
     {
@@ -1212,18 +1346,18 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       bodyFont: 'Inter',
     },
     {
-      id: 'deep-teal',
-      name: 'Deep Teal',
+      id: 'midnight-sapphire',
+      name: 'Midnight Sapphire',
       category: 'dark',
-      palette: { background: '#050e0c', surface: '#0f172a', primary: '#2dd4bf', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#0f766e' },
+      palette: { background: '#020617', surface: '#0f172a', primary: '#60a5fa', accent: '#fde047', text: '#eff6ff', textMuted: '#93c5fd', border: '#1e3a8a' },
       headingFont: 'Syne',
       bodyFont: 'Inter',
     },
     {
-      id: 'shadow-sage',
-      name: 'Shadow Sage',
+      id: 'ocean-glow',
+      name: 'Ocean Glow',
       category: 'dark',
-      palette: { background: '#0c0a09', surface: '#1c1917', primary: '#84cc16', accent: '#fde047', text: '#f4f4f5', textMuted: '#a1a1aa', border: '#27272a' },
+      palette: { background: '#020d14', surface: '#0a1620', primary: '#38bdf8', accent: '#fde047', text: '#f0f9ff', textMuted: '#7dd3fc', border: '#0c4a6e' },
       headingFont: 'Cormorant Garamond',
       bodyFont: 'Inter',
     },
@@ -1244,18 +1378,18 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       bodyFont: 'Inter',
     },
     {
-      id: 'onyx-jade',
-      name: 'Onyx Jade',
+      id: 'neon-violet',
+      name: 'Neon Violet',
       category: 'dark',
-      palette: { background: '#060b0a', surface: '#0f172a', primary: '#14b8a6', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#0f766e' },
+      palette: { background: '#0f0a1f', surface: '#1e1b2e', primary: '#a78bfa', accent: '#fde047', text: '#f5f3ff', textMuted: '#c4b5fd', border: '#4c1d95' },
       headingFont: 'Raleway',
       bodyFont: 'Inter',
     },
     {
-      id: 'coal-seafoam',
-      name: 'Coal Seafoam',
+      id: 'rose-neon',
+      name: 'Rose Neon',
       category: 'dark',
-      palette: { background: '#050e0c', surface: '#0f172a', primary: '#2dd4bf', accent: '#fde047', text: '#ecfdf5', textMuted: '#6ee7b7', border: '#0f766e' },
+      palette: { background: '#14060f', surface: '#1f1018', primary: '#f472b6', accent: '#fde047', text: '#fdf2f8', textMuted: '#f9a8d4', border: '#831843' },
       headingFont: 'Outfit',
       bodyFont: 'Inter',
     },
@@ -1365,6 +1499,16 @@ export const LAUNDRY_EMERALD_TEMPLATE: CatalogTemplate = {
       navItems: NAV_ITEMS.slice(0, 4),
       showNav: true,
       showSocial: true,
+    },
+    bottomBar: {
+      enabled: true,
+      items: [
+        { id: "home", label: "Beranda", icon: "Home", url: "#beranda" },
+        { id: "services", label: "Layanan", icon: "Package", url: "#layanan" },
+        { id: "cta", label: "Pesan", icon: "MessageCircle", url: "https://wa.me/6281234567890", isExternal: true },
+        { id: "testimonials", label: "Testimoni", icon: "Star", url: "#testimoni" },
+        { id: "contact", label: "Kontak", icon: "Phone", url: "#kontak" },
+      ],
     },
     seo: {
       title: `${BRAND} — Laundry Premium Antar-Jemput`,

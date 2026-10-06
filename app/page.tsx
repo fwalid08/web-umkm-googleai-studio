@@ -88,6 +88,10 @@ export default async function Home() {
               animations: site.templateAnimations,
               behaviours: site.templateBehaviours,
               customCss: site.templateCustomCss,
+              bottomBar: (templateData as { bottomBar?: {
+                enabled?: boolean;
+                items?: Array<{ id: string; label: string; icon: string; url: string; isExternal?: boolean; enabled?: boolean; badge?: string }>;
+              } }).bottomBar,
               seo: site.seo,
             }}
           />

@@ -184,6 +184,24 @@ describe("kontrak template unik (§18)", () => {
     }
   });
 
+  it("posisi menu header berupa select Kiri/Tengah/Kanan", () => {
+    // Regresi: `menuPosition` harus select (bukan text) agar merchant tidak
+    // mengetik manual, dan nilainya harus cocok dengan aturan CSS
+    // `[data-hdr-navpos]` di globals.css.
+    for (const t of uniqueTemplates) {
+      for (const h of t.headers) {
+        const field = h.configFields.find((f) => f.key === "menuPosition");
+        expect(field, `${t.id}/${h.id}: tanpa field menuPosition`).toBeDefined();
+        expect(field!.type, `${t.id}/${h.id}: menuPosition bukan select`).toBe("select");
+        const values = new Set((field!.options ?? []).map((o) => o.value));
+        expect(values, `${t.id}/${h.id}: opsi menuPosition tidak lengkap`).toEqual(
+          new Set(["center", "left", "right"]),
+        );
+        expect(h.defaultConfig.menuPosition, `${t.id}/${h.id}: default menuPosition`).toBe("center");
+      }
+    }
+  });
+
   it("maxNavDepth seragam di seluruh varian header", () => {
     for (const t of uniqueTemplates) {
       const depths = new Set(t.headers.map((h) => h.maxNavDepth ?? 1));
