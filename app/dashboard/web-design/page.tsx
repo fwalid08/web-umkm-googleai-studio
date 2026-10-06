@@ -139,6 +139,7 @@ function CustomizeInner() {
         <TemplatePicker
           websiteId={site.id}
           activeTemplateId={activeTemplateId}
+          redirectAfterApply="/dashboard/web-design/customize"
           onTemplateApplied={(templateId) => {
             // Refresh kartu template aktif: identitas dari server bila tersedia.
             setTemplateRefreshKey((k) => k + 1);

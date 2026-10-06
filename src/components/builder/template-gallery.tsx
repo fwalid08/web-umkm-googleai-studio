@@ -417,9 +417,9 @@ const colors = getStyleColors(template.data);
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-[13px] font-bold transition-colors ${
-              tab === key
-                ? 'bg-white dark:bg-slate-800 text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                tab === key
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {key === 'catalog' ? (

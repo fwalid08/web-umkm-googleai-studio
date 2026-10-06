@@ -145,6 +145,54 @@ Register new fonts in `src/lib/builder/font-categories.ts` before referencing
 them — the test `font template terdaftar di FONT_CATEGORIES` will fail
 otherwise.
 
+### 3.1.1 ContrastContract (recommended for unique templates)
+
+`contrast` is a v3.5 contract that declares which foreground/background token
+pairs must meet WCAG ratios when the user switches color schemes. Without it,
+`buildRenderTemplate()` still produces a template, but the test
+`buildRenderTemplate(): live site & canvas WAJIB dapat field yang sama`
+expects `live.contrast` to be defined — and `validateColorScheme()` skips
+contract checks entirely.
+
+```ts
+interface ContrastContract {
+  pairs: ContrastPair[];
+}
+
+interface ContrastPair {
+  fg: ContrastTokenKey;   // e.g. 'text', 'primary', 'accent'
+  bg: ContrastTokenKey;   // e.g. 'background', 'surface', 'primary'
+  role: ContrastPairRole; // 'normal-text' | 'large-text' | 'ui-component'
+  minRatio?: number;      // optional explicit override
+  token?: string;         // optional token name override
+  note?: string;          // diagnostics context
+}
+```
+
+`auditContrastCoverage` compares this declaration against what your
+`variant.html` actually uses and returns warnings — it never blocks, but a
+missing pair means a scheme change can silently produce unreadable text.
+
+### 3.1.2 ColorScheme
+
+Each entry in `colorSchemes` must pass `validateColorScheme()`. A template
+allows at most 20 schemes: 10 `light` + 10 `dark`. Each scheme overrides the
+template palette and optionally the fonts.
+
+```ts
+interface ColorScheme {
+  id: string;
+  name: string;
+  category: 'light' | 'dark';
+  palette: DesignStylePalette;       // 8 keys
+  headingFont?: string;              // optional font override
+  bodyFont?: string;
+  accentFont?: string;
+}
+```
+
+---
+
 ### 3.2 Headers & Footers
 
 Each variant follows the same shape:
@@ -166,11 +214,28 @@ interface HeaderVariant {
 interface FooterVariant { /* same minus mobileMenu/maxNavDepth */ }
 ```
 
+**`maxNavDepth`**: `1` = flat nav only; `2` = may render one level of
+dropdown submenu. The sidebar shows/hides the "Submenu" field based on this,
+so a template must declare the same value in every header variant.
+
+**`mobileMenu`**: configures the slide-out drawer used on mobile. Typical
+value: `{ style: 'drawer-sidebar', showCta: true, ctaText: 'Pesan Sekarang',
+ctaLink: 'https://wa.me/…' }`.
+
 **Footer `text` MUST contain `{year}`** — the test
 `setiap template punya nav header + seo + footer {year}` rejects otherwise.
-At render time `{year}` is replaced by the current year. Never render
-`{year}` literally to users (guarded by
+At render time `{year}` is replaced by the current year via
+`resolveYearToken()` in `behaviour-script.ts`. Never render `{year}`
+literally to users (guarded by
 `setiap varian footer TIDAK menampilkan {year} mentah ke pengguna`).
+
+**Seed legacy fields**: `data.header.variant` and `data.footer.style` still
+use the old generic layout names (`"standard"`, `"columns"`, …) and are
+validated against `chrome.ts` by the old contract test. The actual runtime
+resolution uses `headerVariantId` / `footerVariantId` (namespaced), which
+default to `template.headers[0].id` / `template.footers[0].id`. Keep the
+generic names in the seed for now — the unique-template guard checks the
+declared variants, not the seed chrome keys.
 
 ### 3.3 Sections
 
@@ -229,7 +294,6 @@ interface FullTemplateData {
   core?: Partial<CoreConfig>;
   customCss?: string;       // template-wide CSS, tokens only
   bottomBar?: BottomBarConfig; // mobile bottom nav, ≤ 5 items
-  popup?: PopupConfig;      // welcome/promo popup, default disabled
 }
 ```
 
@@ -239,6 +303,34 @@ all 8 core types — `hero`, `features`, `pricing`, `testimonials`, `gallery`,
 
 Every `data.sections[].variant` MUST resolve through
 `builderSectionToInstance()` to the same variant id (no silent fallback).
+`anchorId` becomes the HTML `id` of the rendered section; duplicates are
+deduplicated (`beranda`, `beranda-2`, …) and reserved slugs
+(`RESERVED_SLUGS` in `src/lib/pages/slug.ts`) are rejected.
+
+Optional seed blocks that should not be forgotten:
+
+```ts
+bottomBar?: {
+  enabled?: boolean;
+  items?: Array<{
+    id: string;
+    label: string;
+    icon: string;
+    url: string;
+    isExternal?: boolean;
+    enabled?: boolean;
+    badge?: string;
+  }>;
+  // ≤ 5 items, every item needs an icon, CTA in the middle via a dedicated item,
+  // hidden ≥ 1024 px, safe-area bottom padding (§17.3)
+};
+```
+
+§17.5 also expects a `hero-carousel` section variant somewhere in the template
+with `slides` config + autoplay (guarded by the mobile checklist, not a hard
+test).
+
+---
 
 ### 3.5 ConfigField
 
@@ -264,6 +356,22 @@ Every key in `defaultConfig` (except implicit keys) MUST appear in
 
 For list fields, `itemFields` must be complete: every key used inside a list
 item object needs a matching field, or the repeater renders raw values.
+
+### 3.6 Template Expression Syntax
+
+Inside `html`, placeholders are double-brace tokens processed by
+`renderVariantHtml()`:
+
+| Syntax | Meaning | Example |
+|---|---|---|
+| `{{key}}` | Escaped text replacement of `config[key]` | `{{headline}}` |
+| `{{{key}}}` | Raw HTML insertion (sanitized, for `type: 'html'` fields) | `{{{aboutContent}}}` |
+| `{{#if key}}…{{/if}}` | Render block only when `config[key]` is truthy | `{{#if showCta}}<a>…</a>{{/if}}` |
+| `{{#if !key}}…{{/if}}` | Render block only when `config[key]` is falsy | `{{#if !logoUrl}}<span>E</span>{{/if}}` |
+| `{{#items}}…{{/items}}` | Loop over a list field; inner `{{subKey}}` reads item keys | `{{#items}}<li>{{title}}</li>{{/items}}` |
+
+Never write `{{items}}` for a list field — it stringifies to
+`[object Object]`.
 
 ---
 
@@ -317,8 +425,8 @@ export const FASHION_TEMPLATE: CatalogTemplate = {
       { type: "faq", variant: vid("faq-accordion"), anchorId: "faq", config: {…} },
       { type: "contact", variant: vid("contact-form"), anchorId: "kontak", config: {…} },
     ],
-    header: { variant: vid("hdr-lookbook"), navItems: […], ctaText: "…", /* … */ },
-    footer: { text: `© {year} ${BRAND}. …`, /* … */ },
+    header: { variant: "standard", navItems: […], ctaText: "…", /* … */ },
+    footer: { style: "columns", text: `© {year} ${BRAND}. …`, /* … */ },
     seo: { title: `${BRAND} — …`, description: "…" },
     core: { site_title: BRAND, tagline: "…" },
     customCss: "/* tokens only, targets [data-tpl-type] / [data-tpl-variant] */",
@@ -354,6 +462,13 @@ Reference patterns from `laundry-emerald.ts`:
 - `maxNavDepth` must be identical across all variants (typically `1`).
 - `menuPosition` config field MUST be a `select` with options
   `center|left|right`, default `"center"` (test-enforced).
+- `mockup` is used by `MockupPreview` in the section/sidebar picker. The
+  helper recognizes prefixes like `hero-`, `features-`, `header-`, `footer-`.
+  Because unique-template IDs are namespaced (`fashion:hero-lookbook`), they
+  do NOT match those prefixes and fall back to `DefaultMockup` unless you add
+  a matching branch in `renderMockup()` (`mockup-preview.tsx`). For the
+  gallery card, drop a screenshot at `public/thumbnails/<templateId>.jpg` —
+  the card reads that file directly.
 
 ### Step 4 — Author footer variants (≥ 5)
 
@@ -363,6 +478,7 @@ Reference patterns from `laundry-emerald.ts`:
 - Varian tanpa toggle must NOT render `{{navItems}}` at all.
 - `{year}` inside `defaultConfig.text` must be substituted by the renderer —
   never leak the literal string (test-enforced).
+- `mockup` follows the same rule as header variants.
 
 ### Step 5 — Author section variants (all 18 types, ≥ 3 variants each)
 
@@ -388,12 +504,18 @@ Helpers worth copying from `laundry-emerald.ts`:
 
 - `inferFields(config)` — derives `ConfigField[]` from `defaultConfig` so
   every key automatically has a form field. Override specific keys (e.g.
-  `menuPosition` → `select`) afterwards.
+  `menuPosition` → `select`) afterwards. The generated labels come from
+  `prettyLabel()`: a built-in Indonesian `LABELS` map for common keys, with
+  camelCase → Title Case fallback.
 - `sectionShell(inner, bg, pad)` — wraps inner HTML in
   `<section>…<div style="max-width:1152px;margin:0 auto;">…` so the section
   is boxed and centered.
 - List fields use `{{#items}}…{{/items}}` loops — NOT `{{items}}` (which
   renders `[object Object]`).
+- All remote images should use verified host IDs. Verify Pexels IDs before
+  shipping: `bun scripts/verify-template-images.ts`. A dead image ID shows
+  a broken image in the preview and the test for empty image fields in the
+  seed catches empty strings, but not dead remote URLs.
 
 ### Step 6 — Register and test
 

@@ -56,6 +56,17 @@ export function resolveTemplateId(id: string): string {
   return id.replace(/^(system|builtin)-/, "");
 }
 /** Satu item template library user (baris `is_library` di user_templates). */
+/** Penanda sessionStorage: template yang menunggu di-staging ke kanvas
+ *  oleh halaman /dashboard/web-design/customize saat load. Dihapus setelah
+ *  dibaca (staging hanya sekali — buka halaman berikutnya harus normal). */
+export const PENDING_TEMPLATE_KEY = "pending-template-apply";
+
+/** Bentuk payload sessionStorage untuk staging-kanvas dari halaman daftar
+ *  template (web-design) ke editor (customize). */
+export type PendingTemplatePayload =
+  | { kind: "builtin"; id: string }
+  | { kind: "library"; saved: SavedTemplateEntry };
+
 export interface SavedTemplateEntry {
   /** `saved-<uuid>` — slug sintetis, bukan slug katalog. */
   id: string;

@@ -14,7 +14,12 @@ import {
   resolveChromeConfig,
   templateIdForApiName,
 } from "@/lib/builder/migration";
-import { resolveTemplateId } from "@/lib/builder/apply-template";
+import {
+  PENDING_TEMPLATE_KEY,
+  resolveTemplateId,
+  savedTemplateBaseId,
+  type PendingTemplatePayload,
+} from "@/lib/builder/apply-template";
 import { hydrateCanvasFromConfig } from "@/lib/builder/hydrate-canvas";
 import { getTemplate } from "@/lib/builder/template-store";
 
@@ -151,6 +156,46 @@ export default function PageBuilderPage() {
         });
         if (seedTemplate) {
           libMetaRef.current = { id: seedTemplate.id, source: "builtin" };
+        }
+
+        // Staging dari halaman daftar template (web-design): customize page
+        // menuliskan template pilihan ke kanvas — TIDAK menimpa live site.
+        // Dibaca sekali lalu dihapus, jadi kunjungan berikutnya load normal.
+        try {
+          const rawPending = sessionStorage.getItem(PENDING_TEMPLATE_KEY);
+          if (rawPending) {
+            sessionStorage.removeItem(PENDING_TEMPLATE_KEY);
+            const pending = JSON.parse(rawPending) as PendingTemplatePayload;
+            if (pending?.kind === "builtin" && typeof pending.id === "string") {
+              // Sama persis dengan staging galeri builder (builder-sidebar):
+              // terapkan ke template-store saja — tanpa PUT ke server.
+              const storeTemplate = getTemplate(resolveTemplateId(pending.id));
+              if (storeTemplate) {
+                useTemplateStore.getState().applyTemplate(storeTemplate.id, storeTemplate);
+                useBuilderStore.getState().resetPaletteOverride();
+              }
+            } else if (pending?.kind === "library" && pending.saved) {
+              // Sama dengan staging library galeri builder: hydrate dari
+              // custom_config baris library + pindahkan slug library aktif.
+              const baseId = savedTemplateBaseId(pending.saved);
+              const hydrated = hydrateCanvasFromConfig({
+                config: pending.saved.custom_config,
+                templateId: baseId,
+                saved: false,
+              });
+              if (hydrated) {
+                libMetaRef.current = { id: pending.saved.id, source: "saved" };
+                activeLibraryRef.current = pending.saved.id;
+                window.dispatchEvent(
+                  new CustomEvent("active-library-changed", {
+                    detail: { template_slug: pending.saved.id },
+                  }),
+                );
+              }
+            }
+          }
+        } catch {
+          // Payload gagal diparse → abaikan, kanvas sudah terisi dari server.
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Gagal memuat halaman");

@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Eye, Library, Loader2, LayoutTemplate, Trash2 } from "lucide-react";
 import {
+  PENDING_TEMPLATE_KEY,
   applySavedTemplate,
   deleteSavedTemplate,
   savedToCatalogEntry,
@@ -43,11 +45,16 @@ export function TemplatePicker({
   websiteId,
   activeTemplateId,
   onTemplateApplied,
+  redirectAfterApply,
 }: {
   websiteId: string;
   activeTemplateId?: string | null;
   onTemplateApplied?: (templateId: string) => void;
+  /** Bila diisi, setelah template berhasil diterapkan user langsung
+   *  diarahkan ke route ini (mis. halaman customize). */
+  redirectAfterApply?: string;
 }) {
+  const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -155,7 +162,21 @@ export function TemplatePicker({
     setBusyId(tpl.id);
     setError("");
     setNotice("");
+    // Staging-kanvas: template BELUM di-PUT ke server — live site tidak
+    // berubah. Penanda disimpan ke sessionStorage, lalu customize page
+    // men-staging-nya ke kanvas saat load (meniru galeri builder). Tayangkan
+    // yang baru menulis live. Tanpa redirectAfterApply, fallback ke PUT lama.
     try {
+      if (redirectAfterApply) {
+        sessionStorage.setItem(
+          PENDING_TEMPLATE_KEY,
+          JSON.stringify({ kind: "builtin", id: tpl.id }),
+        );
+        setPending(null);
+        setNotice(`Template "${tpl.name}" dimuat ke kanvas. Tekan "Tayangkan" di editor untuk mengubah live site.`);
+        router.push(redirectAfterApply);
+        return;
+      }
       // Satu-satunya jalur apply — `lib/builder/apply-template`.
       // Jangan diduplikasi: dua call site pernah punya versi berbeda
       // dan satu di antaranya tertinggal (bug template library).
@@ -229,7 +250,7 @@ export function TemplatePicker({
               onClick={() => setTab(key)}
               className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-[13px] font-bold transition-colors ${
                 tab === key
-                  ? "bg-white dark:bg-slate-800 text-foreground shadow-sm"
+                  ? "bg-primary text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -291,6 +312,19 @@ export function TemplatePicker({
                     setNotice("");
                     setBusyId(saved.id);
                     void (async () => {
+                      if (redirectAfterApply) {
+                        // Staging-kanvas: config library ditulis ke kanvas
+                        // oleh customize page saat load — live site baru
+                        // berubah setelah "Tayangkan".
+                        sessionStorage.setItem(
+                          PENDING_TEMPLATE_KEY,
+                          JSON.stringify({ kind: "library", saved }),
+                        );
+                        setNotice(`Template "${saved.name}" dimuat ke kanvas. Tekan "Tayangkan" di editor untuk mengubah live site.`);
+                        setBusyId(null);
+                        router.push(redirectAfterApply);
+                        return;
+                      }
                       // Aturan library: menerapkan library LAIN pertama kali →
                       // server INSERT salinan baru sekaligus mengupsert aktif.
                       // Daftar dimuat ulang agar kartu baru langsung tampil.
@@ -525,22 +559,9 @@ function PickerCard({
   // thumbnail tampil, tidak ada huruf yang menutupinya.
   const [thumbFailed, setThumbFailed] = useState(false);
   const showInitial = !thumbnailSrc || thumbFailed;
-  const activate = () => {
-    if (!isActive && !applying) onSelect();
-  };
   return (
     <div
-      role="button"
-      tabIndex={applying ? -1 : 0}
-      onClick={activate}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && !applying) {
-          e.preventDefault();
-          activate();
-        }
-      }}
-      aria-disabled={applying}
-      className="group text-left rounded-2xl border-2 overflow-hidden transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-border hover:border-primary/50 hover:shadow-md data-[active=true]:border-primary data-[active=true]:shadow-md data-[busy=true]:opacity-70 data-[busy=true]:pointer-events-none"
+      className="group text-left rounded-2xl border-2 overflow-hidden transition-all border-border hover:border-primary/50 hover:shadow-md data-[active=true]:border-primary data-[active=true]:shadow-md data-[busy=true]:opacity-70 data-[busy=true]:pointer-events-none"
       data-active={isActive}
       data-busy={applying}
     >
@@ -612,8 +633,24 @@ function PickerCard({
         </p>
         <p className="text-xs text-muted-foreground line-clamp-2">{tpl.description}</p>
         <p className="text-xs font-semibold text-primary pt-1">
-          {isActive ? "Template yang sedang dipakai" : "Klik untuk menerapkan"}
+          {isActive ? "Template yang sedang dipakai" : "Belum dipakai"}
         </p>
+        <Button
+          type="button"
+          size="sm"
+          disabled={applying || isActive}
+          className="h-8 w-full"
+          onClick={onSelect}
+          aria-label={`Terapkan ${tpl.name}`}
+        >
+          {applying ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Menerapkan…
+            </>
+          ) : (
+            "Terapkan"
+          )}
+        </Button>
         {onPreview && (
           <Button
             type="button"
