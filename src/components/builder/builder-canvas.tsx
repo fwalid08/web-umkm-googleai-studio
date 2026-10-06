@@ -390,62 +390,78 @@ export function BuilderCanvas({ preview = false, fullBleed = false, websiteId }:
                               </span>
                             </div>
 
-<div className="absolute left-2 top-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity z-10 section-toolbar section-toolbar-left">
-                               <div
-                                 className="flex items-center gap-1.5 builder-tool"
-                                 onClick={(e) => e.stopPropagation()}
-                               >
-                                 <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-200 px-2 py-1 rounded-lg">
-                                   #{index + 1}
-                                 </span>
-                                 <button
-                                   onClick={() => index > 0 && reorderSections(index, index - 1)}
-                                   disabled={index === 0}
-                                   className="builder-tool"
-                                   aria-label="Pindah ke atas"
-                                 >
-                                   <ChevronUp className="w-4 h-4" />
-                                 </button>
-                                 <button
-                                   onClick={() => index < sections.length - 1 && reorderSections(index, index + 1)}
-                                   disabled={index === sections.length - 1}
-                                   className="builder-tool"
-                                   aria-label="Pindah ke bawah"
-                                 >
-                                   <ChevronDown className="w-4 h-4" />
-                                 </button>
-                                 <button
-                                   onClick={() => openSectionConfig(section.id)}
-                                   title="Edit isi blok ini"
-                                   aria-label={`Edit blok ${variant?.name || section.type}`}
-                                   className="builder-tool"
-                                 >
-                                   <Edit3 className="w-4 h-4" />
-                                 </button>
-                                 <button
-                                   onClick={() => duplicateSection(section.id)}
-                                   className="builder-tool"
-                                   aria-label="Duplikat blok"
-                                 >
-                                   <Copy className="w-4 h-4" />
-                                 </button>
-                                 <button
-                                   onClick={() =>
-                                     requestConfirm({
-                                       title: 'Hapus blok ini?',
-                                       description: `Blok "${variant?.name || section.type}" akan dihapus dari halaman. Tindakan ini tidak bisa dibatalkan.`,
-                                       confirmLabel: 'Hapus blok',
-                                       tone: 'destructive',
-                                       onConfirm: () => deleteSection(section.id),
-                                     })
-                                   }
-                                   className="builder-tool builder-tool-danger"
-                                   aria-label={`Hapus blok ${variant?.name || section.type}`}
-                                 >
-                                   <Trash2 className="w-4 h-4" />
-                                 </button>
-                               </div>
-                             </div>
+                            <div
+                              className={`section-toolbar section-toolbar-left section-toolbar-left-panel transition-opacity ${
+                                isSelected
+                                  ? 'opacity-100'
+                                  : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                              }`}
+                            >
+                              <span className="section-toolbar-index" aria-label={`Section ${index + 1}`}>
+                                {index + 1}
+                              </span>
+                              <div
+                                className="section-toolbar-actions"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => index > 0 && reorderSections(index, index - 1)}
+                                  disabled={index === 0}
+                                  className="builder-tool section-toolbar-action"
+                                  aria-label="Pindah ke atas"
+                                  title="Pindah ke atas"
+                                >
+                                  <ChevronUp />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => index < sections.length - 1 && reorderSections(index, index + 1)}
+                                  disabled={index === sections.length - 1}
+                                  className="builder-tool section-toolbar-action"
+                                  aria-label="Pindah ke bawah"
+                                  title="Pindah ke bawah"
+                                >
+                                  <ChevronDown />
+                                </button>
+                                <span className="section-toolbar-divider" aria-hidden="true" />
+                                <button
+                                  type="button"
+                                  onClick={() => openSectionConfig(section.id)}
+                                  title="Edit isi blok ini"
+                                  aria-label={`Edit blok ${variant?.name || section.type}`}
+                                  className="builder-tool section-toolbar-action"
+                                >
+                                  <Edit3 />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => duplicateSection(section.id)}
+                                  className="builder-tool section-toolbar-action"
+                                  aria-label="Duplikat blok"
+                                  title="Duplikat blok"
+                                >
+                                  <Copy />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    requestConfirm({
+                                      title: 'Hapus blok ini?',
+                                      description: `Blok "${variant?.name || section.type}" akan dihapus dari halaman. Tindakan ini tidak bisa dibatalkan.`,
+                                      confirmLabel: 'Hapus blok',
+                                      tone: 'destructive',
+                                      onConfirm: () => deleteSection(section.id),
+                                    })
+                                  }
+                                  className="builder-tool section-toolbar-action section-toolbar-action-danger"
+                                  aria-label={`Hapus blok ${variant?.name || section.type}`}
+                                  title="Hapus blok"
+                                >
+                                  <Trash2 />
+                                </button>
+                              </div>
+                            </div>
 
                             {hoveredIndex === index && index < sections.length - 1 && (
                               <div className="absolute -bottom-4 left-0 right-0 flex justify-center z-10 pointer-events-none">
