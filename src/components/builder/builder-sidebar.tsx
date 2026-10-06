@@ -49,7 +49,6 @@ import { SectionPicker } from './section-picker';
 import { StyleSelector } from './style-selector';
 import { TemplateGallery } from './template-gallery';
 import { ConfigForm } from '@/lib/builder/config-form';
-import { MockupPreview } from '@/lib/builder/mockup-preview';
 // No BUILT_IN_CATALOG import - templates now come from database
 import type { BusinessCategory } from '@/lib/builder/templates/catalog';
 import {
@@ -317,27 +316,20 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
 
   const renderHeaderConfig = () => (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200/50 bg-white dark:bg-white/[0.03] dark:border-white/[0.06] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] space-y-2">
+      <div className="space-y-2">
         <Label className="text-xs font-bold">Gaya header</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {template.headers.map((h) => (
-            <button
-              key={h.id}
-              onClick={() => setHeaderVariant(h.id)}
-              className={`p-1.5 rounded-lg border-2 text-left transition-all ${
-                headerVariantId === h.id
-                  ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20'
-                  : 'border-slate-200/70 dark:border-white/10 hover:border-emerald-300'
-              }`}
-            >
-              <div className="h-10 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1 overflow-hidden">
-                <MockupPreview mockup={h.mockup} />
-              </div>
-              <p className="text-[11px] font-bold">{h.name}</p>
-              <p className="text-[10px] text-muted-foreground line-clamp-1">{h.description}</p>
-            </button>
-          ))}
-        </div>
+        <Select value={headerVariantId} onValueChange={setHeaderVariant}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue placeholder="Pilih gaya header" />
+          </SelectTrigger>
+          <SelectContent>
+            {template.headers.map((header) => (
+              <SelectItem key={header.id} value={header.id}>
+                {header.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <Separator />
       {/* Daftar anchor yang bisa dipakai di kolom URL menu. Tanpa ini user
@@ -402,27 +394,20 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
 
   const renderFooterConfig = () => (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200/50 bg-white dark:bg-white/[0.03] dark:border-white/[0.06] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05)] space-y-2">
+      <div className="space-y-2">
         <Label className="text-xs font-bold">Gaya footer</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {template.footers.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFooterVariant(f.id)}
-              className={`p-1.5 rounded-lg border-2 text-left transition-all ${
-                footerVariantId === f.id
-                  ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20'
-                  : 'border-slate-200/70 dark:border-white/10 hover:border-emerald-300'
-              }`}
-            >
-              <div className="h-10 rounded-lg bg-slate-100 dark:bg-slate-800 mb-1 overflow-hidden">
-                <MockupPreview mockup={f.mockup} />
-              </div>
-              <p className="text-[11px] font-bold">{f.name}</p>
-              <p className="text-[10px] text-muted-foreground line-clamp-1">{f.description}</p>
-            </button>
-          ))}
-        </div>
+        <Select value={footerVariantId} onValueChange={setFooterVariant}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue placeholder="Pilih gaya footer" />
+          </SelectTrigger>
+          <SelectContent>
+            {template.footers.map((footer) => (
+              <SelectItem key={footer.id} value={footer.id}>
+                {footer.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <Separator />
       <div className="space-y-3">
