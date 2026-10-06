@@ -53,12 +53,14 @@ import { MockupPreview } from '@/lib/builder/mockup-preview';
 // No BUILT_IN_CATALOG import - templates now come from database
 import type { BusinessCategory } from '@/lib/builder/templates/catalog';
 import {
-  applyTemplateToWebsite,
-  applySavedTemplate,
   deleteSavedTemplate,
   resolveStoreTemplate,
+  resolveTemplateId,
+  savedTemplateBaseId,
   type ApplyableTemplate,
 } from '@/lib/builder/apply-template';
+import { hydrateCanvasFromConfig } from '@/lib/builder/hydrate-canvas';
+import { toast } from 'sonner';
 import type { Template, HeaderVariant, FooterVariant } from '@/lib/builder/template-types';
 
 /** Level panel sidebar. Sumber tunggal: `builder-ui.ts` (dipakai juga judulnya). */
@@ -516,7 +518,8 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
               </DialogTitle>
               <DialogDescription>
                 Satu template mengatur semuanya: style, warna, font, navigasi, footer, dan layout —
-                berlaku di homepage, blog, checkout, dan halaman custom.
+                berlaku di homepage, blog, checkout, dan halaman custom. Template diterapkan dulu
+                ke kanvas; website publik baru berubah saat kamu tekan &quot;Tayangkan&quot;.
               </DialogDescription>
             </DialogHeader>
             {applyError && (
@@ -552,46 +555,58 @@ export function BuilderSidebar({ websiteId, isPublished, onCloseMobile }: { webs
                   return;
                 }
 
-                // Aturan library: pertama kali terapkan → server INSERT salinan
-                // library baru (sync_library: "create" di dalam helper).
-                const result = await applyTemplateToWebsite({ websiteId, template: applyable });
-                if (!result.ok) {
-                  setApplyError(result.error ?? 'Gagal menerapkan template');
-                  return;
-                }
-
-                // Kanvas pindah menunjuk ke baris library baru supaya Tayangkan
-                // berikutnya mengupdate baris itu (bukan membuat lagi).
-                if (result.library?.template_slug) {
-                  window.dispatchEvent(
-                    new CustomEvent('active-library-changed', {
-                      detail: { template_slug: result.library.template_slug },
-                    }),
-                  );
-                }
-                useTemplateStore.getState().applyTemplate(result.templateId, storeTemplate);
+                // STAGING KANVAS: terapkan template HANYA ke store kanvas —
+                // tanpa PUT ke server, jadi live site tidak langsung berubah.
+                // Keputusan tayang milik tombol "Tayangkan" (handlePublishPage
+                // mengirim template_id dari template-store + is_published).
+                const templateId = resolveTemplateId(applyable.id);
+                useTemplateStore.getState().applyTemplate(templateId, storeTemplate);
                 useBuilderStore.getState().resetPaletteOverride();
                 setShowTemplateGallery(false);
+                toast.success(
+                  'Template diterapkan ke kanvas — tekan "Tayangkan" untuk mengganti website publik.',
+                );
               }}
               onApplySaved={async (saved) => {
                 setApplyError('');
-                // Ganti template: config library ditulis ulang ke template
-                // aktif website. Setelah itu kanvas dimuat ulang dari server
-                // supaya isi store = isi DB (apply lewat katalog cukup dengan
-                // `applyTemplate`, tapi apply ini menulis config dari DB
-                // sehingga store lokal jadi basi).
-                // Aturan library: menerapkan library LAIN pertama kali → INSERT
-                // salinan baru (slug baru, kanvas pindah ke sana). Reload
-                // mengambil slug baru dari daftar library terbaru.
-                const result = await applySavedTemplate({ websiteId, saved });
-                if (!result.ok) {
-                  setApplyError(result.error ?? 'Gagal memakai template');
+                // STAGING KANVAS: config library ditulis ke store kanvas
+                // secara lokal — TIDAK PUT ke server, jadi live site tidak
+                // berubah sampai user menekan "Tayangkan". Hidrasi memakai
+                // helper bersama (hydrate-canvas): logika yang sama dengan
+                // efek load halaman customize, tanpa duplikasi.
+                let storeTemplate: Template | undefined;
+                try {
+                  storeTemplate = resolveStoreTemplate({
+                    id: savedTemplateBaseId(saved),
+                    data: {},
+                  });
+                } catch {
+                  storeTemplate = undefined;
+                }
+                if (!storeTemplate) {
+                  setApplyError('Template dasar tidak ditemukan. Coba muat ulang halaman.');
                   return;
                 }
+                const hydrated = hydrateCanvasFromConfig({
+                  config: saved.custom_config,
+                  templateId: storeTemplate.id,
+                  saved: false,
+                });
+                if (!hydrated) {
+                  setApplyError('Gagal menerapkan template ke kanvas.');
+                  return;
+                }
+                // Kanvas pindah menunjuk ke baris library ini — Tayangkan
+                // berikutnya meng-update baris yang sama (sync_library: "update").
+                window.dispatchEvent(
+                  new CustomEvent('active-library-changed', {
+                    detail: { template_slug: saved.id },
+                  }),
+                );
                 setShowTemplateGallery(false);
-                // Muat ulang builder supaya kanvas/header/footer mengikuti
-                // template yang baru dipakai.
-                window.location.reload();
+                toast.success(
+                  'Template diterapkan ke kanvas — tekan "Tayangkan" untuk mengganti website publik.',
+                );
               }}
               onDeleteSaved={async (saved) => {
                 setApplyError('');

@@ -70,6 +70,19 @@ export interface SavedTemplateEntry {
 }
 
 /**
+ * Slug katalog dasar untuk satu entri library — SATU aturan untuk semua
+ * konsumen (apply server lama maupun staging kanvas di galeri builder).
+ *
+ * Fallback ke template pertama supaya tidak gagal total bila `base_slug`
+ * null (baris lama sebelum migrasi 045), persis seperti perilaku
+ * `applySavedTemplate` sejak awal.
+ */
+export function savedTemplateBaseId(saved: Pick<SavedTemplateEntry, "base_slug">): string {
+  const fallback = BUILT_IN_CATALOG[0];
+  return resolveTemplateId(saved.base_slug || fallback?.id || "");
+}
+
+/**
  * Ubah entri library menjadi item berkatalog: template katalog dasar dengan
  * `palette_override` yang tersimpan sudah ditimpakan.
  *
@@ -118,10 +131,9 @@ export async function applySavedTemplate(opts: {
   saved: SavedTemplateEntry;
 }): Promise<{ ok: boolean; error?: string; library?: LibrarySyncInfo }> {
   const { websiteId, saved } = opts;
-  // Slug katalog asal. Fallback ke template pertama agar tidak gagal total
-  // bila base_slug null (baris lama sebelum migrasi 045).
-  const fallback = BUILT_IN_CATALOG[0];
-  const templateId = resolveTemplateId(saved.base_slug || fallback?.id || "");
+  // Slug katalog asal (fallback ke template pertama untuk baris lama) —
+  // aturan yang sama dipakai staging kanvas, lewat `savedTemplateBaseId`.
+  const templateId = savedTemplateBaseId(saved);
   if (!templateId) {
     return { ok: false, error: "Template dasar tidak ditemukan" };
   }

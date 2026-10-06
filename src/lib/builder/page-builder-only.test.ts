@@ -180,10 +180,15 @@ describe('builder memakai satu endpoint (tanpa pageId)', () => {
   });
 
   it('editor men-seed kanvas dari template saat config kosong', () => {
-    const src = read('app', 'dashboard', 'web-design', 'customize', 'page.tsx');
+    // Logika seed pindah ke helper bersama `hydrate-canvas` (dipakai juga
+    // oleh "Terapkan template" galeri builder) — guard-nya ikut pindah.
+    const seed = read('src', 'lib', 'builder', 'hydrate-canvas.ts');
     // Seed dari sections TEMPLATE, bukan sections global yang bisa basi.
-    expect(src).toContain('templateSections');
-    expect(src).toContain('savedPageSections.length > 0 ? savedPageSections : templateSections');
+    expect(seed).toContain('templateSections');
+    expect(seed).toContain('savedPageSections.length > 0 ? savedPageSections : templateSections');
+    // Halaman customize memanggil helper itu (bukan logika duplikat).
+    const src = read('app', 'dashboard', 'web-design', 'customize', 'page.tsx');
+    expect(src).toContain('hydrateCanvasFromConfig');
   });
 
   it('tidak ada entry point UI menuju /dashboard/builder', () => {

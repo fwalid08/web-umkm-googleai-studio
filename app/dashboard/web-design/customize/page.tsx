@@ -12,12 +12,11 @@ import {
   buildWebsiteCustomConfig,
   instanceToBuilderSection,
   resolveChromeConfig,
-  seedTemplateSections,
   templateIdForApiName,
 } from "@/lib/builder/migration";
 import { resolveTemplateId } from "@/lib/builder/apply-template";
+import { hydrateCanvasFromConfig } from "@/lib/builder/hydrate-canvas";
 import { getTemplate } from "@/lib/builder/template-store";
-import type { Template } from "@/lib/builder/template-types";
 
 /** Daftar id+kategori katalog untuk memetakan nama template API -> template-store. */
 const BUILT_IN_TEMPLATES_FOR_LOOKUP = BUILT_IN_CATALOG.map((t) => ({ id: t.id, category: t.category }));
@@ -46,7 +45,7 @@ export default function PageBuilderPage() {
   const [isPublished, setIsPublished] = useState<boolean | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const loadConfig = useBuilderStore((s) => s.loadConfig);
+
   const globalRef = useRef<Record<string, unknown> | null>(null);
   // Template library aktif website (sumber ID + template_source saat save).
   // Tanpa ini save mengirim t.template.id yang kosong → PUT 404.
@@ -129,36 +128,6 @@ export default function PageBuilderPage() {
         // apa pun ke user. `=== true` aman untuk data lama: migrasi 044 sudah
         // mem-backfill is_published untuk setiap baris yang ada.
         if (!cancelled) setIsPublished(config.is_published === true);
-        // Kanvas kosong (mis. website baru) tidak punya sections tersimpan.
-        // Seed dari sections TEMPLATE, bukan config.sections global yang bisa
-        // jadi snapshot basi.
-        const savedPageSections = (Array.isArray(config.sections) ? config.sections : []) as unknown[];
-        // `catalog_template_id` ada DI DALAM custom_config (hasil PUT whitelist),
-        // bukan di `data` tingkat atas — membacanya dari `cfgJson.data` selalu
-        // undefined sehingga seed sections template tidak pernah kepakai.
-        const catalogTemplateId =
-          typeof (config as Record<string, unknown>).catalog_template_id === "string"
-            ? ((config as Record<string, unknown>).catalog_template_id as string)
-            : null;
-        const templateSections =
-          (BUILT_IN_CATALOG.find((t) => t.id === catalogTemplateId)?.data?.sections ??
-            (config as Record<string, unknown>).template_sections ??
-            []) as unknown[];
-        const pageSections =
-          savedPageSections.length > 0 ? savedPageSections : templateSections;
-        loadConfig({
-          // Layout per-halaman; global (header/footer/style) dari website.
-          core: config.core,
-          palette_override: config.palette_override,
-          sections: pageSections as never,
-          header: config.header,
-          footer: config.footer,
-          theme: config.theme,
-        });
-        // PENTING (fix store ganda): seed kanvas/template-store dari sections
-        // tersimpan. Urutan: setTemplate dulu (reset), lalu seed sections —
-        // tanpa ini kanvas selalu kosong karena template-store tak pernah
-        // menerima data load, dan sebaliknya edit kanvas tidak pernah ke-save.
         // Katalog statis adalah satu-satunya sumber template (tanpa fetch
         // library). Urutan: nama API -> kategori -> template_id tersimpan
         // (normalisasi prefix legacy) -> template pertama.
@@ -171,82 +140,17 @@ export default function PageBuilderPage() {
           (normalizedId && getTemplateByIdSafe(normalizedId) ? normalizedId : null) ??
           BUILT_IN_CATALOG[0]?.id ??
           null;
-        const templateStore = useTemplateStore.getState();
-        if (templateId) templateStore.setTemplate(templateId);
-        const seedTemplate: Template | undefined =
-          templateId ? getTemplateByIdSafe(templateId) : undefined;
+        // Hidrasi kedua store dari config — SATU implementasi bersama
+        // (`lib/builder/hydrate-canvas`), dipakai juga oleh "Terapkan
+        // template" galeri builder: staging ke kanvas tanpa PUT, sehingga
+        // live site baru berubah saat tombol "Tayangkan" ditekan.
+        const seedTemplate = hydrateCanvasFromConfig({
+          config: config as Record<string, unknown>,
+          templateId: templateId ?? "",
+          saved: true,
+        });
         if (seedTemplate) {
           libMetaRef.current = { id: seedTemplate.id, source: "builtin" };
-          const cfgRec = config as Record<string, unknown>;
-          const storedHeader = cfgRec.header as Record<string, unknown> | undefined;
-          const storedFooter = cfgRec.footer as Record<string, unknown> | undefined;
-          const headerVariantId =
-            seedTemplate.headers.find((h) => h.id === storedHeader?.variant)?.id ??
-            seedTemplate.headers[0]?.id ??
-            "";
-          const footerVariantId =
-            seedTemplate.footers.find(
-              (f) => f.id === storedFooter?.variant || f.id === storedFooter?.style,
-            )?.id ??
-            seedTemplate.footers[0]?.id ??
-            "";
-          useTemplateStore.setState({
-            template: seedTemplate,
-            headerVariantId,
-            footerVariantId,
-            // Warna tema tersimpan hanya hidup di `palette_override`
-            // (builder-store). Tanpa mirror ke `themeOverride` di sini, kanvas
-            // masih benar karena `paletteOverride` ikut di-merge, TAPI
-            // StyleSelector menghitung "N diubah" dari `themeOverride` — jadi
-            // panel Tema tampak kosong padahal warnanya sudah tersimpan.
-            // Efek sampingnya: preset warna aktif tidak terdeteksi.
-            themeOverride: (cfgRec.palette_override ?? {}) as Record<string, string>,
-            ...(typeof cfgRec.customCss !== "string" || !cfgRec.customCss
-              ? { customCss: (seedTemplate as { customCss?: string }).customCss ?? "" }
-              : {}),
-            ...(!Array.isArray(cfgRec.animations) || cfgRec.animations.length === 0
-              ? { animations: seedTemplate.animations ?? [] }
-              : {}),
-            ...(!Array.isArray(cfgRec.behaviours) || cfgRec.behaviours.length === 0
-              ? { behaviours: seedTemplate.behaviours ?? [] }
-              : {}),
-            ...(!Array.isArray(cfgRec.assets) || cfgRec.assets.length === 0
-              ? { assets: seedTemplate.assets ?? [] }
-              : {}),
-          });
-        }
-        // Seed hanya bila template punya headers+footers (resolveChromeConfig
-        // membaca .id varian pertama; array kosong = crash). Kanvas tetap
-        // dimuat dari sections halaman tersimpan walau seed dilewati.
-        const hasUsableChrome =
-          !!seedTemplate &&
-          Array.isArray(seedTemplate.headers) &&
-          seedTemplate.headers.length > 0 &&
-          Array.isArray(seedTemplate.footers) &&
-          seedTemplate.footers.length > 0;
-        if (seedTemplate && hasUsableChrome) {
-          templateStore.replaceSections(seedTemplateSections(seedTemplate, pageSections as never));
-          // Seed konten header/footer efektif (default varian + tersimpan)
-          // agar form sidebar & kanvas menampilkan nilai sebenarnya, bukan
-          // sekadar default template.
-          const effHeader = resolveChromeConfig(seedTemplate, config.header as Record<string, unknown> | undefined, 'header');
-          const effFooter = resolveChromeConfig(seedTemplate, config.footer as Record<string, unknown> | undefined, 'footer');
-          useTemplateStore.setState({
-            headerConfig: effHeader.config,
-            footerConfig: effFooter.config,
-            headerVariantId: effHeader.variantId,
-            footerVariantId: effFooter.variantId,
-            animations: Array.isArray((config as Record<string, unknown>).animations)
-              ? (config as Record<string, unknown>).animations as never
-              : [],
-            behaviours: Array.isArray((config as Record<string, unknown>).behaviours)
-              ? (config as Record<string, unknown>).behaviours as never
-              : [],
-            assets: Array.isArray((config as Record<string, unknown>).assets)
-              ? (config as Record<string, unknown>).assets as never
-              : [],
-            saved: true,
-          });
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Gagal memuat halaman");
@@ -257,7 +161,7 @@ export default function PageBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadConfig]);
+  }, []);
 
   /** Simpan: layout -> halaman, header/footer/style -> global website.
    *  `opts.saveAsTemplate` menyalin config ke library alih-alih menimpa

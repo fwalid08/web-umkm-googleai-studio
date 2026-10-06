@@ -298,13 +298,32 @@ describe('REGRESI: logika apply tidak boleh diduplikasi', () => {
     ['src', 'components', 'customize', 'template-picker.tsx'],
   ];
 
-  it('kedua call site memakai applyTemplateToWebsite', () => {
-    for (const parts of callSites) {
-      const src = repoFile(...parts);
-      expect(src, `${parts.join('/')} harus pakai applyTemplateToWebsite`).toContain(
-        'applyTemplateToWebsite',
-      );
-    }
+  it('template-picker (di luar kanvas) tetap memakai applyTemplateToWebsite', () => {
+    // Halaman /web-design tidak punya kanvas, jadi apply di sana tetap
+    // langsung ke server — aturan staging hanya untuk galeri builder.
+    const src = repoFile('src', 'components', 'customize', 'template-picker.tsx');
+    expect(src).toContain('applyTemplateToWebsite');
+  });
+
+  it('galeri builder: apply = staging kanvas, tanpa PUT ke server', () => {
+    // Aturan baru: "Terapkan template" di builder HANYA menulis store kanvas;
+    // keputusan tayang milik tombol "Tayangkan". Guard statis memastikan tidak
+    // ada fetch yang lolos diam-diam dari galeri (baik apply katalog maupun
+    // library), dan hidrasi library memakai helper bersama — bukan reload.
+    const src = repoFileCode('src', 'components', 'builder', 'builder-sidebar.tsx');
+    expect(src).not.toContain('applyTemplateToWebsite');
+    expect(src).not.toContain('applySavedTemplate');
+    expect(src).not.toContain('/api/websites/');
+    expect(src).not.toContain('window.location.reload');
+    expect(src).toContain('hydrateCanvasFromConfig');
+    expect(src).toContain('savedTemplateBaseId');
+  });
+
+  it('helper hidrasi dipakai bersama oleh kanvas & galeri builder', () => {
+    const helper = repoFile('src', 'lib', 'builder', 'hydrate-canvas.ts');
+    expect(helper).toContain('export function hydrateCanvasFromConfig');
+    const page = repoFile('app', 'dashboard', 'web-design', 'customize', 'page.tsx');
+    expect(page).toContain('hydrateCanvasFromConfig');
   });
 
   it('tidak ada call site yang menyusun payload PUT sendiri', () => {
@@ -340,7 +359,7 @@ describe('REGRESI: logika apply tidak boleh diduplikasi', () => {
     // `getTemplate()` hanya tahu template bawaan. Wajib lewat helper bersama
     // (berlaku untuk saved MAUPUN builtin — keduanya membawa template_data).
     expect(src).toContain('resolveStoreTemplate');
-    expect(src).toContain('applyTemplate(result.templateId, storeTemplate)');
+    expect(src).toContain('applyTemplate(templateId, storeTemplate)');
   });
 });
 
