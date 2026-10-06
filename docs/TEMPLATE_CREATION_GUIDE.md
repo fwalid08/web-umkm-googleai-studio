@@ -377,14 +377,27 @@ Never write `{{items}}` for a list field — it stringifies to
 
 ## 4. Step-by-Step: Creating a New Template
 
-### Step 1 — Create the file
+### Step 1 — Create the folder
 
-`src/lib/builder/templates/<niche>.ts`
+`src/lib/builder/templates/<niche>/`
 
-Use `laundry-emerald.ts` as the reference. Do NOT copy `food.ts` — it still
+Use `laundry-emerald/` as the reference. Do NOT copy `food/` — it still
 relies on the removed registry system and will be rebuilt later.
 
-Skeleton:
+Skeleton folder structure:
+
+```
+src/lib/builder/templates/fashion/
+├── index.ts          # export default CatalogTemplate (id = "fashion")
+├── chrome.ts         # headers + footers
+├── sections.ts       # all 18 built-in types, each with ≥ 3 variants, all with html
+├── schemes.ts        # colorSchemes (≥ 1, passes validateColorScheme)
+└── data.ts           # FullTemplateData seed (8 core sections + niche-specific)
+```
+
+For larger unique templates, you may also add `shared.ts` for helpers + font tokens.
+
+Minimal `index.ts`:
 
 ```ts
 import type {
@@ -396,7 +409,7 @@ import type {
 import type { CatalogTemplate } from "./catalog";
 
 const BRAND = "Nama Brand";
-const NS = "<niche>";                 // template id
+const NS = "fashion";                 // template id — MUST match folder name
 const vid = (name: string) => `${NS}:${name}`;
 
 export const FASHION_TEMPLATE: CatalogTemplate = {
@@ -432,6 +445,8 @@ export const FASHION_TEMPLATE: CatalogTemplate = {
     customCss: "/* tokens only, targets [data-tpl-type] / [data-tpl-variant] */",
   },
 };
+
+export default FASHION_TEMPLATE;
 ```
 
 ### Step 2 — Define the theme
@@ -517,21 +532,21 @@ Helpers worth copying from `laundry-emerald.ts`:
   a broken image in the preview and the test for empty image fields in the
   seed catches empty strings, but not dead remote URLs.
 
-### Step 6 — Register and test
+### Step 6 — Test (registration is automatic)
 
-1. Add `import { FASHION_TEMPLATE } from "./fashion";` and
-   `FASHION_TEMPLATE,` to `BUILT_IN_CATALOG` in
-   `src/lib/builder/templates/catalog.ts`. **This is the only place to
-   register.** `BUILTIN_TEMPLATES` in `template-store.ts` is an alias.
+1. **No manual registration needed**. The generator `scripts/gen-template-catalog.mjs` auto-discovers any folder under `src/lib/builder/templates/<id>/` containing `index.ts` with a default export. It runs automatically via npm hooks (`predev`, `prebuild`, `pretest`, `pretypecheck`).
+
 2. Add `"fashion"` to `UNIQUE_TEMPLATES` in
-   `src/lib/builder/templates/unique-template.test.ts` so the §18 guard runs
-   against your template.
+   `src/lib/builder/templates/unique-template.test.ts` so the §18 guard runs against your template.
+
 3. Add the template id to `MIGRATED_TEMPLATES` in `catalog.test.ts` only if
    you want the stricter migrated-template checks (≥5 header/footer, exactly
    the RENDERED_VARIANTS id list) to apply. New unique templates should rely
    on the §18 guard instead.
+
 4. Add a thumbnail at `public/thumbnails/fashion.jpg` (the gallery card test
    requires it).
+
 5. Run the targeted tests, then the full suite:
 
 ```bash

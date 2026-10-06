@@ -30,7 +30,7 @@
 | Aspek | Kondisi | Referensi |
 |---|---|---|
 | Kategori bisnis | `BusinessCategory = food \| fashion \| retail \| handicraft \| services` — ini **niche dalam online_shop, bukan tipe website** | `src/lib/builder/template-types.ts:6`, `src/lib/builder/templates/catalog.ts:6` |
-| Katalog built-in | `BUILT_IN_CATALOG = [FOOD_TEMPLATE]` — baru 1 template real | `src/lib/builder/templates/catalog.ts:21` |
+| Katalog built-in | `BUILT_IN_CATALOG = [FOOD_TEMPLATE, LAUNDRY_EMERALD_TEMPLATE, MARKETPLACE_HYBRID_TEMPLATE]` — 3 template real di folder `src/lib/builder/templates/<id>/` | `src/lib/builder/templates/catalog.ts:23` |
 | Field template | `Template.category: BusinessCategory`, `tiers?: Tier[]`, `tier_requirement?`, `activeSections?`, `sections`, `headers`, `footers` | `src/lib/builder/template-types.ts:167-202` |
 | Section registry | 18 tipe: `hero, features, product_grid, testimonials, faq, cta, contact, about, gallery, video, team, pricing, newsletter, divider, marquee, menu_board, steps, location` | `src/lib/builder/sections/registry.ts`, `src/lib/builder/types.ts:186-204` |
 | Apply template | Satu implementasi: `applyTemplateToWebsite`, `resolveTemplateSections`, `buildTemplateCustomConfig`; validasi `template_id in BUILT_IN_CATALOG`; tier gate kumulatif | `src/lib/builder/apply-template.ts`, `src/lib/builder/templates/catalog.ts:43-61` |
@@ -124,7 +124,21 @@ SITE_TYPE_REGISTRY = {
 
 ### 4.4 Defisit Template Online Shop
 
-Baru `food.ts` yang real (hero menggugah selera, `menu_board`, catering pricing, location-hours). Empat niche lain wajib dibuat mengikuti pola yang sama (`registrySections()` + `activeSections` + seed `data.sections` + `NAV_ITEMS` + theme):
+Sudah ada 3 template real di struktur folder-based:
+- `food/` — kuliner (hero menggugah selera, `menu_board`, catering pricing, location-hours)
+- `laundry-emerald/` — laundry premium (hero arch, service cards, comfort band, FAQ accordion, testimonials, booking band)
+- `marketplace-hybrid/` — toko online hybrid (search bar, category chips, bottom nav, mobile native-app feel)
+
+Satu niche lagi wajib dibuat mengikuti kontrak unik §18 (template folder dengan `index.ts` + `html` kustom per varian, ID namespaced, nol hardcoded warna/font):
+
+| Folder rencana | `activeSections` usulan | Ciri niche |
+|---|---|---|
+| `fashion/` | hero, product_grid, gallery, testimonials, faq (panduan ukuran), contact | Lookbook masonry, varian, filter kategori |
+| `retail/` | hero, product_grid, pricing, location, newsletter, faq, contact | Kelontong/multi-kategori, jam toko |
+| `handicraft/` | hero, gallery-masonry, video, about-centered, testimonials, contact | Cerita pengrajin, proses buat, custom order |
+| `services/` | hero, features, menu_board (pricelist jasa), pricing, steps, contact-form-map | Booking survei (manual WA dulu), portofolio kerja |
+
+Tidak perlu section baru untuk online_shop pada fase ini.
 
 | File rencana | `activeSections` usulan | Ciri niche |
 |---|---|---|

@@ -1,9 +1,7 @@
 import type { BuiltInTemplate, FullTemplateData } from "../types";
 import type { Tier } from "@/types";
 import type { Template } from "../template-types";
-import { FOOD_TEMPLATE } from "./food";
-import { LAUNDRY_EMERALD_TEMPLATE } from "./laundry-emerald";
-import { MARKETPLACE_HYBRID_TEMPLATE } from "./marketplace-hybrid";
+import { GENERATED_CATALOG } from "./catalog.generated";
 
 export type BusinessCategory = "food" | "fashion" | "retail" | "handicraft" | "services";
 
@@ -20,7 +18,12 @@ export const CATEGORY_LABELS: Record<BusinessCategory | "all", string> = {
   services: "Jasa & Servis",
 };
 
-export const BUILT_IN_CATALOG: CatalogTemplate[] = [FOOD_TEMPLATE, LAUNDRY_EMERALD_TEMPLATE, MARKETPLACE_HYBRID_TEMPLATE];
+/**
+ * Daftar semua template bawaan. Sumbernya `catalog.generated.ts` yang
+ * dihasilkan `scripts/gen-template-catalog.mjs` dari scan folder
+ * `templates/<id>/index.ts` — menambah template TIDAK perlu mengedit file ini.
+ */
+export const BUILT_IN_CATALOG: CatalogTemplate[] = GENERATED_CATALOG;
 
 export const ALL_TIERS = ["free", "starter", "growth", "enterprise"] as const;
 

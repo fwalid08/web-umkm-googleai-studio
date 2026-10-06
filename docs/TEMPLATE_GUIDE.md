@@ -87,29 +87,49 @@ Semua editing layout kini lewat Page Builder:
 4. `store_pages.content` (TEXT) **deprecated** — renderer hanya membaca `layout.sections`.
 
 ### Struktur Folder
-
-```
-src/lib/builder/
-├── template-types.ts          # Schema definitions (Template, HeaderVariant, …)
-├── template-schema.ts         # Kontrak validasi v3 (validateTemplateV3, ALL_SECTION_TYPES_V3)
-├── chrome.ts                  # Utilitas chrome (konstanta generik DIHAPUS bertahap → §18)
-├── template-store.ts          # State zustand; BUILTIN_TEMPLATES = alias BUILT_IN_CATALOG
-├── behaviour-script.ts        # Denylist script & CSS (server + client)
-├── migration.ts               # Normalisasi section & identitas anchor
-├── templates/
-│   ├── food.ts                # Template kuliner ("Warung Makan", id `food`) —
-│   │                           # sedang dibangun ulang mengikuti kontrak unik §18
-│   ├── catalog.ts             # BUILT_IN_CATALOG + tier gating (TIER_RANK, kumulatif)
-├── config-form.tsx            # Dynamic config form
-├── mockup-preview.tsx         # Mockup visual per variant + TemplatePreview
-└── design-styles.ts           # Helper palet/gradasi (katalog DESIGN_STYLES dihapus di migrasi 046)
-src/components/builder/
-├── section-renderer.tsx       # Section renderer (dispatcher variant.html, §18)
-├── variant-html-renderer.tsx  # Renderer `html` kustom per varian
-├── behaviour-runtime.tsx      # Runner animations[] & behaviours[] + customCss
-├── builder-canvas.tsx         # Builder canvas
-└── template-gallery.tsx       # Template picker + tombol Pratinjau
-```
+ 
+ ```
+ src/lib/builder/
+ ├── template-types.ts          # Schema definitions (Template, HeaderVariant, …)
+ ├── template-schema.ts         # Kontrak validasi v3 (validateTemplateV3, ALL_SECTION_TYPES_V3)
+ ├── chrome.ts                  # Utilitas chrome (konstanta generik DIHAPUS bertahap → §18)
+ ├── template-store.ts          # State zustand; BUILTIN_TEMPLATES = alias BUILT_IN_CATALOG
+ ├── behaviour-script.ts        # Denylist script & CSS (server + client)
+ ├── migration.ts               # Normalisasi section & identitas anchor
+ ├── templates/
+ │   ├── catalog.ts             # BUILT_IN_CATALOG + tier gating (TIER_RANK, kumulatif)
+ │   ├── catalog.generated.ts   # AUTO-GENERATED — jangan edit manual
+ │   ├── compose.ts             # Komposer registry generik (migrations only)
+ │   ├── food/
+ │   │   ├── index.ts           # Export default CatalogTemplate (id = "food")
+ │   │   ├── chrome.ts          # Headers + footers
+ │   │   ├── schemes.ts         # colorSchemes
+ │   │   └── data.ts            # Seed data (sections, header, footer, seo, core)
+ │   ├── laundry-emerald/
+ │   │   ├── index.ts
+ │   │   ├── shared.ts          # Helper + font tokens
+ │   │   ├── chrome.ts
+ │   │   ├── sections.ts        # Section variants (all with html)
+ │   │   ├── schemes.ts
+ │   │   └── data.ts
+ │   ├── marketplace-hybrid/
+ │   │   ├── index.ts
+ │   │   ├── shared.ts
+ │   │   ├── chrome.ts
+ │   │   ├── sections.ts
+ │   │   ├── schemes.ts
+ │   │   └── data.ts
+ │   └── <new-template>/        # Buat folder baru untuk template baru
+ ├── config-form.tsx            # Dynamic config form
+ ├── mockup-preview.tsx         # Mockup visual per variant + TemplatePreview
+ └── design-styles.ts           # Helper palet/gradasi
+ src/components/builder/
+ ├── section-renderer.tsx       # Section renderer (dispatcher variant.html, §18)
+ ├── variant-html-renderer.tsx  # Renderer `html` kustom per varian
+ ├── behaviour-runtime.tsx      # Runner animations[] & behaviours[] + customCss
+ ├── builder-canvas.tsx         # Builder canvas
+ └── template-gallery.tsx       # Template picker + tombol Pratinjau
+ ```
 
 > **SUPERSEDED → §18.** `sections/registry.ts` (`SECTION_REGISTRY`),
 > `templates/compose.ts` (`registrySections()`), dan konstanta generik
@@ -209,26 +229,30 @@ Template baru **wajib** memenuhi:
 10. **(Baru, §18)** Setiap varian/header/footer punya `html`; ID namespaced
     per template; nol warna/font hardcoded (dijaga guard §18.6).
 
-### Registrasi TUNGGAL (satu tempat saja)
+### Registrasi OTOMATIS (auto-discovery)
+
+Template sekarang **tidak perlu diedit manual di `catalog.ts`**. Sistem menggunakan **folder-based auto-discovery**:
+
+1. Setiap template tinggal di folder sendiri di `src/lib/builder/templates/<id>/` dengan file `index.ts` yang `export default` objek `CatalogTemplate`.
+2. Generator `scripts/gen-template-catalog.mjs` memindai folder, menghasilkan `catalog.generated.ts` berisi import + array `GENERATED_CATALOG`.
+3. `catalog.ts` hanya mere-export `BUILT_IN_CATALOG = GENERATED_CATALOG`.
+4. Hook npm (`predev`, `prebuild`, `pretest`) menjalankan generator otomatis.
+
+**Kontrak folder template:**
+- Nama folder **WAJIB** kebab-case dan **sama dengan `template.id`** (e.g. folder `laundry-emerald` → `id: "laundry-emerald"`).
+- `index.ts` wajib `export default` objek `CatalogTemplate` (bisa juga `export const FOOD_TEMPLATE` untuk backward-compat test lama).
+- Pembagian file internal (`chrome.ts`, `sections.ts`, `schemes.ts`, `data.ts`, `shared.ts`) bersifat konvensi — tidak dibatasi.
 
 ```typescript
-// src/lib/builder/templates/catalog.ts  → dipakai sidebar, customize,
-// migration, renderer publik, page-builder, dan API website
-export const BUILT_IN_CATALOG: CatalogTemplate[] = [
-  FOOD_TEMPLATE,
-  FASHION_TEMPLATE as CatalogTemplate,   // ← tambahkan di sini
-  /* … */
-];
+// src/lib/builder/templates/catalog.ts  (tidak diedit manual)
+import { GENERATED_CATALOG } from "./catalog.generated";
+
+export const BUILT_IN_CATALOG: CatalogTemplate[] = GENERATED_CATALOG;
 ```
 
-`BUILTIN_TEMPLATES` di `template-store.ts` hanyalah **alias**
-(`export const BUILTIN_TEMPLATES: Template[] = BUILT_IN_CATALOG`) untuk
-`template-gallery.tsx` dan route `/preview/[templateId]` — tidak ada list
-kedua yang perlu diedit. (Versi lama dokumen ini menyebut "registrasi ganda";
-itu sudah tidak berlaku.)
+`BUILTIN_TEMPLATES` di `template-store.ts` tetap alias otomatis (`export const BUILTIN_TEMPLATES = BUILT_IN_CATALOG`) — tidak ada list kedua yang perlu diedit.
 
-Menambah thumbnail galeri butuh satu case tambahan di `TemplatePreview`
-(`mockup-preview.tsx`). Tanpa itu thumbnail jatuh ke `DefaultMockup`.
+Menambah thumbnail galeri: taruh file `public/thumbnails/<id>.jpg` (generator opsional menyalin dari `templates/<id>/thumbnail.jpg` bila ada).
 
 ### TemplateTheme Interface
 
@@ -1272,25 +1296,30 @@ variant?.configFields.forEach(field => {
 
 ### Cara Membuat Template Baru
 
-1. **Buat file baru** `src/lib/builder/templates/<niche>.ts` (contoh:
-   `laundry-emerald.ts`) — **JANGAN duplikat-tempel template lain lalu hanya
-   mengganti warna** (§18.2). Deklarasikan sendiri: `id`, `name`, `description`,
+1. **Buat folder baru** `src/lib/builder/templates/<niche>/` (contoh:
+   `src/lib/builder/templates/bakery/`) — **JANGAN** duplikat-tempel template
+   lain lalu hanya mengganti warna (§18.2).
+2. **Isi `index.ts`** di folder itu dengan `export default` objek
+   `CatalogTemplate` lengkap: `id` (sama dengan nama folder), `name`, `description`,
    `category`, `theme` (palet 8 kunci + 3 font), `headers` (≥5, semua `html`),
    `footers` (≥5, semua `html`), `sections` (semua varian `html`,
    ID namespaced), dan `data` (seed + copywriting niche).
    DILARANG memakai `registrySections()` dari `compose.ts` (dihapus, §18.7).
-2. **Isi `theme` + `headers` + `footers` + `sections` + `data`** sesuai kontrak §2
-   (8 section inti di seed, `navItems` + `ctaText`, footer `{year}`, `seo.title`)
-   + kontrak unik §18 (html wajib, token adaptif, kreativitas minimal).
-3. **Registrasi tunggal**: tambahkan ke `BUILT_IN_CATALOG` di
-   `templates/catalog.ts`. `BUILTIN_TEMPLATES` (`template-store.ts`) adalah
-   alias otomatis — tidak perlu edit file kedua.
-4. **Thumbnail**: pakai `mockup` dengan prefix yang sudah dikenal
-   `renderMockup()` (`lib/builder/mockup-preview.tsx`), atau tambah
-   case baru di `TemplatePreview` untuk thumbnail galeri.
+   Struktur internal folder bebas; pola yang dipakai existing:
+   - `chrome.ts` — headers + footers
+   - `sections.ts` — section variants (semua dengan `html`)
+   - `schemes.ts` — `colorSchemes`
+   - `data.ts` — seed data
+   - `shared.ts` — helper + font tokens (untuk template unik besar)
+3. **Registrasi otomatis**: tidak perlu edit `catalog.ts`. Generator
+   `scripts/gen-template-catalog.mjs` memindai folder ber-`index.ts` dan
+   memperbarui `catalog.generated.ts`. Hook npm (`predev`, `prebuild`, `pretest`)
+   menjalankannya otomatis. Jalankan `bun run test` untuk memverifikasi.
+4. **Thumbnail**: taruh `public/thumbnails/<id>.jpg` (generator opsional menyalin
+   dari `templates/<id>/thumbnail.jpg` bila ada).
 5. **Jalankan `bun run test`** — guard kontrak: `templates/catalog.test.ts` +
    guard unik §18.6 + `section-contrast.test.ts` adalah penjaga kontrak.
-6. **Uji manual** di `/preview/<id-template>` (contoh: `/preview/food`) pada
+6. **Uji manual** di `/preview/<id-template>` (contoh: `/preview/bakery`) pada
    tiga viewport (375/768/1024) × tiga skema warna × tiga font (§18.7).
 
 > Untuk tipe section **baru**, cukup deklarasikan di file template itu sendiri

@@ -379,17 +379,9 @@ describe("kontrak template unik (§18)", () => {
   it("file template tidak mengimpor sistem generik", () => {
     const here = dirname(fileURLToPath(import.meta.url));
     for (const t of uniqueTemplates) {
-      const candidates = [`${t.id.replace(/:/g, "-")}.ts`, `${t.id}.ts`];
-      const found = candidates.map((c) => join(here, c)).find((p) => {
-        try {
-          readFileSync(p, "utf8");
-          return true;
-        } catch {
-          return false;
-        }
-      });
-      // laundry-emerald → laundry-emerald.ts
-      const raw = readFileSync(found ?? join(here, "laundry-emerald.ts"), "utf8");
+      // Templates are now in folders: <id>/index.ts
+      const path = join(here, t.id, "index.ts");
+      const raw = readFileSync(path, "utf8");
       // Komentar diabaikan — yang dicek adalah kode impor aktual.
       const src = raw
         .replace(/\/\*[\s\S]*?\*\//g, "")

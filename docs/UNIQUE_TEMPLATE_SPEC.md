@@ -139,17 +139,39 @@ Saat diberi gambar/foto desain web:
 
 ```
 src/lib/builder/templates/
-├── laundry-emerald.ts      # template pengganti (nama final saat implementasi)
-├── food.ts                 # dibangun ulang menyusul, kontrak sama
+├── laundry-emerald/      # template pengganti
+│   ├── index.ts
+│   ├── shared.ts
+│   ├── chrome.ts
+│   ├── sections.ts
+│   ├── schemes.ts
+│   └── data.ts
+├── food/                 # dibangun ulang menyusul, kontrak sama
+│   ├── index.ts
+│   ├── chrome.ts
+│   ├── schemes.ts
+│   └── data.ts
+├── marketplace-hybrid/
+│   ├── index.ts
+│   ├── shared.ts
+│   ├── chrome.ts
+│   ├── sections.ts
+│   ├── schemes.ts
+│   └── data.ts
 ├── catalog.ts              # BUILT_IN_CATALOG tanpa laundry-fresh
+├── catalog.generated.ts    # AUTO-GENERATED — jangan edit manual
 └── catalog.test.ts         # guard unik (pengganti whitelist lama)
 ```
 
-Setiap file template mendeklarasikan **sendiri**: `theme` (palet + 3 font),
+Setiap folder template mendeklarasikan **sendiri**: `theme` (palet + 3 font),
 `headers` (≥5, semua `html`), `footers` (≥5, semua `html`), `sections`
 (tipe + varian, semua `html`), `data` (seed `sections/header/footer/seo`,
 `activeSections`, `paletteOverride`). Tidak ada impor dari `sections/registry`
 atau `templates/compose` — kedua modul itu dihapus.
+
+Registrasi otomatis via `scripts/gen-template-catalog.mjs` yang memindai
+folder ber-`index.ts` dan menghasilkan `catalog.generated.ts`. Hook npm
+(`predev`, `prebuild`, `pretest`) menjalankannya otomatis.
 
 Renderer setelah hapus generik:
 

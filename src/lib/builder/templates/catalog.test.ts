@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { builderSectionToInstance } from "../migration";
 import { ALL_TIERS, isCatalogTemplateAllowedForTier } from "./catalog";
 import { isKnownHeaderVariant, isKnownFooterVariant } from "../chrome";
 import { BUILT_IN_CATALOG } from "./catalog";
+import { GENERATED_CATALOG, GENERATED_TEMPLATE_FOLDERS } from "./catalog.generated";
 import { resolvePalette } from "../design-styles";
 import { validateColorScheme } from "../color-schemes";
 import { FONT_CATEGORIES } from "../font-categories";
@@ -640,5 +641,29 @@ it("template bermigrasi punya >=3 varian untuk SETIAP tipe section predefined", 
         for (const v of s.variants) checkHtml(`${s.type}/${v.id}`, (v as { html?: unknown }).html);
       }
     }
+  });
+});
+
+describe("kontrak folder template", () => {
+  const templatesDir = dirname(fileURLToPath(import.meta.url));
+
+  it("setiap folder ber-index.ts terdaftar, dan id template === nama folder", () => {
+    const folders = readdirSync(templatesDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith(".") && !d.name.startsWith("_"))
+      .map((d) => d.name)
+      .filter((name) => existsSync(join(templatesDir, name, "index.ts")))
+      .sort((a, b) => a.localeCompare(b));
+
+    expect(
+      [...GENERATED_TEMPLATE_FOLDERS],
+      "catalog.generated.ts kedaluwarsa — jalankan `node scripts/gen-template-catalog.mjs`",
+    ).toEqual(folders);
+
+    GENERATED_CATALOG.forEach((t, i) => {
+      expect(
+        t.id,
+        `folder "${GENERATED_TEMPLATE_FOLDERS[i]}" berisi template id "${t.id}" — id wajib sama dengan nama folder`,
+      ).toBe(GENERATED_TEMPLATE_FOLDERS[i]);
+    });
   });
 });
