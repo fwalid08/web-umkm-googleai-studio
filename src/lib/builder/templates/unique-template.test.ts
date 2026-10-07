@@ -14,7 +14,7 @@ import type { ConfigField } from "../template-types";
  * Diterapkan pada template yang sudah dibangun ulang unik (milik sendiri,
  * bukan registry).
  */
-const UNIQUE_TEMPLATES = new Set(["laundry-emerald", "marketplace-hybrid", "retail-marketplace"]);
+const UNIQUE_TEMPLATES = new Set(["laundry-emerald", "marketplace-hybrid", "retail-marketplace", "nourivelle-wellness"]);
 
 const uniqueTemplates = BUILT_IN_CATALOG.filter((t) => UNIQUE_TEMPLATES.has(t.id));
 
