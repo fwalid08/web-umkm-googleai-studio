@@ -1,9 +1,9 @@
 # Planning Template & Module — Website Builder SaaS UMKM
 
-> **Status:** Planning (tanpa implementasi).
-> **Tanggal:** 2026-10-05 (dimutakhirkan 2026-10-05: konvensi prefix §5.6 dikunci).
+> **Status:** Fase 0 SELESAI (2026-10-07) — Struktur module terisolasi, DAG resolver, site-type registry, entitlements engine implemented.
+> **Tanggal:** 2026-10-05 (dimutakhirkan 2026-10-07: struktur module folder-based §13 dikunci).
 > **Ruang lingkup sesi:** online_shop dulu; blog/booking/sekolah ditunda; payment buyer manual dulu.
-> **Keputusan kunci:** template terikat `site_type`; fitur dijual sebagai **Feature Pack per tipe website + Add-on Website (ikut tier) + Modul Global (subscription mandiri)**; pricing table wajib pilih jenis website dulu; **tiap modul wajib prefix unik (§5.6)**.
+> **Keputusan kunci:** template terikat `site_type`; fitur dijual sebagai **Feature Pack per tipe website + Add-on Website (ikut tier) + Modul Global (subscription mandiri)**; pricing table wajib pilih jenis website dulu; **tiap modul wajib prefix unik (§5.6)**; **setiap feature/module di folder terisolasi dengan prefix & migration sendiri (§13)**.
 
 ---
 
@@ -454,4 +454,165 @@ Dipakai di: semua API fitur (`/api/ongkir/*`, `/api/akunting/*`, ...), builder (
 
 ---
 
-*Akhir dokumen planning. Belum ada implementasi kode; eksekusi mengikuti Fase 0 → Fase 4.*
+## 13. Struktur Module Terisolasi (Folder-Based, Implementasi 2026-10-07)
+
+Mengikuti pola template `src/lib/builder/templates/<niche>/`, setiap feature/module sekarang berada di folder sendiri di `src/lib/modules/` dengan prefix, migration, API, dan logika terisolasi.
+
+### 13.1 Arsitektur Folder
+
+```
+src/lib/modules/
+├── core/                          # Infrastructure modules (mod_ tables)
+│   ├── features/                  # Feature catalog & registry
+│   ├── packs/                     # Pack definitions per site_type
+│   ├── subscriptions/             # Subscription tables & logic
+│   ├── entitlements/              # Single enforcement gate (hasFeature)
+│   └── site-types/                # Site type registry (Fase 0)
+│
+├── features/                      # Business feature modules (isolated folders)
+│   ├── core-products/             # Core W gratis: products_dasar (prod_)
+│   ├── core-orders/               # Core W gratis: orders_wa (ord_)
+│   ├── core-subdomain/            # Core W gratis: subdomain (ws_)
+│   ├── core-template/             # Core W gratis: template_dasar (bld_)
+│   ├── core-dashboard/            # Core W gratis: dashboard_dasar (ws_)
+│   ├── stock-tracking/            # Pack feature (prod_)
+│   ├── customer-list/             # Pack feature (ord_)
+│   ├── custom-domain/             # Pack feature (dom_)
+│   ├── template-premium/          # Pack feature (bld_)
+│   ├── analytics-export/          # Pack bonus Growth+ (anl_)
+│   ├── cek-ongkir/                # Add-on W POC (ong_)
+│   ├── payment-online/            # Add-on W future (pay_)
+│   ├── pages-extra/               # Add-on W (ws_)
+│   ├── akunting-dasar/            # Modul G (acc_)
+│   ├── akunting-lanjutan/         # Modul G (acc_)
+│   ├── hrm-core/                  # Modul G (hrm_)
+│   ├── payroll/                   # Modul G (pay_)
+│   └── wa-gateway/                # Modul G (wgt_)
+│
+├── dependencies/                  # DAG resolution
+│   ├── graph.ts                   # Topological sort, transitive closure
+│   ├── validation.ts              # Circular detection, seed validation
+│   └── test.ts                    # Unit tests
+│
+├── scripts/                       # Generation & linting
+│   ├── gen-module-catalog.mjs     # Auto-discover features/*/index.ts
+│   └── lint-module-prefix.mjs     # Extended prefix linter
+│
+├── prefixes.ts                    # MODULE_PREFIXES registry (19 prefixes)
+├── prefixes.test.ts               # Prefix validation tests
+├── types.ts                       # Shared types (Feature, Pack, Subscription)
+├── index.ts                       # Barrel export
+└── catalog.generated.ts           # AUTO-GENERATED
+```
+
+### 13.2 Kontrak Per Feature Folder
+
+Setiap folder `features/<feature-id>/` **wajib** berisi:
+
+| File | Deskripsi |
+|------|-----------|
+| `index.ts` | Export `XXX_FEATURE: Feature` + `XXX_PREFIX` |
+| `types.ts` | TypeScript types (config, entities, limits) |
+| `prefix.ts` | `export const PREFIX = 'xxx_'` |
+| `migration.sql` | `CREATE TABLE` dengan prefix yang benar |
+| `api.ts` | Route handlers di `/api/modules/<feature-id>/` |
+| `hooks.ts` | Business logic, validasi, limit checks |
+| `pricing.ts` | (jika berbayar) Kalkulasi harga, prorata, usage |
+| `internal-api.ts` | (jika dikonsumsi feature lain) Internal API |
+
+### 13.3 Prefix Registry (MODULE_PREFIXES)
+
+| Module | Prefix | Tables |
+|--------|--------|--------|
+| core features/packs/subscriptions | `mod_` | `mod_features`, `mod_packs`, `mod_pack_features`, `mod_site_prices`, `mod_sub_addons`, `mod_global_subs`, `mod_usage` |
+| core site-types | `ws_` | `ws_websites.site_type`, `subscriptions.site_type` |
+| core-products | `prod_` | `prod_products`, `prod_images`, `prod_variants`, `prod_stock_movements` |
+| core-orders | `ord_` | `ord_orders` |
+| core-template | `bld_` | `bld_templates`, `bld_user_templates` |
+| cek-ongkir | `ong_` | `ong_rates_cache`, `ong_usage_log` |
+| akunting-dasar/lanjutan | `acc_` | `acc_journals`, `acc_accounts`, `acc_ledgers`, `acc_reports` |
+| hrm-core | `hrm_` | `hrm_employees`, `hrm_attendance`, `hrm_shifts` |
+| payroll | `pay_` | `pay_payslips`, `pay_thr`, `pay_tax` |
+| wa-gateway | `wgt_` | `wgt_templates`, `wgt_broadcasts`, `wgt_deliveries` |
+
+> Beberapa feature berbagi prefix (e.g., `prod_` untuk products + stock). Ini diperbolehkan — prefix = namespace tabel, bukan 1:1 feature.
+
+### 13.4 Auto-Discovery & Catalog Generation
+
+`scripts/gen-module-catalog.mjs` scan `features/*/index.ts` + `core/*/index.ts` → generate `catalog.generated.ts`:
+
+```ts
+// AUTO-GENERATED
+export const GENERATED_FEATURE_FOLDERS = ['core-products', 'core-orders', 'cek-ongkir', ...];
+export const GENERATED_FEATURE_CATALOG = [PRODUCTS_DASAR_FEATURE, ORDERS_WA_FEATURE, CEK_ONGOIR_FEATURE, ...];
+export const GENERATED_CORE_FOLDERS = ['features', 'packs', 'subscriptions', 'entitlements', 'site-types'];
+export const GENERATED_CORE_CATALOG = [...];
+```
+
+Jalan otomatis via npm prehooks: `predev`, `prebuild`, `pretest`, `pretypecheck`.
+
+### 13.5 Linting Prefix
+
+`scripts/lint-module-prefix.mjs` memperluas `lint-prefix.mjs`:
+- Validasi `CREATE TABLE` di migrasi pakai prefix terdaftar
+- Validasi setiap `features/*/prefix.ts` exists & prefix terdaftar
+- Validasi `migration.sql` exists per feature
+
+### 13.6 DAG Resolver (dependencies/)
+
+Pure TS implementation:
+- `buildGraph()` → `DependencyGraph`
+- `topologicalSort()` → Kahn's algorithm
+- `detectCircular()` → DFS cycle detection
+- `resolveDependencies(requested[], active[])` → `{resolved, autoIncluded, warnings, errors}`
+- `validateSeed()` → CI gate untuk circular/missing deps
+
+### 13.7 Site-Type Registry (core/site-types/)
+
+`SITE_TYPE_REGISTRY` — single source of truth:
+```ts
+online_shop: {
+  label: 'Online Shop',
+  niches: ['food','fashion','retail','handicraft','services'],
+  allowedSections: [...],
+  requiredSections: ['hero','contact'],
+  requiresModules: ['products_dasar','orders_wa','subdomain','template_dasar','dashboard_dasar'],
+  packId: 'online_shop_pack',
+  isActive: true,
+}
+```
+Template compatibility via `TEMPLATE_COMPATIBILITY[]` mapping templateId → siteTypes[].
+
+### 13.8 Entitlements Engine (core/entitlements/)
+
+Single enforcement gate `hasFeature(context, featureId)`:
+1. Pack inclusion (tier-based via `mod_pack_features.included_tiers`)
+2. Addon W active (`mod_sub_addons` website-scoped)
+3. Global module active (`mod_global_subs` user-scoped)
+4. Pack bonus for global (e.g., `analytics_export` in Growth+)
+5. Legacy fallback (TIER_LIMITS_DEFAULTS during migration) → deny
+
+Helpers: `canEnableAddon()`, `canDisableAddon()`, `getActiveFeaturesForWebsite()`.
+
+### 13.9 API Convention
+
+Feature owns routes: `/api/modules/<feature-id>/`
+- `GET /api/modules/cek-ongkir/rates`
+- `POST /api/modules/akunting-dasar/journals`
+- Internal API: `/api/internal/<feature-id>/...` (service role key)
+
+Cross-feature via HTTP, **no direct imports** across feature folders.
+
+### 13.10 Migration Strategy
+
+Per-feature migration files di `features/<id>/migration.sql` → applied centrally as sequential migrations (047, 048, 049, 050...).
+
+| Phase | Migrations |
+|-------|------------|
+| Fase 0a | 047 (mod_features), 048 (mod_packs), 049 (mod_subscriptions), 050 (site_types) |
+| Fase 0b | 051-060 (core features: products, orders, template, stock, domain, analytics) |
+| Fase 1 | 056 (cek_ongkir), 057 (analytics), 058-062 (akunting, hrm, payroll, wa) |
+
+---
+
+*Dokumen planning updated 2026-10-07. Implementasi Fase 0 selesai. Eksekusi lanjut Fase 1 (migrasi + seed).*

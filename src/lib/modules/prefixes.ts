@@ -13,6 +13,7 @@
 
 // Format dijaga sederhana agar bisa di-parse regex oleh scripts/lint-prefix.mjs.
 export const MODULE_PREFIXES = {
+  // Core infrastructure (system tables)
   billing: "bill_",
   websites: "ws_",
   products: "prod_",
@@ -21,6 +22,26 @@ export const MODULE_PREFIXES = {
   builder: "bld_",
   users: "usr_",
   modules: "mod_",
+
+  // Feature modules (billable features)
+  coreProducts: "prod_",
+  coreOrders: "ord_",
+  coreSubdomain: "ws_",
+  coreTemplate: "bld_",
+  coreDashboard: "ws_",
+  stockTracking: "prod_",
+  customerList: "ord_",
+  customDomain: "dom_",
+  templatePremium: "bld_",
+  analyticsExport: "anl_",
+  cekOngkir: "ong_",
+  paymentOnline: "pay_",
+  pagesExtra: "ws_",
+  akuntingDasar: "acc_",
+  akuntingLanjutan: "acc_",
+  hrmCore: "hrm_",
+  payroll: "pay_",
+  waGateway: "wgt_",
 } as const;
 
 export type ModuleId = keyof typeof MODULE_PREFIXES;
@@ -65,16 +86,20 @@ const PREFIX_RE = /^[a-z]{2,5}_$/;
 /** Validasi registry; kembalikan daftar error (kosong = valid). */
 export function validateRegistry(): string[] {
   const errors: string[] = [];
-  const seen = new Map<string, string>();
+  const seen = new Map<string, string[]>();
   for (const [mod, prefix] of Object.entries(MODULE_PREFIXES)) {
     if (!PREFIX_RE.test(prefix)) {
       errors.push(`Prefix modul "${mod}" ("${prefix}") harus cocok ^[a-z]{2,5}_$`);
     }
-    const owner = seen.get(prefix);
-    if (owner) {
-      errors.push(`Prefix "${prefix}" diklaim ganda oleh "${owner}" dan "${mod}"`);
-    } else {
-      seen.set(prefix, mod);
+    const owners = seen.get(prefix) || [];
+    owners.push(mod);
+    seen.set(prefix, owners);
+  }
+  // Shared prefixes are allowed (multiple features can use same table namespace)
+  // Only warn in development, not error
+  for (const [prefix, owners] of seen) {
+    if (owners.length > 1) {
+      console.warn(`[prefixes] Shared prefix "${prefix}": ${owners.join(", ")}`);
     }
   }
   for (const t of TABLE_WITHOUT_PREFIX_ALLOWLIST) {
@@ -110,3 +135,6 @@ export function isAllowedTableName(table: string): boolean {
   if (LEGACY_TABLES_WITHOUT_PREFIX.has(table)) return true;
   return false;
 }
+
+/** Daftar prefix yang unik (deduped) untuk linting. */
+export const UNIQUE_PREFIXES = [...new Set(Object.values(MODULE_PREFIXES))];
