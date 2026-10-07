@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { FREE_PRODUCT_MAX, websiteConfigSchema } from "@/types";
 import {
   countProductItems,
@@ -23,7 +23,6 @@ import {
   saveDemoWebsiteConfig,
   STATIC_TEMPLATES,
 } from "@/lib/mock/store";
-import { cookies } from "next/headers";
 import {
   buildLibrarySlug,
   isLibrarySlug,
@@ -56,7 +55,7 @@ import {
  * & Terapkan) butuh slug-nya lalu melanjutkan alur normal.
  */
 async function saveAsLibraryTemplate(args: {
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  supabase: ReturnType<typeof createServiceSupabaseClient>;
   userId: string;
   websiteId: string;
   /** Slug katalog asal ('food'), disimpan sebagai base_slug untuk apply. */
@@ -114,7 +113,7 @@ async function saveAsLibraryTemplate(args: {
  * bisa fallback membuat salinan baru.
  */
 async function updateLibraryTemplate(args: {
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  supabase: ReturnType<typeof createServiceSupabaseClient>;
   userId: string;
   websiteId: string;
   /** Slug `saved-<uuid>` yang sedang dibuka di kanvas. */
@@ -184,7 +183,7 @@ async function updateLibraryTemplate(args: {
  * `is_library = false` wajib: baris library bukan template aktif.
  */
 async function readExistingActiveConfig(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  supabase: ReturnType<typeof createServiceSupabaseClient>,
   websiteId: string,
   slugs: Array<string | null | undefined>,
 ): Promise<Record<string, unknown> | null> {
@@ -218,16 +217,6 @@ function getSessionUser(session: unknown): SessionUser | null {
 
 function subdomainUrl(subdomain: string | null): string | null {
   return tenantUrl(subdomain);
-}
-
-async function getNextAuthToken(): Promise<string | undefined> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authjs.session-token")?.value;
-    return token || undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 // GET /api/websites/[websiteId]/website — konfigurasi website AKTIF (merged dengan defaults template)
@@ -275,7 +264,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createServiceSupabaseClient();
     // Pisahkan: hanya `user` yang di-reassign (fallback auto-create di bawah),
     // `userError` hanya dibaca untuk logging.
     const { data: userRow, error: userError } = await supabase
@@ -452,14 +441,12 @@ export async function PUT(
 
     const hasNewFormat = body?.custom_config?.sections !== undefined;
 
-    const nextAuthToken = await getNextAuthToken();
-
     const site = await getOwnedWebsite(sessionUser.id, websiteId);
     if (!site || site.id !== websiteId) {
       return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
     }
 
-    const supabase = await createServerSupabaseClient(nextAuthToken);
+    const supabase = createServiceSupabaseClient();
 
   // Fetch user for tier enforcement
   const { data: user } = await supabase

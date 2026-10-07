@@ -22,8 +22,16 @@ via dump-diff remote).
 - Rename dance: `products`→`prod_products`, `orders`→`ord_orders`, dll. (langsung nama final)
 - Seed basi: `002/017/019` (kolom lama `product_name`, `total_amount`, tabel `templates`) — **demo-login perlu re-seed baru** (follow-up)
 
+## Riwayat pasca-squash
+
+| # | File | Isi |
+|---|------|-----|
+| 010 | `reconcile_bld_user_templates.sql` | **Bugfix 500 PUT website**: kembalikan kolom library (user_id, template_slug, base_slug, name, is_library, custom_config) yang terhapus oleh skema narrow 050; drop kolom mati (template_id, is_active, applied_at); UNIQUE(website_id, template_slug) untuk onConflict upsert |
+| 011 | `drop_compat_views.sql` | ~~Drop 12 compat views~~ — **DIBATALKAN oleh 012**: production masih jalan kode lama |
+| 012 | `restore_compat_views.sql` | **Remediasi insiden**: kembalikan 12 compat views. Jangan drop sebelum kode prefix-native ter-deploy ke production |
+
 ## Aturan
 
 - Jangan edit nomor/urutan file tanpa reset DB.
 - `scripts/sync-module-migrations.mjs` **deprecated** — jangan `--apply`.
-- Migrasi baru: lanjutkan penomoran dari `010_*.sql`.
+- Migrasi baru: lanjutkan penomoran dari `011_*.sql`.

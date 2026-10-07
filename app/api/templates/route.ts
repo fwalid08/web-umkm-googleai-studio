@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { auth } from "@/lib/auth/auth";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { BUILT_IN_CATALOG } from "@/lib/builder/templates/catalog";
 import { isCatalogTemplateAllowedForTier } from "@/lib/builder/templates/catalog";
 import { DEFAULT_LIBRARY_NAME, isLibrarySlug } from "@/lib/builder/template-library";
@@ -45,11 +44,7 @@ export async function GET(request: NextRequest) {
 
     let saved: unknown[] = [];
     if (request.nextUrl.searchParams.get("library") === "1" && userId) {
-      const jar = await cookies();
-      const authToken =
-        jar.get("authjs.session-token")?.value ??
-        jar.get("__Secure-authjs.session-token")?.value;
-      const supabase = await createServerSupabaseClient(authToken);
+      const supabase = createServiceSupabaseClient();
       // Filter `user_id` WAJIB: RLS dimatikan di 026_fix_rls_nextauth.sql,
       // jadi seluruh pembatasan akses bergantung pada scoping di sini.
       const { data: rows } = await supabase
@@ -118,11 +113,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Template tidak valid" }, { status: 400 });
     }
 
-    const jar = await cookies();
-    const authToken =
-      jar.get("authjs.session-token")?.value ??
-      jar.get("__Secure-authjs.session-token")?.value;
-    const supabase = await createServerSupabaseClient(authToken);
+    const supabase = createServiceSupabaseClient();
 
     const { data: rows, error: selectError } = await supabase
       .from("bld_user_templates")

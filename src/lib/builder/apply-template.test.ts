@@ -220,10 +220,16 @@ describe('REGRESI: endpoint DELETE /api/templates wajib aman', () => {
     expect(src).toContain('.eq("is_library", true)');
   });
 
-  it('tidak memakai service-role untuk hapus (harus ikut sesi user)', () => {
+  it('akses DB terpusat + scoping ketat (service client + filter user)', () => {
+    // Catatan 2026-10-07: anon client + NextAuth token TIDAK memberi identitas
+    // DB (auth.uid() NULL) sehingga RLS menolak semua baca/tulis — endpoint mati.
+    // Kontrak sekarang (sama seperti PATCH website & activate): service client
+    // + session check + filter ketat. RLS owner tetap sebagai backstop.
     const block = route().slice(route().indexOf('export async function DELETE'));
-    expect(block).not.toContain('createServiceSupabaseClient');
-    expect(block).toContain('createServerSupabaseClient');
+    expect(block).toContain('createServiceSupabaseClient');
+    expect(block).toContain('if (!userId)');
+    expect(block).toContain('.eq("user_id", userId)');
+    expect(block).toContain('.eq("is_library", true)');
   });
 
   it('kedua tempat menampilkan library punya aksi hapus', () => {
