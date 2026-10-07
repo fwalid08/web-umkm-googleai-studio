@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest) {
 
     // Verify all products belong to user's websites
     const { data: products } = await supabase
-      .from("products")
+      .from("prod_products")
       .select("id, website_id")
       .in("id", productIds);
 
@@ -57,7 +57,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Produk tidak termasuk website tersebut" }, { status: 400 });
     }
     const { data: websites } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .in("id", websiteIds)
       .eq("user_id", userId);
@@ -80,7 +80,7 @@ export async function PUT(req: NextRequest) {
       // Fallback: sequential updates (ownership already verified, single website).
       for (let index = 0; index < productIds.length; index++) {
         const { error } = await supabase
-          .from("products")
+          .from("prod_products")
           .update({ sort_order: orderMap[productIds[index]], updated_at: new Date().toISOString() })
           .eq("id", productIds[index]);
         if (error) {

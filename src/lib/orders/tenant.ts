@@ -30,7 +30,7 @@ export async function resolveTenantId(subdomainOrDomain: string): Promise<Tenant
     // 1. Coba sebagai subdomain (format ketat + reserved, selaras public.ts)
     if (isValidSubdomain(key)) {
       const { data } = await supabase
-        .from("websites")
+        .from("ws_websites")
         .select("id, user_id, subdomain")
         .eq("subdomain", key)
         .maybeSingle();
@@ -45,7 +45,7 @@ export async function resolveTenantId(subdomainOrDomain: string): Promise<Tenant
     // 2. Coba sebagai custom domain (harus verified)
     if (key.includes(".")) {
       const { data } = await supabase
-        .from("websites")
+        .from("ws_websites")
         .select("id, user_id, subdomain")
         .eq("custom_domain", key)
         .eq("custom_domain_verified", true)

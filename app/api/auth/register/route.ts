@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (!isValidSubdomain(base)) base = generateSubdomain().toLowerCase();
     const subdomain = await ensureUniqueSubdomain(base, async (s) => {
       const { data: subClash } = await supabase
-        .from("websites")
+        .from("ws_websites")
         .select("id")
         .eq("subdomain", s)
         .maybeSingle();
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Sprint 03: website pertama ("Website Utama") + jadikan aktif
     const { data: site, error: siteError } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .insert({
         user_id: authData.user.id,
         name: "Website Utama",
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     await supabase.from("users").update({ active_website_id: site.id }).eq("id", authData.user.id);
 
     // Create default subscription record (Free permanen, bukan trial)
-    await supabase.from("subscriptions").insert({
+    await supabase.from("bill_subscriptions").insert({
       user_id: authData.user.id,
       tier: "free",
       status: "active",

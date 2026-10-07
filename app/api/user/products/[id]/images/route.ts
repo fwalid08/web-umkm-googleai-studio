@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Get product with website
     const { data: product } = await supabase
-      .from("products")
+      .from("prod_products")
       .select("id, website_id")
       .eq("id", productId)
       .maybeSingle();
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Verify website ownership
     const { data: website } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("id", product.website_id)
       .eq("user_id", userId)
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const record = createProductImageRecord(result, sortOrder, isPrimary);
         if (record) {
           const { data: saved, error } = await supabase
-            .from("product_images")
+            .from("prod_images")
             .insert({
               product_id: productId,
               storage_path: record.storage_path,
@@ -155,8 +155,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Verify ownership
     const { data: image } = await supabase
-      .from("product_images")
-      .select("id, product_id, storage_path, product:products!inner(website_id)")
+      .from("prod_images")
+      .select("id, product_id, storage_path, product:prod_products!inner(website_id)")
       .eq("id", imageId)
       .maybeSingle();
 
@@ -166,7 +166,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     const product = (image.product as { website_id: string }[])[0];
     const { data: website } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("id", product.website_id)
       .eq("user_id", userId)
@@ -181,7 +181,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await deleteProductImages([image.storage_path]);
 
     // Delete from database
-    const { error } = await supabase.from("product_images").delete().eq("id", imageId);
+    const { error } = await supabase.from("prod_images").delete().eq("id", imageId);
 
     if (error) {
       console.error("Delete product image error:", error);

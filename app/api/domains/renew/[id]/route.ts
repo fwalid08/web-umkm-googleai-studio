@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const supabase = createServiceSupabaseClient();
     const { data } = await supabase
-      .from("domain_orders")
+      .from("dom_orders")
       .select("id, user_id, domain, status, price_yearly, payment_reference, payment_provider, paid_at")
       .eq("id", id)
       .eq("user_id", userId)
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const prevRef = order.payment_reference;
     const prevPaidAt = order.paid_at;
     const { error: markError } = await supabase
-      .from("domain_orders")
+      .from("dom_orders")
       .update({
         payment_reference: orderId,
         payment_provider: paymentProviderId,
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       // Kembalikan penanda lama (best-effort) agar webhook payment lama tetap valid.
       console.error("[domains/renew] createTransaction gagal:", err);
       await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .update({
           payment_reference: prevRef,
           paid_at: prevPaidAt,

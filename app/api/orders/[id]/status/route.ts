@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ success: false, error: "Website tidak ditemukan" }, { status: 404 });
     }
     const { data: existing } = await supabase
-      .from("orders")
+      .from("ord_orders")
       .select("id, status")
       .eq("id", id)
       .eq("user_id", userId)
@@ -80,7 +80,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // updated_at di-set eksplisit sebagai fallback jika trigger
     // update_orders_updated_at (004/005) belum dijalankan di Supabase.
     const { data: updated, error } = await supabase
-      .from("orders")
+      .from("ord_orders")
       .update({ status: to, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("user_id", userId)

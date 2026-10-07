@@ -60,7 +60,7 @@ export async function checkProductLimit(
 
     // Count current products for website
     const { count } = await supabase
-      .from("products")
+      .from("prod_products")
       .select("id", { count: "exact", head: true })
       .eq("website_id", websiteId);
 
@@ -100,7 +100,7 @@ export async function getProductLimitInfo(
       // Get user tier and plan
       const { data: user } = await supabase
         .from("users")
-        .select("tier, plan_id, plans!users_plan_id_fkey(max_products)")
+        .select("tier, plan_id, bill_plans!users_plan_id_fkey(max_products)")
         .eq("id", userId)
         .maybeSingle();
 
@@ -155,7 +155,7 @@ export async function checkProductImageLimit(
 
     // Count current images for product
     const { count } = await supabase
-      .from("product_images")
+      .from("prod_images")
       .select("id", { count: "exact", head: true })
       .eq("product_id", productId);
 
@@ -200,7 +200,7 @@ export async function checkProductVariantLimit(
     }
 
     const { count } = await supabase
-      .from("product_variants")
+      .from("prod_variants")
       .select("id", { count: "exact", head: true })
       .eq("product_id", productId);
 
@@ -266,7 +266,7 @@ export const TIER_LIMITS_DEFAULTS: Record<string, TierLimits> = {
 export async function getTierLimits(tier: string): Promise<TierLimits> {
   try {
     const supabase = createServiceSupabaseClient();
-    const { data } = await supabase.from("tier_limits").select("*").eq("tier", tier).maybeSingle();
+    const { data } = await supabase.from("bill_tier_limits").select("*").eq("tier", tier).maybeSingle();
     if (data) {
       const row = data as Record<string, unknown>;
       const num = (v: unknown, fb: number): number =>
@@ -320,9 +320,9 @@ export async function checkCustomDomainLimit(userId: string, tier: string): Prom
   try {
     const supabase = createServiceSupabaseClient();
     const [{ count: verifiedSites }, { count: activeOrders }] = await Promise.all([
-      supabase.from("websites").select("id", { count: "exact", head: true })
+      supabase.from("ws_websites").select("id", { count: "exact", head: true })
         .eq("user_id", userId).not("custom_domain", "is", null).eq("custom_domain_verified", true),
-      supabase.from("domain_orders").select("id", { count: "exact", head: true })
+      supabase.from("dom_orders").select("id", { count: "exact", head: true })
         .eq("user_id", userId).eq("status", "active"),
     ]);
     const current = Math.max(verifiedSites ?? 0, activeOrders ?? 0);

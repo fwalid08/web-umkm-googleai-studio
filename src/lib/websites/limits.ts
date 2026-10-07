@@ -50,13 +50,13 @@ export async function checkWebsiteLimit(userId: string): Promise<{
     const supabase = createServiceSupabaseClient();
     const { data: user } = await supabase
       .from("users")
-      .select("tier, plan_id, plans!users_plan_id_fkey(max_websites)")
+      .select("tier, plan_id, bill_plans!users_plan_id_fkey(max_websites)")
       .eq("id", userId)
       .maybeSingle();
     const u = user as { tier?: string; plans?: { max_websites?: number } | null } | null;
     const max = resolveMaxWebsites(u?.tier, u?.plans?.max_websites ?? null);
     const { count } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     const n = count ?? 0;

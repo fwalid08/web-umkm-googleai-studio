@@ -150,7 +150,7 @@ async function fetchProductsForWebsite(websiteId: string): Promise<Array<{
 }>> {
   const supabase = createServiceSupabaseClient();
   const { data } = await supabase
-    .from("products")
+    .from("prod_products")
     .select(`
       id,
       name,
@@ -230,7 +230,7 @@ async function buildSite(user: PublicUserRow): Promise<PublicSiteData | null> {
     list[0];
 
   const { data: row } = await supabase
-    .from("user_templates")
+    .from("bld_user_templates")
     .select("custom_config")
     .eq("website_id", user.id)
     .eq("template_slug", template.id)
@@ -560,7 +560,7 @@ export async function getPublicSiteBySubdomain(subdomain: string): Promise<Publi
   try {
     const supabase = createServiceSupabaseClient();
     const { data: site } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id, user_id, name, business_type, subdomain, template_slug")
       .eq("subdomain", subdomain)
       .maybeSingle();
@@ -575,7 +575,7 @@ export async function getPublicSiteByCustomDomain(domain: string): Promise<Publi
   try {
     const supabase = createServiceSupabaseClient();
     const { data: site, error } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id, user_id, name, business_type, subdomain, template_slug")
       .eq("custom_domain", domain.toLowerCase())
       .eq("custom_domain_verified", true)

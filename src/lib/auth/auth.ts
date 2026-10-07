@@ -113,7 +113,7 @@ const nextAuth = NextAuth({
           // Sprint 03: subdomain session ikut website aktif (bukan kolom users legacy).
           // PENTING: query pakai finalProfile.id (public.users.id), bukan Auth ID.
           const { data: active } = await supabase
-            .from("websites")
+            .from("ws_websites")
             .select("subdomain")
             .eq("user_id", finalProfile.id)
             .order("created_at", { ascending: true })
@@ -155,7 +155,7 @@ const nextAuth = NextAuth({
             // Clash retry 3x loop via helper testable
             const subdomain = await ensureUniqueSubdomain(base, async (s) => {
               const { data: subClash } = await supabase
-                .from("websites")
+                .from("ws_websites")
                 .select("id")
                 .eq("subdomain", s)
                 .maybeSingle();
@@ -174,7 +174,7 @@ const nextAuth = NextAuth({
             });
             if (error) console.error("Google auto-create profile error", error);
             const { data: site } = await supabase
-              .from("websites")
+              .from("ws_websites")
               .insert({ user_id: newId, name: "Website Utama", business_type: "retail", subdomain })
               .select("id")
               .single();
@@ -240,7 +240,7 @@ const nextAuth = NextAuth({
             let resolved: string | null = null;
             if (row.active_website_id) {
               const { data: site } = await svc
-                .from("websites")
+                .from("ws_websites")
                 .select("subdomain")
                 .eq("id", row.active_website_id)
                 .maybeSingle();
@@ -251,7 +251,7 @@ const nextAuth = NextAuth({
                 resolved = row.subdomain;
               } else {
                 const { data: first } = await svc
-                  .from("websites")
+                  .from("ws_websites")
                   .select("subdomain")
                   .eq("user_id", token.id as string)
                   .order("created_at", { ascending: true })

@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
 
     // Clash: domain sudah dipakai website lain / order aktif.
     const { data: clashSite } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("custom_domain", domain)
       .neq("id", site.id)
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Domain sudah dipakai website lain" }, { status: 409 });
     }
     const { data: taken } = await supabase
-      .from("domain_orders")
+      .from("dom_orders")
       .select("id")
       .eq("domain", domain)
       .eq("status", "active")
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
 
     // Insert order pending_payment (idempotency key = payment_reference).
     const { data: order, error: orderError } = await supabase
-      .from("domain_orders")
+      .from("dom_orders")
       .insert({
         user_id: userId,
         website_id: site.id,
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
       // Transaksi payment gagal → tandai order expired agar tak menggantung pending selamanya.
       console.error("[domains/checkout] createTransaction gagal:", err);
       await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .update({ status: "expired", updated_at: new Date().toISOString() })
         .eq("id", (order as { id: string }).id);
       return NextResponse.json(

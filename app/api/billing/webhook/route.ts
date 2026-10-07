@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceSupabaseClient();
     const { data: sub } = await supabase
-      .from("subscriptions")
+      .from("bill_subscriptions")
       .select("id, user_id, tier, status, paid_at")
       .eq("payment_reference", order_id)
       .maybeSingle();
@@ -67,14 +67,14 @@ export async function POST(req: NextRequest) {
       // Credit card capture butuh fraud accept; challenge = tunda (past_due).
       if (status === "capture" && fraud === "challenge") {
         await supabase
-          .from("subscriptions")
+          .from("bill_subscriptions")
           .update({ status: "past_due" })
           .eq("id", sub.id);
         return NextResponse.json({ success: true, data: { order_id, status: "past_due" } });
       }
       const now = new Date().toISOString();
       await supabase
-        .from("subscriptions")
+        .from("bill_subscriptions")
         .update({ status: "active", paid_at: now })
         .eq("id", sub.id);
       if (sub.tier && sub.tier !== "free") {
@@ -84,13 +84,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (status === "deny") {
-      await supabase.from("subscriptions").update({ status: "past_due" }).eq("id", sub.id);
+      await supabase.from("bill_subscriptions").update({ status: "past_due" }).eq("id", sub.id);
       return NextResponse.json({ success: true, data: { order_id, status: "past_due" } });
     }
 
     if (status === "expire" || status === "cancel") {
       await supabase
-        .from("subscriptions")
+        .from("bill_subscriptions")
         .update({ status: "canceled", canceled_at: new Date().toISOString() })
         .eq("id", sub.id);
       return NextResponse.json({ success: true, data: { order_id, status: "canceled" } });

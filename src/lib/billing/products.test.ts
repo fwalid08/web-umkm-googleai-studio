@@ -62,27 +62,27 @@ describe("Sprint 01 Products & Orders RLS & Security (F3-5 static checks)", () =
   const root = path.resolve(import.meta.dirname, "../../..");
 
   it("016_create_products.sql enables RLS on products, product_images, stock_movements", () => {
-    const sql = fs.readFileSync(path.join(root, "supabase/migrations/016_create_products.sql"), "utf8");
+    const sql = fs.readFileSync(path.join(root, "supabase/migrations_archive/016_create_products.sql"), "utf8");
     expect(sql).toContain("ALTER TABLE products ENABLE ROW LEVEL SECURITY;");
     expect(sql).toContain("ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;");
     expect(sql).toContain("ALTER TABLE stock_movements ENABLE ROW LEVEL SECURITY;");
   });
 
   it("016_create_products.sql enforces website ownership isolation for products", () => {
-    const sql = fs.readFileSync(path.join(root, "supabase/migrations/016_create_products.sql"), "utf8");
+    const sql = fs.readFileSync(path.join(root, "supabase/migrations_archive/016_create_products.sql"), "utf8");
     expect(sql).toContain('CREATE POLICY "Products: user can manage own website products"');
     expect(sql).toContain("WHERE user_id = auth.uid()");
   });
 
   it("016_create_products.sql isolates product_images and stock_movements via website owner", () => {
-    const sql = fs.readFileSync(path.join(root, "supabase/migrations/016_create_products.sql"), "utf8");
+    const sql = fs.readFileSync(path.join(root, "supabase/migrations_archive/016_create_products.sql"), "utf8");
     expect(sql).toContain('CREATE POLICY "Product images: user can manage own"');
     expect(sql).toContain('CREATE POLICY "Stock movements: user can read own"');
     expect(sql).toContain("WHERE w.user_id = auth.uid()");
   });
 
   it("decrement_product_stock RPC is concurrency-safe (uses atomic UPDATE with ROW_COUNT check)", () => {
-    const sql = fs.readFileSync(path.join(root, "supabase/migrations/016_create_products.sql"), "utf8");
+    const sql = fs.readFileSync(path.join(root, "supabase/migrations_archive/016_create_products.sql"), "utf8");
     expect(sql).toContain("CREATE OR REPLACE FUNCTION decrement_product_stock");
     expect(sql).toContain("UPDATE products");
     expect(sql).toContain("SET stock = CASE WHEN stock = -1 THEN -1 ELSE stock - p_quantity END");
@@ -94,7 +94,7 @@ describe("Sprint 01 Products & Orders RLS & Security (F3-5 static checks)", () =
   it("app/api/orders/route.ts verifies product price and stock atomically via DB lookup", () => {
     const code = fs.readFileSync(path.join(root, "app/api/orders/route.ts"), "utf8");
     // Verifies product lookup by id / name
-    expect(code).toContain('.from("products")');
+    expect(code).toContain('.from("prod_products")');
     expect(code).toContain('.select("id, name, price, stock, is_active")');
     // Verifies server-side calculated price
     expect(code).toContain("calcTotal(unitPrice, input.quantity)");

@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     let expiredCount = 0;
     try {
       const { data: overdue } = await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .select("id, user_id, website_id, domain, expires_at")
         .eq("status", "active")
         .lt("expires_at", nowIso)
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         id: string; user_id: string; website_id: string; domain: string; expires_at: string;
       }>) {
         const { error: expError } = await supabase
-          .from("domain_orders")
+          .from("dom_orders")
           .update({ status: "expired", updated_at: nowIso })
           .eq("id", o.id);
         if (expError) {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         }
         // Website fallback ke subdomain (custom link dicabut).
         await supabase
-          .from("websites")
+          .from("ws_websites")
           .update({
             custom_domain: null,
             custom_domain_verified: false,
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     const results: Array<{ domain: string; bucket: number; days_left: number }> = [];
     try {
       const { data: expiring } = await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .select("id, user_id, website_id, domain, expires_at, renewal_reminder_sent_at")
         .eq("status", "active")
         .gte("expires_at", nowIso)
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
           })
           .catch(() => {});
         const { error: stampError } = await supabase
-          .from("domain_orders")
+          .from("dom_orders")
           .update({ renewal_reminder_sent_at: nowIso, updated_at: nowIso })
           .eq("id", o.id);
         if (stampError) {

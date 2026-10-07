@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     let product: { id: string; name: string; price: number; stock: number; is_active: boolean } | null = null;
     if (input.product_id) {
       const { data } = await supabase
-        .from("products")
+        .from("prod_products")
         .select("id, name, price, stock, is_active")
         .eq("website_id", tenant.websiteId)
         .eq("id", input.product_id)
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       product = data;
     } else {
       const { data } = await supabase
-        .from("products")
+        .from("prod_products")
         .select("id, name, price, stock, is_active")
         .eq("website_id", tenant.websiteId)
         .eq("name", input.product_name)
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: order, error } = await supabase
-      .from("orders")
+      .from("ord_orders")
       .insert({
         user_id: tenant.userId,
         website_id: tenant.websiteId,
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceSupabaseClient();
     let query = supabase
-      .from("orders")
+      .from("ord_orders")
       .select("*", { count: "exact" })
       .eq("user_id", userId)
       .eq("website_id", site.id);

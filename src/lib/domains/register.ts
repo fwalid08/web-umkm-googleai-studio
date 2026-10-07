@@ -73,7 +73,7 @@ export async function processDomainRegistration(orderId: string, deps: RegisterD
   const verificationToken = deps.verificationToken ?? `saas-verify-${randomUUID().slice(0, 8)}`;
 
   const { data: order, error: orderError } = await supabase
-    .from("domain_orders")
+    .from("dom_orders")
     .select("id, user_id, website_id, domain, status, registrar")
     .eq("id", orderId)
     .maybeSingle();
@@ -102,7 +102,7 @@ export async function processDomainRegistration(orderId: string, deps: RegisterD
 
     const nameservers = registered.nameservers ?? [];
     const { error: updateError } = await supabase
-      .from("domain_orders")
+      .from("dom_orders")
       .update({
         status: "active",
         registrar_domain_id: registrarDomainId ?? null,
@@ -131,7 +131,7 @@ export async function processDomainRegistration(orderId: string, deps: RegisterD
 
   // Tautkan ke website — verified=false sampai cron TXT cocok (webhook verify existing).
   await supabase
-    .from("websites")
+    .from("ws_websites")
     .update({
       custom_domain: o.domain,
       custom_domain_verified: false,

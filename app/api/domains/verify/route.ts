@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     // Sprint 03: custom domain tinggal di websites (bukan users)
     // Get all websites with unverified custom domains (+ token eksak)
     const { data: users, error } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id, custom_domain, custom_domain_verification_token")
       .not("custom_domain", "is", null)
       .eq("custom_domain_verified", false);
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         if (verified) {
           // Update website as verified
           const { error: updateError } = await supabase
-            .from("websites")
+            .from("ws_websites")
             .update({
               custom_domain_verified: true,
               custom_domain_verified_at: new Date().toISOString(),
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
 
             // Token verifikasi tak diperlukan lagi → NULL (tandai selesai penuh).
             const { error: tokenError } = await supabase
-              .from("domain_orders")
+              .from("dom_orders")
               .update({ verification_token: null, updated_at: new Date().toISOString() })
               .eq("domain", user.custom_domain)
               .not("verification_token", "is", null);
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     let vercelRetried = 0;
     try {
       const { data: pendingOrders } = await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .select("domain")
         .eq("status", "active")
         .not("verification_token", "is", null)

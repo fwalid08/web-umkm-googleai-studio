@@ -14,7 +14,7 @@ async function owned(userId: string, id: string) {
   if (isDemoUserId(userId)) return getOwnedWebsite(userId, id);
 
   const { data, error } = await createServiceSupabaseClient()
-    .from("websites")
+    .from("ws_websites")
     .select("*")
     .eq("id", id)
     .eq("user_id", userId)
@@ -83,7 +83,7 @@ export async function PATCH(
     if (parsed.data.name) patch.name = parsed.data.name;
     if (parsed.data.business_type) patch.business_type = parsed.data.business_type;
     const { data, error } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .update(patch)
       .eq("id", websiteId)
       .eq("user_id", userId)
@@ -116,7 +116,7 @@ export async function DELETE(
     }
     const supabase = createServiceSupabaseClient();
     const { count } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     if ((count ?? 0) <= 1) {
@@ -125,13 +125,13 @@ export async function DELETE(
         { status: 422 }
       );
     }
-    const { error } = await supabase.from("websites").delete().eq("id", websiteId).eq("user_id", userId);
+    const { error } = await supabase.from("ws_websites").delete().eq("id", websiteId).eq("user_id", userId);
     if (error) {
       return NextResponse.json({ success: false, error: "Gagal menghapus" }, { status: 500 });
     }
     // Pindahkan aktif ke website tertua yang tersisa
     const { data: rest } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("user_id", userId)
       .order("created_at", { ascending: true })

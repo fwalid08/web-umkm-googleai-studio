@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     let order: DomainOrderRow | null = null;
     for (const ref of candidates) {
       const { data } = await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .select("id, user_id, website_id, domain, status, price_yearly, registrar, expires_at, payment_provider, paid_at")
         .eq("payment_reference", ref)
         .maybeSingle();
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
           expiresAt = base.toISOString();
         }
         await supabase
-          .from("domain_orders")
+          .from("dom_orders")
           .update({ status: "active", expires_at: expiresAt, paid_at: now, updated_at: now })
           .eq("id", order.id);
         return NextResponse.json({
@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
       }
 
       await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .update({ status: "registering", paid_at: now, updated_at: now })
         .eq("id", order.id);
       try {
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
         });
       }
       await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .update({ status: "expired", updated_at: now })
         .eq("id", order.id);
       return NextResponse.json({

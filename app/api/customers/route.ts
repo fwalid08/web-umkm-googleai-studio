@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceSupabaseClient();
     const { data, error } = await supabase
-      .from("orders")
+      .from("ord_orders")
       .select("customer_name, customer_phone, customer_email, total_amount, order_date")
       .eq("user_id", userId)
       .eq("website_id", site.id)

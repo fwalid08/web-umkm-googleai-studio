@@ -46,7 +46,7 @@ export async function GET() {
       let sub: SubRow | null = null;
       try {
         const r = await supabase
-          .from("subscriptions")
+          .from("bill_subscriptions")
           .select("status, current_period_end, billing_cycle")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
@@ -55,7 +55,7 @@ export async function GET() {
         sub = (r.data as unknown) as SubRow | null;
       } catch {
         const r = await supabase
-          .from("subscriptions")
+          .from("bill_subscriptions")
           .select("status, current_period_end")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })

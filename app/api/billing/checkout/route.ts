@@ -27,7 +27,7 @@ async function getPlanPriceFromDb(
   try {
     const supabase = createServiceSupabaseClient();
     const { data, error } = await supabase
-      .from("plans")
+      .from("bill_plans")
       .select("price_monthly, price_yearly_monthly")
       .eq("slug", tier)
       .maybeSingle();
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     if (!serverKey) {
       try {
         const supabase = createServiceSupabaseClient();
-        await supabase.from("subscriptions").insert({
+        await supabase.from("bill_subscriptions").insert({
           user_id: userId,
           tier,
           status: "incomplete",
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
     try {
       const supabase = createServiceSupabaseClient();
       const { data: existing } = await supabase
-        .from("subscriptions")
+        .from("bill_subscriptions")
         .select("id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
@@ -221,9 +221,9 @@ export async function POST(req: NextRequest) {
         billing_cycle,
       };
       if (existing?.id) {
-        await supabase.from("subscriptions").update(row).eq("id", existing.id);
+        await supabase.from("bill_subscriptions").update(row).eq("id", existing.id);
       } else {
-        await supabase.from("subscriptions").insert(row);
+        await supabase.from("bill_subscriptions").insert(row);
       }
     } catch (e) {
       console.warn("[billing/checkout] subscription save skipped:", e);

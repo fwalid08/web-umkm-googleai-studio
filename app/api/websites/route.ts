@@ -49,7 +49,7 @@ export async function GET() {
     const supabase = createServiceSupabaseClient();
     const [{ data: sites, error: sitesError }, { data: user }] = await Promise.all([
       supabase
-        .from("websites")
+        .from("ws_websites")
         .select("id, name, business_type, subdomain, custom_domain, custom_domain_verified, template_slug, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: true }),
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     // Clash retry 3x loop via helper testable (attempt 0 = base, 1-2 = base-xxxx)
     const subdomain = await ensureUniqueSubdomain(base, async (s) => {
       const { data: clash } = await supabase
-        .from("websites")
+        .from("ws_websites")
         .select("id")
         .eq("subdomain", s)
         .maybeSingle();
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     });
 
     const { data: site, error } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .insert({
         user_id: userId,
         name: parsed.data.name,

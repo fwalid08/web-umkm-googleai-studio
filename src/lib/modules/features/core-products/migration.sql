@@ -1,21 +1,16 @@
 -- Migration: Core Products (prod_ tables)
 -- Part of Fase 0b: Core feature folders
 
--- Products table
-CREATE TABLE IF NOT EXISTS prod_products (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  website_id UUID NOT NULL REFERENCES ws_websites(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT DEFAULT '',
-  price INT NOT NULL CHECK (price >= 0),
-  compare_at_price INT CHECK (compare_at_price >= 0),
-  stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
-  track_stock BOOLEAN NOT NULL DEFAULT TRUE,
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
-  category_id UUID REFERENCES prod_categories(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Products table - add missing columns to existing table (renamed from products in 049)
+ALTER TABLE prod_products 
+  ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '',
+  ADD COLUMN IF NOT EXISTS compare_at_price INT CHECK (compare_at_price >= 0),
+  ADD COLUMN IF NOT EXISTS stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  ADD COLUMN IF NOT EXISTS track_stock BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
+  ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES prod_categories(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- Product images
 CREATE TABLE IF NOT EXISTS prod_images (

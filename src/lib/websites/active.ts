@@ -21,7 +21,7 @@ export async function getActiveWebsite(userId: string): Promise<Website | null> 
       .maybeSingle();
     if (user?.active_website_id) {
       const { data: active, error: activeError } = await supabase
-        .from("websites")
+        .from("ws_websites")
         .select("*")
         .eq("id", user.active_website_id)
         .eq("user_id", userId)
@@ -30,7 +30,7 @@ export async function getActiveWebsite(userId: string): Promise<Website | null> 
     }
 
     const { data, error } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
@@ -51,7 +51,7 @@ export async function getOwnedWebsite(userId: string, websiteId: string): Promis
   try {
     const supabase = createServiceSupabaseClient();
     const { data, error } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("*")
       .eq("id", websiteId)
       .eq("user_id", userId)

@@ -95,7 +95,7 @@ export async function GET(
 
     // Verify website ownership
     const { data: website, error: websiteError } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("id", websiteId)
       .eq("user_id", userId)
@@ -108,7 +108,7 @@ export async function GET(
 
     // Get settings
     const { data: settings, error } = await supabase
-      .from("website_settings")
+      .from("ws_settings")
       .select("*")
       .eq("website_id", websiteId)
       .limit(1)
@@ -170,7 +170,7 @@ export async function PATCH(
 
     // Verify website ownership
     const { data: website, error: websiteError } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("id", websiteId)
       .eq("user_id", userId)
@@ -204,7 +204,7 @@ export async function PATCH(
 
     // Upsert settings
     const { data: settings, error } = await supabase
-      .from("website_settings")
+      .from("ws_settings")
       .upsert({
         website_id: websiteId,
         ...updateData,

@@ -44,7 +44,7 @@ export async function PUT(request: NextRequest) {
 
     // Check if domain is already used by another website
     const { data: existing } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("custom_domain", normalizedDomain)
       .neq("id", site.id)
@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest) {
 
     // Coba simpan token (kolom 009); fallback jika migrasi belum jalan
     let { error } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .update({
         custom_domain: normalizedDomain,
         custom_domain_verified: false,
@@ -73,7 +73,7 @@ export async function PUT(request: NextRequest) {
       .eq("user_id", userId);
     if (error && /verification_token|column/i.test(error.message)) {
       const retry = await supabase
-        .from("websites")
+        .from("ws_websites")
         .update({
           custom_domain: normalizedDomain,
           custom_domain_verified: false,

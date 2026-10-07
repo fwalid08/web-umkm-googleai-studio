@@ -31,7 +31,7 @@ export async function GET() {
   try {
     const supabase = createServiceSupabaseClient();
     const { data, error } = await supabase
-      .from("domain_orders")
+      .from("dom_orders")
       .select(ORDER_COLUMNS)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });

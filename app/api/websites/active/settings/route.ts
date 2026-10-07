@@ -97,7 +97,7 @@ export async function GET() {
 
     // Get settings
     const { data: settings, error } = await supabase
-      .from("website_settings")
+      .from("ws_settings")
       .select("*")
       .eq("website_id", websiteId)
       .limit(1)
@@ -191,7 +191,7 @@ export async function PATCH(request: NextRequest) {
 
     // Upsert settings
     const { data: settings, error } = await supabase
-      .from("website_settings")
+      .from("ws_settings")
       .upsert({
         website_id: websiteId,
         ...updateData,

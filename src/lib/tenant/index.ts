@@ -130,7 +130,7 @@ export async function insertWebsiteWithRetry(
     deps?.insertFn ??
     ((subdomain: string) =>
       supabase
-        .from("websites")
+        .from("ws_websites")
         .insert({
           user_id: payload.user_id,
           name: payload.name,
@@ -149,7 +149,7 @@ export async function insertWebsiteWithRetry(
       : async (s: string) => {
           try {
             const { data: clash } = await supabase
-              .from("websites")
+              .from("ws_websites")
               .select("id")
               .eq("subdomain", s)
               .maybeSingle();

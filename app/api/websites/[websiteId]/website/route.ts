@@ -75,7 +75,7 @@ async function saveAsLibraryTemplate(args: {
   const templateSlug = buildLibrarySlug(crypto.randomUUID());
   const now = new Date().toISOString();
 
-  const { error } = await supabase.from("user_templates").insert({
+  const { error } = await supabase.from("bld_user_templates").insert({
     user_id: userId,
     website_id: websiteId,
     template_slug: templateSlug,
@@ -135,7 +135,7 @@ async function updateLibraryTemplate(args: {
     };
   }
   const { error, count } = await supabase
-    .from("user_templates")
+    .from("bld_user_templates")
     .update({
       custom_config: { ...toStore, is_published: false },
       updated_at: new Date().toISOString(),
@@ -191,7 +191,7 @@ async function readExistingActiveConfig(
   for (const slug of slugs) {
     if (!slug) continue;
     const { data } = await supabase
-      .from("user_templates")
+      .from("bld_user_templates")
       .select("custom_config")
       .eq("website_id", websiteId)
       .eq("template_slug", slug)
@@ -347,7 +347,7 @@ export async function GET(
     // urut `updated_at` DESC, baris library terbaru bisa dipakai sebagai
     // config aktif website (design user "ditimpa" desain karangan).
     const { data: rows } = await supabase
-      .from("user_templates")
+      .from("bld_user_templates")
       .select("template_slug, custom_config, updated_at")
       .eq("website_id", websiteId)
       .eq("is_library", false)
@@ -635,7 +635,7 @@ export async function PUT(
           }
         } else {
           const { data: row } = await supabase
-            .from("user_templates")
+            .from("bld_user_templates")
             .select("template_slug, base_slug, name")
             .eq("user_id", sessionUser.id)
             .eq("website_id", websiteId)
@@ -650,7 +650,7 @@ export async function PUT(
         }
       }
 
-      const { error: upsertError } = await supabase.from("user_templates").upsert(
+      const { error: upsertError } = await supabase.from("bld_user_templates").upsert(
         {
           user_id: sessionUser.id,
           website_id: websiteId,
@@ -670,7 +670,7 @@ export async function PUT(
       // jadi tidak ada lagi sinkronisasi terpisah ke store_pages.
 
       await supabase
-        .from("websites")
+        .from("ws_websites")
         .update({ template_slug: slug, updated_at: new Date().toISOString() })
         .eq("id", websiteId)
         .eq("user_id", sessionUser.id);
@@ -711,7 +711,7 @@ export async function PUT(
       // `saved-<uuid>`) bisa terpilih dan meng-override `template_id` website
       // dengan slug yang tidak dikenal katalog.
       const { data: existing } = await supabase
-        .from("user_templates")
+        .from("bld_user_templates")
         .select("template_slug, custom_config")
         .eq("website_id", websiteId)
         .eq("is_library", false)
@@ -828,7 +828,7 @@ export async function PUT(
         }
       } else {
         const { data: row } = await supabase
-          .from("user_templates")
+          .from("bld_user_templates")
           .select("template_slug, base_slug, name")
           .eq("user_id", sessionUser.id)
           .eq("website_id", websiteId)
@@ -843,7 +843,7 @@ export async function PUT(
       }
     }
 
-    const { error: upsertError } = await supabase.from("user_templates").upsert(
+    const { error: upsertError } = await supabase.from("bld_user_templates").upsert(
       {
         user_id: sessionUser.id,
         website_id: websiteId,
@@ -859,7 +859,7 @@ export async function PUT(
     }
 
     await supabase
-      .from("websites")
+      .from("ws_websites")
       .update({ template_slug: slug, updated_at: new Date().toISOString() })
       .eq("id", websiteId)
       .eq("user_id", sessionUser.id);

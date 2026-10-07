@@ -60,27 +60,27 @@ export async function GET() {
 
     const [{ count: total }, { count: today }, { count: pending }, { data: monthRows }, { data: recent }, { data: analyticsRows }] =
       await Promise.all([
-        supabase.from("orders").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("website_id", site.id),
+        supabase.from("ord_orders").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("website_id", site.id),
         supabase
-          .from("orders")
+          .from("ord_orders")
           .select("id", { count: "exact", head: true })
           .eq("user_id", userId)
           .eq("website_id", site.id)
           .gte("order_date", startOfDay.toISOString()),
         supabase
-          .from("orders")
+          .from("ord_orders")
           .select("id", { count: "exact", head: true })
           .eq("user_id", userId)
           .eq("website_id", site.id)
           .eq("status", "baru"),
         supabase
-          .from("orders")
+          .from("ord_orders")
           .select("total_amount")
           .eq("user_id", userId)
           .eq("website_id", site.id)
           .gte("order_date", startOfMonth.toISOString()),
         supabase
-          .from("orders")
+          .from("ord_orders")
           .select("id, customer_name, product_name, total_amount, status, order_date")
           .eq("user_id", userId)
           .eq("website_id", site.id)
@@ -88,7 +88,7 @@ export async function GET() {
           .limit(5),
         // N9: agregasi analytics (top produk + tren harian) dari max 2000 order terbaru.
         supabase
-          .from("orders")
+          .from("ord_orders")
           .select("product_name, quantity, total_amount, order_date")
           .eq("user_id", userId)
           .eq("website_id", site.id)

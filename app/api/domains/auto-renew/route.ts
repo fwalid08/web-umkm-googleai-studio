@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const nowIso = now.toISOString();
 
     const { data: due, error: fetchError } = await supabase
-      .from("domain_orders")
+      .from("dom_orders")
       .select("id, user_id, domain, price_yearly, paid_at, expires_at")
       .eq("status", "active")
       .eq("auto_renew", true)
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
       const orderId = buildDomainOrderId(o.user_id);
       const { error: markError } = await supabase
-        .from("domain_orders")
+        .from("dom_orders")
         .update({
           payment_reference: orderId,
           payment_provider: paymentProvider.id,

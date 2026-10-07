@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     } else {
       const supabase = createServiceSupabaseClient();
       let query = supabase
-        .from("orders")
+        .from("ord_orders")
         .select("id, customer_name, customer_phone, product_name, product_price, quantity, total_amount, status, order_date")
         .eq("user_id", userId)
         .eq("website_id", site.id);

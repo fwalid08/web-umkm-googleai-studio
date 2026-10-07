@@ -6,7 +6,7 @@ function repoFile(...parts: string[]): string {
   return readFileSync(join(process.cwd(), ...parts), "utf-8");
 }
 
-const MIGRATION_016 = repoFile("supabase", "migrations", "016_create_products.sql");
+const MIGRATION_016 = repoFile("supabase", "migrations_archive", "016_create_products.sql");
 const PRODUCTS_API = repoFile("app", "api", "user", "products", "route.ts");
 const IMAGES_API = repoFile("app", "api", "user", "products", "[id]", "images", "route.ts");
 const ORDERS_API = repoFile("app", "api", "orders", "route.ts");
@@ -97,11 +97,11 @@ describe("stock concurrency: decrement_product_stock (anti-oversell)", () => {
     expect(ORDERS_API).toContain("{ status: 409 }");
     expect(ORDERS_API).toContain("Stok tidak mencukupi");
     const rpcIndex = ORDERS_API.indexOf('.rpc("decrement_product_stock"');
-    const insertIndex = ORDERS_API.indexOf('.from("orders")');
+    const insertIndex = ORDERS_API.indexOf('.from("ord_orders")');
     expect(rpcIndex).toBeGreaterThan(-1);
     expect(rpcIndex).toBeLessThan(insertIndex);
     // tidak ada penulisan kolom stock langsung dari API (selalu via RPC)
-    expect(ORDERS_API).not.toMatch(/UPDATE products|stock:\s*product\.stock/);
+    expect(ORDERS_API).not.toMatch(/UPDATE (prod_)?products|stock:\s*product\.stock/);
   });
 
   it("orders API: rollback stok bila INSERT order gagal + satu log pergerakan stok (F2-2)", () => {
@@ -111,21 +111,22 @@ describe("stock concurrency: decrement_product_stock (anti-oversell)", () => {
     const logCalls = ORDERS_API.match(/log_stock_movement/g) ?? [];
     expect(logCalls.length).toBe(2); // komentar + satu pemanggilan
     expect(ORDERS_API).not.toContain('.from("stock_movements")');
+    expect(ORDERS_API).not.toContain('.from("prod_stock_movements")');
   });
 });
 
 describe("products API owner-scoping (static check)", () => {
   it("list produk memverifikasi kepemilikan website (id + user_id) sebelum query", () => {
-    expect(PRODUCTS_API).toContain('.from("websites")');
+    expect(PRODUCTS_API).toContain('.from("ws_websites")');
     expect(PRODUCTS_API).toContain('.eq("user_id", userId)');
     expect(PRODUCTS_API).toContain('.eq("website_id", targetWebsiteId)');
   });
 
   it("upload/hapus gambar memverifikasi product -> website -> user_id", () => {
-    expect(IMAGES_API).toContain('.from("websites")');
+    expect(IMAGES_API).toContain('.from("ws_websites")');
     expect(IMAGES_API).toContain('.eq("id", product.website_id)');
     expect(IMAGES_API).toContain('.eq("user_id", userId)');
-    expect(IMAGES_API).toContain("product:products!inner(website_id)");
+    expect(IMAGES_API).toContain("product:prod_products!inner(website_id)");
   });
 
   it("harga produk tidak pernah diambil dari body order (anti spoof)", () => {

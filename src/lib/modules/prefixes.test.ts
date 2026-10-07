@@ -39,7 +39,8 @@ describe("migrasi SQL mematuhi konvensi prefix", () => {
     const bad: string[] = [];
     for (const f of files) {
       const sql = readFileSync(join(dir, f), "utf8");
-      const re = /CREATE TABLE (?:IF NOT EXISTS )?(\w+)/g;
+      // Handles: foo, IF NOT EXISTS foo, "foo", public.foo, "public"."foo"
+      const re = /CREATE TABLE (?:IF NOT EXISTS )?(?:"?[\w$]+"?\.)?"?([\w$]+)"?/g;
       let m: RegExpExecArray | null;
       while ((m = re.exec(sql)) !== null) {
         const table = m[1];

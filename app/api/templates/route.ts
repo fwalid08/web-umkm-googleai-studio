@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       // Filter `user_id` WAJIB: RLS dimatikan di 026_fix_rls_nextauth.sql,
       // jadi seluruh pembatasan akses bergantung pada scoping di sini.
       const { data: rows } = await supabase
-        .from("user_templates")
+        .from("bld_user_templates")
         .select("template_slug, base_slug, name, custom_config, created_at, updated_at")
         .eq("user_id", userId)
         .eq("is_library", true)
@@ -125,7 +125,7 @@ export async function DELETE(request: NextRequest) {
     const supabase = await createServerSupabaseClient(authToken);
 
     const { data: rows, error: selectError } = await supabase
-      .from("user_templates")
+      .from("bld_user_templates")
       .select("template_slug, name")
       .eq("user_id", userId)
       .eq("template_slug", libraryId)
@@ -142,7 +142,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { error: deleteError } = await supabase
-      .from("user_templates")
+      .from("bld_user_templates")
       .delete()
       .eq("user_id", userId)
       .eq("template_slug", libraryId)

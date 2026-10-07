@@ -63,9 +63,9 @@ export async function PUT(request: NextRequest) {
     const site = await getActiveWebsite(userId);
     if (!site) return NextResponse.json({ success: false, error: "Belum ada website" }, { status: 404 });
     const supabase = createServiceSupabaseClient();
-    const { data: existing } = await supabase.from("websites").select("id").eq("subdomain", subdomain).neq("id", site.id).maybeSingle();
+    const { data: existing } = await supabase.from("ws_websites").select("id").eq("subdomain", subdomain).neq("id", site.id).maybeSingle();
     if (existing) return NextResponse.json({ success: false, error: "Subdomain sudah digunakan" }, { status: 409 });
-    const { data: updated, error } = await supabase.from("websites").update({ subdomain, updated_at: new Date().toISOString() }).eq("id", site.id).eq("user_id", userId).select("subdomain").single();
+    const { data: updated, error } = await supabase.from("ws_websites").update({ subdomain, updated_at: new Date().toISOString() }).eq("id", site.id).eq("user_id", userId).select("subdomain").single();
     if (error) return NextResponse.json({ success: false, error: "Gagal memperbarui subdomain" }, { status: 500 });
     return NextResponse.json({ success: true, data: { website_id: site.id, subdomain: updated.subdomain, subdomain_url: tenantUrl(updated.subdomain) }, message: "Subdomain berhasil diperbarui" });
   } catch (error) {

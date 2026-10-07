@@ -69,7 +69,7 @@ describe("rls hardening: owner-scoping query builder (static check)", () => {
 
 describe("rls hardening: migrasi 011 defense-in-depth (static check)", () => {
   it("ENABLE RLS untuk keempat tabel + policy owner authenticated", () => {
-    const sql = repoFile("supabase", "migrations", "011_rls_hardening.sql");
+    const sql = repoFile("supabase", "migrations_archive", "011_rls_hardening.sql");
     for (const table of ["websites", "orders", "user_templates", "subscriptions"]) {
       expect(sql).toContain(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
     }
@@ -81,7 +81,7 @@ describe("rls hardening: migrasi 011 defense-in-depth (static check)", () => {
   });
 
   it("tidak ada anon INSERT langsung ke orders (hanya via service-role di API)", () => {
-    const sql = repoFile("supabase", "migrations", "011_rls_hardening.sql");
+    const sql = repoFile("supabase", "migrations_archive", "011_rls_hardening.sql");
     expect(sql).not.toMatch(/CREATE POLICY[^;]*ON orders[^;]*FOR INSERT/i);
   });
 });

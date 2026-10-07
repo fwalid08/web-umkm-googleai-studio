@@ -47,7 +47,8 @@ const files = readdirSync(dir).filter((f) => f.endsWith(".sql"));
 let bad = 0;
 for (const f of files) {
   const sql = readFileSync(join(dir, f), "utf8");
-  for (const m of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(\w+)/g)) {
+  // Handles quoted + schema-qualified names: "public"."foo", public.foo, foo
+  for (const m of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(?:"?[\w$]+"?\.)?"?([\w$]+)"?/g)) {
     if (!isAllowed(m[1])) {
       console.error(`❌ ${f}: tabel "${m[1]}" tanpa prefix (§5.6) — daftarkan prefix/modul dulu`);
       bad++;

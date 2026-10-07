@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
 
     // Verify website ownership
     const { data: website } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id, name")
       .eq("id", targetWebsiteId)
       .eq("user_id", userId)
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
 
     // Build query
     let query = supabase
-      .from("products")
+      .from("prod_products")
       .select(
         `
         id,
@@ -312,7 +312,7 @@ export async function POST(req: NextRequest) {
 
     // Get max sort_order for new product
     const { data: maxSort } = await supabase
-      .from("products")
+      .from("prod_products")
       .select("sort_order")
       .eq("website_id", site.id)
       .order("sort_order", { ascending: false })
@@ -323,7 +323,7 @@ export async function POST(req: NextRequest) {
 
     // Insert product
     const { data: product, error } = await supabase
-      .from("products")
+      .from("prod_products")
       .insert({
         website_id: site.id,
         name,
@@ -351,7 +351,7 @@ export async function POST(req: NextRequest) {
       const imageLimitCheck = await checkProductImageLimit(userId, product.id, imageFiles.length);
       if (!imageLimitCheck.ok) {
         // Rollback: hapus product yang sudah terbuat
-        await supabase.from("products").delete().eq("id", product.id);
+        await supabase.from("prod_products").delete().eq("id", product.id);
         return NextResponse.json(
           {
             success: false,
@@ -375,7 +375,7 @@ export async function POST(req: NextRequest) {
         if (result.success && result.file) {
           const record = createProductImageRecord(result, i, i === 0);
           if (record) {
-            await supabase.from("product_images").insert({
+            await supabase.from("prod_images").insert({
               product_id: product.id,
               storage_path: record.storage_path,
               public_url: record.public_url,
@@ -493,7 +493,7 @@ export async function PUT(req: NextRequest) {
 
     // Verify ownership
     const { data: product } = await supabase
-      .from("products")
+      .from("prod_products")
       .select("id, website_id")
       .eq("id", productId)
       .maybeSingle();
@@ -503,7 +503,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const { data: website } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("id", product.website_id)
       .eq("user_id", userId)
@@ -516,7 +516,7 @@ export async function PUT(req: NextRequest) {
     // F3-3: hapus gambar yang diminta user (scoped ke product ini — ownership sudah diverifikasi)
     if (removeImageIds.length > 0) {
       const { data: toRemove } = await supabase
-        .from("product_images")
+        .from("prod_images")
         .select("id, storage_path")
         .eq("product_id", productId)
         .in("id", removeImageIds);
@@ -526,7 +526,7 @@ export async function PUT(req: NextRequest) {
         await deleteProductImages(toRemove.map((r) => r.storage_path));
 
         const { error: removeError } = await supabase
-          .from("product_images")
+          .from("prod_images")
           .delete()
           .eq("product_id", productId)
           .in("id", toRemove.map((r) => r.id));
@@ -550,7 +550,7 @@ export async function PUT(req: NextRequest) {
     if (sort_order !== undefined) updateData.sort_order = sort_order;
 
     const { data: updated, error } = await supabase
-      .from("products")
+      .from("prod_products")
       .update(updateData)
       .eq("id", productId)
       .select()
@@ -570,7 +570,7 @@ export async function PUT(req: NextRequest) {
         warning = `Gambar melebihi batas tier (${imageLimitCheck.currentCount}/${imageLimitCheck.maxLimit})`;
       } else {
         const { data: existing } = await supabase
-          .from("product_images")
+          .from("prod_images")
           .select("is_primary")
           .eq("product_id", productId);
         const existingCount = existing?.length ?? 0;
@@ -584,7 +584,7 @@ export async function PUT(req: NextRequest) {
         for (let i = 0; i < uploadResults.length; i++) {
           const record = createProductImageRecord(uploadResults[i], existingCount + i, existingCount === 0 && i === 0);
           if (!record) continue;
-          await supabase.from("product_images").insert({
+          await supabase.from("prod_images").insert({
             product_id: productId,
             storage_path: record.storage_path,
             public_url: record.public_url,
@@ -602,7 +602,7 @@ export async function PUT(req: NextRequest) {
 
     // Fetch with images
     const { data: fullProduct } = await supabase
-      .from("products")
+      .from("prod_products")
       .select(
         `
         *,
@@ -692,7 +692,7 @@ export async function DELETE(req: NextRequest) {
 
     // Verify ownership
     const { data: product } = await supabase
-      .from("products")
+      .from("prod_products")
       .select("id, website_id")
       .eq("id", productId)
       .maybeSingle();
@@ -702,7 +702,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { data: website } = await supabase
-      .from("websites")
+      .from("ws_websites")
       .select("id")
       .eq("id", product.website_id)
       .eq("user_id", userId)
@@ -714,7 +714,7 @@ export async function DELETE(req: NextRequest) {
 
     // Cleanup storage files sebelum delete product (best-effort)
     const { data: productImages } = await supabase
-      .from("product_images")
+      .from("prod_images")
       .select("storage_path")
       .eq("product_id", productId);
 
@@ -724,7 +724,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Delete product (cascades to product_images via FK)
-    const { error } = await supabase.from("products").delete().eq("id", productId);
+    const { error } = await supabase.from("prod_products").delete().eq("id", productId);
 
     if (error) {
       console.error("Delete product error:", error);

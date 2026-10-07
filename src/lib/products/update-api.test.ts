@@ -49,16 +49,16 @@ describe("PUT /api/user/products — multipart contract (fix edit 400)", () => {
     const removeIdx = PUT.indexOf("removeImageIds.length > 0");
     expect(removeIdx).toBeGreaterThan(ownershipIdx);
     expect(PUT).toMatch(
-      /from\("product_images"\)\s*\.select\("id, storage_path"\)\s*\.eq\("product_id", productId\)\s*\.in\("id", removeImageIds\)/
+      /from\("prod_images"\)\s*\.select\("id, storage_path"\)\s*\.eq\("product_id", productId\)\s*\.in\("id", removeImageIds\)/
     );
     // Hapus dari storage + DB (bukan hanya disembunyikan di client)
     expect(PUT).toContain("deleteProductImages(");
-    expect(PUT).toMatch(/\.from\("product_images"\)\s*\.delete\(\)\s*\.eq\("product_id", productId\)/);
+    expect(PUT).toMatch(/\.from\("prod_images"\)\s*\.delete\(\)\s*\.eq\("product_id", productId\)/);
   });
 
   it("upload gambar baru melewati checkProductImageLimit dan insert row product_images", () => {
     expect(PUT).toContain("checkProductImageLimit(userId, productId, pendingImageFiles.length)");
-    expect(PUT).toContain('from("product_images")');
+    expect(PUT).toContain('from("prod_images")');
     expect(PUT).toContain("uploadProductImages(website.id, productId");
   });
 });
