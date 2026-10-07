@@ -1,74 +1,26 @@
 /** Entitlement types for feature access control. */
 
+// Single source of truth lives in ../../types — re-exported here so existing
+// `from "./types"` imports keep working without duplicate declarations.
+import type {
+  Feature,
+  PackFeature,
+  SitePrice,
+  Subscription,
+  SubAddon,
+  GlobalSub,
+} from "../../types";
+export type {
+  Feature,
+  PackFeature,
+  SitePrice,
+  Subscription,
+  SubAddon,
+  GlobalSub,
+};
+
 export type FeatureScope = "website" | "global";
 export type SubscriptionStatus = "active" | "past_due" | "canceled" | "incomplete" | "incomplete_expired";
-
-export interface Feature {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  scope: FeatureScope;
-  isPaid: boolean;
-  siteTypes: string[] | null; // null = all site types
-  requires: string[];
-  conflicts: string[];
-  isActive: boolean;
-}
-
-export interface PackFeature {
-  packId: string;
-  featureId: string;
-  quota: number | null;        // null = boolean ON, number = quota
-  includedTiers: string[];     // tiers that get this feature free
-}
-
-export interface SitePrice {
-  siteType: string;
-  tier: "free" | "starter" | "growth" | "enterprise";
-  cycle: "monthly" | "yearly";
-  price: number;
-}
-
-export interface Subscription {
-  id: string;
-  userId: string;
-  tier: "free" | "starter" | "growth" | "enterprise";
-  status: SubscriptionStatus;
-  siteType: string;
-  packId: string | null;
-  billingCycle: "monthly" | "yearly";
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  cancelAtPeriodEnd: boolean;
-  paidAt: Date | null;
-}
-
-export interface SubAddon {
-  id: string;
-  subscriptionId: string;
-  websiteId: string;
-  featureId: string;
-  status: SubscriptionStatus;
-  billingCycle: "monthly" | "yearly" | "once";
-  priceCharged: number;
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  cancelAtPeriodEnd: boolean;
-  paidAt: Date | null;
-}
-
-export interface GlobalSub {
-  id: string;
-  userId: string;
-  featureId: string;
-  status: SubscriptionStatus;
-  billingCycle: "monthly" | "yearly" | "once";
-  priceCharged: number;
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  paidAt: Date | null;
-}
 
 export interface EntitlementContext {
   userId: string;

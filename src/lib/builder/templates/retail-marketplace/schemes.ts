@@ -20,8 +20,6 @@ export const COLOR_SCHEMES: ColorScheme[] = [{
     text: "#1F2937", // gray-800
     textMuted: "#6B7280", // gray-500
     border: "#FED7AA", // orange-200
-    onPrimary: "#FFFFFF",
-    onAccent: "#FFFFFF",
   },
   headingFont: "Manrope",
   bodyFont: "DM Sans",
@@ -39,8 +37,6 @@ export const COLOR_SCHEMES: ColorScheme[] = [{
     text: "#F5F5F5", // neutral-white
     textMuted: "#A0A0A0", // neutral-400
     border: "#2E2E2E", // neutral-800
-    onPrimary: "#FFFFFF",
-    onAccent: "#141414",
   },
   headingFont: "Manrope",
   bodyFont: "DM Sans",
@@ -58,8 +54,6 @@ export const COLOR_SCHEMES: ColorScheme[] = [{
     text: "#F1F5F9", // slate-100
     textMuted: "#94A3B8", // slate-500
     border: "#334155", // slate-700
-    onPrimary: "#FFFFFF",
-    onAccent: "#0F172A",
   },
   headingFont: "Manrope",
   bodyFont: "DM Sans",
@@ -77,8 +71,6 @@ export const COLOR_SCHEMES: ColorScheme[] = [{
     text: "#374151", // gray-700
     textMuted: "#6B7280", // gray-500
     border: "#FECDD3", // pink-200
-    onPrimary: "#FFFFFF",
-    onAccent: "#FFFFFF",
   },
   headingFont: "Manrope",
   bodyFont: "DM Sans",
@@ -96,8 +88,6 @@ export const COLOR_SCHEMES: ColorScheme[] = [{
     text: "#111827", // gray-900
     textMuted: "#6B7280", // gray-500
     border: "#E9D5FF", // indigo-100
-    onPrimary: "#FFFFFF",
-    onAccent: "#111827",
   },
   headingFont: "Manrope",
   bodyFont: "DM Sans",
@@ -105,7 +95,7 @@ export const COLOR_SCHEMES: ColorScheme[] = [{
 }, {
   id: "pasar-murni",
   name: "Pasar Murni",
-  category: "neutral",
+  category: "light",
   palette: {
     primary: "#1F2937", // gray-800
     secondary: "#374151", // gray-700
@@ -115,8 +105,6 @@ export const COLOR_SCHEMES: ColorScheme[] = [{
     text: "#111827", // gray-900
     textMuted: "#6B7280", // gray-500
     border: "#E5E7EB", // gray-200
-    onPrimary: "#FFFFFF",
-    onAccent: "#111827",
   },
   headingFont: "Inter",
   bodyFont: "Inter",

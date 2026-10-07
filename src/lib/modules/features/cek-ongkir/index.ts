@@ -14,7 +14,7 @@ export const CEK_ONGOIR_FEATURE: Feature = {
   isActive: true,
   pricing: { monthly: 25000, yearly: 250000, usageBased: true },
   configSchema: {
-    provider: { type: "select", options: ["rajaongkir", "ongkir"], default: "rajaongkir" },
+    provider: { type: "select", options: [{ label: "RajaOngkir", value: "rajaongkir" }, { label: "Ongkir", value: "ongkir" }], default: "rajaongkir" },
     apiKey: { type: "text", description: "API Key dari provider" },
     cacheTtlMinutes: { type: "number", default: 60, description: "Cache TTL dalam menit" },
     defaultOrigin: { type: "text", description: "Kota asal default (kode kota)" },

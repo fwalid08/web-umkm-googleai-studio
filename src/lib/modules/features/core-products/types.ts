@@ -58,3 +58,15 @@ export interface ProductVariant {
   stock: number;
   attributes: Record<string, string>;
 }
+
+export interface CreateProductRequest {
+  name: string;
+  description?: string;
+  price: number;
+  compareAtPrice?: number;
+  stock?: number;
+  trackStock?: boolean;
+  categoryId?: string;
+  images?: Partial<ProductImage>[];
+  variants?: Partial<ProductVariant>[];
+}

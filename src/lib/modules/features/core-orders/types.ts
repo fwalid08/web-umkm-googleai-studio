@@ -39,6 +39,29 @@ export interface OrderItem {
   subtotal: number;
 }
 
+export interface OrderItemInput {
+  productId: string;
+  productName: string;
+  variantId?: string;
+  variantName?: string;
+  quantity: number;
+  price: number;
+}
+
+export interface CreateOrderRequest {
+  websiteId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerAddress: string;
+  items: OrderItemInput[];
+  subtotal: number;
+  shippingCost: number;
+  total: number;
+  paymentMethod: PaymentMethod;
+  notes?: string;
+}
+
 export interface OrderConfig {
   waNumber: string;
   autoReply: boolean;

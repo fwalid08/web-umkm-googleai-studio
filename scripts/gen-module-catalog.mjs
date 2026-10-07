@@ -57,13 +57,17 @@ function getFeatureExportName(folderPath) {
   return ident(folderPath.split("/").pop()).toUpperCase() + "_FEATURE";
 }
 
-const featureImports = featureFolders.map((f) => {
-  const exportName = getFeatureExportName(join(featuresDir, f));
-  return `import ${ident(f)} from "./features/${f}"; // ${exportName}`;
-}).join("\n");
+const featureEntries = featureFolders.map((f) => ({
+  folder: f,
+  exportName: getFeatureExportName(join(featuresDir, f)),
+}));
+
+const featureImports = featureEntries
+  .map(({ folder, exportName }) => `import { ${exportName} } from "./features/${folder}";`)
+  .join("\n");
 
 const coreImports = coreFolders.map((f) => {
-  return `import ${ident(f)} from "./core/${f}";`;
+  return `import * as ${ident(f)} from "./core/${f}";`;
 }).join("\n");
 
 const source = `// AUTO-GENERATED oleh scripts/gen-module-catalog.mjs — JANGAN edit manual.
@@ -87,13 +91,13 @@ ${coreFolders.map((f) => `  "${f}",`).join("\n")}
 ] as const;
 
 /** Katalog semua feature modules (billable features). */
-export const GENERATED_FEATURE_CATALOG = [
-${featureFolders.map((f) => `  ${ident(f)},`).join("\n")}
+export const GENERATED_FEATURE_CATALOG: Feature[] = [
+${featureEntries.map(({ exportName }) => `  ${exportName},`).join("\n")}
 ];
 
 /** Katalog core modules (infrastructure). */
-export const GENERATED_CORE_CATALOG = [
-${coreFolders.map((f) => `  ${ident(f)},`).join("\n")}
+export const GENERATED_CORE_CATALOG: CoreModule[] = [
+${coreFolders.map((f) => `  ${ident(f)} as unknown as CoreModule,`).join("\n")}
 ];
 `;
 

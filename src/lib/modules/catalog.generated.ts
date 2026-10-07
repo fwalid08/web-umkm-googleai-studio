@@ -5,11 +5,11 @@
 import type { Feature } from "./types";
 import type { CoreModule } from "./types";
 
-import cek_ongkir from "./features/cek-ongkir"; // CEK_ONGKIR_FEATURE
-import core_orders from "./features/core-orders"; // CORE_ORDERS_FEATURE
-import core_products from "./features/core-products"; // CORE_PRODUCTS_FEATURE
-import entitlements from "./core/entitlements";
-import site_types from "./core/site-types";
+import { CEK_ONGOIR_FEATURE } from "./features/cek-ongkir";
+import { ORDERS_WA_FEATURE } from "./features/core-orders";
+import { PRODUCTS_DASAR_FEATURE } from "./features/core-products";
+import * as entitlements from "./core/entitlements";
+import * as site_types from "./core/site-types";
 
 /** Nama folder tiap feature module, sejajar index dengan GENERATED_FEATURE_CATALOG. */
 export const GENERATED_FEATURE_FOLDERS = [
@@ -25,14 +25,14 @@ export const GENERATED_CORE_FOLDERS = [
 ] as const;
 
 /** Katalog semua feature modules (billable features). */
-export const GENERATED_FEATURE_CATALOG = [
-  cek_ongkir,
-  core_orders,
-  core_products,
+export const GENERATED_FEATURE_CATALOG: Feature[] = [
+  CEK_ONGOIR_FEATURE,
+  ORDERS_WA_FEATURE,
+  PRODUCTS_DASAR_FEATURE,
 ];
 
 /** Katalog core modules (infrastructure). */
-export const GENERATED_CORE_CATALOG = [
-  entitlements,
-  site_types,
+export const GENERATED_CORE_CATALOG: CoreModule[] = [
+  entitlements as unknown as CoreModule,
+  site_types as unknown as CoreModule,
 ];
